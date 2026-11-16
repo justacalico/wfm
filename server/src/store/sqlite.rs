@@ -792,4 +792,28 @@ impl Db for SqliteDb {
             .await
             .map_err(dberr)
     }
+
+    async fn setting_get(&self, k: &str) -> DbResult<Option<String>> {
+        let k = k.to_string();
+        self.q(move |c| {
+            c.query_row("SELECT v FROM wfm_settings WHERE k=?", [&k], |r| r.get(0))
+                .optional()
+        })
+        .await
+        .map_err(dberr)
+    }
+
+    async fn setting_set(&self, k: &str, v: &str) -> DbResult<()> {
+        let k = k.to_string();
+        let v = v.to_string();
+        self.q(move |c| {
+            c.execute(
+                "INSERT INTO wfm_settings(k,v) VALUES(?,?) ON CONFLICT(k) DO UPDATE SET v=excluded.v",
+                [&k, &v],
+            )
+        })
+        .await
+        .map(|_| ())
+        .map_err(dberr)
+    }
 }

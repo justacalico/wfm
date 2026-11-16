@@ -701,4 +701,22 @@ impl Db for PgDb {
         .map_err(map_err)?;
         Ok(rows.into_iter().map(row_audit).collect())
     }
+
+    async fn setting_get(&self, k: &str) -> DbResult<Option<String>> {
+        sqlx::query_scalar("SELECT v FROM wfm_settings WHERE k=$1")
+            .bind(k)
+            .fetch_optional(&self.pool)
+            .await
+            .map_err(map_err)
+    }
+
+    async fn setting_set(&self, k: &str, v: &str) -> DbResult<()> {
+        sqlx::query("INSERT INTO wfm_settings(k,v) VALUES($1,$2) ON CONFLICT(k) DO UPDATE SET v=excluded.v")
+            .bind(k)
+            .bind(v)
+            .execute(&self.pool)
+            .await
+            .map(|_| ())
+            .map_err(map_err)
+    }
 }

@@ -26,6 +26,7 @@ pub struct Config {
     pub s3_access: String,
     pub s3_secret: String,
     pub s3_prefix: String,
+    pub trusted_proxies: Vec<ipnet::IpNet>,
 }
 
 #[derive(Clone)]
@@ -107,6 +108,8 @@ impl Config {
             s3_access: env("WFM_S3_ACCESS_KEY", "rustfsadmin"),
             s3_secret: env("WFM_S3_SECRET_KEY", "rustfsadmin"),
             s3_prefix: env("WFM_S3_PREFIX", ""),
+            trusted_proxies: crate::auth::parse_nets(&env("WFM_TRUSTED_PROXIES", ""))
+                .unwrap_or_default(),
             worker: None,
         };
 
@@ -154,6 +157,9 @@ impl Config {
                 }
                 "--lock-ttl" => c.lock_ttl = next(&mut i)?.parse::<i64>().map_err(|e| e.to_string())?,
                 "--public-url" => c.public_url = next(&mut i)?,
+                "--trusted-proxies" => {
+                    c.trusted_proxies = crate::auth::parse_nets(&next(&mut i)?)?
+                }
                 "--worker" => {
                     let server = next(&mut i)?;
                     let token = next(&mut i)?;
@@ -183,11 +189,13 @@ impl Config {
                          --ffprobe PATH         ffprobe binary path\n\
                          --no-local-renders     disable local render processing\n\
                          --db URL               database url: sqlite (default) or postgres://\n\
+                         --trusted-proxies LIST honor X-Forwarded-For from these proxies\n\
                          --worker URL TOKEN [NAME]  run as a remote render node\n\
                          Env: WFM_ADDR WFM_DATA WFM_DB WFM_WEB_DIR WFM_FILMCRAFT_DIR \
                          WFM_MAX_UPLOAD_MB WFM_SECURE_COOKIES WFM_CORS_ORIGINS \
                          WFM_RENDER_WORKERS WFM_FFMPEG WFM_LOCAL_RENDERS \
-                         WFM_SESSION_DAYS WFM_LOCK_TTL WFM_PUBLIC_URL"
+                         WFM_SESSION_DAYS WFM_LOCK_TTL WFM_PUBLIC_URL \
+                         WFM_TRUSTED_PROXIES"
                     );
                     std::process::exit(0);
                 }

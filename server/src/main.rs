@@ -11,7 +11,7 @@ mod worker;
 
 use std::collections::{HashMap, HashSet};
 use std::net::SocketAddr;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, RwLock};
 
 use auth::AppState;
 
@@ -62,7 +62,14 @@ async fn main() {
         blobs,
         logins: Mutex::new(HashMap::new()),
         cancels: Mutex::new(HashSet::new()),
+        trusted: RwLock::new(cfg.trusted_proxies.clone()),
     });
+    if let Ok(Some(v)) = state.db.setting_get("trusted_proxies").await {
+        match auth::parse_nets(&v) {
+            Ok(nets) => *state.trusted.write().unwrap() = nets,
+            Err(e) => tracing::warn!("stored trusted_proxies invalid: {e}"),
+        }
+    }
 
     render::spawn_janitor(state.clone());
     if state.cfg.local_renders {

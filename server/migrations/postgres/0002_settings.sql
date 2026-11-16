@@ -1,0 +1,4 @@
+CREATE TABLE wfm_settings(
+  k TEXT PRIMARY KEY,
+  v TEXT NOT NULL DEFAULT ''
+);

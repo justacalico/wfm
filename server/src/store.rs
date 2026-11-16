@@ -139,6 +139,10 @@ pub trait Db: Send + Sync {
         subtree_user_id: Option<&str>,
         limit: i64,
     ) -> DbResult<Vec<AuditEntry>>;
+
+    // key-value settings
+    async fn setting_get(&self, k: &str) -> DbResult<Option<String>>;
+    async fn setting_set(&self, k: &str, v: &str) -> DbResult<()>;
 }
 
 #[derive(RustEmbed)]

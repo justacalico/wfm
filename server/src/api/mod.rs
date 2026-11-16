@@ -52,6 +52,7 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/projects/{id}/locks/heartbeat", post(lock_heartbeat))
         .route("/projects/{id}/renders", get(list_renders).post(create_render))
         .route("/renders/{id}/cancel", post(cancel_render))
+        .route("/settings", get(get_settings).put(put_settings))
         .route("/nodes", get(list_nodes).post(create_node))
         .route("/nodes/{id}", patch(update_node).delete(delete_node))
         .route("/worker/poll", post(worker_poll))
@@ -98,10 +99,12 @@ async fn setup_status(State(s): State<Arc<AppState>>) -> Json<Value> {
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct SetupReq {
     username: String,
     password: String,
     name: String,
+    trusted_proxies: Option<String>,
 }
 
 async fn setup_owner(
@@ -124,6 +127,15 @@ async fn setup_owner(
     if name.is_empty() || name.len() > 64 {
         return err(StatusCode::BAD_REQUEST, "invalid name");
     }
+    let proxies = req
+        .trusted_proxies
+        .as_deref()
+        .map(str::trim)
+        .filter(|v| !v.is_empty());
+    let nets = match proxies.map(auth::parse_nets).transpose() {
+        Ok(n) => n,
+        Err(e) => return err(StatusCode::BAD_REQUEST, &e),
+    };
     let hash = match auth::hash_password(&req.password) {
         Ok(h) => h,
         Err(e) => return err(StatusCode::INTERNAL_SERVER_ERROR, &e),
@@ -145,12 +157,18 @@ async fn setup_owner(
     if let Err(e) = s.db.create_user(&u, &hash).await {
         return db_resp(e);
     }
+    if let (Some(list), Some(nets)) = (proxies, nets) {
+        if let Err(e) = s.db.setting_set("trusted_proxies", list).await {
+            return db_resp(e);
+        }
+        *s.trusted.write().unwrap() = nets;
+    }
     s.audit("account", &u, "setup_owner", &u.username, "", "/")
         .await;
     let token = model::new_token();
     let csrf = model::new_token();
     let expires = AppState::now() + s.cfg.session_ttl;
-    let ip = client_ip(&parts).to_string();
+    let ip = client_ip(&s, &parts).to_string();
     if let Err(e) = s
         .db
         .create_session(&model::token_hash(&token), &u.id, &csrf, expires, &ip, "")
@@ -182,7 +200,7 @@ async fn login(
     parts: axum::http::request::Parts,
     Json(req): Json<LoginReq>,
 ) -> Response {
-    let ip = client_ip(&parts);
+    let ip = client_ip(&s, &parts);
     if let Some(wait) = login_throttle(&s, ip) {
         return err(
             StatusCode::TOO_MANY_REQUESTS,
@@ -1217,6 +1235,53 @@ async fn cancel_render(
         .job_finish(&id, "canceled", "", AppState::now())
         .await;
     let _ = s.db.lock_release(&job.project_id, "render", &job.id).await;
+    Json(json!({"ok": true})).into_response()
+}
+
+// ---------- server settings ----------
+
+async fn get_settings(State(s): State<Arc<AppState>>, session: Session) -> Response {
+    if session.user.role != Role::Owner {
+        return err(StatusCode::FORBIDDEN, "owner only");
+    }
+    let effective = match s.db.setting_get("trusted_proxies").await {
+        Ok(Some(v)) => v,
+        _ => s
+            .cfg
+            .trusted_proxies
+            .iter()
+            .map(|n| n.to_string())
+            .collect::<Vec<_>>()
+            .join(", "),
+    };
+    Json(json!({"trustedProxies": effective})).into_response()
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SettingsReq {
+    trusted_proxies: String,
+}
+
+async fn put_settings(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Json(req): Json<SettingsReq>,
+) -> Response {
+    if session.user.role != Role::Owner {
+        return err(StatusCode::FORBIDDEN, "owner only");
+    }
+    let list = req.trusted_proxies.trim();
+    let nets = match auth::parse_nets(list) {
+        Ok(n) => n,
+        Err(e) => return err(StatusCode::BAD_REQUEST, &e),
+    };
+    if let Err(e) = s.db.setting_set("trusted_proxies", list).await {
+        return db_resp(e);
+    }
+    *s.trusted.write().unwrap() = nets;
+    s.audit("account", &session.user, "update_settings", "trusted_proxies", list, "")
+        .await;
     Json(json!({"ok": true})).into_response()
 }
 

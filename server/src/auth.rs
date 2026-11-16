@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::net::IpAddr;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, RwLock};
 use std::time::{Duration, Instant};
 
 use rand_core::OsRng;
@@ -79,6 +79,7 @@ pub struct AppState {
     pub blobs: Arc<dyn crate::blobs::Blobs>,
     pub logins: Mutex<HashMap<IpAddr, (u32, Instant)>>,
     pub cancels: Mutex<HashSet<String>>,
+    pub trusted: RwLock<Vec<ipnet::IpNet>>,
 }
 
 impl AppState {
@@ -218,19 +219,110 @@ pub fn login_ok(state: &AppState, ip: IpAddr) {
     state.logins.lock().unwrap().remove(&ip);
 }
 
-pub fn client_ip(parts: &Parts) -> IpAddr {
-    if let Some(v) = parts
-        .headers
-        .get("x-forwarded-for")
-        .and_then(|v| v.to_str().ok())
-        .and_then(|s| s.split(',').next())
-        .and_then(|s| s.trim().parse::<IpAddr>().ok())
-    {
-        return v;
+/// Parse a comma-separated list of IPs and CIDR ranges into networks.
+pub fn parse_nets(list: &str) -> Result<Vec<ipnet::IpNet>, String> {
+    list.split(',')
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+        .map(|s| {
+            s.parse::<ipnet::IpNet>()
+                .or_else(|_| s.parse::<IpAddr>().map(ipnet::IpNet::from))
+                .map_err(|_| format!("bad proxy address '{s}'"))
+        })
+        .collect()
+}
+
+/// Resolve the real client address. X-Forwarded-For is only honored when
+/// the direct peer is trusted; the rightmost untrusted hop wins.
+pub fn forwarded_ip(peer: IpAddr, xff: Option<&str>, trusted: &[ipnet::IpNet]) -> IpAddr {
+    if trusted.is_empty() || !trusted.iter().any(|n| n.contains(&peer)) {
+        return peer;
     }
-    parts
+    xff.and_then(|s| {
+        s.split(',')
+            .filter_map(|h| h.trim().parse::<IpAddr>().ok())
+            .collect::<Vec<_>>()
+            .into_iter()
+            .rev()
+            .find(|ip| !trusted.iter().any(|n| n.contains(ip)))
+    })
+    .unwrap_or(peer)
+}
+
+/// Client IP for rate limiting and audit.
+pub fn client_ip(state: &AppState, parts: &Parts) -> IpAddr {
+    let peer = parts
         .extensions
         .get::<axum::extract::ConnectInfo<std::net::SocketAddr>>()
         .map(|c| c.0.ip())
-        .unwrap_or(IpAddr::from([127, 0, 0, 1]))
+        .unwrap_or(IpAddr::from([127, 0, 0, 1]));
+    let xff = parts
+        .headers
+        .get("x-forwarded-for")
+        .and_then(|v| v.to_str().ok());
+    forwarded_ip(peer, xff, &state.trusted.read().unwrap())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::net::Ipv4Addr;
+
+    fn v4(a: u8, b: u8, c: u8, d: u8) -> IpAddr {
+        IpAddr::V4(Ipv4Addr::new(a, b, c, d))
+    }
+
+    #[test]
+    fn parse_nets_accepts_ips_and_cidrs() {
+        let n = parse_nets("10.0.0.1, 192.168.0.0/16 ,::1").unwrap();
+        assert_eq!(n.len(), 3);
+        assert!(n[0].contains(&v4(10, 0, 0, 1)));
+        assert!(!n[0].contains(&v4(10, 0, 0, 2)));
+        assert!(n[1].contains(&v4(192, 168, 7, 7)));
+        assert!(parse_nets("not-an-ip").is_err());
+        assert!(parse_nets("").unwrap().is_empty());
+    }
+
+    #[test]
+    fn xff_ignored_without_trusted_peer() {
+        let trusted = parse_nets("10.0.0.0/8").unwrap();
+        // direct client is not a trusted proxy: header ignored entirely
+        assert_eq!(
+            forwarded_ip(v4(1, 2, 3, 4), Some("9.9.9.9"), &trusted),
+            v4(1, 2, 3, 4)
+        );
+        // empty trusted list: always peer
+        assert_eq!(
+            forwarded_ip(v4(10, 0, 0, 1), Some("9.9.9.9"), &[]),
+            v4(10, 0, 0, 1)
+        );
+        // missing header
+        assert_eq!(forwarded_ip(v4(10, 0, 0, 1), None, &trusted), v4(10, 0, 0, 1));
+    }
+
+    #[test]
+    fn xff_rightmost_untrusted_wins() {
+        let trusted = parse_nets("10.0.0.0/8").unwrap();
+        let peer = v4(10, 0, 0, 1);
+        // client, untrusted middlebox, trusted proxy
+        assert_eq!(
+            forwarded_ip(peer, Some("203.0.113.5, 198.51.100.7, 10.0.0.9"), &trusted),
+            v4(198, 51, 100, 7)
+        );
+        // single client hop
+        assert_eq!(
+            forwarded_ip(peer, Some("203.0.113.5"), &trusted),
+            v4(203, 0, 113, 5)
+        );
+        // whole chain trusted falls back to peer
+        assert_eq!(
+            forwarded_ip(peer, Some("10.0.0.2, 10.0.0.3"), &trusted),
+            peer
+        );
+        // junk entries are skipped
+        assert_eq!(
+            forwarded_ip(peer, Some("garbage, 203.0.113.5"), &trusted),
+            v4(203, 0, 113, 5)
+        );
+    }
 }

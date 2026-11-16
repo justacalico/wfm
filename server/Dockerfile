@@ -1,10 +1,10 @@
 FROM ghcr.io/cirruslabs/flutter:stable AS web
 WORKDIR /app
-COPY pubspec.yaml pubspec.lock ./
-RUN flutter pub get
+COPY pubspec.yaml pubspec.lock l10n.yaml ./
 COPY lib/ ./lib/
+COPY assets/ ./assets/
 COPY web/ ./web/
-RUN flutter build web --release --base-href /app/
+RUN flutter pub get && flutter build web --release --base-href /app/
 
 FROM rust:1-slim AS build
 WORKDIR /src
