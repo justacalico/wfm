@@ -163,8 +163,8 @@ pages:
     - mkdir -p landing/assets/screenshots
     - cp test/goldens/home.png test/goldens/projects.png test/goldens/project_files.png landing/assets/screenshots/ 2>/dev/null || true
   script:
-    - cd landing && flutter pub get && flutter build web --release --base-href "/${CI_PROJECT_NAME}/" && cd ..
-    - flutter pub get && flutter build web --release --base-href "/${CI_PROJECT_NAME}/app/" --output web-app
+    - cd landing && flutter pub get && flutter build web --release --base-href "/" && cd ..
+    - flutter pub get && flutter build web --release --base-href "/app/" --output web-app
     - mkdir -p public public/app
     - cp -r landing/build/web/* public/
     - cp -r web-app/* public/app/
