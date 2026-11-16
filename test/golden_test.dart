@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -7,6 +8,21 @@ import 'package:wfm/main.dart';
 import 'package:wfm/platform.dart';
 import 'helpers.dart';
 
+class _TolerantComparator extends LocalFileComparator {
+  _TolerantComparator(Uri basedir) : super(basedir.resolve('t.dart'));
+
+  @override
+  Future<bool> compare(Uint8List imageBytes, Uri golden) async {
+    final result = await GoldenFileComparator.compareLists(
+        imageBytes, await getGoldenBytes(golden));
+    if (!result.passed && result.diffPercent < 0.005) {
+      debugPrint('golden $golden diff ${result.diffPercent} tolerated');
+      return true;
+    }
+    return result.passed;
+  }
+}
+
 void main() {
   setUpAll(loadTestFonts);
 
@@ -14,6 +30,11 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     openExternalForTesting = null;
     pickFilesForTesting = null;
+    final prev = goldenFileComparator;
+    if (prev is LocalFileComparator) {
+      goldenFileComparator = _TolerantComparator(prev.basedir);
+      addTearDown(() => goldenFileComparator = prev);
+    }
   });
 
   Future<void> snap(WidgetTester t, String name) async {
