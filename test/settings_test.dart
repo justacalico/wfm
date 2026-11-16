@@ -214,6 +214,16 @@ void main() {
       await t.pumpWidget(const SizedBox());
     }
   });
+
+  testWidgets('update check without factory uses real checker', (t) async {
+    installApi(extra: {'GET *': (_) => []});
+    await t.binding.setSurfaceSize(const Size(1000, 900));
+    addTearDown(() => t.binding.setSurfaceSize(null));
+    await goSettings(t);
+    await t.tap(find.text('Check for updates'));
+    await settle(t, 60);
+    expect(find.text('Update check failed'), findsOneWidget);
+  });
 }
 
 class _StaticClient extends http.BaseClient {
