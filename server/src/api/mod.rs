@@ -48,6 +48,7 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/projects/{id}/files/move", post(move_file))
         .route("/projects/{id}/download", get(download))
         .route("/projects/{id}/locks", post(lock_acquire).delete(lock_release))
+        .route("/projects/{id}/locks/release", post(lock_release))
         .route("/projects/{id}/locks/heartbeat", post(lock_heartbeat))
         .route("/projects/{id}/renders", get(list_renders).post(create_render))
         .route("/renders/{id}/cancel", post(cancel_render))
@@ -103,7 +104,11 @@ struct SetupReq {
     name: String,
 }
 
-async fn setup_owner(State(s): State<Arc<AppState>>, Json(req): Json<SetupReq>) -> Response {
+async fn setup_owner(
+    State(s): State<Arc<AppState>>,
+    parts: axum::http::request::Parts,
+    Json(req): Json<SetupReq>,
+) -> Response {
     match s.db.owner_count().await {
         Ok(0) => {}
         Ok(_) => return err(StatusCode::CONFLICT, "setup already done"),
@@ -142,7 +147,28 @@ async fn setup_owner(State(s): State<Arc<AppState>>, Json(req): Json<SetupReq>) 
     }
     s.audit("account", &u, "setup_owner", &u.username, "", "/")
         .await;
-    Json(json!({"ok": true, "user": u})).into_response()
+    let token = model::new_token();
+    let csrf = model::new_token();
+    let expires = AppState::now() + s.cfg.session_ttl;
+    let ip = client_ip(&parts).to_string();
+    if let Err(e) = s
+        .db
+        .create_session(&model::token_hash(&token), &u.id, &csrf, expires, &ip, "")
+        .await
+    {
+        return db_resp(e);
+    }
+    let mut r = Json(json!({"ok": true, "user": u, "csrf": csrf, "token": token})).into_response();
+    r.headers_mut().insert(
+        header::SET_COOKIE,
+        HeaderValue::from_str(&auth::session_cookie(
+            &token,
+            s.cfg.secure_cookies,
+            s.cfg.session_ttl,
+        ))
+        .unwrap(),
+    );
+    r
 }
 
 #[derive(Deserialize)]
@@ -647,6 +673,8 @@ async fn delete_project(
 struct FileQuery {
     #[serde(default)]
     path: String,
+    #[serde(default)]
+    dl: bool,
 }
 
 async fn list_files(
@@ -735,39 +763,10 @@ async fn upload_file(
         Ok(k) => k,
         Err(e) => return fs_resp(e),
     };
-    let tmp = s.cfg.data_dir.join("tmp").join(format!("up-{}", model::new_id()));
-    let _ = std::fs::create_dir_all(tmp.parent().unwrap());
-    let mut f = match tokio::fs::File::create(&tmp).await {
-        Ok(f) => f,
-        Err(e) => return fs_resp(e.into()),
+    let (tmp, written) = match spool_body(&s, body, s.cfg.max_upload).await {
+        Ok(v) => v,
+        Err(r) => return r,
     };
-    let mut stream = body.into_data_stream();
-    let mut written: u64 = 0;
-    let mut failed: Option<Response> = None;
-    while let Some(chunk) = stream.next().await {
-        match chunk {
-            Ok(b) => {
-                written += b.len() as u64;
-                if written > s.cfg.max_upload {
-                    failed = Some(err(StatusCode::PAYLOAD_TOO_LARGE, "file too large"));
-                    break;
-                }
-                if let Err(e) = tokio::io::AsyncWriteExt::write_all(&mut f, &b).await {
-                    failed = Some(fs_resp(e.into()));
-                    break;
-                }
-            }
-            Err(e) => {
-                failed = Some(err(StatusCode::BAD_REQUEST, &e.to_string()));
-                break;
-            }
-        }
-    }
-    drop(f);
-    if let Some(r) = failed {
-        let _ = tokio::fs::remove_file(&tmp).await;
-        return r;
-    }
     let put = async {
         let mut f = tokio::fs::File::open(&tmp).await.map_err(|e| e.to_string())?;
         s.blobs
@@ -789,6 +788,42 @@ async fn upload_file(
     )
     .await;
     Json(json!({"ok": true, "size": written})).into_response()
+}
+
+/// Spool a request body to a temp file with a size cap. Returns the temp path
+/// and bytes written; the caller moves or deletes the file.
+async fn spool_body(s: &AppState, body: Body, max: u64) -> Result<(std::path::PathBuf, u64), Response> {
+    let tmp = s.cfg.data_dir.join("tmp").join(format!("up-{}", model::new_id()));
+    let _ = std::fs::create_dir_all(tmp.parent().unwrap());
+    let mut f = tokio::fs::File::create(&tmp).await.map_err(|e| fs_resp(e.into()))?;
+    let mut stream = body.into_data_stream();
+    let mut written: u64 = 0;
+    let mut failed: Option<Response> = None;
+    while let Some(chunk) = stream.next().await {
+        match chunk {
+            Ok(b) => {
+                written += b.len() as u64;
+                if written > max {
+                    failed = Some(err(StatusCode::PAYLOAD_TOO_LARGE, "file too large"));
+                    break;
+                }
+                if let Err(e) = tokio::io::AsyncWriteExt::write_all(&mut f, &b).await {
+                    failed = Some(fs_resp(e.into()));
+                    break;
+                }
+            }
+            Err(e) => {
+                failed = Some(err(StatusCode::BAD_REQUEST, &e.to_string()));
+                break;
+            }
+        }
+    }
+    drop(f);
+    if let Some(r) = failed {
+        let _ = tokio::fs::remove_file(&tmp).await;
+        return Err(r);
+    }
+    Ok((tmp, written))
 }
 
 #[derive(Deserialize)]
@@ -882,10 +917,10 @@ async fn download(
         Ok(k) => k,
         Err(e) => return fs_resp(e),
     };
-    serve_blob(&s, &blob_key(&p.dir, &key), &key, &headers).await
+    serve_blob(&s, &blob_key(&p.dir, &key), &key, &headers, q.dl).await
 }
 
-async fn serve_blob(s: &Arc<AppState>, key: &str, name: &str, headers: &HeaderMap) -> Response {
+async fn serve_blob(s: &Arc<AppState>, key: &str, name: &str, headers: &HeaderMap, attachment: bool) -> Response {
     let size = match s.blobs.head(key).await {
         Ok(v) => v,
         Err(_) => return err(StatusCode::NOT_FOUND, "not found"),
@@ -921,48 +956,15 @@ async fn serve_blob(s: &Arc<AppState>, key: &str, name: &str, headers: &HeaderMa
             HeaderValue::from_str(&format!("bytes {start}-{end}/{size}")).unwrap(),
         );
     }
-    r
-}
-
-async fn serve_file(path: &std::path::Path, size: u64, headers: &HeaderMap) -> Response {
-    let mime = mime_guess::from_path(path)
-        .first_or_octet_stream()
-        .to_string();
-    let (start, end, partial) = match headers.get(header::RANGE).and_then(|v| v.to_str().ok()) {
-        Some(r) => match parse_range(r, size) {
-            Some((s, e)) => (s, e, true),
-            None => (0u64, size.saturating_sub(1), false),
-        },
-        None => (0u64, size.saturating_sub(1), false),
-    };
-    let file = match tokio::fs::File::open(path).await {
-        Ok(f) => f,
-        Err(e) => return fs_resp(e.into()),
-    };
-    use tokio::io::{AsyncReadExt, AsyncSeekExt};
-    let mut file = file;
-    if start > 0 {
-        if let Err(e) = file.seek(std::io::SeekFrom::Start(start)).await {
-            return fs_resp(e.into());
-        }
-    }
-    let len = end.saturating_sub(start) + 1;
-    let limited = file.take(len);
-    let stream = tokio_util::io::ReaderStream::new(limited);
-    let status = if partial { StatusCode::PARTIAL_CONTENT } else { StatusCode::OK };
-    let mut r = Response::new(Body::from_stream(stream));
-    *r.status_mut() = status;
-    let h = r.headers_mut();
-    h.insert(header::CONTENT_TYPE, HeaderValue::from_str(&mime).unwrap());
-    h.insert(
-        header::CONTENT_LENGTH,
-        HeaderValue::from_str(&len.to_string()).unwrap(),
-    );
-    h.insert(header::ACCEPT_RANGES, HeaderValue::from_static("bytes"));
-    if partial {
+    if attachment {
+        let fname = name.rsplit('/').next().unwrap_or(name);
+        let safe: String = fname
+            .chars()
+            .map(|c| if c.is_ascii_alphanumeric() || "._- ".contains(c) { c } else { '_' })
+            .collect();
         h.insert(
-            header::CONTENT_RANGE,
-            HeaderValue::from_str(&format!("bytes {start}-{end}/{size}")).unwrap(),
+            header::CONTENT_DISPOSITION,
+            HeaderValue::from_str(&format!("attachment; filename=\"{safe}\"")).unwrap(),
         );
     }
     r
@@ -1335,7 +1337,7 @@ async fn worker_file(
         Ok(k) => k,
         Err(e) => return fs_resp(e),
     };
-    serve_blob(&s, &blob_key(&project.dir, &key), &key, &headers).await
+    serve_blob(&s, &blob_key(&project.dir, &key), &key, &headers, false).await
 }
 
 #[derive(Deserialize)]
@@ -1384,19 +1386,14 @@ async fn worker_complete(
     } else {
         q.path
     };
-    let tmp = s.cfg.data_dir.join("tmp").join(format!("up-{}", model::new_id()));
-    let _ = std::fs::create_dir_all(tmp.parent().unwrap());
-    let bytes = match axum::body::to_bytes(body, 8 * 1024 * 1024 * 1024).await {
-        Ok(b) => b,
-        Err(e) => return err(StatusCode::BAD_REQUEST, &e.to_string()),
+    let (tmp, len) = match spool_body(&s, body, s.cfg.max_upload).await {
+        Ok(v) => v,
+        Err(r) => return r,
     };
-    if let Err(e) = tokio::fs::write(&tmp, &bytes).await {
-        return fs_resp(e.into());
-    }
     let put = async {
         let mut f = tokio::fs::File::open(&tmp).await.map_err(|e| e.to_string())?;
         s.blobs
-            .put(&blob_key(&project.dir, &format!("Exports/{name}")), bytes.len() as u64, &mut f)
+            .put(&blob_key(&project.dir, &format!("Exports/{name}")), len, &mut f)
             .await
     }
     .await;

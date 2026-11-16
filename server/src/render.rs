@@ -19,6 +19,7 @@ pub fn ffmpeg_args(
     spec: &RenderSpec,
     resolve: &dyn Fn(&str) -> Result<PathBuf, files::FsError>,
     output: &Path,
+    ffprobe: &str,
 ) -> Result<Vec<String>, String> {
     if spec.clips.is_empty() {
         return Err("no clips".into());
@@ -32,8 +33,10 @@ pub fn ffmpeg_args(
         let p = resolve(&c.path).map_err(|_| format!("bad path {}", c.path))?;
         let dur = if c.out > c.in_point {
             c.out - c.in_point
+        } else if c.duration > 0.0 {
+            c.duration
         } else {
-            c.duration.max(0.0)
+            probe_duration(ffprobe, &p).unwrap_or(0.0)
         };
         if dur <= 0.0 {
             return Err(format!("clip {} has no length", c.path));
@@ -142,14 +145,40 @@ fn fmt_ts(t: f64) -> String {
     format!("{:.3}", t.max(0.0))
 }
 
-fn spec_duration(spec: &RenderSpec) -> f64 {
+/// Media duration in seconds via ffprobe; None when the file can't be probed.
+pub fn probe_duration(ffprobe: &str, path: &Path) -> Option<f64> {
+    let out = std::process::Command::new(ffprobe)
+        .args([
+            "-v", "error",
+            "-show_entries", "format=duration",
+            "-of", "default=noprint_wrappers=1:nokey=1",
+        ])
+        .arg(path)
+        .output()
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    String::from_utf8_lossy(&out.stdout).trim().parse().ok()
+}
+
+pub fn spec_duration(
+    spec: &RenderSpec,
+    resolve: &dyn Fn(&str) -> Result<PathBuf, files::FsError>,
+    ffprobe: &str,
+) -> f64 {
     spec.clips
         .iter()
         .map(|c| {
             if c.out > c.in_point {
                 c.out - c.in_point
+            } else if c.duration > 0.0 {
+                c.duration
             } else {
-                c.duration.max(0.0)
+                resolve(&c.path)
+                    .ok()
+                    .and_then(|p| probe_duration(ffprobe, &p))
+                    .unwrap_or(0.0)
             }
         })
         .sum()
@@ -343,7 +372,7 @@ async fn run_job(state: &Arc<AppState>, job: &RenderJob) {
     }
     let tmp_out = stage.join("output.mp4");
     let resolve = |rel: &str| files::resolve(&media_root, rel);
-    let args = match ffmpeg_args(&spec, &resolve, &tmp_out) {
+    let args = match ffmpeg_args(&spec, &resolve, &tmp_out, &state.cfg.ffprobe) {
         Ok(a) => a,
         Err(e) => {
             let _ = std::fs::remove_dir_all(&stage);
@@ -352,7 +381,7 @@ async fn run_job(state: &Arc<AppState>, job: &RenderJob) {
         }
     };
 
-    let total = spec_duration(&spec);
+    let total = spec_duration(&spec, &resolve, &state.cfg.ffprobe);
     let (state2, jid) = (state.clone(), job.id.clone());
     let mut last_report = std::time::Instant::now();
     let (state3, jid2) = (state.clone(), job.id.clone());

@@ -5,7 +5,7 @@ use serde::Deserialize;
 
 use crate::config::WorkerCfg;
 use crate::model::RenderSpec;
-use crate::render::{ffmpeg_args, run_ffmpeg};
+use crate::render::{ffmpeg_args, run_ffmpeg, spec_duration};
 
 /// `wfm --worker URL TOKEN NAME` turns this binary into a render node that
 /// polls the main server for jobs, downloads the referenced media, renders
@@ -113,22 +113,12 @@ async fn run_job(client: &reqwest::Client, cfg: &WorkerCfg, job: &Job) -> Result
             Err(crate::files::FsError::NotFound)
         }
     };
-    let args = ffmpeg_args(&spec, &resolve, &out).map_err(|e| {
+    let args = ffmpeg_args(&spec, &resolve, &out, &cfg.ffprobe).map_err(|e| {
         cleanup(&dir);
         e
     })?;
 
-    let total: f64 = spec
-        .clips
-        .iter()
-        .map(|c| {
-            if c.out > c.in_point {
-                c.out - c.in_point
-            } else {
-                c.duration.max(0.0)
-            }
-        })
-        .sum();
+    let total = spec_duration(&spec, &resolve, &cfg.ffprobe);
 
     let (client2, server, token, jid) = (
         client.clone(),

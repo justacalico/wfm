@@ -46,21 +46,9 @@ impl From<std::io::Error> for FsError {
     }
 }
 
-/// Project directory: <projects>/<username>/<userID>/<name>/<uuid>/
-pub fn project_dir(root: &Path, username: &str, user_id: &str, name: &str, id: &str) -> PathBuf {
-    root.join(username).join(user_id).join(name).join(id)
-}
-
+/// Project directory key: <username>/<userID>/<name>/<uuid>
 pub fn rel_project_dir(username: &str, user_id: &str, name: &str, id: &str) -> String {
     format!("{username}/{user_id}/{name}/{id}")
-}
-
-pub fn create_project_dirs(root: &Path, username: &str, user_id: &str, name: &str, id: &str) -> Result<PathBuf, FsError> {
-    let dir = project_dir(root, username, user_id, name, id);
-    for f in PROJECT_FOLDERS {
-        std::fs::create_dir_all(dir.join(f))?;
-    }
-    Ok(dir)
 }
 
 /// Clean a user-supplied relative path and reject escapes. Result is a safe
@@ -141,13 +129,6 @@ pub fn resolve(project_root: &Path, rel: &str) -> Result<PathBuf, FsError> {
     Ok(full)
 }
 
-pub fn resolve_root(project_root: &Path, rel: &str) -> Result<PathBuf, FsError> {
-    if rel.is_empty() || rel == "/" {
-        return Ok(project_root.to_path_buf());
-    }
-    resolve(project_root, rel)
-}
-
 #[derive(Serialize)]
 pub struct FileEntry {
     pub name: String,
@@ -156,117 +137,6 @@ pub struct FileEntry {
     pub kind: String,
     pub size: u64,
     pub modified: i64,
-}
-
-pub fn list(project_root: &Path, rel: &str) -> Result<Vec<FileEntry>, FsError> {
-    let dir = resolve_root(project_root, rel)?;
-    if dir == project_root {
-        // virtual root listing: the managed top-level folders
-        let mut out = Vec::new();
-        for f in ROOT_FOLDERS {
-            out.push(FileEntry {
-                name: f.to_string(),
-                path: f.to_string(),
-                kind: "dir".into(),
-                size: 0,
-                modified: 0,
-            });
-        }
-        return Ok(out);
-    }
-    let mut out = Vec::new();
-    for e in std::fs::read_dir(&dir)? {
-        let e = e?;
-        let name = e.file_name().to_string_lossy().to_string();
-        if name.starts_with('.') {
-            continue;
-        }
-        let meta = e.metadata()?;
-        if meta.is_symlink() {
-            continue;
-        }
-        let kind = if meta.is_dir() { "dir" } else { "file" };
-        out.push(FileEntry {
-            path: format!("{}/{}", rel.trim_matches('/'), name)
-                .trim_start_matches('/')
-                .to_string(),
-            name,
-            kind: kind.into(),
-            size: meta.len(),
-            modified: meta
-                .modified()
-                .ok()
-                .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-                .map(|d| d.as_secs() as i64)
-                .unwrap_or(0),
-        });
-    }
-    out.sort_by(|a, b| (b.kind == "dir").cmp(&(a.kind == "dir")).then(a.name.cmp(&b.name)));
-    Ok(out)
-}
-
-pub fn mkdir(project_root: &Path, rel: &str) -> Result<(), FsError> {
-    let p = resolve(project_root, rel)?;
-    if p.exists() {
-        return Err(FsError::Exists);
-    }
-    std::fs::create_dir_all(p)?;
-    Ok(())
-}
-
-pub fn remove(project_root: &Path, rel: &str) -> Result<(), FsError> {
-    let p = resolve(project_root, rel)?;
-    let rel_clean = clean_rel(rel)?;
-    // The managed root folders themselves may not be deleted.
-    if rel_clean.components().count() == 1 {
-        return Err(FsError::Forbidden);
-    }
-    if !p.exists() {
-        return Err(FsError::NotFound);
-    }
-    if p.is_dir() {
-        std::fs::remove_dir_all(p)?;
-    } else {
-        std::fs::remove_file(p)?;
-    }
-    Ok(())
-}
-
-pub fn rename(project_root: &Path, from: &str, to: &str) -> Result<(), FsError> {
-    let src = resolve(project_root, from)?;
-    let dst = resolve(project_root, to)?;
-    if !src.exists() {
-        return Err(FsError::NotFound);
-    }
-    if dst.exists() {
-        return Err(FsError::Exists);
-    }
-    if let Some(parent) = dst.parent() {
-        std::fs::create_dir_all(parent)?;
-    }
-    std::fs::rename(src, dst)?;
-    Ok(())
-}
-
-/// Path a streamed upload lands on; returns the temp path and final path.
-pub fn upload_paths(project_root: &Path, rel: &str) -> Result<(PathBuf, PathBuf), FsError> {
-    let dst = resolve(project_root, rel)?;
-    if dst.is_dir() {
-        return Err(FsError::BadPath);
-    }
-    if let Some(parent) = dst.parent() {
-        std::fs::create_dir_all(parent)?;
-    }
-    let tmp = dst.with_extension(format!(
-        "wfm-up-{}",
-        &crate::model::new_id()[..8]
-    ));
-    Ok((tmp, dst))
-}
-
-pub fn finish_upload(tmp: &Path, dst: &Path) -> Result<(), FsError> {
-    std::fs::rename(tmp, dst)?;
-    Ok(())
 }
 
 pub fn valid_project_name_or_err(name: &str) -> Result<String, FsError> {
