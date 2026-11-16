@@ -661,29 +661,35 @@ class HomePage extends StatelessWidget {
         showManage ? 3 : 2
       ),
     ];
+    final tight = MediaQuery.sizeOf(context).width < 720;
     return ListView(padding: const EdgeInsets.all(24), children: [
       Text(l10n.greeting(u.name.isEmpty ? u.username : u.name),
           style: Theme.of(context).textTheme.headlineSmall),
       const SizedBox(height: 16),
       Wrap(spacing: 12, runSpacing: 12, children: [
         for (final c in cards)
-          Card(
-            clipBehavior: Clip.antiAlias,
-            child: InkWell(
-              onTap: () =>
-                  context.findAncestorStateOfType<ShellState>()?.go(c.$4),
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(c.$1, size: 28),
-                      const SizedBox(height: 12),
-                      Text(c.$2,
-                          style: const TextStyle(fontWeight: FontWeight.bold)),
-                      Text(c.$3, style: Theme.of(context).textTheme.bodySmall),
-                    ]),
+          SizedBox(
+            width: tight ? double.infinity : null,
+            child: Card(
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: () =>
+                    context.findAncestorStateOfType<ShellState>()?.go(c.$4),
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(c.$1, size: 28),
+                        const SizedBox(height: 12),
+                        Text(c.$2,
+                            style:
+                                const TextStyle(fontWeight: FontWeight.bold)),
+                        Text(c.$3,
+                            style: Theme.of(context).textTheme.bodySmall),
+                      ]),
+                ),
               ),
             ),
           ),
