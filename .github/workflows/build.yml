@@ -1,0 +1,271 @@
+name: Build and Release
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      build_all:
+        description: 'Build all release targets'
+        type: boolean
+        default: true
+      create_release:
+        description: 'Create a versioned release from this build'
+        type: boolean
+        default: false
+      merge_request_id:
+        description: 'Merge request ID'
+        type: string
+        default: ''
+      merge_request_url:
+        description: 'Merge request URL'
+        type: string
+        default: ''
+
+permissions:
+  contents: write
+  actions: read
+
+env:
+  FLUTTER_VERSION: "3.47.7"
+  COCOGITTO_VERSION: "7.0.0"
+  APP_ID: "gitlab.httpanimations.wfm"
+
+concurrency:
+  group: ci-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+jobs:
+  setup:
+    name: Setup build metadata
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      build_number: ${{ steps.meta.outputs.build_number }}
+      build_all: ${{ steps.meta.outputs.build_all }}
+      targets: ${{ steps.meta.outputs.targets }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Read version and build metadata
+        id: meta
+        run: |
+          VERSION=$(grep '^version: ' pubspec.yaml | sed 's/^version: //; s/+.*//')
+          BUILD_NUMBER=$(grep '^version: ' pubspec.yaml | sed 's/.*+//')
+          if [ -n "${{ inputs.build_all }}" ]; then
+            BUILD_ALL="${{ inputs.build_all }}"
+          else
+            BUILD_ALL="true"
+          fi
+          if [ "$BUILD_ALL" = "true" ]; then
+            TARGETS='[{"target":"linux","os":"ubuntu-latest","arch":"x86_64"},{"target":"linux-arm64","os":"ubuntu-24.04-arm","arch":"aarch64"},{"target":"web","os":"ubuntu-latest"}]'
+          else
+            TARGETS='[]'
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "build_number=$BUILD_NUMBER" >> "$GITHUB_OUTPUT"
+          echo "build_all=$BUILD_ALL" >> "$GITHUB_OUTPUT"
+          echo "targets=$TARGETS" >> "$GITHUB_OUTPUT"
+
+  verify:
+    name: Verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Install cocogitto
+        run: |
+          curl -fsSL --retry 3 -o /tmp/cog.tar.gz "https://github.com/cocogitto/cocogitto/releases/download/${COCOGITTO_VERSION}/cocogitto-${COCOGITTO_VERSION}-x86_64-unknown-linux-musl.tar.gz"
+          mkdir -p /tmp/cog && tar -xzf /tmp/cog.tar.gz -C /tmp/cog
+          sudo install -m 755 /tmp/cog/x86_64-unknown-linux-musl/cog /usr/local/bin/cog
+
+      - name: Check commits
+        if: github.event_name != 'pull_request'
+        run: cog check
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Pub get
+        run: flutter pub get
+
+      - name: Check formatting
+        run: dart format --set-exit-if-changed lib test landing/lib landing/test
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos
+
+      - name: Test with coverage
+        run: flutter test --coverage
+
+      - name: Require 100% line coverage
+        run: |
+          python3 - <<'PY'
+          lf = lh = 0
+          cur = ''
+          missed = []
+          for line in open('coverage/lcov.info'):
+              line = line.strip()
+              if line.startswith('SF:'):
+                  cur = line[3:]
+              elif line.startswith('LF:'):
+                  lf += int(line[3:])
+              elif line.startswith('LH:'):
+                  lh += int(line[3:])
+              elif line.startswith('DA:') and line.endswith(',0'):
+                  missed.append(f'{cur}:{line[3:]}')
+          if lf == 0 or lh != lf:
+              print('\n'.join(missed))
+              raise SystemExit(f'coverage {lh}/{lf}, need 100%')
+          print(f'coverage {lh}/{lf} OK')
+          PY
+
+      - name: Landing analyze and test
+        run: |
+          cd landing
+          flutter pub get
+          flutter analyze --no-fatal-infos
+          flutter test
+
+      - name: Server tests
+        run: |
+          cd server
+          cargo test --locked
+
+  build:
+    name: Build ${{ matrix.target }}
+    needs: [setup, verify]
+    if: ${{ needs.setup.outputs.build_all == 'true' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(needs.setup.outputs.targets) }}
+    runs-on: ${{ matrix.os }}
+    env:
+      VERSION: ${{ needs.setup.outputs.version }}
+      TARGET: ${{ matrix.target }}
+      ARCH: ${{ matrix.arch }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Pub get
+        run: flutter pub get
+
+      - name: Build web bundle
+        if: matrix.target != 'web'
+        run: |
+          flutter build web --release --base-href /app/
+          mkdir -p server/web/app
+          cp -a build/web/. server/web/app/
+
+      - name: Stage FilmCraft bundle
+        if: matrix.target != 'web'
+        run: |
+          bash scripts/fetch-filmcraft.sh
+          mkdir -p server/web/filmcraft
+          cp filmcraft/wfm.html filmcraft/icon.svg filmcraft/VERSION server/web/filmcraft/
+          rm -rf server/web/filmcraft/dist
+          cp -a filmcraft/dist server/web/filmcraft/dist
+
+      - name: Build server binary
+        if: matrix.target != 'web'
+        run: |
+          cd server
+          cargo build --release --locked
+
+      - name: Package server bundle
+        if: matrix.target != 'web'
+        run: |
+          mkdir -p artifacts pkg
+          cp server/target/release/wfm pkg/wfm
+          cp docker-compose.yml .env.example README.md LICENSE pkg/
+          tar -czf "artifacts/wfm-${VERSION}-linux-${ARCH}.tar.gz" -C pkg .
+          (cd pkg && zip -qr "../artifacts/wfm-${VERSION}-linux-${ARCH}.zip" .)
+          ls -la artifacts/
+
+      - name: Package web bundle
+        if: matrix.target == 'web'
+        run: |
+          flutter build web --release --base-href /app/
+          mkdir -p artifacts
+          (cd build/web && zip -qr "../../artifacts/wfm-${VERSION}-web.zip" .)
+          ls -la artifacts/
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.target }}
+          path: artifacts/
+          retention-days: 400
+
+  release:
+    name: GitHub release
+    needs: [setup, verify, build]
+    runs-on: ubuntu-latest
+    if: ${{ !cancelled() && needs.build.result == 'success' && needs.setup.outputs.build_all == 'true' && inputs.merge_request_id == '' && ((github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch' && (inputs.create_release == true || inputs.create_release == 'true')) || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v'))) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Determine release tag
+        id: rel
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="v${{ needs.setup.outputs.version }}"
+          else
+            TAG="${GITHUB_REF#refs/tags/}"
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Create tag for dispatch releases
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git tag -a "${{ steps.rel.outputs.tag }}" -m "Release ${{ steps.rel.outputs.tag }}" || true
+          git push origin "${{ steps.rel.outputs.tag }}" || true
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+
+      - name: Source archives
+        run: |
+          git archive --format=zip --prefix="wfm-${{ steps.rel.outputs.tag }}/" -o release-assets/source.zip HEAD
+          git archive --format=tar.gz --prefix="wfm-${{ steps.rel.outputs.tag }}/" -o release-assets/source.tar.gz HEAD
+
+      - name: Checksums
+        run: |
+          cd release-assets
+          sha256sum * > SHA256SUMS.txt
+
+      - name: Create release
+        run: |
+          gh release create "${{ steps.rel.outputs.tag }}" \
+            --title "WFM ${{ steps.rel.outputs.tag }}" \
+            --generate-notes \
+            release-assets/*
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

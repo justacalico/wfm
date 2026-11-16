@@ -1,8 +1,21 @@
 # WFM - Web Film Manager
 
+[![pipeline](https://gitlab.com/HttpAnimations/wfm/badges/main/pipeline.svg)](https://gitlab.com/HttpAnimations/wfm/-/pipelines)
+[![release](https://gitlab.com/HttpAnimations/wfm/-/badges/release.svg)](https://gitlab.com/HttpAnimations/wfm/-/releases)
+[![license](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
+[![pages](https://img.shields.io/badge/site-gitlab.io-orange.svg)](https://httpanimations.gitlab.io/wfm/)
+
 Self-hosted media project manager built for a school film program. Students
 upload footage, edit in the browser with [FilmCraft](https://github.com/storytold/filmcraft),
 and queue renders on the server. Teachers manage accounts, roles and the audit log.
+
+- **Site:** https://httpanimations.gitlab.io/wfm/ (app at [/app/](https://httpanimations.gitlab.io/wfm/app/))
+- **Releases:** https://gitlab.com/HttpAnimations/wfm/-/releases
+- **Mirror:** https://github.com/justacalico/wfm
+
+| Home | Projects | Files |
+|---|---|---|
+| ![home](test/goldens/home.png) | ![projects](test/goldens/projects.png) | ![files](test/goldens/project_files.png) |
 
 ## Layout
 
@@ -43,6 +56,9 @@ Everything is a flag or env var (`wfm --help`):
 - `WFM_FFMPEG` / `WFM_FFPROBE` - binary paths
 - `WFM_WEB_DIR` / `WFM_FILMCRAFT_DIR` - serve frontend from disk instead of embedded
 - `WFM_MAX_UPLOAD_MB`, `WFM_SESSION_DAYS`, `WFM_LOCK_TTL`, `WFM_SECURE_COOKIES`
+- `WFM_TRUSTED_PROXIES` - comma-separated proxy IPs/CIDRs. Off by default; when
+  set, `X-Forwarded-For` is only honored from those addresses. Owners can
+  change it later under Settings > Server, and first-time setup offers it too.
 
 ### Databases
 
@@ -82,12 +98,21 @@ acquires the project edit lock, serves the media bin, and stores the project as
 `project.fcproj` in project storage. Projects are locked while open; a second
 tab gets a take-over prompt.
 
+## Interface
+
+The Flutter web UI ships English (incl. en_GB), Chinese, Russian and Irish,
+plus system/light/dark/OLED themes. Settings has an update checker that reads
+GitLab releases.
+
 ## Testing
 
 ```sh
 cd server && cargo test     # unit tests (paths, ranges, roles, ffmpeg args)
-flutter test                # widget tests
+flutter test --coverage     # unit + widget + golden tests, 100% line coverage
+flutter test --update-goldens   # regenerate golden PNGs under test/goldens/
 ```
+
+CI requires the coverage gate and `dart format` to stay clean.
 
 ## License
 
