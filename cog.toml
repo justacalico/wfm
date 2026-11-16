@@ -1,0 +1,5 @@
+tag_prefix = "v"
+changelog.path = "CHANGELOG.md"
+pre_bump_hooks = []
+
+[commit_types]

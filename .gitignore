@@ -53,3 +53,8 @@ filmcraft/dist/
 .env
 server/web/app/
 server/target/
+
+# Signing keys
+key.properties
+android/key.properties
+*.jks
