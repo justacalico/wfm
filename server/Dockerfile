@@ -4,7 +4,7 @@ COPY pubspec.yaml pubspec.lock l10n.yaml ./
 COPY lib/ ./lib/
 COPY assets/ ./assets/
 COPY web/ ./web/
-RUN flutter pub get && flutter build web --release --base-href /app/
+RUN flutter pub get && flutter build web --release --base-href /app/ --no-web-resources-cdn
 
 FROM rust:1-slim AS build
 WORKDIR /src

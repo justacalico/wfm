@@ -117,7 +117,7 @@ async fn security_headers(req: axum::extract::Request, next: Next) -> Response {
                 header::CACHE_CONTROL,
                 HeaderValue::from_static("public, max-age=86400"),
             );
-        } else if path.ends_with('/') || path.ends_with(".html") {
+        } else {
             h.insert(header::CACHE_CONTROL, HeaderValue::from_static("no-cache"));
         }
     }
