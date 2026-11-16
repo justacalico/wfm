@@ -17,8 +17,8 @@ Future<void> _fonts() async {
   await loader.load();
   final root = Platform.environment['FLUTTER_ROOT'];
   if (root != null) {
-    final icons =
-        File('$root/bin/cache/artifacts/material_fonts/MaterialIcons-Regular.otf');
+    final icons = File(
+        '$root/bin/cache/artifacts/material_fonts/MaterialIcons-Regular.otf');
     if (icons.existsSync()) {
       final iconLoader = FontLoader('MaterialIcons')
         ..addFont(Future.value(icons.readAsBytesSync().buffer.asByteData()));

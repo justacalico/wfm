@@ -1,5 +1,4 @@
 {
-  "@@locale": "zh",
   "appTitle": "WFM",
   "tagline": "整个班级的影片项目，集中在一处。",
   "heroBody": "WFM 是一个自托管的媒体管理器，面向学校影视课程。学生上传素材，在浏览器编辑器中剪辑，并排队渲染。教师则掌控账户、权限和活动记录。",
@@ -25,5 +24,10 @@
   "langSystem": "跟随系统",
   "showcaseTimeline": "在浏览器的时间线上剪辑",
   "showcaseFiles": "每个项目都有托管文件夹",
-  "showcaseRenders": "在服务器上看着导出完成"
+  "showcaseRenders": "在服务器上看着导出完成",
+  "screenshotsTitle": "界面截图",
+  "@@locale": "zh",
+  "@screenshotsTitle": {
+    "description": "Section title above the app screenshots"
+  }
 }

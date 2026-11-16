@@ -31,7 +31,8 @@ void main() {
       expect(m.rank, 1);
       final t = User.fromJson({'role': 'teacher'});
       expect(t.rank, 2);
-      final a = User.fromJson({'role': 'admin', 'disabled': true, 'studentId': 'S1', 'note': 'n'});
+      final a = User.fromJson(
+          {'role': 'admin', 'disabled': true, 'studentId': 'S1', 'note': 'n'});
       expect(a.rank, 3);
       expect(a.disabled, isTrue);
       expect(a.studentId, 'S1');
@@ -40,7 +41,11 @@ void main() {
     test('Caps', () {
       expect(Caps.none.manage, isFalse);
       expect(Caps.none.creatable, isEmpty);
-      final c = Caps.fromJson({'creatable': ['student'], 'canManage': true, 'canAudit': true});
+      final c = Caps.fromJson({
+        'creatable': ['student'],
+        'canManage': true,
+        'canAudit': true
+      });
       expect(c.creatable, ['student']);
       expect(c.manage, isTrue);
       expect(c.audit, isTrue);
@@ -60,7 +65,13 @@ void main() {
       expect(RenderJob.fromJson({}).active, isFalse);
       expect(r.progress, 1.0);
       expect(RenderNode.fromJson({}).name, '');
-      final a = AuditEntry.fromJson({'ts': 1, 'actorName': 'x', 'action': 'y', 'target': 'z', 'detail': 'd'});
+      final a = AuditEntry.fromJson({
+        'ts': 1,
+        'actorName': 'x',
+        'action': 'y',
+        'target': 'z',
+        'detail': 'd'
+      });
       expect(a.actor, 'x');
       expect(a.detail, 'd');
     });
@@ -68,9 +79,13 @@ void main() {
 
   group('Api', () {
     test('needsSetup', () async {
-      final api = Api(client({'GET /api/setup': {'needsSetup': true}}));
+      final api = Api(client({
+        'GET /api/setup': {'needsSetup': true}
+      }));
       expect(await api.needsSetup(), isTrue);
-      final api2 = Api(client({'GET /api/setup': {'needsSetup': false}}));
+      final api2 = Api(client({
+        'GET /api/setup': {'needsSetup': false}
+      }));
       expect(await api2.needsSetup(), isFalse);
     });
 
@@ -83,7 +98,8 @@ void main() {
         },
       });
       final api = Api(c);
-      final u = await api.setupOwner('ada', 'pw', 'Ada', trustedProxies: ' 10.0.0.0/8 ');
+      final u = await api.setupOwner('ada', 'pw', 'Ada',
+          trustedProxies: ' 10.0.0.0/8 ');
       expect(u.username, 'ada');
       expect(api.csrf, 't');
       expect(jsonDecode(bodies.single)['trustedProxies'], '10.0.0.0/8');
@@ -145,7 +161,11 @@ void main() {
 
     test('roles/serverSettings/saveSettings', () async {
       final api = Api(client({
-        'GET /api/roles': {'creatable': ['student'], 'canManage': true, 'canAudit': false},
+        'GET /api/roles': {
+          'creatable': ['student'],
+          'canManage': true,
+          'canAudit': false
+        },
         'GET /api/settings': {'trustedProxies': '10.0.0.0/8'},
         'PUT /api/settings': {'ok': true},
       }));
@@ -163,11 +183,15 @@ void main() {
 
     test('projects/files/upload/mkdir/move/delete', () async {
       final api = Api(client({
-        'GET /api/projects': [{'id': 'p1', 'name': 'n', 'displayName': 'N', 'createdAt': 1}],
+        'GET /api/projects': [
+          {'id': 'p1', 'name': 'n', 'displayName': 'N', 'createdAt': 1}
+        ],
         'POST /api/projects': {'id': 'p2', 'name': 'n2', 'displayName': 'n2'},
         'PATCH *': {'ok': true},
         'DELETE *': {'ok': true},
-        'GET /api/projects/p1/files': [{'name': 'a.txt', 'path': 'a.txt', 'type': 'file'}],
+        'GET /api/projects/p1/files': [
+          {'name': 'a.txt', 'path': 'a.txt', 'type': 'file'}
+        ],
         'POST *': {'ok': true},
         'PUT *': {'ok': true},
       }));
@@ -194,14 +218,17 @@ void main() {
     test('urls', () {
       final api = Api(client({}));
       expect(api.projectUrl('p1'), '/filmcraft/wfm.html?project=p1');
-      expect(api.downloadUrl('p1', 'a b.mp4'), '/api/projects/p1/download?path=a%20b.mp4');
+      expect(api.downloadUrl('p1', 'a b.mp4'),
+          '/api/projects/p1/download?path=a%20b.mp4');
       expect(api.downloadUrl('p1', 'a.mp4', dl: true),
           '/api/projects/p1/download?path=a.mp4&dl=true');
     });
 
     test('renders', () async {
       final api = Api(client({
-        'GET /api/projects/p1/renders': [{'id': 'r1', 'status': 'done'}],
+        'GET /api/projects/p1/renders': [
+          {'id': 'r1', 'status': 'done'}
+        ],
         'POST /api/projects/p1/renders': {'id': 'r2', 'status': 'queued'},
         'POST /api/renders/r2/cancel': {'ok': true},
       }));
@@ -219,8 +246,12 @@ void main() {
         'POST /api/accounts/u1/password': {'ok': true},
         'POST /api/accounts/u1/status': {'ok': true},
         'POST /api/me/password': {'ok': true},
-        'GET /api/audit': [{'ts': 1, 'action': 'login'}],
-        'GET /api/nodes': [{'id': 'n1', 'name': 'box'}],
+        'GET /api/audit': [
+          {'ts': 1, 'action': 'login'}
+        ],
+        'GET /api/nodes': [
+          {'id': 'n1', 'name': 'box'}
+        ],
         'POST /api/nodes': {'id': 'n2', 'name': 'box2', 'token': 'sekrit'},
         'PATCH *': {'ok': true},
         'DELETE *': {'ok': true},

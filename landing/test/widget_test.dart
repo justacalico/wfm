@@ -9,15 +9,15 @@ import 'package:wfm_landing/releases.dart';
 void main() {
   setUp(() {
     SharedPreferences.setMockInitialValues({});
-    LandingPage.releaseFactoryForTesting = () => ReleaseFetcher(
-        MockClient((_) async => http.Response('[]', 200)));
+    LandingPage.releaseFactoryForTesting =
+        () => ReleaseFetcher(MockClient((_) async => http.Response('[]', 200)));
   });
 
   testWidgets('landing page renders', (tester) async {
     await tester.pumpWidget(const LandingApp());
     expect(find.text('WFM'), findsOneWidget);
-    await tester.dragUntilVisible(
-        find.text('Open the app'), find.byType(ListView), const Offset(0, -300));
+    await tester.dragUntilVisible(find.text('Open the app'),
+        find.byType(ListView), const Offset(0, -300));
     expect(find.text('Open the app'), findsOneWidget);
   });
 }

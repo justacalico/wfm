@@ -26,7 +26,9 @@ void main() {
       t.tap(find.widgetWithText(ListTile, label).first).then((_) => settle(t));
 
   testWidgets('gate shows setup when needed', (t) async {
-    Api.i = Api(sessionClient(extra: {'GET /api/setup': (_) => {'needsSetup': true}}));
+    Api.i = Api(sessionClient(extra: {
+      'GET /api/setup': (_) => {'needsSetup': true}
+    }));
     await pumpWfm(t);
     expect(find.byType(SetupPage), findsOneWidget);
     expect(find.text('Trusted proxies'), findsNothing);
@@ -43,7 +45,11 @@ void main() {
         body = req.body;
         return {'csrf': 'c', 'user': userJson};
       },
-      'GET /api/roles': (_) => {'creatable': ['student'], 'canManage': true, 'canAudit': true},
+      'GET /api/roles': (_) => {
+            'creatable': ['student'],
+            'canManage': true,
+            'canAudit': true
+          },
       'GET *': (_) => [],
     }));
     await pumpWfm(t);
@@ -81,7 +87,11 @@ void main() {
         posts++;
         return {'csrf': 'c', 'user': userJson};
       },
-      'GET /api/roles': (_) => {'creatable': ['student'], 'canManage': true, 'canAudit': true},
+      'GET /api/roles': (_) => {
+            'creatable': ['student'],
+            'canManage': true,
+            'canAudit': true
+          },
       'GET *': (_) => [],
     }));
     await pumpWfm(t);
@@ -125,9 +135,14 @@ void main() {
     var authed = true;
     Api.i = Api(FakeClient({
       'GET /api/setup': (_) => {'needsSetup': false},
-      'GET /api/me': (_) =>
-          authed ? {'csrf': 'c', 'user': userJson} : http.Response('{"error":"auth"}', 401),
-      'GET /api/roles': (_) => {'creatable': ['student'], 'canManage': true, 'canAudit': true},
+      'GET /api/me': (_) => authed
+          ? {'csrf': 'c', 'user': userJson}
+          : http.Response('{"error":"auth"}', 401),
+      'GET /api/roles': (_) => {
+            'creatable': ['student'],
+            'canManage': true,
+            'canAudit': true
+          },
       'GET /api/version': (_) => {'version': '1.0'},
       'POST /api/logout': (_) {
         authed = false;
@@ -177,8 +192,17 @@ void main() {
   testWidgets('student without manage caps sees fewer tabs', (t) async {
     Api.i = Api(FakeClient({
       'GET /api/setup': (_) => {'needsSetup': false},
-      'GET /api/me': (_) => {'csrf': 'c', 'user': {'id': 'u9', 'username': 'stu', 'role': 'student', 'displayName': ''}},
-      'GET /api/roles': (_) => {'creatable': [], 'canManage': false, 'canAudit': false},
+      'GET /api/me': (_) => {
+            'csrf': 'c',
+            'user': {
+              'id': 'u9',
+              'username': 'stu',
+              'role': 'student',
+              'displayName': ''
+            }
+          },
+      'GET /api/roles': (_) =>
+          {'creatable': [], 'canManage': false, 'canAudit': false},
       'GET /api/version': (_) => {'version': '1.0'},
       'GET *': (_) => [],
     }));

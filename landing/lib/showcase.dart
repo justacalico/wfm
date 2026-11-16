@@ -13,7 +13,9 @@ class ShowcaseCard extends StatelessWidget {
         SizedBox(height: 160, width: double.infinity, child: child),
         Padding(
           padding: const EdgeInsets.all(12),
-          child: Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+          child: Text(title,
+              style:
+                  const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
         ),
       ]),
     );
@@ -37,12 +39,14 @@ class _TimelinePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final w = size.width, h = size.height;
-    canvas.drawRect(Offset.zero & size, Paint()..color = cs.surfaceContainerHighest);
     canvas.drawRect(
-        Rect.fromLTWH(0, 0, w, h * 0.42), Paint()..color = cs.surfaceContainerHigh);
+        Offset.zero & size, Paint()..color = cs.surfaceContainerHighest);
+    canvas.drawRect(Rect.fromLTWH(0, 0, w, h * 0.42),
+        Paint()..color = cs.surfaceContainerHigh);
     canvas.drawRRect(
         RRect.fromRectAndRadius(
-            Rect.fromCenter(center: Offset(w / 2, h * 0.21), width: 26, height: 30),
+            Rect.fromCenter(
+                center: Offset(w / 2, h * 0.21), width: 26, height: 30),
             const Radius.circular(4)),
         Paint()..color = cs.primary);
     final play = Path()
@@ -55,19 +59,27 @@ class _TimelinePainter extends CustomPainter {
     final track2 = Paint()..color = cs.tertiary.withValues(alpha: 0.7);
     final audio = Paint()..color = cs.secondary.withValues(alpha: 0.55);
     canvas.drawRRect(
-        RRect.fromRectAndRadius(Rect.fromLTWH(w * 0.06, h * 0.55, w * 0.52, h * 0.11), const Radius.circular(3)),
+        RRect.fromRectAndRadius(
+            Rect.fromLTWH(w * 0.06, h * 0.55, w * 0.52, h * 0.11),
+            const Radius.circular(3)),
         trackPaint);
     canvas.drawRRect(
-        RRect.fromRectAndRadius(Rect.fromLTWH(w * 0.60, h * 0.55, w * 0.3, h * 0.11), const Radius.circular(3)),
+        RRect.fromRectAndRadius(
+            Rect.fromLTWH(w * 0.60, h * 0.55, w * 0.3, h * 0.11),
+            const Radius.circular(3)),
         track2);
     canvas.drawRRect(
-        RRect.fromRectAndRadius(Rect.fromLTWH(w * 0.15, h * 0.72, w * 0.34, h * 0.09), const Radius.circular(3)),
+        RRect.fromRectAndRadius(
+            Rect.fromLTWH(w * 0.15, h * 0.72, w * 0.34, h * 0.09),
+            const Radius.circular(3)),
         audio);
     canvas.drawRRect(
-        RRect.fromRectAndRadius(Rect.fromLTWH(w * 0.52, h * 0.72, w * 0.2, h * 0.09), const Radius.circular(3)),
+        RRect.fromRectAndRadius(
+            Rect.fromLTWH(w * 0.52, h * 0.72, w * 0.2, h * 0.09),
+            const Radius.circular(3)),
         audio);
-    canvas.drawRect(
-        Rect.fromLTWH(w * 0.44, h * 0.44, 1.5, h * 0.5), Paint()..color = cs.error);
+    canvas.drawRect(Rect.fromLTWH(w * 0.44, h * 0.44, 1.5, h * 0.5),
+        Paint()..color = cs.error);
   }
 
   @override
@@ -102,7 +114,11 @@ class RendersMock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final rows = [('final-cut.mp4', 1.0), ('scene-3.mp4', 0.62), ('trailer.mp4', 0.25)];
+    final rows = [
+      ('final-cut.mp4', 1.0),
+      ('scene-3.mp4', 0.62),
+      ('trailer.mp4', 0.25)
+    ];
     return Container(
       color: cs.surfaceContainerHighest,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -117,11 +133,16 @@ class RendersMock extends StatelessWidget {
                     size: 16, color: r.$2 >= 1 ? Colors.green : cs.primary),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(r.$1, style: const TextStyle(fontSize: 11)),
-                    const SizedBox(height: 3),
-                    LinearProgressIndicator(value: r.$2, minHeight: 4, borderRadius: BorderRadius.circular(2)),
-                  ]),
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(r.$1, style: const TextStyle(fontSize: 11)),
+                        const SizedBox(height: 3),
+                        LinearProgressIndicator(
+                            value: r.$2,
+                            minHeight: 4,
+                            borderRadius: BorderRadius.circular(2)),
+                      ]),
                 ),
               ]),
             ),

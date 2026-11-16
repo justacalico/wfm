@@ -8,7 +8,12 @@ import 'package:wfm/platform.dart';
 import 'package:wfm/projects.dart';
 import 'helpers.dart';
 
-final p1 = Project.fromJson({'id': 'p1', 'name': 'short-film', 'displayName': 'Short Film', 'createdAt': 1700000000});
+final p1 = Project.fromJson({
+  'id': 'p1',
+  'name': 'short-film',
+  'displayName': 'Short Film',
+  'createdAt': 1700000000
+});
 
 void main() {
   setUp(() {
@@ -49,7 +54,9 @@ void main() {
       await pump(t, const ProjectsPage());
       expect(find.textContaining('No projects'), findsOneWidget);
       await t.pumpWidget(const SizedBox());
-      installApi(extra: {'GET /api/projects': (_) => http.Response('{"error":"db down"}', 500)});
+      installApi(extra: {
+        'GET /api/projects': (_) => http.Response('{"error":"db down"}', 500)
+      });
       await pump(t, const ProjectsPage());
       expect(find.text('db down'), findsOneWidget);
     });
@@ -107,8 +114,8 @@ void main() {
       await t.pumpWidget(testApp(Scaffold(
           body: Builder(
               builder: (c) => TextButton(
-                  onPressed: () => Navigator.of(c)
-                      .push(MaterialPageRoute(builder: (_) => ProjectPage(project: p1))),
+                  onPressed: () => Navigator.of(c).push(MaterialPageRoute(
+                      builder: (_) => ProjectPage(project: p1))),
                   child: const Text('open'))))));
       await settle(t);
       await t.tap(find.text('open'));
@@ -117,7 +124,8 @@ void main() {
       expect(opened, contains('project=p1'));
 
       await t.tap(find.descendant(
-          of: find.byType(AppBar), matching: find.byType(PopupMenuButton<String>)));
+          of: find.byType(AppBar),
+          matching: find.byType(PopupMenuButton<String>)));
       await settle(t);
       await t.tap(find.text('Rename'));
       await settle(t);
@@ -127,7 +135,8 @@ void main() {
       expect(find.text('Renamed Film'), findsOneWidget);
 
       await t.tap(find.descendant(
-          of: find.byType(AppBar), matching: find.byType(PopupMenuButton<String>)));
+          of: find.byType(AppBar),
+          matching: find.byType(PopupMenuButton<String>)));
       await settle(t);
       await t.tap(find.text('Delete'));
       await settle(t);
@@ -135,7 +144,8 @@ void main() {
       await settle(t);
       expect(find.byType(ProjectPage), findsOneWidget);
       await t.tap(find.descendant(
-          of: find.byType(AppBar), matching: find.byType(PopupMenuButton<String>)));
+          of: find.byType(AppBar),
+          matching: find.byType(PopupMenuButton<String>)));
       await settle(t);
       await t.tap(find.text('Delete'));
       await settle(t);
@@ -154,7 +164,8 @@ void main() {
       await settle(t);
       expect(find.byType(SnackBar), findsOneWidget);
       await t.tap(find.descendant(
-          of: find.byType(AppBar), matching: find.byType(PopupMenuButton<String>)));
+          of: find.byType(AppBar),
+          matching: find.byType(PopupMenuButton<String>)));
       await settle(t);
       await t.tap(find.text('Rename'));
       await settle(t);
@@ -162,7 +173,8 @@ void main() {
       await t.tap(find.text('OK'));
       await settle(t);
       await t.tap(find.descendant(
-          of: find.byType(AppBar), matching: find.byType(PopupMenuButton<String>)));
+          of: find.byType(AppBar),
+          matching: find.byType(PopupMenuButton<String>)));
       await settle(t);
       await t.tap(find.text('Delete'));
       await settle(t);
@@ -183,12 +195,24 @@ void main() {
           if (path == 'Raw') {
             return [
               {'name': 'inner', 'path': 'Raw/inner', 'type': 'dir'},
-              {'name': 'b.mp4', 'path': 'Raw/b.mp4', 'type': 'file', 'size': 2048, 'modified': 1},
+              {
+                'name': 'b.mp4',
+                'path': 'Raw/b.mp4',
+                'type': 'file',
+                'size': 2048,
+                'modified': 1
+              },
             ];
           }
           return [
             {'name': 'Raw', 'path': 'Raw', 'type': 'dir'},
-            {'name': 'clip.mp4', 'path': 'clip.mp4', 'type': 'file', 'size': 2048, 'modified': 1},
+            {
+              'name': 'clip.mp4',
+              'path': 'clip.mp4',
+              'type': 'file',
+              'size': 2048,
+              'modified': 1
+            },
           ];
         },
         'POST /api/projects/p1/files/move': (req) {
@@ -242,8 +266,10 @@ void main() {
 
     testWidgets('upload picked files', (t) async {
       var uploads = 0;
-      pickFilesForTesting = () async =>
-          [PickedFile('a.mp4', Uint8List(3)), PickedFile('b.mp4', Uint8List(1))];
+      pickFilesForTesting = () async => [
+            PickedFile('a.mp4', Uint8List(3)),
+            PickedFile('b.mp4', Uint8List(1))
+          ];
       installApi(extra: {
         'PUT /api/projects/p1/files': (req) {
           uploads++;
@@ -256,7 +282,8 @@ void main() {
       expect(uploads, 2);
     });
 
-    testWidgets('upload in subfolder, empty pick, pick error, upload error', (t) async {
+    testWidgets('upload in subfolder, empty pick, pick error, upload error',
+        (t) async {
       var uploads = 0;
       installApi(extra: {
         'PUT /api/projects/p1/files': (req) {
@@ -277,7 +304,8 @@ void main() {
       expect(find.byType(SnackBar), findsOneWidget);
       pickFilesForTesting = () async => [PickedFile('v.mp4', Uint8List(2))];
       installApi(extra: {
-        'PUT /api/projects/p1/files': (_) => http.Response('{"error":"full"}', 507),
+        'PUT /api/projects/p1/files': (_) =>
+            http.Response('{"error":"full"}', 507),
       });
       await t.tap(find.text('Upload'));
       await settle(t);
@@ -309,15 +337,21 @@ void main() {
 
     testWidgets('file icons and error state', (t) async {
       installApi(extra: {
-        'GET /api/projects/p1/files': (_) => http.Response('{"error":"lost"}', 404),
+        'GET /api/projects/p1/files': (_) =>
+            http.Response('{"error":"lost"}', 404),
       });
       await pump(t, Scaffold(body: FilesTab(project: p1)));
       expect(find.text('lost'), findsOneWidget);
-      expect(fileIcon(FileEntry.fromJson({'name': 'a.mp4'})), Icons.movie_outlined);
-      expect(fileIcon(FileEntry.fromJson({'name': 'a.wav'})), Icons.audio_file_outlined);
-      expect(fileIcon(FileEntry.fromJson({'name': 'a.jpg'})), Icons.image_outlined);
-      expect(fileIcon(FileEntry.fromJson({'name': 'a.txt'})), Icons.insert_drive_file_outlined);
-      expect(fileIcon(FileEntry.fromJson({'name': 'a', 'type': 'dir'})), Icons.folder_outlined);
+      expect(fileIcon(FileEntry.fromJson({'name': 'a.mp4'})),
+          Icons.movie_outlined);
+      expect(fileIcon(FileEntry.fromJson({'name': 'a.wav'})),
+          Icons.audio_file_outlined);
+      expect(fileIcon(FileEntry.fromJson({'name': 'a.jpg'})),
+          Icons.image_outlined);
+      expect(fileIcon(FileEntry.fromJson({'name': 'a.txt'})),
+          Icons.insert_drive_file_outlined);
+      expect(fileIcon(FileEntry.fromJson({'name': 'a', 'type': 'dir'})),
+          Icons.folder_outlined);
     });
   });
 
@@ -364,8 +398,20 @@ void main() {
           final path = req.url.queryParameters['path'] ?? '';
           if (path == 'Raw/A-Roll' || path == 'Raw') {
             return [
-              {'name': 'a.mp4', 'path': 'Raw/A-Roll/a.mp4', 'type': 'file', 'size': 10, 'modified': 0},
-              {'name': 'b.mp4', 'path': 'Raw/A-Roll/b.mp4', 'type': 'file', 'size': 10, 'modified': 0},
+              {
+                'name': 'a.mp4',
+                'path': 'Raw/A-Roll/a.mp4',
+                'type': 'file',
+                'size': 10,
+                'modified': 0
+              },
+              {
+                'name': 'b.mp4',
+                'path': 'Raw/A-Roll/b.mp4',
+                'type': 'file',
+                'size': 10,
+                'modified': 0
+              },
             ];
           }
           return [];
@@ -379,8 +425,10 @@ void main() {
           body: Builder(
               builder: (c) => TextButton(
                   onPressed: () async {
-                    final r = await showDialog<bool>(context: c, builder: (_) => RenderDialog(project: p1));
-                    Navigator.of(c).push(MaterialPageRoute(builder: (_) => Scaffold(body: Text('$r'))));
+                    final r = await showDialog<bool>(
+                        context: c, builder: (_) => RenderDialog(project: p1));
+                    Navigator.of(c).push(MaterialPageRoute(
+                        builder: (_) => Scaffold(body: Text('$r'))));
                   },
                   child: const Text('open'))))));
       await settle(t);
@@ -430,7 +478,8 @@ void main() {
       await t.pumpWidget(testApp(Scaffold(
           body: Builder(
               builder: (c) => TextButton(
-                  onPressed: () => showDialog<bool>(context: c, builder: (_) => RenderDialog(project: p1)),
+                  onPressed: () => showDialog<bool>(
+                      context: c, builder: (_) => RenderDialog(project: p1)),
                   child: const Text('open'))))));
       await settle(t);
       await t.tap(find.text('open'));
@@ -444,12 +493,14 @@ void main() {
       await t.binding.setSurfaceSize(const Size(1280, 800));
       addTearDown(() => t.binding.setSurfaceSize(null));
       installApi(extra: {
-        'POST /api/projects/p1/renders': (_) => http.Response('{"error":"bad spec"}', 400),
+        'POST /api/projects/p1/renders': (_) =>
+            http.Response('{"error":"bad spec"}', 400),
       });
       await t.pumpWidget(testApp(Scaffold(
           body: Builder(
               builder: (c) => TextButton(
-                  onPressed: () => showDialog<bool>(context: c, builder: (_) => RenderDialog(project: p1)),
+                  onPressed: () => showDialog<bool>(
+                      context: c, builder: (_) => RenderDialog(project: p1)),
                   child: const Text('open'))))));
       await settle(t);
       await t.tap(find.text('open'));

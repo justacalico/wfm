@@ -32,7 +32,8 @@ class ReleaseFetcher {
           '${e['_links']?['self'] ?? pageUrl}',
           [
             for (final a in (e['assets']?['links'] as List? ?? []))
-              ReleaseAsset('${a['name'] ?? ''}', '${a['direct_asset_url'] ?? a['url'] ?? ''}'),
+              ReleaseAsset('${a['name'] ?? ''}',
+                  '${a['direct_asset_url'] ?? a['url'] ?? ''}'),
           ],
         ),
     ];

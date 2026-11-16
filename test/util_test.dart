@@ -20,7 +20,8 @@ void main() {
   test('fmtTime', () {
     expect(fmtTime(l10n, 0), l10n.never);
     expect(fmtTime(l10n, -5), l10n.never);
-    expect(fmtTime(l10n, 86400), matches(RegExp(r'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$')));
+    expect(fmtTime(l10n, 86400),
+        matches(RegExp(r'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$')));
   });
 
   test('fmtAgo', () {
@@ -51,7 +52,9 @@ void main() {
     openExternalForTesting = (u) => opened = u;
     openExternal('https://example.com');
     expect(opened, 'https://example.com');
-    pickFilesForTesting = () async => [PickedFile('a.txt', Uint8List.fromList([1]))];
+    pickFilesForTesting = () async => [
+          PickedFile('a.txt', Uint8List.fromList([1]))
+        ];
     final files = await pickFiles();
     expect(files.single.name, 'a.txt');
     expect(files.single.bytes, [1]);

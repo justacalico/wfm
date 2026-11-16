@@ -20,7 +20,8 @@ String fmtTime(AppLocalizations l10n, int ts) {
 
 String fmtAgo(AppLocalizations l10n, int ts) {
   if (ts <= 0) return l10n.never;
-  final d = DateTime.now().difference(DateTime.fromMillisecondsSinceEpoch(ts * 1000));
+  final d =
+      DateTime.now().difference(DateTime.fromMillisecondsSinceEpoch(ts * 1000));
   if (d.inMinutes < 1) return l10n.justNow;
   if (d.inHours < 1) return l10n.minutesAgo(d.inMinutes);
   if (d.inDays < 1) return l10n.hoursAgo(d.inHours);
@@ -34,7 +35,26 @@ String extOf(String name) {
 }
 
 bool isMedia(String name) => const {
-      'mp4', 'mov', 'mkv', 'webm', 'avi', 'm4v', 'mpg', 'mpeg',
-      'mp3', 'wav', 'aac', 'flac', 'ogg', 'm4a',
-      'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'tif', 'tiff',
+      'mp4',
+      'mov',
+      'mkv',
+      'webm',
+      'avi',
+      'm4v',
+      'mpg',
+      'mpeg',
+      'mp3',
+      'wav',
+      'aac',
+      'flac',
+      'ogg',
+      'm4a',
+      'png',
+      'jpg',
+      'jpeg',
+      'gif',
+      'webp',
+      'bmp',
+      'tif',
+      'tiff',
     }.contains(extOf(name));

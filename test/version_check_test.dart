@@ -21,9 +21,12 @@ void main() {
     });
 
     test('compare', () {
-      expect(const Version(1, 0, 0).compareTo(const Version(2, 0, 0)), isNegative);
-      expect(const Version(1, 2, 0).compareTo(const Version(1, 3, 0)), isNegative);
-      expect(const Version(1, 2, 3).compareTo(const Version(1, 2, 4)), isNegative);
+      expect(
+          const Version(1, 0, 0).compareTo(const Version(2, 0, 0)), isNegative);
+      expect(
+          const Version(1, 2, 0).compareTo(const Version(1, 3, 0)), isNegative);
+      expect(
+          const Version(1, 2, 3).compareTo(const Version(1, 2, 4)), isNegative);
       expect(const Version(1, 2, 3).compareTo(const Version(1, 2, 3)), 0);
       expect('${const Version(9, 8, 7)}', '9.8.7');
     });
@@ -31,8 +34,11 @@ void main() {
 
   group('UpdateChecker', () {
     test('newer release available', () async {
-      final c = releasesClient('[{"tag_name":"v1.0.0"},{"tag_name":"v1.4.0"},{"tag_name":"nightly"}]');
-      final u = await UpdateChecker(c, apiUrl: 'https://x/releases', pageUrl: 'https://x/p').check('1.0.0');
+      final c = releasesClient(
+          '[{"tag_name":"v1.0.0"},{"tag_name":"v1.4.0"},{"tag_name":"nightly"}]');
+      final u = await UpdateChecker(c,
+              apiUrl: 'https://x/releases', pageUrl: 'https://x/p')
+          .check('1.0.0');
       expect(u, isNotNull);
       expect(u!.version, '1.4.0');
       expect(u.tag, 'v1.4.0');
@@ -41,12 +47,14 @@ void main() {
 
     test('no update when current is latest', () async {
       final c = releasesClient('[{"tag_name":"v1.0.0"}]');
-      expect(await UpdateChecker(c, apiUrl: 'https://x').check('1.0.0'), isNull);
+      expect(
+          await UpdateChecker(c, apiUrl: 'https://x').check('1.0.0'), isNull);
     });
 
     test('unparseable current still reports latest', () async {
       final c = releasesClient('[{"tag_name":"v2.0.0"}]');
-      expect((await UpdateChecker(c, apiUrl: 'https://x').check(''))?.version, '2.0.0');
+      expect((await UpdateChecker(c, apiUrl: 'https://x').check(''))?.version,
+          '2.0.0');
     });
 
     test('empty releases', () async {
@@ -58,7 +66,8 @@ void main() {
 
     test('http error throws', () {
       final c = releasesClient('boom', 500);
-      expect(UpdateChecker(c, apiUrl: 'https://x').check('1.0'), throwsException);
+      expect(
+          UpdateChecker(c, apiUrl: 'https://x').check('1.0'), throwsException);
     });
 
     test('default urls are the wfm project', () {

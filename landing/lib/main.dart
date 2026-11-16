@@ -31,9 +31,9 @@ final landingLangs = <Locale?, String>{
 };
 
 ThemeData _landingTheme(Brightness b, {bool oled = false}) => ThemeData(
-      colorScheme:
-          ColorScheme.fromSeed(seedColor: const Color(0xFF8B5CF6), brightness: b)
-              .copyWith(surface: oled ? Colors.black : null),
+      colorScheme: ColorScheme.fromSeed(
+              seedColor: const Color(0xFF8B5CF6), brightness: b)
+          .copyWith(surface: oled ? Colors.black : null),
       fontFamily: 'Noto Sans',
       scaffoldBackgroundColor: oled ? Colors.black : null,
     );
@@ -73,8 +73,9 @@ class LandingAppState extends State<LandingApp> {
 
   void setLocale(Locale? l) {
     setState(() => _locale = l);
-    SharedPreferences.getInstance().then((p) =>
-        l == null ? p.remove('locale') : p.setString('locale', '${l.languageCode}_${l.countryCode ?? ''}'));
+    SharedPreferences.getInstance().then((p) => l == null
+        ? p.remove('locale')
+        : p.setString('locale', '${l.languageCode}_${l.countryCode ?? ''}'));
   }
 
   @override
@@ -154,13 +155,15 @@ class _LandingPageState extends State<LandingPage> {
                     decoration: InputDecoration(
                       labelText: l10n.language,
                       border: const OutlineInputBorder(),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 8),
                     ),
                     items: [
                       for (final e in landingLangs.entries)
                         DropdownMenuItem(
                             value: e.key,
-                            child: Text(e.key == null ? l10n.langSystem : e.value,
+                            child: Text(
+                                e.key == null ? l10n.langSystem : e.value,
                                 style: const TextStyle(fontSize: 13))),
                     ],
                     onChanged: (v) => app.setLocale(v),
@@ -200,47 +203,81 @@ class _LandingPageState extends State<LandingPage> {
                       height: 1)),
               const SizedBox(height: 16),
               Text(l10n.tagline,
-                  style: TextStyle(fontSize: wide ? 28 : 20, fontWeight: FontWeight.w600, height: 1.3)),
+                  style: TextStyle(
+                      fontSize: wide ? 28 : 20,
+                      fontWeight: FontWeight.w600,
+                      height: 1.3)),
               const SizedBox(height: 16),
               Text(l10n.heroBody,
-                  style: TextStyle(fontSize: 15, height: 1.6, color: cs.onSurfaceVariant)),
+                  style: TextStyle(
+                      fontSize: 15, height: 1.6, color: cs.onSurfaceVariant)),
               const SizedBox(height: 32),
               Wrap(spacing: 12, runSpacing: 12, children: [
-                _Feature(Icons.movie_outlined, l10n.featureEditTitle, l10n.featureEditBody),
-                _Feature(Icons.folder_outlined, l10n.featureMediaTitle, l10n.featureMediaBody),
-                _Feature(Icons.rocket_launch_outlined, l10n.featureRenderTitle, l10n.featureRenderBody),
-                _Feature(Icons.group_outlined, l10n.featureSchoolTitle, l10n.featureSchoolBody),
+                _Feature(Icons.movie_outlined, l10n.featureEditTitle,
+                    l10n.featureEditBody),
+                _Feature(Icons.folder_outlined, l10n.featureMediaTitle,
+                    l10n.featureMediaBody),
+                _Feature(Icons.rocket_launch_outlined, l10n.featureRenderTitle,
+                    l10n.featureRenderBody),
+                _Feature(Icons.group_outlined, l10n.featureSchoolTitle,
+                    l10n.featureSchoolBody),
               ]),
               const SizedBox(height: 40),
               Wrap(spacing: 16, runSpacing: 16, children: [
                 SizedBox(
                   width: 290,
-                  child: ShowcaseCard(title: l10n.showcaseTimeline, child: const TimelineMock()),
+                  child: ShowcaseCard(
+                      title: l10n.showcaseTimeline,
+                      child: const TimelineMock()),
                 ),
                 SizedBox(
                   width: 290,
-                  child: ShowcaseCard(title: l10n.showcaseFiles, child: const FoldersMock()),
+                  child: ShowcaseCard(
+                      title: l10n.showcaseFiles, child: const FoldersMock()),
                 ),
                 SizedBox(
                   width: 290,
-                  child: ShowcaseCard(title: l10n.showcaseRenders, child: const RendersMock()),
+                  child: ShowcaseCard(
+                      title: l10n.showcaseRenders, child: const RendersMock()),
                 ),
               ]),
               const SizedBox(height: 40),
-              Text(l10n.downloadsTitle, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+              Text(l10n.screenshotsTitle,
+                  style: const TextStyle(
+                      fontSize: 20, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 16),
+              Wrap(spacing: 16, runSpacing: 16, children: [
+                for (final s in ['home', 'projects', 'project_files'])
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.asset('assets/screenshots/$s.png',
+                        width: 280,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => const SizedBox.shrink()),
+                  ),
+              ]),
+              const SizedBox(height: 40),
+              Text(l10n.downloadsTitle,
+                  style: const TextStyle(
+                      fontSize: 20, fontWeight: FontWeight.w700)),
               const SizedBox(height: 8),
-              Text(l10n.downloadsBody, style: TextStyle(color: cs.onSurfaceVariant)),
+              Text(l10n.downloadsBody,
+                  style: TextStyle(color: cs.onSurfaceVariant)),
               const SizedBox(height: 16),
               FutureBuilder<List<Release>>(
                 future: _releases,
                 builder: (context, s) {
                   if (s.hasError) {
-                    return Text(l10n.releasesError, style: TextStyle(color: cs.error));
+                    return Text(l10n.releasesError,
+                        style: TextStyle(color: cs.error));
                   }
                   if (!s.hasData) {
                     return const Padding(
                       padding: EdgeInsets.symmetric(vertical: 12),
-                      child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2)),
+                      child: SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(strokeWidth: 2)),
                     );
                   }
                   final releases = s.data!;
@@ -249,28 +286,32 @@ class _LandingPageState extends State<LandingPage> {
                         onPressed: () => _open(ReleaseFetcher.pageUrl),
                         child: Text(l10n.viewAllReleases));
                   }
-                  return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    for (final r in releases)
-                      Card(
-                        child: ListTile(
-                          leading: const Icon(Icons.download_outlined),
-                          title: Text('${r.name}  ·  ${r.tag}'),
-                          subtitle: r.assets.isEmpty
-                              ? null
-                              : Wrap(spacing: 6, runSpacing: 4, children: [
-                                  for (final a in r.assets)
-                                    ActionChip(
-                                      label: Text(a.name, style: const TextStyle(fontSize: 12)),
-                                      onPressed: () => _open(a.url),
-                                    ),
-                                ]),
-                          onTap: () => _open(r.url),
-                        ),
-                      ),
-                    TextButton(
-                        onPressed: () => _open(ReleaseFetcher.pageUrl),
-                        child: Text(l10n.viewAllReleases)),
-                  ]);
+                  return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        for (final r in releases)
+                          Card(
+                            child: ListTile(
+                              leading: const Icon(Icons.download_outlined),
+                              title: Text('${r.name}  ·  ${r.tag}'),
+                              subtitle: r.assets.isEmpty
+                                  ? null
+                                  : Wrap(spacing: 6, runSpacing: 4, children: [
+                                      for (final a in r.assets)
+                                        ActionChip(
+                                          label: Text(a.name,
+                                              style: const TextStyle(
+                                                  fontSize: 12)),
+                                          onPressed: () => _open(a.url),
+                                        ),
+                                    ]),
+                              onTap: () => _open(r.url),
+                            ),
+                          ),
+                        TextButton(
+                            onPressed: () => _open(ReleaseFetcher.pageUrl),
+                            child: Text(l10n.viewAllReleases)),
+                      ]);
                 },
               ),
               const SizedBox(height: 40),
@@ -282,7 +323,8 @@ class _LandingPageState extends State<LandingPage> {
                 ),
               ]),
               const SizedBox(height: 16),
-              Text(l10n.licenseNote, style: TextStyle(fontSize: 12, color: cs.outline)),
+              Text(l10n.licenseNote,
+                  style: TextStyle(fontSize: 12, color: cs.outline)),
             ],
           ),
         ),
@@ -305,10 +347,13 @@ class _Feature extends StatelessWidget {
         Icon(icon, size: 22, color: cs.primary),
         const SizedBox(width: 12),
         Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
             const SizedBox(height: 4),
-            Text(body, style: TextStyle(fontSize: 13, color: cs.onSurfaceVariant, height: 1.5)),
+            Text(body,
+                style: TextStyle(
+                    fontSize: 13, color: cs.onSurfaceVariant, height: 1.5)),
           ]),
         ),
       ]),

@@ -12,7 +12,8 @@ import 'package:wfm/projects.dart';
 import 'package:wfm/main.dart';
 import 'helpers.dart';
 
-final p1 = Project.fromJson({'id': 'p1', 'name': 'n', 'displayName': 'P', 'createdAt': 1});
+final p1 = Project.fromJson(
+    {'id': 'p1', 'name': 'n', 'displayName': 'P', 'createdAt': 1});
 
 void main() {
   setUp(() {
@@ -56,7 +57,8 @@ void main() {
 
     testWidgets('mkdir error shows snack', (t) async {
       installApi(extra: {
-        'POST /api/projects/p1/files/mkdir': (_) => http.Response('{"error":"mk fail"}', 500),
+        'POST /api/projects/p1/files/mkdir': (_) =>
+            http.Response('{"error":"mk fail"}', 500),
       });
       await pump(t, FilesTab(project: p1));
       await t.tap(find.byIcon(Icons.create_new_folder_outlined));
@@ -69,8 +71,10 @@ void main() {
 
     testWidgets('rename and delete errors show snacks', (t) async {
       installApi(extra: {
-        'POST /api/projects/p1/files/move': (_) => http.Response('{"error":"mv fail"}', 500),
-        'DELETE /api/projects/p1/files': (_) => http.Response('{"error":"del fail"}', 500),
+        'POST /api/projects/p1/files/move': (_) =>
+            http.Response('{"error":"mv fail"}', 500),
+        'DELETE /api/projects/p1/files': (_) =>
+            http.Response('{"error":"del fail"}', 500),
       });
       await pump(t, FilesTab(project: p1));
       await t.tap(find.byType(PopupMenuButton<String>).last);
@@ -131,10 +135,16 @@ void main() {
         'GET /api/projects/p1/renders': (_) {
           loads++;
           return [
-            {'id': 'r1', 'status': 'running', 'outputName': 'x', 'progress': 0.4},
+            {
+              'id': 'r1',
+              'status': 'running',
+              'outputName': 'x',
+              'progress': 0.4
+            },
           ];
         },
-        'POST /api/renders/r1/cancel': (_) => http.Response('{"error":"cant"}', 409),
+        'POST /api/renders/r1/cancel': (_) =>
+            http.Response('{"error":"cant"}', 409),
       });
       await pump(t, RendersTab(project: p1));
       await t.tap(find.byIcon(Icons.stop));
@@ -150,8 +160,8 @@ void main() {
     testWidgets('download error snack', (t) async {
       installApi(extra: {
         'GET /api/projects/p1/renders': (_) => [
-          {'id': 'r1', 'status': 'done', 'outputName': 'x'},
-        ],
+              {'id': 'r1', 'status': 'done', 'outputName': 'x'},
+            ],
       });
       await pump(t, RendersTab(project: p1));
       await t.tap(find.byIcon(Icons.download));
@@ -164,8 +174,8 @@ void main() {
       var renderPosts = 0;
       installApi(extra: {
         'GET /api/projects/p1/renders': (_) => [
-          {'id': 'r1', 'status': 'done', 'outputName': 'x'},
-        ],
+              {'id': 'r1', 'status': 'done', 'outputName': 'x'},
+            ],
         'POST /api/projects/p1/renders': (_) {
           renderPosts++;
           return {'id': 'r9', 'status': 'queued'};
@@ -177,8 +187,10 @@ void main() {
       await t.tap(find.byType(FloatingActionButton));
       await settle(t);
       expect(find.byType(RenderDialog), findsOneWidget);
-      await t.tap(find.descendant(
-          of: find.byType(AlertDialog), matching: find.byIcon(Icons.add)).first);
+      await t.tap(find
+          .descendant(
+              of: find.byType(AlertDialog), matching: find.byIcon(Icons.add))
+          .first);
       await t.pump();
       await t.tap(find.text('Render'));
       await settle(t);
@@ -220,7 +232,8 @@ void main() {
       await t.pumpWidget(testApp(Scaffold(
           body: Builder(
               builder: (c) => TextButton(
-                  onPressed: () => showDialog<bool>(context: c, builder: (_) => RenderDialog(project: p1)),
+                  onPressed: () => showDialog<bool>(
+                      context: c, builder: (_) => RenderDialog(project: p1)),
                   child: const Text('open'))))));
       await settle(t);
       await t.tap(find.text('open'));
@@ -238,17 +251,36 @@ void main() {
     testWidgets('reorder moves clips', (t) async {
       installApi(extra: {
         'GET /api/projects/p1/files': (_) => [
-          {'name': 'a.mp4', 'path': 'Raw/A-Roll/a.mp4', 'type': 'file', 'size': 1, 'modified': 0},
-          {'name': 'b.mp4', 'path': 'Raw/A-Roll/b.mp4', 'type': 'file', 'size': 1, 'modified': 0},
-          {'name': 'c.mp4', 'path': 'Raw/A-Roll/c.mp4', 'type': 'file', 'size': 1, 'modified': 0},
-        ],
+              {
+                'name': 'a.mp4',
+                'path': 'Raw/A-Roll/a.mp4',
+                'type': 'file',
+                'size': 1,
+                'modified': 0
+              },
+              {
+                'name': 'b.mp4',
+                'path': 'Raw/A-Roll/b.mp4',
+                'type': 'file',
+                'size': 1,
+                'modified': 0
+              },
+              {
+                'name': 'c.mp4',
+                'path': 'Raw/A-Roll/c.mp4',
+                'type': 'file',
+                'size': 1,
+                'modified': 0
+              },
+            ],
       });
       await t.binding.setSurfaceSize(const Size(1280, 800));
       addTearDown(() => t.binding.setSurfaceSize(null));
       await t.pumpWidget(testApp(Scaffold(
           body: Builder(
               builder: (c) => TextButton(
-                  onPressed: () => showDialog<bool>(context: c, builder: (_) => RenderDialog(project: p1)),
+                  onPressed: () => showDialog<bool>(
+                      context: c, builder: (_) => RenderDialog(project: p1)),
                   child: const Text('open'))))));
       await settle(t);
       await t.tap(find.text('open'));

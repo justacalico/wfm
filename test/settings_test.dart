@@ -74,8 +74,10 @@ void main() {
 
   testWidgets('non-owner hides server settings', (t) async {
     installApi(extra: {
-      'GET /api/me': (_) =>
-          {'csrf': 'c', 'user': {'id': 'u9', 'username': 'tea', 'role': 'teacher'}},
+      'GET /api/me': (_) => {
+            'csrf': 'c',
+            'user': {'id': 'u9', 'username': 'tea', 'role': 'teacher'}
+          },
       'GET *': (_) => [],
     });
     await pumpApp(t);
@@ -99,10 +101,19 @@ void main() {
     await settle(t);
     expect(find.byType(AlertDialog), findsOneWidget);
     await t.enterText(
-        find.descendant(of: find.byType(AlertDialog), matching: find.byType(TextField)).at(0), 'old');
+        find
+            .descendant(
+                of: find.byType(AlertDialog), matching: find.byType(TextField))
+            .at(0),
+        'old');
     await t.enterText(
-        find.descendant(of: find.byType(AlertDialog), matching: find.byType(TextField)).at(1), 'new');
-    await t.tap(find.descendant(of: find.byType(AlertDialog), matching: find.text('Save')));
+        find
+            .descendant(
+                of: find.byType(AlertDialog), matching: find.byType(TextField))
+            .at(1),
+        'new');
+    await t.tap(find.descendant(
+        of: find.byType(AlertDialog), matching: find.text('Save')));
     await settle(t);
     expect(body, contains('"next":"new"'));
     expect(find.byType(SnackBar), findsOneWidget);
@@ -121,15 +132,17 @@ void main() {
     await goSettings(t);
     await t.tap(find.byIcon(Icons.key));
     await settle(t);
-    await t.tap(find.descendant(of: find.byType(AlertDialog), matching: find.text('Save')));
+    await t.tap(find.descendant(
+        of: find.byType(AlertDialog), matching: find.text('Save')));
     await settle(t);
     expect(find.byType(SnackBar), findsOneWidget);
   });
 
   testWidgets('update check up to date', (t) async {
     installApi(extra: {'GET *': (_) => []});
-    UpdateChecker.factoryForTesting = () =>
-        UpdateChecker(_StaticClient((_) async => http.Response('[]', 200)), apiUrl: 'https://x');
+    UpdateChecker.factoryForTesting = () => UpdateChecker(
+        _StaticClient((_) async => http.Response('[]', 200)),
+        apiUrl: 'https://x');
     await t.binding.setSurfaceSize(const Size(1000, 900));
     addTearDown(() => t.binding.setSurfaceSize(null));
     await goSettings(t);
@@ -143,7 +156,8 @@ void main() {
     openExternalForTesting = (u) => opened = u;
     installApi(extra: {'GET *': (_) => []});
     UpdateChecker.factoryForTesting = () => UpdateChecker(
-        _StaticClient((_) async => http.Response('[{"tag_name":"v9.9.9"}]', 200)),
+        _StaticClient(
+            (_) async => http.Response('[{"tag_name":"v9.9.9"}]', 200)),
         apiUrl: 'https://x',
         pageUrl: 'https://page');
     await t.binding.setSurfaceSize(const Size(1000, 900));
@@ -160,7 +174,8 @@ void main() {
   testWidgets('view release without browser shows snack', (t) async {
     installApi(extra: {'GET *': (_) => []});
     UpdateChecker.factoryForTesting = () => UpdateChecker(
-        _StaticClient((_) async => http.Response('[{"tag_name":"v9.9.9"}]', 200)),
+        _StaticClient(
+            (_) async => http.Response('[{"tag_name":"v9.9.9"}]', 200)),
         apiUrl: 'https://x',
         pageUrl: 'https://page');
     await t.binding.setSurfaceSize(const Size(1000, 900));
@@ -175,8 +190,9 @@ void main() {
 
   testWidgets('update check failure', (t) async {
     installApi(extra: {'GET *': (_) => []});
-    UpdateChecker.factoryForTesting = () =>
-        UpdateChecker(_StaticClient((_) async => http.Response('x', 500)), apiUrl: 'https://x');
+    UpdateChecker.factoryForTesting = () => UpdateChecker(
+        _StaticClient((_) async => http.Response('x', 500)),
+        apiUrl: 'https://x');
     await t.binding.setSurfaceSize(const Size(1000, 900));
     addTearDown(() => t.binding.setSurfaceSize(null));
     await goSettings(t);
@@ -207,8 +223,7 @@ class _StaticClient extends http.BaseClient {
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
     final r = await f(request);
-    return http.StreamedResponse(
-        Stream.value(r.bodyBytes), r.statusCode,
+    return http.StreamedResponse(Stream.value(r.bodyBytes), r.statusCode,
         headers: r.headers, request: request);
   }
 }

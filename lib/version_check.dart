@@ -17,8 +17,11 @@ class Version implements Comparable<Version> {
   }
 
   @override
-  int compareTo(Version o) =>
-      major != o.major ? major.compareTo(o.major) : minor != o.minor ? minor.compareTo(o.minor) : patch.compareTo(o.patch);
+  int compareTo(Version o) => major != o.major
+      ? major.compareTo(o.major)
+      : minor != o.minor
+          ? minor.compareTo(o.minor)
+          : patch.compareTo(o.patch);
 
   @override
   String toString() => '$major.$minor.$patch';
@@ -33,11 +36,13 @@ class UpdateChecker {
   static const projectPath = 'HttpAnimations/wfm';
   static const defaultApi =
       'https://gitlab.com/api/v4/projects/HttpAnimations%2Fwfm/releases';
-  static const releasesPage = 'https://gitlab.com/HttpAnimations/wfm/-/releases';
+  static const releasesPage =
+      'https://gitlab.com/HttpAnimations/wfm/-/releases';
 
   final http.Client client;
   final String apiUrl, pageUrl;
-  const UpdateChecker(this.client, {this.apiUrl = defaultApi, this.pageUrl = releasesPage});
+  const UpdateChecker(this.client,
+      {this.apiUrl = defaultApi, this.pageUrl = releasesPage});
 
   static UpdateChecker Function()? factoryForTesting;
 

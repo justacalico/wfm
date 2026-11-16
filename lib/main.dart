@@ -93,13 +93,14 @@ class WfmAppState extends State<WfmApp> {
 
   void setLocale(Locale? l) {
     setState(() => _locale = l);
-    SharedPreferences.getInstance().then((p) =>
-        l == null ? p.remove('locale') : p.setString('locale', '${l.languageCode}_${l.countryCode ?? ''}'));
+    SharedPreferences.getInstance().then((p) => l == null
+        ? p.remove('locale')
+        : p.setString('locale', '${l.languageCode}_${l.countryCode ?? ''}'));
   }
 }
 
-InputDecoration dec(String label, [String? hint]) =>
-    InputDecoration(labelText: label, hintText: hint, border: const OutlineInputBorder());
+InputDecoration dec(String label, [String? hint]) => InputDecoration(
+    labelText: label, hintText: hint, border: const OutlineInputBorder());
 
 void snack(BuildContext context, Object e) {
   if (context.mounted) {
@@ -107,17 +108,24 @@ void snack(BuildContext context, Object e) {
   }
 }
 
-Future<String?> promptText(BuildContext context, String title, String label, [String initial = '']) {
+Future<String?> promptText(BuildContext context, String title, String label,
+    [String initial = '']) {
   final c = TextEditingController(text: initial);
   return showDialog<String>(
     context: context,
     builder: (ctx) => AlertDialog(
       title: Text(title),
       content: TextField(
-          controller: c, decoration: dec(label), autofocus: true, onSubmitted: (v) => Navigator.pop(ctx, v.trim())),
+          controller: c,
+          decoration: dec(label),
+          autofocus: true,
+          onSubmitted: (v) => Navigator.pop(ctx, v.trim())),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(ctx), child: Text(ctx.l10n.cancel)),
-        FilledButton(onPressed: () => Navigator.pop(ctx, c.text.trim()), child: Text(ctx.l10n.ok)),
+        TextButton(
+            onPressed: () => Navigator.pop(ctx), child: Text(ctx.l10n.cancel)),
+        FilledButton(
+            onPressed: () => Navigator.pop(ctx, c.text.trim()),
+            child: Text(ctx.l10n.ok)),
       ],
     ),
   );
@@ -130,8 +138,12 @@ Future<bool> confirm(BuildContext context, String title, String body) async =>
         title: Text(title),
         content: Text(body),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(ctx.l10n.cancel)),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(ctx.l10n.confirm)),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(ctx.l10n.cancel)),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(ctx.l10n.confirm)),
         ],
       ),
     ) ==
@@ -180,7 +192,9 @@ class SetupPage extends StatefulWidget {
 }
 
 class _SetupPageState extends State<SetupPage> {
-  final _user = TextEditingController(), _pass = TextEditingController(), _name = TextEditingController();
+  final _user = TextEditingController(),
+      _pass = TextEditingController(),
+      _name = TextEditingController();
   final _proxies = TextEditingController();
   String _err = '';
   bool _busy = false, _behindProxy = false;
@@ -195,7 +209,8 @@ class _SetupPageState extends State<SetupPage> {
           trustedProxies: _behindProxy ? _proxies.text : '');
       await Api.i.roles().catchError((_) => Api.i.caps);
       if (mounted) {
-        Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const Shell()));
+        Navigator.of(context)
+            .pushReplacement(MaterialPageRoute(builder: (_) => const Shell()));
       }
     } catch (e) {
       setState(() => _err = '$e');
@@ -211,32 +226,48 @@ class _SetupPageState extends State<SetupPage> {
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 360),
-          child: ListView(shrinkWrap: true, padding: const EdgeInsets.all(24), children: [
-            Text(l10n.welcomeTitle, style: Theme.of(context).textTheme.headlineSmall),
-            const SizedBox(height: 8),
-            Text(l10n.setupSubtitle),
-            const SizedBox(height: 20),
-            TextField(controller: _name, decoration: dec(l10n.yourName)),
-            const SizedBox(height: 12),
-            TextField(controller: _user, decoration: dec(l10n.username)),
-            const SizedBox(height: 12),
-            TextField(controller: _pass, obscureText: true, decoration: dec(l10n.password), onSubmitted: (_) => _go()),
-            CheckboxListTile(
-              value: _behindProxy,
-              onChanged: (v) => setState(() => _behindProxy = v ?? false),
-              title: Text(l10n.behindProxy, style: const TextStyle(fontSize: 14)),
-              contentPadding: EdgeInsets.zero,
-              controlAffinity: ListTileControlAffinity.leading,
-            ),
-            if (_behindProxy)
-              TextField(controller: _proxies, decoration: dec(l10n.trustedProxies, l10n.trustedProxiesHint)),
-            if (_err.isNotEmpty)
-              Padding(
-                  padding: const EdgeInsets.only(top: 12),
-                  child: Text(_err, style: TextStyle(color: Theme.of(context).colorScheme.error))),
-            const SizedBox(height: 20),
-            FilledButton(onPressed: _busy ? null : _go, child: Text(_busy ? l10n.creating : l10n.createOwner)),
-          ]),
+          child: ListView(
+              shrinkWrap: true,
+              padding: const EdgeInsets.all(24),
+              children: [
+                Text(l10n.welcomeTitle,
+                    style: Theme.of(context).textTheme.headlineSmall),
+                const SizedBox(height: 8),
+                Text(l10n.setupSubtitle),
+                const SizedBox(height: 20),
+                TextField(controller: _name, decoration: dec(l10n.yourName)),
+                const SizedBox(height: 12),
+                TextField(controller: _user, decoration: dec(l10n.username)),
+                const SizedBox(height: 12),
+                TextField(
+                    controller: _pass,
+                    obscureText: true,
+                    decoration: dec(l10n.password),
+                    onSubmitted: (_) => _go()),
+                CheckboxListTile(
+                  value: _behindProxy,
+                  onChanged: (v) => setState(() => _behindProxy = v ?? false),
+                  title: Text(l10n.behindProxy,
+                      style: const TextStyle(fontSize: 14)),
+                  contentPadding: EdgeInsets.zero,
+                  controlAffinity: ListTileControlAffinity.leading,
+                ),
+                if (_behindProxy)
+                  TextField(
+                      controller: _proxies,
+                      decoration:
+                          dec(l10n.trustedProxies, l10n.trustedProxiesHint)),
+                if (_err.isNotEmpty)
+                  Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: Text(_err,
+                          style: TextStyle(
+                              color: Theme.of(context).colorScheme.error))),
+                const SizedBox(height: 20),
+                FilledButton(
+                    onPressed: _busy ? null : _go,
+                    child: Text(_busy ? l10n.creating : l10n.createOwner)),
+              ]),
         ),
       ),
     );
@@ -263,7 +294,8 @@ class _LoginPageState extends State<LoginPage> {
       await Api.i.login(_user.text.trim(), _pass.text);
       await Api.i.roles().catchError((_) => Api.i.caps);
       if (mounted) {
-        Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const Shell()));
+        Navigator.of(context)
+            .pushReplacement(MaterialPageRoute(builder: (_) => const Shell()));
       }
     } catch (e) {
       setState(() => _err = context.l10n.signInFailed('$e'));
@@ -279,19 +311,35 @@ class _LoginPageState extends State<LoginPage> {
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 360),
-          child: ListView(shrinkWrap: true, padding: const EdgeInsets.all(24), children: [
-            Text(l10n.appTitle, style: Theme.of(context).textTheme.headlineMedium, textAlign: TextAlign.center),
-            const SizedBox(height: 24),
-            TextField(controller: _user, decoration: dec(l10n.username), autofocus: true),
-            const SizedBox(height: 12),
-            TextField(controller: _pass, obscureText: true, decoration: dec(l10n.password), onSubmitted: (_) => _go()),
-            if (_err.isNotEmpty)
-              Padding(
-                  padding: const EdgeInsets.only(top: 12),
-                  child: Text(_err, style: TextStyle(color: Theme.of(context).colorScheme.error))),
-            const SizedBox(height: 20),
-            FilledButton(onPressed: _busy ? null : _go, child: Text(_busy ? l10n.signingIn : l10n.signIn)),
-          ]),
+          child: ListView(
+              shrinkWrap: true,
+              padding: const EdgeInsets.all(24),
+              children: [
+                Text(l10n.appTitle,
+                    style: Theme.of(context).textTheme.headlineMedium,
+                    textAlign: TextAlign.center),
+                const SizedBox(height: 24),
+                TextField(
+                    controller: _user,
+                    decoration: dec(l10n.username),
+                    autofocus: true),
+                const SizedBox(height: 12),
+                TextField(
+                    controller: _pass,
+                    obscureText: true,
+                    decoration: dec(l10n.password),
+                    onSubmitted: (_) => _go()),
+                if (_err.isNotEmpty)
+                  Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: Text(_err,
+                          style: TextStyle(
+                              color: Theme.of(context).colorScheme.error))),
+                const SizedBox(height: 20),
+                FilledButton(
+                    onPressed: _busy ? null : _go,
+                    child: Text(_busy ? l10n.signingIn : l10n.signIn)),
+              ]),
         ),
       ),
     );
@@ -328,44 +376,56 @@ class ShellState extends State<Shell> {
     final items = _items(l10n, Api.i.caps.manage || Api.i.caps.audit);
     final initials = u.name.trim().isEmpty
         ? u.username.substring(0, 1).toUpperCase()
-        : (u.name.trim().split(RegExp(r'\s+')).map((w) => w[0]).take(2).join().toUpperCase());
+        : (u.name
+            .trim()
+            .split(RegExp(r'\s+'))
+            .map((w) => w[0])
+            .take(2)
+            .join()
+            .toUpperCase());
     return Column(children: [
       Padding(
         padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
         child: Align(
           alignment: Alignment.centerLeft,
-          child: Text(l10n.appTitle, style: Theme.of(context).textTheme.titleLarge),
+          child: Text(l10n.appTitle,
+              style: Theme.of(context).textTheme.titleLarge),
         ),
       ),
       Expanded(
-        child: ListView(padding: const EdgeInsets.symmetric(horizontal: 8), children: [
-          for (var i = 0; i < items.length; i++)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 1),
-              child: Material(
-                color: i == _page
-                    ? Theme.of(context).colorScheme.secondaryContainer
-                    : Colors.transparent,
-                shape: const StadiumBorder(),
-                clipBehavior: Clip.antiAlias,
-                child: ListTile(
-                  dense: true,
-                  leading: Icon(items[i].$1, size: 20),
-                  title: Text(items[i].$2),
-                  shape: const StadiumBorder(),
-                  onTap: () {
-                    go(i);
-                    onTap?.call();
-                  },
+        child: ListView(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            children: [
+              for (var i = 0; i < items.length; i++)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 1),
+                  child: Material(
+                    color: i == _page
+                        ? Theme.of(context).colorScheme.secondaryContainer
+                        : Colors.transparent,
+                    shape: const StadiumBorder(),
+                    clipBehavior: Clip.antiAlias,
+                    child: ListTile(
+                      dense: true,
+                      leading: Icon(items[i].$1, size: 20),
+                      title: Text(items[i].$2),
+                      shape: const StadiumBorder(),
+                      onTap: () {
+                        go(i);
+                        onTap?.call();
+                      },
+                    ),
+                  ),
                 ),
-              ),
-            ),
-        ]),
+            ]),
       ),
       const Divider(height: 1),
       ListTile(
-        leading: CircleAvatar(radius: 16, child: Text(initials, style: const TextStyle(fontSize: 12))),
-        title: Text(u.name.isEmpty ? u.username : u.name, overflow: TextOverflow.ellipsis),
+        leading: CircleAvatar(
+            radius: 16,
+            child: Text(initials, style: const TextStyle(fontSize: 12))),
+        title: Text(u.name.isEmpty ? u.username : u.name,
+            overflow: TextOverflow.ellipsis),
         subtitle: Text(u.role, style: const TextStyle(fontSize: 11)),
         trailing: IconButton(
           icon: const Icon(Icons.logout, size: 18),
@@ -373,7 +433,8 @@ class ShellState extends State<Shell> {
           onPressed: () async {
             await Api.i.logout();
             if (mounted) {
-              Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const Gate()));
+              Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(builder: (_) => const Gate()));
             }
           },
         ),
@@ -391,7 +452,10 @@ class ShellState extends State<Shell> {
       if (box.maxWidth < 720) {
         return Scaffold(
           appBar: AppBar(title: Text(_items(l10n, showManage)[_page].$2)),
-          drawer: Drawer(child: SafeArea(child: _navColumn(l10n, onTap: () => Navigator.of(context).pop()))),
+          drawer: Drawer(
+              child: SafeArea(
+                  child: _navColumn(l10n,
+                      onTap: () => Navigator.of(context).pop()))),
           body: pages[_page],
         );
       }
@@ -417,7 +481,12 @@ class HomePage extends StatelessWidget {
       (Icons.movie_outlined, l10n.cardProjects, l10n.cardProjectsSub, 1),
       if (showManage)
         (Icons.group_outlined, l10n.cardManage, l10n.cardManageSub, 2),
-      (Icons.tune_outlined, l10n.cardSettings, l10n.cardSettingsSub, showManage ? 3 : 2),
+      (
+        Icons.tune_outlined,
+        l10n.cardSettings,
+        l10n.cardSettingsSub,
+        showManage ? 3 : 2
+      ),
     ];
     return ListView(padding: const EdgeInsets.all(24), children: [
       Text(l10n.greeting(u.name.isEmpty ? u.username : u.name),
@@ -428,15 +497,20 @@ class HomePage extends StatelessWidget {
           Card(
             clipBehavior: Clip.antiAlias,
             child: InkWell(
-              onTap: () => context.findAncestorStateOfType<ShellState>()?.go(c.$4),
+              onTap: () =>
+                  context.findAncestorStateOfType<ShellState>()?.go(c.$4),
               child: Padding(
                 padding: const EdgeInsets.all(20),
-                child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Icon(c.$1, size: 28),
-                  const SizedBox(height: 12),
-                  Text(c.$2, style: const TextStyle(fontWeight: FontWeight.bold)),
-                  Text(c.$3, style: Theme.of(context).textTheme.bodySmall),
-                ]),
+                child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(c.$1, size: 28),
+                      const SizedBox(height: 12),
+                      Text(c.$2,
+                          style: const TextStyle(fontWeight: FontWeight.bold)),
+                      Text(c.$3, style: Theme.of(context).textTheme.bodySmall),
+                    ]),
               ),
             ),
           ),

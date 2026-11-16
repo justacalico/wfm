@@ -23,7 +23,8 @@ void main() {
     testWidgets('nothing to manage for plain student', (t) async {
       installApi();
       Api.i.user = User.fromJson({'role': 'student'});
-      Api.i.caps = Caps.fromJson({'creatable': [], 'canManage': false, 'canAudit': false});
+      Api.i.caps = Caps.fromJson(
+          {'creatable': [], 'canManage': false, 'canAudit': false});
       await pump(t, const ManagePage());
       expect(find.textContaining('Nothing to manage'), findsOneWidget);
     });
@@ -31,7 +32,11 @@ void main() {
     testWidgets('shows only permitted tabs', (t) async {
       installApi();
       Api.i.user = User.fromJson({'role': 'mod'});
-      Api.i.caps = Caps.fromJson({'creatable': ['student'], 'canManage': true, 'canAudit': false});
+      Api.i.caps = Caps.fromJson({
+        'creatable': ['student'],
+        'canManage': true,
+        'canAudit': false
+      });
       await pump(t, const ManagePage());
       expect(find.text('Accounts'), findsOneWidget);
       expect(find.text('Activity'), findsNothing);
@@ -135,7 +140,9 @@ void main() {
     });
 
     testWidgets('error state and no fab without creatable', (t) async {
-      installApi(extra: {'GET /api/accounts': (_) => http.Response('{"error":"nope"}', 500)});
+      installApi(extra: {
+        'GET /api/accounts': (_) => http.Response('{"error":"nope"}', 500)
+      });
       Api.i.caps = Caps.fromJson({'creatable': [], 'canManage': true});
       await pump(t, const AccountsTab());
       expect(find.text('nope'), findsOneWidget);
@@ -150,7 +157,13 @@ void main() {
         'GET /api/audit': (req) {
           scopes.add(req.url.queryParameters['scope']);
           return [
-            {'ts': 1700000000, 'actorName': 'Ada', 'action': 'login', 'target': '', 'detail': 'ok'},
+            {
+              'ts': 1700000000,
+              'actorName': 'Ada',
+              'action': 'login',
+              'target': '',
+              'detail': 'ok'
+            },
           ];
         },
       });
@@ -169,7 +182,9 @@ void main() {
       await pump(t, const AuditTab());
       expect(find.textContaining('Nothing'), findsOneWidget);
       await t.pumpWidget(const SizedBox());
-      installApi(extra: {'GET /api/audit': (_) => http.Response('{"error":"audit err"}', 500)});
+      installApi(extra: {
+        'GET /api/audit': (_) => http.Response('{"error":"audit err"}', 500)
+      });
       await pump(t, const AuditTab());
       expect(find.text('audit err'), findsOneWidget);
     });
@@ -209,7 +224,8 @@ void main() {
 
     testWidgets('create node shows token dialog', (t) async {
       installApi(extra: {
-        'POST /api/nodes': (_) => {'id': 'n9', 'name': 'newbox', 'token': 'tok123'},
+        'POST /api/nodes': (_) =>
+            {'id': 'n9', 'name': 'newbox', 'token': 'tok123'},
       });
       await pump(t, const NodesTab());
       await t.tap(find.byType(FloatingActionButton));
@@ -245,7 +261,9 @@ void main() {
       await pump(t, const NodesTab());
       expect(find.textContaining('No render nodes'), findsOneWidget);
       await t.pumpWidget(const SizedBox());
-      installApi(extra: {'GET /api/nodes': (_) => http.Response('{"error":"node fail"}', 500)});
+      installApi(extra: {
+        'GET /api/nodes': (_) => http.Response('{"error":"node fail"}', 500)
+      });
       await pump(t, const NodesTab());
       expect(find.text('node fail'), findsOneWidget);
     });

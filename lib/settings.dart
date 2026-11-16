@@ -59,7 +59,8 @@ class _SettingsPageState extends State<SettingsPage> {
     if (_update == UpdateResult.checking) return;
     setState(() => _update = UpdateResult.checking);
     try {
-      final checker = UpdateChecker.factoryForTesting?.call() ?? UpdateChecker(http.Client());
+      final checker = UpdateChecker.factoryForTesting?.call() ??
+          UpdateChecker(http.Client());
       final u = await checker.check(_version);
       if (mounted) {
         setState(() {
@@ -82,14 +83,24 @@ class _SettingsPageState extends State<SettingsPage> {
         content: SizedBox(
           width: 320,
           child: Column(mainAxisSize: MainAxisSize.min, children: [
-            TextField(controller: cur, obscureText: true, decoration: dec(l10n.currentPassword)),
+            TextField(
+                controller: cur,
+                obscureText: true,
+                decoration: dec(l10n.currentPassword)),
             const SizedBox(height: 8),
-            TextField(controller: next, obscureText: true, decoration: dec(l10n.newPassword)),
+            TextField(
+                controller: next,
+                obscureText: true,
+                decoration: dec(l10n.newPassword)),
           ]),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l10n.cancel)),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(l10n.save)),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(l10n.cancel)),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(l10n.save)),
         ],
       ),
     );
@@ -129,7 +140,9 @@ class _SettingsPageState extends State<SettingsPage> {
         decoration: dec(l10n.language),
         items: [
           for (final e in langNames.entries)
-            DropdownMenuItem(value: e.key, child: Text(e.key == null ? l10n.langSystem : e.value)),
+            DropdownMenuItem(
+                value: e.key,
+                child: Text(e.key == null ? l10n.langSystem : e.value)),
         ],
         onChanged: (v) => app.setLocale(v),
       ),
@@ -138,7 +151,8 @@ class _SettingsPageState extends State<SettingsPage> {
         alignment: Alignment.centerLeft,
         child: SegmentedButton<AppTheme>(
           segments: [
-            ButtonSegment(value: AppTheme.system, label: Text(l10n.themeSystem)),
+            ButtonSegment(
+                value: AppTheme.system, label: Text(l10n.themeSystem)),
             ButtonSegment(value: AppTheme.light, label: Text(l10n.themeLight)),
             ButtonSegment(value: AppTheme.dark, label: Text(l10n.themeDark)),
             ButtonSegment(value: AppTheme.oled, label: Text(l10n.themeOled)),
@@ -149,7 +163,8 @@ class _SettingsPageState extends State<SettingsPage> {
       ),
       if (u.isOwner && _proxies != null) ...[
         const SizedBox(height: 24),
-        Text(l10n.serverSection, style: Theme.of(context).textTheme.titleMedium),
+        Text(l10n.serverSection,
+            style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),
         TextField(
           controller: proxies,
@@ -157,7 +172,8 @@ class _SettingsPageState extends State<SettingsPage> {
           onSubmitted: _saveProxies,
         ),
         const SizedBox(height: 4),
-        Text(l10n.trustedProxiesHelp, style: Theme.of(context).textTheme.bodySmall),
+        Text(l10n.trustedProxiesHelp,
+            style: Theme.of(context).textTheme.bodySmall),
         const SizedBox(height: 8),
         Align(
           alignment: Alignment.centerLeft,
@@ -172,10 +188,12 @@ class _SettingsPageState extends State<SettingsPage> {
         leading: const Icon(Icons.system_update_outlined),
         title: Text(l10n.checkUpdates),
         subtitle: Text(switch (_update) {
-          UpdateResult.idle => _version.isEmpty ? '' : l10n.versionLabel(_version),
+          UpdateResult.idle =>
+            _version.isEmpty ? '' : l10n.versionLabel(_version),
           UpdateResult.checking => l10n.checking,
           UpdateResult.upToDate => l10n.upToDate(_version),
-          UpdateResult.available => l10n.updateAvailable(_latest?.version ?? ''),
+          UpdateResult.available =>
+            l10n.updateAvailable(_latest?.version ?? ''),
           UpdateResult.failed => l10n.checkFailed,
         }),
         trailing: _update == UpdateResult.available && _latest != null
@@ -189,7 +207,10 @@ class _SettingsPageState extends State<SettingsPage> {
                 },
                 child: Text(l10n.viewRelease))
             : (_update == UpdateResult.checking
-                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2))
                 : null),
         onTap: _update == UpdateResult.checking ? null : _checkUpdates,
       ),

@@ -1,1 +1,7 @@
-{ "@@locale": "en_GB" }
+{
+  "screenshotsTitle": "Screenshots",
+  "@@locale": "en_GB",
+  "@screenshotsTitle": {
+    "description": "Section title above the app screenshots"
+  }
+}

@@ -47,7 +47,9 @@ Future<List<PickedFile>> pickFiles() async {
     }
     finish(out);
   });
-  web.EventStreamProviders.cancelEvent.forElement(input).listen((_) => finish([]));
+  web.EventStreamProviders.cancelEvent
+      .forElement(input)
+      .listen((_) => finish([]));
   input.click();
   return done.future;
 }

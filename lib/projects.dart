@@ -31,7 +31,8 @@ class _ProjectsPageState extends State<ProjectsPage> {
   }
 
   Future<void> _create() async {
-    final name = await promptText(context, context.l10n.newProject, context.l10n.projectName);
+    final name = await promptText(
+        context, context.l10n.newProject, context.l10n.projectName);
     if (name == null || name.isEmpty || !mounted) return;
     try {
       await Api.i.createProject(name);
@@ -49,7 +50,9 @@ class _ProjectsPageState extends State<ProjectsPage> {
     return Scaffold(
       appBar: AppBar(title: Text(l10n.projects)),
       floatingActionButton: FloatingActionButton.extended(
-          onPressed: _create, icon: const Icon(Icons.add), label: Text(l10n.newProject)),
+          onPressed: _create,
+          icon: const Icon(Icons.add),
+          label: Text(l10n.newProject)),
       body: items == null
           ? const Center(child: CircularProgressIndicator())
           : items.isEmpty
@@ -57,34 +60,43 @@ class _ProjectsPageState extends State<ProjectsPage> {
               : GridView.builder(
                   padding: const EdgeInsets.all(16),
                   gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                      maxCrossAxisExtent: 280, mainAxisExtent: 170, crossAxisSpacing: 12, mainAxisSpacing: 12),
+                      maxCrossAxisExtent: 280,
+                      mainAxisExtent: 170,
+                      crossAxisSpacing: 12,
+                      mainAxisSpacing: 12),
                   itemCount: items.length,
                   itemBuilder: (c, i) {
                     final p = items[i];
                     return Card(
                       clipBehavior: Clip.antiAlias,
                       child: InkWell(
-                        onTap: () => Navigator.of(c).push(MaterialPageRoute(builder: (_) => ProjectPage(project: p))),
+                        onTap: () => Navigator.of(c).push(MaterialPageRoute(
+                            builder: (_) => ProjectPage(project: p))),
                         child: Padding(
                           padding: const EdgeInsets.all(16),
-                          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                            Text(p.displayName,
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                                overflow: TextOverflow.ellipsis),
-                            Text(l10n.createdAgo(fmtAgo(l10n, p.createdAt)), style: Theme.of(c).textTheme.bodySmall),
-                            const Spacer(),
-                            TextButton.icon(
-                              onPressed: () {
-                                try {
-                                  openExternal(Api.i.projectUrl(p.id));
-                                } catch (e) {
-                                  if (c.mounted) snack(c, e);
-                                }
-                              },
-                              icon: const Icon(Icons.open_in_new, size: 16),
-                              label: Text(l10n.openInFilmcraft),
-                            ),
-                          ]),
+                          child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(p.displayName,
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16),
+                                    overflow: TextOverflow.ellipsis),
+                                Text(l10n.createdAgo(fmtAgo(l10n, p.createdAt)),
+                                    style: Theme.of(c).textTheme.bodySmall),
+                                const Spacer(),
+                                TextButton.icon(
+                                  onPressed: () {
+                                    try {
+                                      openExternal(Api.i.projectUrl(p.id));
+                                    } catch (e) {
+                                      if (c.mounted) snack(c, e);
+                                    }
+                                  },
+                                  icon: const Icon(Icons.open_in_new, size: 16),
+                                  label: Text(l10n.openInFilmcraft),
+                                ),
+                              ]),
                         ),
                       ),
                     );
@@ -106,18 +118,25 @@ class _ProjectPageState extends State<ProjectPage> {
   late Project _p = widget.project;
 
   Future<void> _rename() async {
-    final name = await promptText(context, context.l10n.renameProject, context.l10n.displayName, _p.displayName);
+    final name = await promptText(context, context.l10n.renameProject,
+        context.l10n.displayName, _p.displayName);
     if (name == null || name.isEmpty || !mounted) return;
     try {
       await Api.i.renameProject(_p.id, name);
-      setState(() => _p = Project.fromJson({'id': _p.id, 'name': _p.name, 'displayName': name, 'createdAt': _p.createdAt}));
+      setState(() => _p = Project.fromJson({
+            'id': _p.id,
+            'name': _p.name,
+            'displayName': name,
+            'createdAt': _p.createdAt
+          }));
     } catch (e) {
       if (mounted) snack(context, e);
     }
   }
 
   Future<void> _delete() async {
-    if (!await confirm(context, context.l10n.deleteProject, context.l10n.deleteProjectBody(_p.displayName))) {
+    if (!await confirm(context, context.l10n.deleteProject,
+        context.l10n.deleteProjectBody(_p.displayName))) {
       return;
     }
     try {
@@ -163,8 +182,14 @@ class _ProjectPageState extends State<ProjectPage> {
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: SegmentedButton<int>(
                 segments: [
-                  ButtonSegment(value: 0, icon: const Icon(Icons.folder_outlined), label: Text(l10n.files)),
-                  ButtonSegment(value: 1, icon: const Icon(Icons.rocket_launch_outlined), label: Text(l10n.renders)),
+                  ButtonSegment(
+                      value: 0,
+                      icon: const Icon(Icons.folder_outlined),
+                      label: Text(l10n.files)),
+                  ButtonSegment(
+                      value: 1,
+                      icon: const Icon(Icons.rocket_launch_outlined),
+                      label: Text(l10n.renders)),
                 ],
                 selected: {_tab},
                 onSelectionChanged: (s) => setState(() => _tab = s.first),
@@ -251,10 +276,12 @@ class _FilesTabState extends State<FilesTab> {
   }
 
   Future<void> _mkdir() async {
-    final name = await promptText(context, context.l10n.newFolder, context.l10n.folderName);
+    final name = await promptText(
+        context, context.l10n.newFolder, context.l10n.folderName);
     if (name == null || name.isEmpty || !mounted) return;
     try {
-      await Api.i.mkdir(widget.project.id, _path.isEmpty ? name : '$_path/$name');
+      await Api.i
+          .mkdir(widget.project.id, _path.isEmpty ? name : '$_path/$name');
       _load();
     } catch (e) {
       if (mounted) snack(context, e);
@@ -262,11 +289,15 @@ class _FilesTabState extends State<FilesTab> {
   }
 
   Future<void> _rename(FileEntry e) async {
-    final name = await promptText(context, context.l10n.rename, context.l10n.newName, e.name);
+    final name = await promptText(
+        context, context.l10n.rename, context.l10n.newName, e.name);
     if (name == null || name.isEmpty || name == e.name || !mounted) return;
-    final parent = e.path.contains('/') ? e.path.substring(0, e.path.lastIndexOf('/')) : '';
+    final parent = e.path.contains('/')
+        ? e.path.substring(0, e.path.lastIndexOf('/'))
+        : '';
     try {
-      await Api.i.move(widget.project.id, e.path, parent.isEmpty ? name : '$parent/$name');
+      await Api.i.move(
+          widget.project.id, e.path, parent.isEmpty ? name : '$parent/$name');
       _load();
     } catch (err) {
       if (mounted) snack(context, err);
@@ -274,7 +305,9 @@ class _FilesTabState extends State<FilesTab> {
   }
 
   Future<void> _delete(FileEntry e) async {
-    if (!await confirm(context, context.l10n.delete, context.l10n.deleteFileBody(e.path))) return;
+    if (!await confirm(
+        context, context.l10n.delete, context.l10n.deleteFileBody(e.path)))
+      return;
     try {
       await Api.i.deleteFile(widget.project.id, e.path);
       _load();
@@ -291,19 +324,33 @@ class _FilesTabState extends State<FilesTab> {
       Padding(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
         child: Row(children: [
-          InkWell(onTap: () => _go(''), child: const Icon(Icons.home_outlined, size: 20)),
+          InkWell(
+              onTap: () => _go(''),
+              child: const Icon(Icons.home_outlined, size: 20)),
           for (var i = 0; i < crumbs.length; i++) ...[
             const Icon(Icons.chevron_right, size: 18),
             InkWell(
               onTap: () => _go(crumbs.sublist(0, i + 1).join('/')),
-              child: Text(crumbs[i], style: const TextStyle(fontWeight: FontWeight.w600)),
+              child: Text(crumbs[i],
+                  style: const TextStyle(fontWeight: FontWeight.w600)),
             ),
           ],
           const Spacer(),
           if (_uploading)
-            const Padding(padding: EdgeInsets.only(right: 12), child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))),
-          IconButton(icon: const Icon(Icons.create_new_folder_outlined), tooltip: l10n.newFolder, onPressed: _mkdir),
-          IconButton(icon: const Icon(Icons.refresh), tooltip: l10n.refresh, onPressed: _load),
+            const Padding(
+                padding: EdgeInsets.only(right: 12),
+                child: SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2))),
+          IconButton(
+              icon: const Icon(Icons.create_new_folder_outlined),
+              tooltip: l10n.newFolder,
+              onPressed: _mkdir),
+          IconButton(
+              icon: const Icon(Icons.refresh),
+              tooltip: l10n.refresh,
+              onPressed: _load),
           FilledButton.tonalIcon(
             onPressed: _uploading ? null : _upload,
             icon: const Icon(Icons.upload_file, size: 18),
@@ -326,14 +373,19 @@ class _FilesTabState extends State<FilesTab> {
                           return ListTile(
                             leading: Icon(fileIcon(e)),
                             title: Text(e.name),
-                            subtitle: e.isDir ? null : Text('${fmtBytes(e.size)}  ·  ${fmtAgo(l10n, e.modified)}'),
+                            subtitle: e.isDir
+                                ? null
+                                : Text(
+                                    '${fmtBytes(e.size)}  ·  ${fmtAgo(l10n, e.modified)}'),
                             onTap: e.isDir ? () => _go(e.path) : null,
                             trailing: PopupMenuButton<String>(
                               onSelected: (v) {
                                 switch (v) {
                                   case 'download':
                                     try {
-                                      openExternal(Api.i.downloadUrl(widget.project.id, e.path, dl: true));
+                                      openExternal(Api.i.downloadUrl(
+                                          widget.project.id, e.path,
+                                          dl: true));
                                     } catch (err) {
                                       if (c.mounted) snack(c, err);
                                     }
@@ -344,9 +396,14 @@ class _FilesTabState extends State<FilesTab> {
                                 }
                               },
                               itemBuilder: (_) => [
-                                if (!e.isDir) PopupMenuItem(value: 'download', child: Text(l10n.download)),
-                                PopupMenuItem(value: 'rename', child: Text(l10n.rename)),
-                                PopupMenuItem(value: 'delete', child: Text(l10n.delete)),
+                                if (!e.isDir)
+                                  PopupMenuItem(
+                                      value: 'download',
+                                      child: Text(l10n.download)),
+                                PopupMenuItem(
+                                    value: 'rename', child: Text(l10n.rename)),
+                                PopupMenuItem(
+                                    value: 'delete', child: Text(l10n.delete)),
                               ],
                             ),
                           );
@@ -407,7 +464,8 @@ class _RendersTabState extends State<RendersTab> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () async {
           final queued = await showDialog<bool>(
-              context: context, builder: (_) => RenderDialog(project: widget.project));
+              context: context,
+              builder: (_) => RenderDialog(project: widget.project));
           if (queued == true) _load();
         },
         icon: const Icon(Icons.add),
@@ -421,7 +479,9 @@ class _RendersTabState extends State<RendersTab> {
                   itemCount: jobs.length,
                   itemBuilder: (c, i) {
                     final j = jobs[i];
-                    final name = j.outputName.toLowerCase().endsWith('.mp4') ? j.outputName : '${j.outputName}.mp4';
+                    final name = j.outputName.toLowerCase().endsWith('.mp4')
+                        ? j.outputName
+                        : '${j.outputName}.mp4';
                     return ListTile(
                       leading: Icon(switch (j.status) {
                         'done' => Icons.check_circle_outline,
@@ -430,17 +490,27 @@ class _RendersTabState extends State<RendersTab> {
                         _ => Icons.timelapse,
                       }),
                       title: Text(name),
-                      subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text(j.worker.isNotEmpty
-                            ? l10n.renderStatusWorker(j.status, j.worker, fmtAgo(l10n, j.createdAt))
-                            : l10n.renderStatus(j.status, fmtAgo(l10n, j.createdAt))),
-                        if (j.active)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 4),
-                            child: LinearProgressIndicator(value: j.status == 'running' ? j.progress : null),
-                          ),
-                        if (j.error.isNotEmpty) Text(j.error, style: TextStyle(color: Theme.of(c).colorScheme.error)),
-                      ]),
+                      subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(j.worker.isNotEmpty
+                                ? l10n.renderStatusWorker(j.status, j.worker,
+                                    fmtAgo(l10n, j.createdAt))
+                                : l10n.renderStatus(
+                                    j.status, fmtAgo(l10n, j.createdAt))),
+                            if (j.active)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: LinearProgressIndicator(
+                                    value: j.status == 'running'
+                                        ? j.progress
+                                        : null),
+                              ),
+                            if (j.error.isNotEmpty)
+                              Text(j.error,
+                                  style: TextStyle(
+                                      color: Theme.of(c).colorScheme.error)),
+                          ]),
                       trailing: Row(mainAxisSize: MainAxisSize.min, children: [
                         if (j.status == 'done')
                           IconButton(
@@ -448,14 +518,19 @@ class _RendersTabState extends State<RendersTab> {
                             tooltip: l10n.download,
                             onPressed: () {
                               try {
-                                openExternal(Api.i.downloadUrl(widget.project.id, 'Exports/$name', dl: true));
+                                openExternal(Api.i.downloadUrl(
+                                    widget.project.id, 'Exports/$name',
+                                    dl: true));
                               } catch (e) {
                                 if (c.mounted) snack(c, e);
                               }
                             },
                           ),
                         if (j.active)
-                          IconButton(icon: const Icon(Icons.stop), tooltip: l10n.cancel, onPressed: () => _cancel(j)),
+                          IconButton(
+                              icon: const Icon(Icons.stop),
+                              tooltip: l10n.cancel,
+                              onPressed: () => _cancel(j)),
                       ]),
                     );
                   },
@@ -506,7 +581,9 @@ class _RenderDialogState extends State<RenderDialog> {
         'width': _res.$1,
         'height': _res.$2,
         'fps': _fps,
-        'clips': [for (final p in _clips) {'path': p}],
+        'clips': [
+          for (final p in _clips) {'path': p}
+        ],
         'output': _out.text.trim().isEmpty ? 'export' : _out.text.trim(),
       });
       if (mounted) Navigator.of(context).pop(true);
@@ -528,19 +605,25 @@ class _RenderDialogState extends State<RenderDialog> {
         height: 480,
         child: Row(children: [
           Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(l10n.browseFolder(_folder), style: Theme.of(context).textTheme.bodySmall),
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(l10n.browseFolder(_folder),
+                  style: Theme.of(context).textTheme.bodySmall),
               const SizedBox(height: 4),
               Expanded(
                 child: DecoratedBox(
-                  decoration: BoxDecoration(border: Border.all(color: Theme.of(context).dividerColor)),
+                  decoration: BoxDecoration(
+                      border:
+                          Border.all(color: Theme.of(context).dividerColor)),
                   child: ListView(children: [
                     if (_folder.isNotEmpty)
                       ListTile(
                         dense: true,
                         leading: const Icon(Icons.arrow_upward, size: 18),
                         title: const Text('..'),
-                        onTap: () => _loadFolder(_folder.contains('/') ? _folder.substring(0, _folder.lastIndexOf('/')) : ''),
+                        onTap: () => _loadFolder(_folder.contains('/')
+                            ? _folder.substring(0, _folder.lastIndexOf('/'))
+                            : ''),
                       ),
                     for (final e in _folderItems)
                       ListTile(
@@ -552,7 +635,8 @@ class _RenderDialogState extends State<RenderDialog> {
                             ? null
                             : IconButton(
                                 icon: const Icon(Icons.add, size: 18),
-                                onPressed: () => setState(() => _clips.add(e.path)),
+                                onPressed: () =>
+                                    setState(() => _clips.add(e.path)),
                               ),
                       ),
                   ]),
@@ -562,8 +646,10 @@ class _RenderDialogState extends State<RenderDialog> {
           ),
           const VerticalDivider(width: 24),
           Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(l10n.clipsCount(_clips.length), style: Theme.of(context).textTheme.bodySmall),
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(l10n.clipsCount(_clips.length),
+                  style: Theme.of(context).textTheme.bodySmall),
               const SizedBox(height: 4),
               Expanded(
                 child: _clips.isEmpty
@@ -577,10 +663,13 @@ class _RenderDialogState extends State<RenderDialog> {
                             ListTile(
                               key: ValueKey(p),
                               dense: true,
-                              title: Text(p, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12)),
+                              title: Text(p,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(fontSize: 12)),
                               trailing: IconButton(
                                   icon: const Icon(Icons.close, size: 16),
-                                  onPressed: () => setState(() => _clips.remove(p))),
+                                  onPressed: () =>
+                                      setState(() => _clips.remove(p))),
                             ),
                         ],
                       ),
@@ -595,8 +684,10 @@ class _RenderDialogState extends State<RenderDialog> {
                     initialValue: _res,
                     decoration: dec(l10n.resolution),
                     items: const [
-                      DropdownMenuItem(value: (3840, 2160), child: Text('4K 2160p')),
-                      DropdownMenuItem(value: (1920, 1080), child: Text('1080p')),
+                      DropdownMenuItem(
+                          value: (3840, 2160), child: Text('4K 2160p')),
+                      DropdownMenuItem(
+                          value: (1920, 1080), child: Text('1080p')),
                       DropdownMenuItem(value: (1280, 720), child: Text('720p')),
                     ],
                     onChanged: (v) => setState(() => _res = v!),
@@ -623,7 +714,9 @@ class _RenderDialogState extends State<RenderDialog> {
         ]),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.of(context).pop(false), child: Text(l10n.cancel)),
+        TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(l10n.cancel)),
         FilledButton(
           onPressed: _busy || _clips.isEmpty ? null : _submit,
           child: Text(_busy ? l10n.queuing : l10n.render),

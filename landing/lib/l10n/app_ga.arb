@@ -1,5 +1,4 @@
 {
-  "@@locale": "ga",
   "appTitle": "WFM",
   "tagline": "Tionscadail scannáin an ranga ar fad in aon áit amháin.",
   "heroBody": "Is bainisteoir meán féin-óstáilte é WFM do chláir scannánaíochta scoile. Uaslódálann daltaí físeán, gearrann siad in eagarthóir brabhsála, agus cuireann siad rindreálacha sa scuaine. Coinníonn múinteoirí cuntais, ceadanna agus gníomhaíocht faoi smacht.",
@@ -25,5 +24,10 @@
   "langSystem": "Córas",
   "showcaseTimeline": "Gearr ar amlíne sa bhrabhsálaí",
   "showcaseFiles": "Faigheann gach tionscadal fillteáin bhainistithe",
-  "showcaseRenders": "Féach ar easpórtálacha ag críochnú ar an bhfreastalaí"
+  "showcaseRenders": "Féach ar easpórtálacha ag críochnú ar an bhfreastalaí",
+  "screenshotsTitle": "Gabhálacha scáileáin",
+  "@@locale": "ga",
+  "@screenshotsTitle": {
+    "description": "Section title above the app screenshots"
+  }
 }

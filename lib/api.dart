@@ -45,7 +45,10 @@ class Caps {
         manage = j['canManage'] == true,
         audit = j['canAudit'] == true;
   static const none = Caps._();
-  const Caps._() : creatable = const [], manage = false, audit = false;
+  const Caps._()
+      : creatable = const [],
+        manage = false,
+        audit = false;
 }
 
 class Project {
@@ -136,12 +139,14 @@ class Api {
       throw ApiException(401, 'auth');
     }
     if (r.statusCode >= 400) {
-      throw ApiException(r.statusCode, body is Map ? '${body['error']}' : 'error ${r.statusCode}');
+      throw ApiException(r.statusCode,
+          body is Map ? '${body['error']}' : 'error ${r.statusCode}');
     }
     return body;
   }
 
-  Future<dynamic> get(String p, [Map<String, String>? q]) => _go(() => _c.get(_u(p, q)));
+  Future<dynamic> get(String p, [Map<String, String>? q]) =>
+      _go(() => _c.get(_u(p, q)));
   Future<dynamic> post(String p, Object? body, [Map<String, String>? q]) =>
       _go(() => _c.post(_u(p, q), headers: _h, body: jsonEncode(body ?? {})));
   Future<dynamic> patch(String p, Object? body) =>
@@ -158,7 +163,8 @@ class Api {
     user = User.fromJson(j['user'] ?? j);
   }
 
-  Future<bool> needsSetup() async => (await get('/setup'))['needsSetup'] == true;
+  Future<bool> needsSetup() async =>
+      (await get('/setup'))['needsSetup'] == true;
 
   Future<User> setupOwner(String username, String password, String name,
       {String trustedProxies = ''}) async {
@@ -166,13 +172,15 @@ class Api {
       'username': username,
       'password': password,
       'name': name,
-      if (trustedProxies.trim().isNotEmpty) 'trustedProxies': trustedProxies.trim(),
+      if (trustedProxies.trim().isNotEmpty)
+        'trustedProxies': trustedProxies.trim(),
     }));
     return user!;
   }
 
   Future<User> login(String username, String password) async {
-    _session(await post('/login', {'username': username, 'password': password}));
+    _session(
+        await post('/login', {'username': username, 'password': password}));
     return user!;
   }
 
@@ -198,9 +206,11 @@ class Api {
 
   Future<Caps> roles() async => caps = Caps.fromJson(await get('/roles'));
 
-  Future<String> serverVersion() async => '${(await get('/version'))['version'] ?? ''}';
+  Future<String> serverVersion() async =>
+      '${(await get('/version'))['version'] ?? ''}';
 
-  Future<String> serverSettings() async => '${(await get('/settings'))['trustedProxies'] ?? ''}';
+  Future<String> serverSettings() async =>
+      '${(await get('/settings'))['trustedProxies'] ?? ''}';
 
   Future<void> saveSettings(String trustedProxies) =>
       put('/settings', {'trustedProxies': trustedProxies});
@@ -208,21 +218,25 @@ class Api {
   Future<List<Project>> projects() async =>
       [for (final e in (await get('/projects')) as List) Project.fromJson(e)];
 
-  Future<Project> createProject(String name) async =>
-      Project.fromJson(await post('/projects', {'name': name, 'displayName': name}));
+  Future<Project> createProject(String name) async => Project.fromJson(
+      await post('/projects', {'name': name, 'displayName': name}));
 
   Future<void> renameProject(String id, String displayName) =>
       patch('/projects/$id', {'displayName': displayName});
 
   Future<void> deleteProject(String id) => del('/projects/$id');
 
-  Future<List<FileEntry>> files(String pid, String path) async =>
-      [for (final e in (await get('/projects/$pid/files', {'path': path})) as List) FileEntry.fromJson(e)];
+  Future<List<FileEntry>> files(String pid, String path) async => [
+        for (final e
+            in (await get('/projects/$pid/files', {'path': path})) as List)
+          FileEntry.fromJson(e)
+      ];
 
   Future<void> upload(String pid, String path, Uint8List bytes) =>
       putFile('/projects/$pid/files', bytes, {'path': path});
 
-  Future<void> mkdir(String pid, String path) => post('/projects/$pid/files/mkdir', {'path': path});
+  Future<void> mkdir(String pid, String path) =>
+      post('/projects/$pid/files/mkdir', {'path': path});
 
   Future<void> move(String pid, String from, String to) =>
       post('/projects/$pid/files/move', {'from': from, 'to': to});
@@ -234,8 +248,10 @@ class Api {
   String downloadUrl(String pid, String path, {bool dl = false}) =>
       '$_base/api/projects/$pid/download?path=${Uri.encodeComponent(path)}${dl ? '&dl=true' : ''}';
 
-  Future<List<RenderJob>> renders(String pid) async =>
-      [for (final e in (await get('/projects/$pid/renders')) as List) RenderJob.fromJson(e)];
+  Future<List<RenderJob>> renders(String pid) async => [
+        for (final e in (await get('/projects/$pid/renders')) as List)
+          RenderJob.fromJson(e)
+      ];
 
   Future<RenderJob> createRender(String pid, Map<String, dynamic> spec) async =>
       RenderJob.fromJson(await post('/projects/$pid/renders', spec));
@@ -257,8 +273,12 @@ class Api {
   Future<void> changePassword(String current, String next) =>
       post('/me/password', {'current': current, 'next': next});
 
-  Future<List<AuditEntry>> audit({String scope = 'account', int limit = 200}) async => [
-        for (final e in (await get('/audit', {'scope': scope, 'limit': '$limit'})) as List)
+  Future<List<AuditEntry>> audit(
+          {String scope = 'account', int limit = 200}) async =>
+      [
+        for (final e
+            in (await get('/audit', {'scope': scope, 'limit': '$limit'}))
+                as List)
           AuditEntry.fromJson(e)
       ];
 

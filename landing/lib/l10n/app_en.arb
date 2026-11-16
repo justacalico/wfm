@@ -1,5 +1,4 @@
 {
-  "@@locale": "en",
   "appTitle": "WFM",
   "tagline": "Film projects for a whole class, in one place.",
   "heroBody": "WFM is a self-hosted media manager for school film programs. Students upload footage, cut in a browser editor, and queue renders. Teachers keep accounts, permissions and activity under control.",
@@ -25,5 +24,10 @@
   "langSystem": "System",
   "showcaseTimeline": "Cut on a timeline in the browser",
   "showcaseFiles": "Every project gets managed folders",
-  "showcaseRenders": "Watch exports finish on the server"
+  "showcaseRenders": "Watch exports finish on the server",
+  "screenshotsTitle": "Screenshots",
+  "@@locale": "en",
+  "@screenshotsTitle": {
+    "description": "Section title above the app screenshots"
+  }
 }

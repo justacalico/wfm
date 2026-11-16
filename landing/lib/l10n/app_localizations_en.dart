@@ -92,9 +92,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get showcaseRenders => 'Watch exports finish on the server';
+
+  @override
+  String get screenshotsTitle => 'Screenshots';
 }
 
 /// The translations for English, as used in the United Kingdom (`en_GB`).
 class AppLocalizationsEnGb extends AppLocalizationsEn {
   AppLocalizationsEnGb() : super('en_GB');
+
+  @override
+  String get screenshotsTitle => 'Screenshots';
 }
