@@ -99,13 +99,17 @@ jobs:
           cache: true
 
       - name: Pub get
-        run: flutter pub get
+        run: |
+          flutter pub get
+          (cd landing && flutter pub get)
 
       - name: Check formatting
         run: dart format --set-exit-if-changed lib test landing/lib landing/test
 
       - name: Analyze
-        run: flutter analyze --no-fatal-infos
+        run: |
+          flutter analyze --no-fatal-infos
+          (cd landing && flutter analyze --no-fatal-infos)
 
       - name: Test with coverage
         run: flutter test --coverage
@@ -132,11 +136,9 @@ jobs:
           print(f'coverage {lh}/{lf} OK')
           PY
 
-      - name: Landing analyze and test
+      - name: Landing test
         run: |
           cd landing
-          flutter pub get
-          flutter analyze --no-fatal-infos
           flutter test
 
       - name: Server tests
