@@ -39,22 +39,24 @@ class WfmApp extends StatefulWidget {
 }
 
 class WfmAppState extends State<WfmApp> {
-  AppTheme _theme = AppTheme.system;
-  Locale? _locale;
+  final themeCtl = ValueNotifier<AppTheme>(AppTheme.light);
+  final localeCtl = ValueNotifier<Locale?>(null);
 
-  AppTheme get appTheme => _theme;
-  Locale? get appLocale => _locale;
+  AppTheme get appTheme => themeCtl.value;
+  Locale? get appLocale => localeCtl.value;
 
   @override
   void initState() {
     super.initState();
     SharedPreferences.getInstance().then((p) {
       setState(() {
-        _theme = AppTheme.values[p.getInt('theme') ?? AppTheme.light.index];
+        themeCtl.value =
+            AppTheme.values[p.getInt('theme') ?? AppTheme.light.index];
         final code = p.getString('locale');
         if (code != null && code.isNotEmpty) {
           final parts = code.split('_');
-          _locale = Locale(parts[0], parts.length > 1 ? parts[1] : null);
+          localeCtl.value =
+              Locale(parts[0], parts.length > 1 ? parts[1] : null);
         }
       });
     });
@@ -62,19 +64,19 @@ class WfmAppState extends State<WfmApp> {
 
   @override
   Widget build(BuildContext context) {
-    final dark = _theme == AppTheme.oled
+    final dark = appTheme == AppTheme.oled
         ? _makeTheme(Brightness.dark, oled: true)
         : _makeTheme(Brightness.dark);
     return MaterialApp(
       title: 'WFM',
       theme: _makeTheme(Brightness.light),
       darkTheme: dark,
-      themeMode: switch (_theme) {
+      themeMode: switch (appTheme) {
         AppTheme.system => ThemeMode.system,
         AppTheme.light => ThemeMode.light,
         _ => ThemeMode.dark,
       },
-      locale: _locale,
+      locale: appLocale,
       supportedLocales: appLocales,
       localizationsDelegates: const [
         AppLocalizations.delegate,
@@ -88,12 +90,12 @@ class WfmAppState extends State<WfmApp> {
   }
 
   void setTheme(AppTheme t) {
-    setState(() => _theme = t);
+    setState(() => themeCtl.value = t);
     SharedPreferences.getInstance().then((p) => p.setInt('theme', t.index));
   }
 
   void setLocale(Locale? l) {
-    setState(() => _locale = l);
+    setState(() => localeCtl.value = l);
     SharedPreferences.getInstance().then((p) => l == null
         ? p.remove('locale')
         : p.setString('locale', '${l.languageCode}_${l.countryCode ?? ''}'));
@@ -116,8 +118,8 @@ void snack(BuildContext context, Object e, {bool good = false}) {
   _toasts.removeWhere((t) => !t.mounted);
   entry = OverlayEntry(
       builder: (_) => Positioned(
-          top: 16 + _toasts.length * 64,
-          left: 16,
+          top: 12 + _toasts.length * 64,
+          left: 12,
           child: Notice('$e', good: good, onClose: dismiss)));
   _toasts.add(entry);
   Overlay.of(context).insert(entry);
@@ -134,41 +136,76 @@ class Notice extends StatefulWidget {
   State<Notice> createState() => _NoticeState();
 }
 
-class _NoticeState extends State<Notice> {
+class _NoticeState extends State<Notice> with SingleTickerProviderStateMixin {
   Timer? _timer;
+  bool _closing = false;
+  late final AnimationController _anim = AnimationController(
+      vsync: this, duration: const Duration(milliseconds: 250))
+    ..forward();
 
   @override
   void initState() {
     super.initState();
-    _timer = Timer(const Duration(seconds: 6), widget.onClose);
+    _timer = Timer(const Duration(seconds: 6), dismiss);
+  }
+
+  void dismiss() {
+    if (_closing) return;
+    _closing = true;
+    _anim.reverse().then((_) {
+      if (mounted) widget.onClose();
+    });
   }
 
   @override
   void dispose() {
     _timer?.cancel();
+    _anim.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 360),
-      child: Card(
-        elevation: 6,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 4, 4, 4),
-          child: Row(mainAxisSize: MainAxisSize.min, children: [
-            Icon(widget.good ? Icons.check_circle_outline : Icons.error_outline,
-                size: 18, color: widget.good ? cs.primary : cs.error),
-            const SizedBox(width: 8),
-            Flexible(child: Text(widget.message)),
-            IconButton(
-                visualDensity: VisualDensity.compact,
-                icon: const Icon(Icons.close, size: 16),
-                onPressed: widget.onClose),
-          ]),
-        ),
+    final curved = CurvedAnimation(parent: _anim, curve: Curves.easeOutCubic);
+    return FadeTransition(
+      opacity: curved,
+      child: SlideTransition(
+        position:
+            curved.drive(Tween(begin: const Offset(-1, 0), end: Offset.zero)),
+        child: Stack(children: [
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 360),
+            child: Card(
+              elevation: 6,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(28, 10, 10, 10),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(
+                      widget.good
+                          ? Icons.check_circle_outline
+                          : Icons.error_outline,
+                      size: 18,
+                      color: widget.good ? cs.primary : cs.error),
+                  const SizedBox(width: 8),
+                  Flexible(child: Text(widget.message)),
+                ]),
+              ),
+            ),
+          ),
+          Positioned(
+            top: 0,
+            left: 0,
+            child: IconButton(
+              padding: EdgeInsets.zero,
+              constraints:
+                  const BoxConstraints.tightFor(width: 22, height: 22),
+              iconSize: 13,
+              icon: const Icon(Icons.close),
+              onPressed: dismiss,
+            ),
+          ),
+        ]),
       ),
     );
   }
@@ -181,46 +218,55 @@ class AuthPickers extends StatelessWidget {
   Widget build(BuildContext context) {
     final app = context.findAncestorStateOfType<WfmAppState>()!;
     final l10n = context.l10n;
-    return Row(mainAxisSize: MainAxisSize.min, children: [
-      DropdownButtonHideUnderline(
-        child: DropdownButton<Locale?>(
-          value: app.appLocale,
-          icon: const Icon(Icons.language),
-          items: [
-            for (final e in langNames.entries)
-              DropdownMenuItem(
-                  value: e.key,
-                  child: Text(e.key == null ? l10n.langSystem : e.value)),
-          ],
-          onChanged: app.setLocale,
+    return AnimatedBuilder(
+      animation: Listenable.merge([app.themeCtl, app.localeCtl]),
+      builder: (context, _) => Row(mainAxisSize: MainAxisSize.min, children: [
+        DropdownButtonHideUnderline(
+          child: DropdownButton<Locale?>(
+            value: app.appLocale,
+            icon: const Icon(Icons.language),
+            items: [
+              for (final e in langNames.entries)
+                DropdownMenuItem(
+                    value: e.key,
+                    child: Text(e.key == null ? l10n.langSystem : e.value)),
+            ],
+            onChanged: (v) {
+              app.setLocale(v);
+              FocusManager.instance.primaryFocus?.unfocus();
+            },
+          ),
         ),
-      ),
-      const SizedBox(width: 8),
-      SegmentedButton<AppTheme>(
-        showSelectedIcon: false,
-        style: const ButtonStyle(visualDensity: VisualDensity.compact),
-        segments: [
-          ButtonSegment(
-              value: AppTheme.system,
-              icon: const Icon(Icons.brightness_auto, size: 16),
-              tooltip: l10n.themeSystem),
-          ButtonSegment(
-              value: AppTheme.light,
-              icon: const Icon(Icons.light_mode, size: 16),
-              tooltip: l10n.themeLight),
-          ButtonSegment(
-              value: AppTheme.dark,
-              icon: const Icon(Icons.dark_mode, size: 16),
-              tooltip: l10n.themeDark),
-          ButtonSegment(
-              value: AppTheme.oled,
-              icon: const Icon(Icons.brightness_2, size: 16),
-              tooltip: l10n.themeOled),
-        ],
-        selected: {app.appTheme},
-        onSelectionChanged: (s) => app.setTheme(s.first),
-      ),
-    ]);
+        const SizedBox(width: 8),
+        SegmentedButton<AppTheme>(
+          showSelectedIcon: false,
+          style: const ButtonStyle(visualDensity: VisualDensity.compact),
+          segments: [
+            ButtonSegment(
+                value: AppTheme.system,
+                icon: const Icon(Icons.brightness_auto, size: 16),
+                tooltip: l10n.themeSystem),
+            ButtonSegment(
+                value: AppTheme.light,
+                icon: const Icon(Icons.light_mode, size: 16),
+                tooltip: l10n.themeLight),
+            ButtonSegment(
+                value: AppTheme.dark,
+                icon: const Icon(Icons.dark_mode, size: 16),
+                tooltip: l10n.themeDark),
+            ButtonSegment(
+                value: AppTheme.oled,
+                icon: const Icon(Icons.brightness_2, size: 16),
+                tooltip: l10n.themeOled),
+          ],
+          selected: {app.appTheme},
+          onSelectionChanged: (s) {
+            app.setTheme(s.first);
+            FocusManager.instance.primaryFocus?.unfocus();
+          },
+        ),
+      ]),
+    );
   }
 }
 

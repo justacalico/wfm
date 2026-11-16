@@ -107,9 +107,11 @@ void main() {
     expect(find.byType(app.Notice), findsNWidgets(2));
     await t.tap(find.byIcon(Icons.close).first);
     await t.pump();
+    await t.pump(const Duration(milliseconds: 300));
     expect(find.byType(app.Notice), findsOneWidget);
     await t.pump(const Duration(seconds: 6));
     await t.pump();
+    await t.pump(const Duration(milliseconds: 300));
     expect(find.byType(app.Notice), findsNothing);
     await t.pumpWidget(const SizedBox());
   });

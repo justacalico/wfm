@@ -135,31 +135,43 @@ class _SettingsPageState extends State<SettingsPage> {
         ),
       ),
       const SizedBox(height: 16),
-      DropdownButtonFormField<Locale?>(
-        initialValue: app.appLocale,
-        decoration: dec(l10n.language),
-        items: [
-          for (final e in langNames.entries)
-            DropdownMenuItem(
-                value: e.key,
-                child: Text(e.key == null ? l10n.langSystem : e.value)),
-        ],
-        onChanged: (v) => app.setLocale(v),
-      ),
-      const SizedBox(height: 16),
-      Align(
-        alignment: Alignment.centerLeft,
-        child: SegmentedButton<AppTheme>(
-          segments: [
-            ButtonSegment(
-                value: AppTheme.system, label: Text(l10n.themeSystem)),
-            ButtonSegment(value: AppTheme.light, label: Text(l10n.themeLight)),
-            ButtonSegment(value: AppTheme.dark, label: Text(l10n.themeDark)),
-            ButtonSegment(value: AppTheme.oled, label: Text(l10n.themeOled)),
-          ],
-          selected: {app.appTheme},
-          onSelectionChanged: (s) => app.setTheme(s.first),
-        ),
+      AnimatedBuilder(
+        animation: Listenable.merge([app.themeCtl, app.localeCtl]),
+        builder: (context, _) => Column(children: [
+          DropdownButtonFormField<Locale?>(
+            initialValue: app.appLocale,
+            decoration: dec(l10n.language),
+            items: [
+              for (final e in langNames.entries)
+                DropdownMenuItem(
+                    value: e.key,
+                    child: Text(e.key == null ? l10n.langSystem : e.value)),
+            ],
+            onChanged: (v) {
+              app.setLocale(v);
+              FocusManager.instance.primaryFocus?.unfocus();
+            },
+          ),
+          const SizedBox(height: 16),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: SegmentedButton<AppTheme>(
+              segments: [
+                ButtonSegment(
+                    value: AppTheme.system, label: Text(l10n.themeSystem)),
+                ButtonSegment(
+                    value: AppTheme.light, label: Text(l10n.themeLight)),
+                ButtonSegment(value: AppTheme.dark, label: Text(l10n.themeDark)),
+                ButtonSegment(value: AppTheme.oled, label: Text(l10n.themeOled)),
+              ],
+              selected: {app.appTheme},
+              onSelectionChanged: (s) {
+                app.setTheme(s.first);
+                FocusManager.instance.primaryFocus?.unfocus();
+              },
+            ),
+          ),
+        ]),
       ),
       if (u.isOwner && _proxies != null) ...[
         const SizedBox(height: 24),
