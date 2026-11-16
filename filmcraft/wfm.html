@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Filmcraft - WFM</title>
+<link rel="icon" href="/filmcraft/icon.svg" type="image/svg+xml">
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; margin: 0; }
+  body { background: #101014; color: #e6e6ea; font: 14px/1.4 system-ui, sans-serif; height: 100vh; display: flex; flex-direction: column; }
+  #top { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: #17171d; border-bottom: 1px solid #26262e; }
+  #top .logo { font-weight: 700; color: #8b5cf6; }
+  #proj-name { font-weight: 600; }
+  #save-state { color: #8d8d96; font-size: 12px; }
+  .spacer { flex: 1; }
+  button { background: #26262e; color: inherit; border: 1px solid #3a3a44; border-radius: 6px; padding: 6px 12px; cursor: pointer; font: inherit; }
+  button:hover { background: #31313b; }
+  #main { flex: 1; display: flex; min-height: 0; }
+  #bin { width: 240px; background: #141419; border-right: 1px solid #26262e; overflow-y: auto; padding: 8px; }
+  #bin h2 { font-size: 12px; text-transform: uppercase; color: #8d8d96; margin: 8px 4px 4px; }
+  .entry { padding: 5px 8px; border-radius: 5px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13px; }
+  .entry:hover { background: #26262e; }
+  .entry.dir { color: #9db4ff; }
+  .entry.file { color: #cfcfd6; }
+  .entry.sending { opacity: .5; pointer-events: none; }
+  #up-btn { width: 100%; margin-top: 8px; }
+  #frame-wrap { flex: 1; min-width: 0; position: relative; }
+  iframe { width: 100%; height: 100%; border: 0; display: block; }
+  #overlay { position: fixed; inset: 0; background: #101014; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 12px; z-index: 10; }
+  #overlay.hidden { display: none; }
+  #overlay h1 { font-size: 20px; }
+  #overlay p { color: #8d8d96; max-width: 420px; text-align: center; }
+  #toast { position: fixed; bottom: 16px; right: 16px; background: #26262e; border: 1px solid #3a3a44; border-radius: 8px; padding: 10px 14px; display: none; z-index: 20; max-width: 340px; }
+</style>
+</head>
+<body>
+<div id="overlay"><h1>Filmcraft</h1><p id="overlay-msg">Loading…</p><div id="overlay-btns"></div></div>
+<header id="top">
+  <span class="logo">Filmcraft</span>
+  <span id="proj-name"></span>
+  <span id="save-state"></span>
+  <div class="spacer"></div>
+  <button id="btn-close">Close</button>
+</header>
+<div id="main">
+  <aside id="bin"><h2>Project media</h2><div id="bin-list"></div><button id="up-btn">Upload file</button><input id="up-input" type="file" multiple hidden></aside>
+  <div id="frame-wrap"><iframe id="fc" title="FilmCraft" allow="fullscreen; clipboard-read; clipboard-write" allowfullscreen></iframe></div>
+</div>
+<div id="toast"></div>
+<script>
+"use strict";
+const qs = new URLSearchParams(location.search);
+const projectId = qs.get("project");
+const API = "/api";
+const clientId = crypto.randomUUID();
+let csrf = "", dirty = false, docSent = false, binPath = "";
+const $ = (id) => document.getElementById(id);
+const overlay = (msg, btns) => {
+  $("overlay").classList.remove("hidden");
+  $("overlay-msg").textContent = msg;
+  const box = $("overlay-btns"); box.innerHTML = "";
+  for (const [label, fn] of btns || []) {
+    const b = document.createElement("button"); b.textContent = label; b.onclick = fn; box.appendChild(b);
+  }
+};
+const hideOverlay = () => $("overlay").classList.add("hidden");
+const toast = (m) => { const t = $("toast"); t.textContent = m; t.style.display = "block"; clearTimeout(t._t); t._t = setTimeout(() => t.style.display = "none", 4000); };
+const setState = (s) => $("save-state").textContent = s;
+
+async function api(path, opt = {}) {
+  opt.headers = Object.assign({}, opt.headers, csrf && opt.method && opt.method !== "GET" ? { "x-csrf-token": csrf } : {});
+  const r = await fetch(API + path, opt);
+  if (r.status === 401) { location.href = "/app/"; throw new Error("auth"); }
+  return r;
+}
+
+async function boot() {
+  if (!projectId) return overlay("No project specified.");
+  const me = await (await api("/me")).json().catch(() => null);
+  if (!me || !me.id) return overlay("Sign in first.", [["Open app", () => location.href = "/app/"]]);
+  csrf = me.csrf || "";
+  const lock = await api("/projects/" + projectId + "/locks", {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ kind: "edit", clientId })
+  });
+  const lr = await lock.json();
+  if (!lock.ok && !lr.lock) return overlay("Could not open the project.");
+  if (lr.lock && !lr.acquired) {
+    return overlay("This project is already open in another tab or device.", [
+      ["Take over", async () => {
+        await api("/projects/" + projectId + "/locks", { method: "POST", headers: { "content-type": "application/json" },
+          body: JSON.stringify({ kind: "edit", clientId, force: true }) });
+        boot();
+      }],
+      ["Close tab", () => window.close()]
+    ]);
+  }
+  const p = await (await api("/projects/" + projectId)).json();
+  $("proj-name").textContent = p.displayName || p.display_name || "";
+  $("fc").src = "/filmcraft/dist/index.html?host=parent&fresh";
+  setInterval(heartbeat, 20000);
+  refreshBin("");
+}
+
+function heartbeat() {
+  api("/projects/" + projectId + "/locks/heartbeat", { method: "POST",
+    headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "edit", clientId }) });
+}
+
+window.addEventListener("message", async (ev) => {
+  const d = ev.data || {};
+  if (d.type === "filmcraft:ready") { hideOverlay(); if (!docSent) { docSent = true; sendDoc(); } }
+  else if (d.type === "filmcraft:save") { handleSave(d); }
+  else if (d.type === "filmcraft:dirty") { dirty = !!d.dirty; setState(dirty ? "Unsaved changes" : "Saved"); }
+  else if (d.type === "filmcraft:failed") { overlay("FilmCraft could not start: " + (d.error || "unknown error")); }
+});
+
+function send(name, bytes) {
+  $("fc").contentWindow.postMessage({ type: "filmcraft:open", name, bytes }, "*", [bytes instanceof ArrayBuffer ? bytes : bytes.buffer]);
+}
+
+async function sendDoc() {
+  const r = await api("/projects/" + projectId + "/download?path=project.fcproj");
+  if (!r.ok) { setState("New project"); return; }
+  const bytes = await r.arrayBuffer();
+  if (bytes.byteLength > 0) send("project.fcproj", bytes);
+}
+
+async function handleSave(d) {
+  try {
+    let path = d.name || "export.bin";
+    if (!path.toLowerCase().endsWith(".fcproj") && !path.startsWith("Exports/")) path = "Exports/" + path.replace(/^.*\//, "");
+    if (path.endsWith(".fcproj")) path = "project.fcproj";
+    const r = await api("/projects/" + projectId + "/files?path=" + encodeURIComponent(path), {
+      method: "PUT", body: d.bytes
+    });
+    if (!r.ok) toast("Save failed: " + (await r.text()));
+    else if (path === "project.fcproj") { dirty = false; setState("Saved"); refreshBin(binPath); }
+    else toast("Saved to " + path);
+  } catch (e) { toast("Save failed"); }
+}
+
+async function refreshBin(path) {
+  binPath = path;
+  const box = $("bin-list"); box.innerHTML = "";
+  if (path) {
+    const b = document.createElement("div"); b.className = "entry dir"; b.textContent = "..";
+    b.onclick = () => refreshBin(path.split("/").slice(0, -1).join("/")); box.appendChild(b);
+  }
+  const r = await api("/projects/" + projectId + "/files?path=" + encodeURIComponent(path));
+  const list = await r.json().catch(() => []);
+  for (const e of Array.isArray(list) ? list : []) {
+    const el = document.createElement("div");
+    el.className = "entry " + e.type; el.textContent = e.name; el.title = e.path;
+    if (e.type === "dir") el.onclick = () => refreshBin(e.path);
+    else el.onclick = () => sendMedia(e.path, el);
+    box.appendChild(el);
+  }
+}
+
+async function sendMedia(path, el) {
+  el.classList.add("sending");
+  try {
+    const r = await api("/projects/" + projectId + "/download?path=" + encodeURIComponent(path));
+    if (!r.ok) return toast("Could not read " + path);
+    const bytes = await r.arrayBuffer();
+    send(path.split("/").pop(), bytes);
+    toast("Sent to editor: " + path);
+  } finally { el.classList.remove("sending"); }
+}
+
+$("up-input").onchange = async (ev) => {
+  for (const f of ev.target.files) {
+    const folder = binPath || "Raw/Other";
+    const r = await api("/projects/" + projectId + "/files?path=" + encodeURIComponent(folder + "/" + f.name), { method: "PUT", body: f });
+    if (!r.ok) toast("Upload failed: " + f.name);
+  }
+  ev.target.value = "";
+  refreshBin(binPath);
+};
+$("up-btn").onclick = () => $("up-input").click();
+$("btn-close").onclick = () => window.close();
+window.addEventListener("beforeunload", (e) => {
+  navigator.sendBeacon(API + "/projects/" + projectId + "/locks?kind=edit&clientId=" + encodeURIComponent(clientId) + "&csrf=" + encodeURIComponent(csrf));
+  if (dirty) { e.preventDefault(); e.returnValue = ""; }
+});
+boot();
+</script>
+</body>
+</html>

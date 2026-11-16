@@ -1,0 +1,276 @@
+use rand::RngCore;
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Role {
+    Student = 1,
+    Mod = 2,
+    Teacher = 3,
+    Admin = 4,
+    Owner = 5,
+}
+
+impl Role {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Role::Student => "student",
+            Role::Mod => "mod",
+            Role::Teacher => "teacher",
+            Role::Admin => "admin",
+            Role::Owner => "owner",
+        }
+    }
+
+    pub fn from_i64(v: i64) -> Role {
+        match v {
+            1 => Role::Student,
+            2 => Role::Mod,
+            3 => Role::Teacher,
+            4 => Role::Admin,
+            _ => Role::Owner,
+        }
+    }
+
+    pub fn parse(s: &str) -> Option<Role> {
+        match s.to_ascii_lowercase().as_str() {
+            "student" => Some(Role::Student),
+            "mod" => Some(Role::Mod),
+            "teacher" => Some(Role::Teacher),
+            "admin" => Some(Role::Admin),
+            "owner" => Some(Role::Owner),
+            _ => None,
+        }
+    }
+
+    pub fn can_create(&self) -> bool {
+        *self >= Role::Teacher
+    }
+
+    pub fn can_see_audit(&self) -> bool {
+        *self >= Role::Mod
+    }
+}
+
+impl From<Role> for String {
+    fn from(r: Role) -> String {
+        r.as_str().to_string()
+    }
+}
+
+#[derive(Clone, Serialize)]
+pub struct User {
+    pub id: String,
+    pub username: String,
+    #[serde(rename = "displayName")]
+    pub display_name: String,
+    #[serde(skip)]
+    pub role: Role,
+    #[serde(rename = "role")]
+    pub role_name: String,
+    #[serde(rename = "studentId")]
+    pub student_id: String,
+    pub note: String,
+    pub disabled: bool,
+    #[serde(rename = "createdBy")]
+    pub created_by: String,
+    #[serde(skip)]
+    pub lineage: String,
+    #[serde(rename = "createdAt")]
+    pub created_at: i64,
+    #[serde(rename = "lastLogin")]
+    pub last_login: i64,
+}
+
+#[derive(Clone, Serialize)]
+pub struct Project {
+    pub id: String,
+    #[serde(rename = "ownerId")]
+    pub owner_id: String,
+    pub name: String,
+    #[serde(rename = "displayName")]
+    pub display_name: String,
+    #[serde(skip)]
+    pub dir: String,
+    #[serde(rename = "createdAt")]
+    pub created_at: i64,
+}
+
+#[derive(Clone, Serialize)]
+pub struct LockInfo {
+    pub holder: String,
+    pub label: String,
+    #[serde(rename = "expiresAt")]
+    pub expires_at: i64,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct RenderJob {
+    pub id: String,
+    #[serde(rename = "projectId")]
+    pub project_id: String,
+    #[serde(rename = "userId")]
+    pub user_id: String,
+    pub status: String,
+    pub mode: String,
+    pub spec: String,
+    #[serde(rename = "outputName")]
+    pub output_name: String,
+    pub progress: f64,
+    pub error: String,
+    pub worker: String,
+    pub attempts: i64,
+    #[serde(rename = "createdAt")]
+    pub created_at: i64,
+    #[serde(rename = "finishedAt")]
+    pub finished_at: i64,
+}
+
+#[derive(Clone, Serialize)]
+pub struct RenderNode {
+    pub id: String,
+    pub name: String,
+    pub disabled: bool,
+    #[serde(rename = "createdAt")]
+    pub created_at: i64,
+    #[serde(rename = "lastSeen")]
+    pub last_seen: i64,
+}
+
+#[derive(Clone, Serialize)]
+pub struct AuditEntry {
+    pub id: i64,
+    pub ts: i64,
+    pub scope: String,
+    #[serde(rename = "actorId")]
+    pub actor_id: String,
+    #[serde(rename = "actorName")]
+    pub actor_name: String,
+    pub action: String,
+    pub target: String,
+    pub detail: String,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct RenderClip {
+    pub path: String,
+    #[serde(default, rename = "in")]
+    pub in_point: f64,
+    #[serde(default)]
+    pub out: f64,
+    #[serde(default)]
+    pub duration: f64,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct RenderTitle {
+    pub text: String,
+    #[serde(default)]
+    pub start: f64,
+    #[serde(default)]
+    pub end: f64,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct RenderAudio {
+    pub path: String,
+    #[serde(default = "one")]
+    pub volume: f64,
+}
+
+fn one() -> f64 {
+    1.0
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct RenderSpec {
+    #[serde(default = "d1920")]
+    pub width: u32,
+    #[serde(default = "d1080")]
+    pub height: u32,
+    #[serde(default = "d30")]
+    pub fps: u32,
+    #[serde(default)]
+    pub clips: Vec<RenderClip>,
+    #[serde(default)]
+    pub audio: Option<RenderAudio>,
+    #[serde(default)]
+    pub titles: Vec<RenderTitle>,
+    #[serde(default)]
+    pub output: String,
+}
+
+fn d1920() -> u32 {
+    1920
+}
+fn d1080() -> u32 {
+    1080
+}
+fn d30() -> u32 {
+    30
+}
+
+pub fn new_id() -> String {
+    let mut b = [0u8; 16];
+    rand::rng().fill_bytes(&mut b);
+    b[6] = (b[6] & 0x0f) | 0x40;
+    b[8] = (b[8] & 0x3f) | 0x80;
+    format!(
+        "{}-{}-{}-{}-{}",
+        hex::encode(&b[0..4]),
+        hex::encode(&b[4..6]),
+        hex::encode(&b[6..8]),
+        hex::encode(&b[8..10]),
+        hex::encode(&b[10..16])
+    )
+}
+
+pub fn new_token() -> String {
+    let mut b = [0u8; 32];
+    rand::rng().fill_bytes(&mut b);
+    hex::encode(b)
+}
+
+pub fn token_hash(tok: &str) -> String {
+    use sha2::Digest;
+    hex::encode(sha2::Sha256::digest(tok.as_bytes()))
+}
+
+fn valid_name(s: &str, max: usize, extra: &str) -> bool {
+    !s.is_empty()
+        && s.len() <= max
+        && !s.contains("..")
+        && s.chars()
+            .all(|c| c.is_ascii_alphanumeric() || extra.contains(c))
+}
+
+pub fn valid_username(s: &str) -> bool {
+    s.len() >= 2 && valid_name(s, 32, "_.-")
+}
+
+pub fn valid_project_name(s: &str) -> bool {
+    valid_name(s.trim(), 64, " _.-")
+}
+
+pub fn valid_password(s: &str) -> bool {
+    s.len() >= 8 && s.len() <= 256
+}
+
+/// Whether `actor` may administrate `target`: target must rank lower and sit in
+/// the actor's subtree. Mods may only police students in their creator's tree.
+pub fn can_manage(actor: &User, target: &User) -> bool {
+    if target.id == actor.id || target.role >= actor.role {
+        return false;
+    }
+    if actor.role == Role::Mod {
+        return target.role == Role::Student && lineage_has(&target.lineage, &actor.created_by);
+    }
+    lineage_has(&target.lineage, &actor.id)
+}
+
+pub fn lineage_has(lineage: &str, id: &str) -> bool {
+    if id.is_empty() {
+        return false;
+    }
+    let hay = format!("/{}/", lineage.trim_matches('/'));
+    hay.contains(&format!("/{}/", id))
+}

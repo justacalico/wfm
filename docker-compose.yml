@@ -1,0 +1,38 @@
+services:
+  rustfs:
+    image: rustfs/rustfs:latest
+    restart: unless-stopped
+    environment:
+      RUSTFS_ACCESS_KEY: ${S3_ACCESS_KEY:-rustfsadmin}
+      RUSTFS_SECRET_KEY: ${S3_SECRET_KEY:-rustfsadminsecret}
+    volumes:
+      - rustfs-data:/data
+    ports:
+      - "9000:9000"
+
+  wfm:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    restart: unless-stopped
+    environment:
+      WFM_ADDR: 0.0.0.0:8080
+      WFM_DATA: /data
+      WFM_DB: sqlite:/data/wfm.db
+      WFM_MEDIA: ${WFM_MEDIA:-s3}
+      WFM_S3_ENDPOINT: ${WFM_S3_ENDPOINT:-http://rustfs:9000}
+      WFM_S3_REGION: ${WFM_S3_REGION:-us-east-1}
+      WFM_S3_BUCKET: ${WFM_S3_BUCKET:-wfm}
+      WFM_S3_ACCESS_KEY: ${S3_ACCESS_KEY:-rustfsadmin}
+      WFM_S3_SECRET_KEY: ${S3_SECRET_KEY:-rustfsadminsecret}
+      WFM_SECURE_COOKIES: ${WFM_SECURE_COOKIES:-false}
+    volumes:
+      - wfm-data:/data
+    ports:
+      - "8080:8080"
+    depends_on:
+      - rustfs
+
+volumes:
+  rustfs-data:
+  wfm-data:
