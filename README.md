@@ -79,7 +79,7 @@ bucket contents.
 Create a node under Manage > Render nodes, then on the worker machine:
 
 ```sh
-wfm --worker http://server:8080 <token> <name>
+wfm --worker http://<wfm-host>:8080 <token> <name>
 ```
 
 The node polls for jobs, downloads inputs, runs ffmpeg, and uploads the export.
