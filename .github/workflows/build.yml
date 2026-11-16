@@ -164,9 +164,18 @@ jobs:
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
+        if: matrix.target != 'linux-arm64'
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
+
+      - name: Setup Flutter arm64
+        if: matrix.target == 'linux-arm64'
+        run: |
+          git clone --depth 1 -b ${{ env.FLUTTER_VERSION }} https://github.com/flutter/flutter.git /opt/flutter
+          echo "/opt/flutter/bin" >> "$GITHUB_PATH"
+          git config --global --add safe.directory /opt/flutter
+          /opt/flutter/bin/flutter --version
 
       - name: Pub get
         run: flutter pub get

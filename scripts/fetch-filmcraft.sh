@@ -10,5 +10,5 @@ curl -fsSL "$URL" -o "$TMP/fc.zip"
 unzip -q -o "$TMP/fc.zip" -d "$TMP/extract"
 rm -rf "$DEST"
 mkdir -p "$DEST"
-mv "$TMP"/extract/filmcraft-web-*/. "$DEST"/
+cp -a "$TMP"/extract/filmcraft-web-*/. "$DEST"/
 echo "FilmCraft $VER installed to $DEST"
