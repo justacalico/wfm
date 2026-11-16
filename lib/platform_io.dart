@@ -6,8 +6,20 @@ class PickedFile {
   const PickedFile(this.name, this.bytes);
 }
 
-void openExternal(String url) =>
-    throw UnsupportedError('openExternal is only supported in the web build');
+void Function(String url)? openExternalForTesting;
+Future<List<PickedFile>> Function()? pickFilesForTesting;
 
-Future<List<PickedFile>> pickFiles() =>
-    throw UnsupportedError('pickFiles is only supported in the web build');
+void openExternal(String url) {
+  final f = openExternalForTesting;
+  if (f != null) {
+    f(url);
+    return;
+  }
+  throw UnsupportedError('openExternal is only supported in the web build');
+}
+
+Future<List<PickedFile>> pickFiles() {
+  final f = pickFilesForTesting;
+  if (f != null) return f();
+  throw UnsupportedError('pickFiles is only supported in the web build');
+}

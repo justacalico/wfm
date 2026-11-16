@@ -9,9 +9,21 @@ class PickedFile {
   const PickedFile(this.name, this.bytes);
 }
 
-void openExternal(String url) => web.window.open(url, '_blank');
+void Function(String url)? openExternalForTesting;
+Future<List<PickedFile>> Function()? pickFilesForTesting;
+
+void openExternal(String url) {
+  final f = openExternalForTesting;
+  if (f != null) {
+    f(url);
+    return;
+  }
+  web.window.open(url, '_blank');
+}
 
 Future<List<PickedFile>> pickFiles() async {
+  final test = pickFilesForTesting;
+  if (test != null) return test();
   final input = web.HTMLInputElement()
     ..type = 'file'
     ..multiple = true

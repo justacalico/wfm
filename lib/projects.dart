@@ -31,7 +31,7 @@ class _ProjectsPageState extends State<ProjectsPage> {
   }
 
   Future<void> _create() async {
-    final name = await promptText(context, 'New project', 'Project name');
+    final name = await promptText(context, context.l10n.newProject, context.l10n.projectName);
     if (name == null || name.isEmpty || !mounted) return;
     try {
       await Api.i.createProject(name);
@@ -43,20 +43,21 @@ class _ProjectsPageState extends State<ProjectsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     if (_err.isNotEmpty) return Center(child: Text(_err));
     final items = _items;
     return Scaffold(
-      appBar: AppBar(title: const Text('Projects')),
+      appBar: AppBar(title: Text(l10n.projects)),
       floatingActionButton: FloatingActionButton.extended(
-          onPressed: _create, icon: const Icon(Icons.add), label: const Text('New project')),
+          onPressed: _create, icon: const Icon(Icons.add), label: Text(l10n.newProject)),
       body: items == null
           ? const Center(child: CircularProgressIndicator())
           : items.isEmpty
-              ? const Center(child: Text('No projects yet. Create one to get started.'))
+              ? Center(child: Text(l10n.noProjects))
               : GridView.builder(
                   padding: const EdgeInsets.all(16),
                   gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                      maxCrossAxisExtent: 280, mainAxisExtent: 140, crossAxisSpacing: 12, mainAxisSpacing: 12),
+                      maxCrossAxisExtent: 280, mainAxisExtent: 170, crossAxisSpacing: 12, mainAxisSpacing: 12),
                   itemCount: items.length,
                   itemBuilder: (c, i) {
                     final p = items[i];
@@ -70,7 +71,7 @@ class _ProjectsPageState extends State<ProjectsPage> {
                             Text(p.displayName,
                                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                                 overflow: TextOverflow.ellipsis),
-                            Text('Created ${fmtAgo(p.createdAt)}', style: Theme.of(c).textTheme.bodySmall),
+                            Text(l10n.createdAgo(fmtAgo(l10n, p.createdAt)), style: Theme.of(c).textTheme.bodySmall),
                             const Spacer(),
                             TextButton.icon(
                               onPressed: () {
@@ -81,7 +82,7 @@ class _ProjectsPageState extends State<ProjectsPage> {
                                 }
                               },
                               icon: const Icon(Icons.open_in_new, size: 16),
-                              label: const Text('Open in Filmcraft'),
+                              label: Text(l10n.openInFilmcraft),
                             ),
                           ]),
                         ),
@@ -105,7 +106,7 @@ class _ProjectPageState extends State<ProjectPage> {
   late Project _p = widget.project;
 
   Future<void> _rename() async {
-    final name = await promptText(context, 'Rename project', 'Display name', _p.displayName);
+    final name = await promptText(context, context.l10n.renameProject, context.l10n.displayName, _p.displayName);
     if (name == null || name.isEmpty || !mounted) return;
     try {
       await Api.i.renameProject(_p.id, name);
@@ -116,7 +117,7 @@ class _ProjectPageState extends State<ProjectPage> {
   }
 
   Future<void> _delete() async {
-    if (!await confirm(context, 'Delete project', 'Delete "${_p.displayName}" and all of its media? This cannot be undone.')) {
+    if (!await confirm(context, context.l10n.deleteProject, context.l10n.deleteProjectBody(_p.displayName))) {
       return;
     }
     try {
@@ -129,6 +130,7 @@ class _ProjectPageState extends State<ProjectPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Scaffold(
       appBar: AppBar(
         title: Text(_p.displayName),
@@ -142,14 +144,14 @@ class _ProjectPageState extends State<ProjectPage> {
               }
             },
             icon: const Icon(Icons.movie_edit, size: 18),
-            label: const Text('Open in Filmcraft'),
+            label: Text(l10n.openInFilmcraft),
           ),
           const SizedBox(width: 8),
           PopupMenuButton<String>(
             onSelected: (v) => v == 'rename' ? _rename() : _delete(),
-            itemBuilder: (_) => const [
-              PopupMenuItem(value: 'rename', child: Text('Rename')),
-              PopupMenuItem(value: 'delete', child: Text('Delete')),
+            itemBuilder: (_) => [
+              PopupMenuItem(value: 'rename', child: Text(l10n.rename)),
+              PopupMenuItem(value: 'delete', child: Text(l10n.delete)),
             ],
           ),
         ],
@@ -160,9 +162,9 @@ class _ProjectPageState extends State<ProjectPage> {
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: SegmentedButton<int>(
-                segments: const [
-                  ButtonSegment(value: 0, icon: Icon(Icons.folder_outlined), label: Text('Files')),
-                  ButtonSegment(value: 1, icon: Icon(Icons.rocket_launch_outlined), label: Text('Renders')),
+                segments: [
+                  ButtonSegment(value: 0, icon: const Icon(Icons.folder_outlined), label: Text(l10n.files)),
+                  ButtonSegment(value: 1, icon: const Icon(Icons.rocket_launch_outlined), label: Text(l10n.renders)),
                 ],
                 selected: {_tab},
                 onSelectionChanged: (s) => setState(() => _tab = s.first),
@@ -249,7 +251,7 @@ class _FilesTabState extends State<FilesTab> {
   }
 
   Future<void> _mkdir() async {
-    final name = await promptText(context, 'New folder', 'Folder name');
+    final name = await promptText(context, context.l10n.newFolder, context.l10n.folderName);
     if (name == null || name.isEmpty || !mounted) return;
     try {
       await Api.i.mkdir(widget.project.id, _path.isEmpty ? name : '$_path/$name');
@@ -260,7 +262,7 @@ class _FilesTabState extends State<FilesTab> {
   }
 
   Future<void> _rename(FileEntry e) async {
-    final name = await promptText(context, 'Rename', 'New name', e.name);
+    final name = await promptText(context, context.l10n.rename, context.l10n.newName, e.name);
     if (name == null || name.isEmpty || name == e.name || !mounted) return;
     final parent = e.path.contains('/') ? e.path.substring(0, e.path.lastIndexOf('/')) : '';
     try {
@@ -272,7 +274,7 @@ class _FilesTabState extends State<FilesTab> {
   }
 
   Future<void> _delete(FileEntry e) async {
-    if (!await confirm(context, 'Delete', 'Delete "${e.path}"?')) return;
+    if (!await confirm(context, context.l10n.delete, context.l10n.deleteFileBody(e.path))) return;
     try {
       await Api.i.deleteFile(widget.project.id, e.path);
       _load();
@@ -283,6 +285,7 @@ class _FilesTabState extends State<FilesTab> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final crumbs = _path.isEmpty ? <String>[] : _path.split('/');
     return Column(children: [
       Padding(
@@ -299,12 +302,12 @@ class _FilesTabState extends State<FilesTab> {
           const Spacer(),
           if (_uploading)
             const Padding(padding: EdgeInsets.only(right: 12), child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))),
-          IconButton(icon: const Icon(Icons.create_new_folder_outlined), tooltip: 'New folder', onPressed: _mkdir),
-          IconButton(icon: const Icon(Icons.refresh), tooltip: 'Refresh', onPressed: _load),
+          IconButton(icon: const Icon(Icons.create_new_folder_outlined), tooltip: l10n.newFolder, onPressed: _mkdir),
+          IconButton(icon: const Icon(Icons.refresh), tooltip: l10n.refresh, onPressed: _load),
           FilledButton.tonalIcon(
             onPressed: _uploading ? null : _upload,
             icon: const Icon(Icons.upload_file, size: 18),
-            label: const Text('Upload'),
+            label: Text(l10n.upload),
           ),
         ]),
       ),
@@ -315,7 +318,7 @@ class _FilesTabState extends State<FilesTab> {
             : _items == null
                 ? const Center(child: CircularProgressIndicator())
                 : _items!.isEmpty
-                    ? const Center(child: Text('Empty folder'))
+                    ? Center(child: Text(l10n.emptyFolder))
                     : ListView.builder(
                         itemCount: _items!.length,
                         itemBuilder: (c, i) {
@@ -323,7 +326,7 @@ class _FilesTabState extends State<FilesTab> {
                           return ListTile(
                             leading: Icon(fileIcon(e)),
                             title: Text(e.name),
-                            subtitle: e.isDir ? null : Text('${fmtBytes(e.size)}  ·  ${fmtAgo(e.modified)}'),
+                            subtitle: e.isDir ? null : Text('${fmtBytes(e.size)}  ·  ${fmtAgo(l10n, e.modified)}'),
                             onTap: e.isDir ? () => _go(e.path) : null,
                             trailing: PopupMenuButton<String>(
                               onSelected: (v) {
@@ -341,9 +344,9 @@ class _FilesTabState extends State<FilesTab> {
                                 }
                               },
                               itemBuilder: (_) => [
-                                if (!e.isDir) const PopupMenuItem(value: 'download', child: Text('Download')),
-                                const PopupMenuItem(value: 'rename', child: Text('Rename')),
-                                const PopupMenuItem(value: 'delete', child: Text('Delete')),
+                                if (!e.isDir) PopupMenuItem(value: 'download', child: Text(l10n.download)),
+                                PopupMenuItem(value: 'rename', child: Text(l10n.rename)),
+                                PopupMenuItem(value: 'delete', child: Text(l10n.delete)),
                               ],
                             ),
                           );
@@ -398,6 +401,7 @@ class _RendersTabState extends State<RendersTab> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final jobs = _jobs;
     return Scaffold(
       floatingActionButton: FloatingActionButton.extended(
@@ -407,12 +411,12 @@ class _RendersTabState extends State<RendersTab> {
           if (queued == true) _load();
         },
         icon: const Icon(Icons.add),
-        label: const Text('New render'),
+        label: Text(l10n.newRender),
       ),
       body: jobs == null
           ? const Center(child: CircularProgressIndicator())
           : jobs.isEmpty
-              ? const Center(child: Text('No renders yet.'))
+              ? Center(child: Text(l10n.noRenders))
               : ListView.builder(
                   itemCount: jobs.length,
                   itemBuilder: (c, i) {
@@ -427,7 +431,9 @@ class _RendersTabState extends State<RendersTab> {
                       }),
                       title: Text(name),
                       subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text('${j.status}${j.worker.isNotEmpty ? ' on ${j.worker}' : ''}  ·  ${fmtAgo(j.createdAt)}'),
+                        Text(j.worker.isNotEmpty
+                            ? l10n.renderStatusWorker(j.status, j.worker, fmtAgo(l10n, j.createdAt))
+                            : l10n.renderStatus(j.status, fmtAgo(l10n, j.createdAt))),
                         if (j.active)
                           Padding(
                             padding: const EdgeInsets.only(top: 4),
@@ -439,7 +445,7 @@ class _RendersTabState extends State<RendersTab> {
                         if (j.status == 'done')
                           IconButton(
                             icon: const Icon(Icons.download),
-                            tooltip: 'Download',
+                            tooltip: l10n.download,
                             onPressed: () {
                               try {
                                 openExternal(Api.i.downloadUrl(widget.project.id, 'Exports/$name', dl: true));
@@ -449,7 +455,7 @@ class _RendersTabState extends State<RendersTab> {
                             },
                           ),
                         if (j.active)
-                          IconButton(icon: const Icon(Icons.stop), tooltip: 'Cancel', onPressed: () => _cancel(j)),
+                          IconButton(icon: const Icon(Icons.stop), tooltip: l10n.cancel, onPressed: () => _cancel(j)),
                       ]),
                     );
                   },
@@ -514,15 +520,16 @@ class _RenderDialogState extends State<RenderDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return AlertDialog(
-      title: const Text('New render'),
+      title: Text(l10n.newRender),
       content: SizedBox(
         width: 560,
         height: 480,
         child: Row(children: [
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Browse: $_folder', style: Theme.of(context).textTheme.bodySmall),
+              Text(l10n.browseFolder(_folder), style: Theme.of(context).textTheme.bodySmall),
               const SizedBox(height: 4),
               Expanded(
                 child: DecoratedBox(
@@ -556,11 +563,11 @@ class _RenderDialogState extends State<RenderDialog> {
           const VerticalDivider(width: 24),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Clips (${_clips.length})', style: Theme.of(context).textTheme.bodySmall),
+              Text(l10n.clipsCount(_clips.length), style: Theme.of(context).textTheme.bodySmall),
               const SizedBox(height: 4),
               Expanded(
                 child: _clips.isEmpty
-                    ? const Center(child: Text('Add clips from the browser'))
+                    ? Center(child: Text(l10n.addClips))
                     : ReorderableListView(
                         onReorderItem: (a, b) => setState(() {
                           _clips.insert(b, _clips.removeAt(a));
@@ -579,13 +586,14 @@ class _RenderDialogState extends State<RenderDialog> {
                       ),
               ),
               const SizedBox(height: 8),
-              TextField(controller: _out, decoration: dec('Output name')),
+              TextField(controller: _out, decoration: dec(l10n.outputName)),
               const SizedBox(height: 8),
               Row(children: [
                 Expanded(
                   child: DropdownButtonFormField<(int, int)>(
+                    isExpanded: true,
                     initialValue: _res,
-                    decoration: dec('Resolution'),
+                    decoration: dec(l10n.resolution),
                     items: const [
                       DropdownMenuItem(value: (3840, 2160), child: Text('4K 2160p')),
                       DropdownMenuItem(value: (1920, 1080), child: Text('1080p')),
@@ -597,8 +605,9 @@ class _RenderDialogState extends State<RenderDialog> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: DropdownButtonFormField<int>(
+                    isExpanded: true,
                     initialValue: _fps,
-                    decoration: dec('FPS'),
+                    decoration: dec(l10n.frameRate),
                     items: const [
                       DropdownMenuItem(value: 24, child: Text('24')),
                       DropdownMenuItem(value: 25, child: Text('25')),
@@ -614,10 +623,10 @@ class _RenderDialogState extends State<RenderDialog> {
         ]),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
+        TextButton(onPressed: () => Navigator.of(context).pop(false), child: Text(l10n.cancel)),
         FilledButton(
           onPressed: _busy || _clips.isEmpty ? null : _submit,
-          child: Text(_busy ? 'Queuing…' : 'Render'),
+          child: Text(_busy ? l10n.queuing : l10n.render),
         ),
       ],
     );

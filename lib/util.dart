@@ -1,3 +1,5 @@
+import 'l10n/app_localizations.dart';
+
 String fmtBytes(int n) {
   const units = ['B', 'KB', 'MB', 'GB', 'TB'];
   var v = n.toDouble();
@@ -9,21 +11,21 @@ String fmtBytes(int n) {
   return '${v.toStringAsFixed(i == 0 ? 0 : 1)} ${units[i]}';
 }
 
-String fmtTime(int ts) {
-  if (ts <= 0) return 'never';
+String fmtTime(AppLocalizations l10n, int ts) {
+  if (ts <= 0) return l10n.never;
   final d = DateTime.fromMillisecondsSinceEpoch(ts * 1000);
   String two(int v) => v.toString().padLeft(2, '0');
   return '${d.year}-${two(d.month)}-${two(d.day)} ${two(d.hour)}:${two(d.minute)}';
 }
 
-String fmtAgo(int ts) {
-  if (ts <= 0) return 'never';
+String fmtAgo(AppLocalizations l10n, int ts) {
+  if (ts <= 0) return l10n.never;
   final d = DateTime.now().difference(DateTime.fromMillisecondsSinceEpoch(ts * 1000));
-  if (d.inMinutes < 1) return 'just now';
-  if (d.inHours < 1) return '${d.inMinutes}m ago';
-  if (d.inDays < 1) return '${d.inHours}h ago';
-  if (d.inDays < 30) return '${d.inDays}d ago';
-  return fmtTime(ts);
+  if (d.inMinutes < 1) return l10n.justNow;
+  if (d.inHours < 1) return l10n.minutesAgo(d.inMinutes);
+  if (d.inDays < 1) return l10n.hoursAgo(d.inHours);
+  if (d.inDays < 30) return l10n.daysAgo(d.inDays);
+  return fmtTime(l10n, ts);
 }
 
 String extOf(String name) {

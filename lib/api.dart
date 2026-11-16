@@ -110,15 +110,13 @@ class AuditEntry {
 }
 
 class Api {
-  static final Api i = Api._();
-  late final http.Client _c;
+  static Api i = Api();
+  final http.Client _c;
   String csrf = '';
   User? user;
   Caps caps = Caps.none;
 
-  Api._() {
-    _c = http.Client();
-  }
+  Api([http.Client? client]) : _c = client ?? http.Client();
 
   static const _base = String.fromEnvironment('WFM_API');
 
@@ -148,6 +146,8 @@ class Api {
       _go(() => _c.post(_u(p, q), headers: _h, body: jsonEncode(body ?? {})));
   Future<dynamic> patch(String p, Object? body) =>
       _go(() => _c.patch(_u(p), headers: _h, body: jsonEncode(body)));
+  Future<dynamic> put(String p, Object? body) =>
+      _go(() => _c.put(_u(p), headers: _h, body: jsonEncode(body)));
   Future<dynamic> del(String p, [Map<String, String>? q]) =>
       _go(() => _c.delete(_u(p, q), headers: _h));
   Future<dynamic> putFile(String p, Uint8List bytes, Map<String, String> q) =>
@@ -160,8 +160,14 @@ class Api {
 
   Future<bool> needsSetup() async => (await get('/setup'))['needsSetup'] == true;
 
-  Future<User> setupOwner(String username, String password, String name) async {
-    _session(await post('/setup', {'username': username, 'password': password, 'name': name}));
+  Future<User> setupOwner(String username, String password, String name,
+      {String trustedProxies = ''}) async {
+    _session(await post('/setup', {
+      'username': username,
+      'password': password,
+      'name': name,
+      if (trustedProxies.trim().isNotEmpty) 'trustedProxies': trustedProxies.trim(),
+    }));
     return user!;
   }
 
@@ -182,6 +188,7 @@ class Api {
   Future<void> logout() async {
     try {
       await post('/logout', {});
+    } catch (_) {
     } finally {
       user = null;
       csrf = '';
@@ -190,6 +197,13 @@ class Api {
   }
 
   Future<Caps> roles() async => caps = Caps.fromJson(await get('/roles'));
+
+  Future<String> serverVersion() async => '${(await get('/version'))['version'] ?? ''}';
+
+  Future<String> serverSettings() async => '${(await get('/settings'))['trustedProxies'] ?? ''}';
+
+  Future<void> saveSettings(String trustedProxies) =>
+      put('/settings', {'trustedProxies': trustedProxies});
 
   Future<List<Project>> projects() async =>
       [for (final e in (await get('/projects')) as List) Project.fromJson(e)];

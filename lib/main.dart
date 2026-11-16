@@ -1,11 +1,35 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'api.dart';
+import 'l10n/app_localizations.dart';
 import 'projects.dart';
 import 'manage.dart';
 import 'settings.dart';
 
 void main() => runApp(const WfmApp());
+
+extension L10n on BuildContext {
+  AppLocalizations get l10n => AppLocalizations.of(this);
+}
+
+enum AppTheme { system, light, dark, oled }
+
+const appLocales = [
+  Locale('en', 'GB'),
+  Locale('zh'),
+  Locale('ru'),
+  Locale('ga'),
+];
+
+ThemeData _makeTheme(Brightness b, {bool oled = false}) => ThemeData(
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: const Color(0xFF8B5CF6),
+        brightness: b,
+      ).copyWith(surface: oled ? Colors.black : null),
+      fontFamily: 'Noto Sans',
+      scaffoldBackgroundColor: oled ? Colors.black : null,
+    );
 
 class WfmApp extends StatefulWidget {
   const WfmApp({super.key});
@@ -14,25 +38,18 @@ class WfmApp extends StatefulWidget {
 }
 
 class WfmAppState extends State<WfmApp> {
-  ThemeMode _theme = ThemeMode.system;
+  AppTheme _theme = AppTheme.system;
   Locale? _locale;
 
-  ThemeMode get themeMode => _theme;
+  AppTheme get appTheme => _theme;
   Locale? get appLocale => _locale;
-
-  static const locales = [
-    Locale('en', 'GB'),
-    Locale('zh', 'CN'),
-    Locale('ru'),
-    Locale('ga'),
-  ];
 
   @override
   void initState() {
     super.initState();
     SharedPreferences.getInstance().then((p) {
       setState(() {
-        _theme = ThemeMode.values[p.getInt('theme') ?? 0];
+        _theme = AppTheme.values[p.getInt('theme') ?? 0];
         final code = p.getString('locale');
         if (code != null && code.isNotEmpty) {
           final parts = code.split('_');
@@ -44,21 +61,34 @@ class WfmAppState extends State<WfmApp> {
 
   @override
   Widget build(BuildContext context) {
+    final dark = _theme == AppTheme.oled
+        ? _makeTheme(Brightness.dark, oled: true)
+        : _makeTheme(Brightness.dark);
     return MaterialApp(
       title: 'WFM',
-      theme: ThemeData(colorSchemeSeed: const Color(0xFF8B5CF6), brightness: Brightness.light),
-      darkTheme: ThemeData(colorSchemeSeed: const Color(0xFF8B5CF6), brightness: Brightness.dark),
-      themeMode: _theme,
+      theme: _makeTheme(Brightness.light),
+      darkTheme: dark,
+      themeMode: switch (_theme) {
+        AppTheme.system => ThemeMode.system,
+        AppTheme.light => ThemeMode.light,
+        _ => ThemeMode.dark,
+      },
       locale: _locale,
-      supportedLocales: locales,
+      supportedLocales: appLocales,
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
       home: const Gate(),
       debugShowCheckedModeBanner: false,
     );
   }
 
-  void setTheme(ThemeMode m) {
-    setState(() => _theme = m);
-    SharedPreferences.getInstance().then((p) => p.setInt('theme', m.index));
+  void setTheme(AppTheme t) {
+    setState(() => _theme = t);
+    SharedPreferences.getInstance().then((p) => p.setInt('theme', t.index));
   }
 
   void setLocale(Locale? l) {
@@ -83,10 +113,11 @@ Future<String?> promptText(BuildContext context, String title, String label, [St
     context: context,
     builder: (ctx) => AlertDialog(
       title: Text(title),
-      content: TextField(controller: c, decoration: dec(label), autofocus: true, onSubmitted: (v) => Navigator.pop(ctx, v.trim())),
+      content: TextField(
+          controller: c, decoration: dec(label), autofocus: true, onSubmitted: (v) => Navigator.pop(ctx, v.trim())),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-        FilledButton(onPressed: () => Navigator.pop(ctx, c.text.trim()), child: const Text('OK')),
+        TextButton(onPressed: () => Navigator.pop(ctx), child: Text(ctx.l10n.cancel)),
+        FilledButton(onPressed: () => Navigator.pop(ctx, c.text.trim()), child: Text(ctx.l10n.ok)),
       ],
     ),
   );
@@ -99,8 +130,8 @@ Future<bool> confirm(BuildContext context, String title, String body) async =>
         title: Text(title),
         content: Text(body),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Confirm')),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(ctx.l10n.cancel)),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(ctx.l10n.confirm)),
         ],
       ),
     ) ==
@@ -150,8 +181,9 @@ class SetupPage extends StatefulWidget {
 
 class _SetupPageState extends State<SetupPage> {
   final _user = TextEditingController(), _pass = TextEditingController(), _name = TextEditingController();
+  final _proxies = TextEditingController();
   String _err = '';
-  bool _busy = false;
+  bool _busy = false, _behindProxy = false;
 
   Future<void> _go() async {
     setState(() {
@@ -159,7 +191,8 @@ class _SetupPageState extends State<SetupPage> {
       _err = '';
     });
     try {
-      await Api.i.setupOwner(_user.text.trim(), _pass.text, _name.text.trim());
+      await Api.i.setupOwner(_user.text.trim(), _pass.text, _name.text.trim(),
+          trustedProxies: _behindProxy ? _proxies.text : '');
       await Api.i.roles().catchError((_) => Api.i.caps);
       if (mounted) {
         Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const Shell()));
@@ -172,28 +205,42 @@ class _SetupPageState extends State<SetupPage> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-        body: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 360),
-            child: ListView(shrinkWrap: true, padding: const EdgeInsets.all(24), children: [
-              Text('Welcome to WFM', style: Theme.of(context).textTheme.headlineSmall),
-              const SizedBox(height: 8),
-              const Text('Create the owner account to get started.'),
-              const SizedBox(height: 20),
-              TextField(controller: _name, decoration: dec('Your name')),
-              const SizedBox(height: 12),
-              TextField(controller: _user, decoration: dec('Username')),
-              const SizedBox(height: 12),
-              TextField(controller: _pass, obscureText: true, decoration: dec('Password'), onSubmitted: (_) => _go()),
-              if (_err.isNotEmpty)
-                Padding(padding: const EdgeInsets.only(top: 12), child: Text(_err, style: TextStyle(color: Theme.of(context).colorScheme.error))),
-              const SizedBox(height: 20),
-              FilledButton(onPressed: _busy ? null : _go, child: Text(_busy ? 'Creating…' : 'Create owner')),
-            ]),
-          ),
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    return Scaffold(
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 360),
+          child: ListView(shrinkWrap: true, padding: const EdgeInsets.all(24), children: [
+            Text(l10n.welcomeTitle, style: Theme.of(context).textTheme.headlineSmall),
+            const SizedBox(height: 8),
+            Text(l10n.setupSubtitle),
+            const SizedBox(height: 20),
+            TextField(controller: _name, decoration: dec(l10n.yourName)),
+            const SizedBox(height: 12),
+            TextField(controller: _user, decoration: dec(l10n.username)),
+            const SizedBox(height: 12),
+            TextField(controller: _pass, obscureText: true, decoration: dec(l10n.password), onSubmitted: (_) => _go()),
+            CheckboxListTile(
+              value: _behindProxy,
+              onChanged: (v) => setState(() => _behindProxy = v ?? false),
+              title: Text(l10n.behindProxy, style: const TextStyle(fontSize: 14)),
+              contentPadding: EdgeInsets.zero,
+              controlAffinity: ListTileControlAffinity.leading,
+            ),
+            if (_behindProxy)
+              TextField(controller: _proxies, decoration: dec(l10n.trustedProxies, l10n.trustedProxiesHint)),
+            if (_err.isNotEmpty)
+              Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Text(_err, style: TextStyle(color: Theme.of(context).colorScheme.error))),
+            const SizedBox(height: 20),
+            FilledButton(onPressed: _busy ? null : _go, child: Text(_busy ? l10n.creating : l10n.createOwner)),
+          ]),
         ),
-      );
+      ),
+    );
+  }
 }
 
 class LoginPage extends StatefulWidget {
@@ -219,100 +266,143 @@ class _LoginPageState extends State<LoginPage> {
         Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const Shell()));
       }
     } catch (e) {
-      setState(() => _err = 'Sign in failed: $e');
+      setState(() => _err = context.l10n.signInFailed('$e'));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-        body: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 360),
-            child: ListView(shrinkWrap: true, padding: const EdgeInsets.all(24), children: [
-              Text('WFM', style: Theme.of(context).textTheme.headlineMedium, textAlign: TextAlign.center),
-              const SizedBox(height: 24),
-              TextField(controller: _user, decoration: dec('Username'), autofocus: true),
-              const SizedBox(height: 12),
-              TextField(controller: _pass, obscureText: true, decoration: dec('Password'), onSubmitted: (_) => _go()),
-              if (_err.isNotEmpty)
-                Padding(padding: const EdgeInsets.only(top: 12), child: Text(_err, style: TextStyle(color: Theme.of(context).colorScheme.error))),
-              const SizedBox(height: 20),
-              FilledButton(onPressed: _busy ? null : _go, child: Text(_busy ? 'Signing in…' : 'Sign in')),
-            ]),
-          ),
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    return Scaffold(
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 360),
+          child: ListView(shrinkWrap: true, padding: const EdgeInsets.all(24), children: [
+            Text(l10n.appTitle, style: Theme.of(context).textTheme.headlineMedium, textAlign: TextAlign.center),
+            const SizedBox(height: 24),
+            TextField(controller: _user, decoration: dec(l10n.username), autofocus: true),
+            const SizedBox(height: 12),
+            TextField(controller: _pass, obscureText: true, decoration: dec(l10n.password), onSubmitted: (_) => _go()),
+            if (_err.isNotEmpty)
+              Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Text(_err, style: TextStyle(color: Theme.of(context).colorScheme.error))),
+            const SizedBox(height: 20),
+            FilledButton(onPressed: _busy ? null : _go, child: Text(_busy ? l10n.signingIn : l10n.signIn)),
+          ]),
         ),
-      );
+      ),
+    );
+  }
 }
 
 class Shell extends StatefulWidget {
   const Shell({super.key});
   @override
-  State<Shell> createState() => _ShellState();
+  State<Shell> createState() => ShellState();
 }
 
-class _ShellState extends State<Shell> {
+class ShellState extends State<Shell> {
   int _page = 0;
 
   void go(int i) => setState(() => _page = i);
 
-  @override
-  Widget build(BuildContext context) {
+  List<(IconData, String)> _items(AppLocalizations l10n, bool showManage) => [
+        (Icons.home_outlined, l10n.navHome),
+        (Icons.movie_outlined, l10n.navProjects),
+        if (showManage) (Icons.manage_accounts_outlined, l10n.navManage),
+        (Icons.settings_outlined, l10n.navSettings),
+      ];
+
+  List<Widget> _pages(bool showManage) => [
+        const HomePage(),
+        const ProjectsPage(),
+        if (showManage) const ManagePage(),
+        const SettingsPage(),
+      ];
+
+  Widget _navColumn(AppLocalizations l10n, {VoidCallback? onTap}) {
     final u = Api.i.user!;
-    final showManage = Api.i.caps.manage || Api.i.caps.audit;
-    final items = [
-      (Icons.home_outlined, 'Home'),
-      (Icons.movie_outlined, 'Projects'),
-      if (showManage) (Icons.manage_accounts_outlined, 'Manage'),
-      (Icons.settings_outlined, 'Settings'),
-    ];
-    final pages = <Widget>[
-      const HomePage(),
-      const ProjectsPage(),
-      if (showManage) const ManagePage(),
-      const SettingsPage(),
-    ];
-    if (_page >= pages.length) _page = 0;
+    final items = _items(l10n, Api.i.caps.manage || Api.i.caps.audit);
     final initials = u.name.trim().isEmpty
         ? u.username.substring(0, 1).toUpperCase()
         : (u.name.trim().split(RegExp(r'\s+')).map((w) => w[0]).take(2).join().toUpperCase());
-    return Scaffold(
-      body: Row(children: [
-        NavigationRail(
-          selectedIndex: _page,
-          onDestinationSelected: (i) => setState(() => _page = i),
-          labelType: NavigationRailLabelType.all,
-          destinations: [for (final it in items) NavigationRailDestination(icon: Icon(it.$1), label: Text(it.$2))],
-          trailing: Expanded(
-            child: Align(
-              alignment: Alignment.bottomCenter,
-              child: Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Column(mainAxisSize: MainAxisSize.min, children: [
-                  CircleAvatar(child: Text(initials)),
-                  const SizedBox(height: 4),
-                  Text(u.name.isEmpty ? u.username : u.name, style: const TextStyle(fontSize: 12), overflow: TextOverflow.ellipsis),
-                  Text(u.role, style: const TextStyle(fontSize: 11, color: Colors.grey)),
-                  IconButton(
-                    icon: const Icon(Icons.logout, size: 18),
-                    tooltip: 'Log out',
-                    onPressed: () async {
-                      await Api.i.logout();
-                      if (context.mounted) {
-                        Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const Gate()));
-                      }
-                    },
-                  ),
-                ]),
+    return Column(children: [
+      Padding(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: Text(l10n.appTitle, style: Theme.of(context).textTheme.titleLarge),
+        ),
+      ),
+      Expanded(
+        child: ListView(padding: const EdgeInsets.symmetric(horizontal: 8), children: [
+          for (var i = 0; i < items.length; i++)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 1),
+              child: Material(
+                color: i == _page
+                    ? Theme.of(context).colorScheme.secondaryContainer
+                    : Colors.transparent,
+                shape: const StadiumBorder(),
+                clipBehavior: Clip.antiAlias,
+                child: ListTile(
+                  dense: true,
+                  leading: Icon(items[i].$1, size: 20),
+                  title: Text(items[i].$2),
+                  shape: const StadiumBorder(),
+                  onTap: () {
+                    go(i);
+                    onTap?.call();
+                  },
+                ),
               ),
             ),
-          ),
+        ]),
+      ),
+      const Divider(height: 1),
+      ListTile(
+        leading: CircleAvatar(radius: 16, child: Text(initials, style: const TextStyle(fontSize: 12))),
+        title: Text(u.name.isEmpty ? u.username : u.name, overflow: TextOverflow.ellipsis),
+        subtitle: Text(u.role, style: const TextStyle(fontSize: 11)),
+        trailing: IconButton(
+          icon: const Icon(Icons.logout, size: 18),
+          tooltip: l10n.logout,
+          onPressed: () async {
+            await Api.i.logout();
+            if (mounted) {
+              Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const Gate()));
+            }
+          },
         ),
-        const VerticalDivider(width: 1),
-        Expanded(child: pages[_page]),
-      ]),
-    );
+      ),
+    ]);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final showManage = Api.i.caps.manage || Api.i.caps.audit;
+    final pages = _pages(showManage);
+    if (_page >= pages.length) _page = 0;
+    return LayoutBuilder(builder: (context, box) {
+      if (box.maxWidth < 720) {
+        return Scaffold(
+          appBar: AppBar(title: Text(_items(l10n, showManage)[_page].$2)),
+          drawer: Drawer(child: SafeArea(child: _navColumn(l10n, onTap: () => Navigator.of(context).pop()))),
+          body: pages[_page],
+        );
+      }
+      return Scaffold(
+        body: Row(children: [
+          SizedBox(width: 240, child: SafeArea(child: _navColumn(l10n))),
+          const VerticalDivider(width: 1),
+          Expanded(child: pages[_page]),
+        ]),
+      );
+    });
   }
 }
 
@@ -320,31 +410,37 @@ class HomePage extends StatelessWidget {
   const HomePage({super.key});
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final u = Api.i.user!;
+    final showManage = Api.i.caps.manage || Api.i.caps.audit;
+    final cards = <(IconData, String, String, int)>[
+      (Icons.movie_outlined, l10n.cardProjects, l10n.cardProjectsSub, 1),
+      if (showManage)
+        (Icons.group_outlined, l10n.cardManage, l10n.cardManageSub, 2),
+      (Icons.tune_outlined, l10n.cardSettings, l10n.cardSettingsSub, showManage ? 3 : 2),
+    ];
     return ListView(padding: const EdgeInsets.all(24), children: [
-      Text('Hi, ${u.name.isEmpty ? u.username : u.name}', style: Theme.of(context).textTheme.headlineSmall),
+      Text(l10n.greeting(u.name.isEmpty ? u.username : u.name),
+          style: Theme.of(context).textTheme.headlineSmall),
       const SizedBox(height: 16),
       Wrap(spacing: 12, runSpacing: 12, children: [
-        _card(context, Icons.movie_outlined, 'Projects', 'Open your film projects'),
-        if (Api.i.caps.manage || Api.i.caps.audit) _card(context, Icons.group_outlined, 'Manage', 'Accounts and permissions'),
-        _card(context, Icons.tune_outlined, 'Settings', 'Theme and language'),
+        for (final c in cards)
+          Card(
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: () => context.findAncestorStateOfType<ShellState>()?.go(c.$4),
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Icon(c.$1, size: 28),
+                  const SizedBox(height: 12),
+                  Text(c.$2, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  Text(c.$3, style: Theme.of(context).textTheme.bodySmall),
+                ]),
+              ),
+            ),
+          ),
       ]),
     ]);
   }
-
-  Widget _card(BuildContext c, IconData i, String t, String sub) => Card(
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: () => c.findAncestorStateOfType<_ShellState>()?.go(t == 'Projects' ? 1 : (t == 'Manage' ? 2 : 3)),
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Icon(i, size: 28),
-              const SizedBox(height: 12),
-              Text(t, style: const TextStyle(fontWeight: FontWeight.bold)),
-              Text(sub, style: Theme.of(c).textTheme.bodySmall),
-            ]),
-          ),
-        ),
-      );
 }
