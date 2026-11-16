@@ -76,7 +76,7 @@ impl Config {
         let mut c = Config {
             addr: env("WFM_ADDR", ":8080"),
             data_dir: PathBuf::from(env("WFM_DATA", "wfm-data")),
-            web_dir: None,
+            web_dir: std::env::var("WFM_WEB_DIR").ok().map(PathBuf::from),
             filmcraft_dir: std::env::var("WFM_FILMCRAFT_DIR")
                 .ok()
                 .map(PathBuf::from)

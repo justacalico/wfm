@@ -147,3 +147,37 @@ pub fn valid_project_name_or_err(name: &str) -> Result<String, FsError> {
         Err(FsError::BadPath)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn clean_rel_blocks_traversal_and_hidden() {
+        assert!(clean_rel("../etc/passwd").is_err());
+        assert!(clean_rel("Raw/../../x").is_err());
+        assert!(clean_rel(".git/config").is_err());
+        assert!(clean_rel("").is_err());
+        assert!(clean_rel("Raw/A-Roll/clip.mp4").is_ok());
+        assert!(clean_rel("Audio/VA/take 01.wav").is_ok());
+    }
+
+    #[test]
+    fn clean_rel_key_restricts_to_roots() {
+        assert!(clean_rel_key("etc/hostname").is_err());
+        assert!(clean_rel_key("Raw/clip.mp4").is_ok());
+        assert!(clean_rel_key(STATE_FILE).is_ok());
+        assert!(clean_rel_key(PROJECT_FILE).is_ok());
+        assert!(clean_rel_key("stray.txt").is_err());
+    }
+
+    #[test]
+    fn resolve_stays_inside_root() {
+        let root = std::env::temp_dir().join(format!("wfm-test-{}", crate::model::new_id()));
+        std::fs::create_dir_all(root.join("Raw")).unwrap();
+        assert!(resolve(&root, "Raw/clip.mp4").is_ok());
+        assert!(resolve(&root, "../escape").is_err());
+        assert!(resolve(&root, "Exports/../Raw/ok.mp4").is_err());
+        std::fs::remove_dir_all(&root).ok();
+    }
+}

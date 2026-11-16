@@ -467,3 +467,68 @@ async fn blob_download(
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::model::{RenderAudio, RenderClip, RenderSpec};
+
+    fn spec() -> RenderSpec {
+        RenderSpec {
+            width: 1280,
+            height: 720,
+            fps: 30,
+            clips: vec![
+                RenderClip { path: "Raw/a.mp4".into(), in_point: 1.0, out: 4.0, duration: 0.0 },
+                RenderClip { path: "Raw/b.mp4".into(), in_point: 0.0, out: 0.0, duration: 2.5 },
+            ],
+            audio: Some(RenderAudio { path: "Audio/Music/m.mp3".into(), volume: 0.5 }),
+            titles: vec![],
+            output: "out".into(),
+        }
+    }
+
+    fn resolve(_: &str) -> Result<PathBuf, files::FsError> {
+        Ok(PathBuf::from("/tmp/fake"))
+    }
+
+    #[test]
+    fn args_have_inputs_and_maps() {
+        let args = ffmpeg_args(&spec(), &resolve, Path::new("/tmp/out.mp4"), "ffprobe").unwrap();
+        let s = args.join(" ");
+        assert!(s.contains("-ss 1.000 -t 3.000 -i /tmp/fake"));
+        assert!(s.contains("concat=n=2:v=1:a=1"));
+        assert!(s.contains("volume=0.5"));
+        assert!(s.contains("-map [vcat]"));
+        assert!(s.contains("-map [aout]"));
+        assert!(s.contains("libx264"));
+    }
+
+    #[test]
+    fn rejects_empty_and_zero_clips() {
+        let mut s = spec();
+        s.clips.clear();
+        assert!(ffmpeg_args(&s, &resolve, Path::new("/tmp/o.mp4"), "ffprobe").is_err());
+        let mut s = spec();
+        s.clips[0].in_point = 0.0;
+        s.clips[0].out = 0.0;
+        s.clips[0].duration = 0.0;
+        s.audio = None;
+        let args = ffmpeg_args(&s, &resolve, Path::new("/tmp/o.mp4"), "ffprobe");
+        assert!(args.is_err());
+    }
+
+    #[test]
+    fn title_text_is_escaped() {
+        let mut s = spec();
+        s.titles.push(crate::model::RenderTitle {
+            text: "it's: 100%".into(),
+            start: 0.0,
+            end: 1.0,
+        });
+        let args = ffmpeg_args(&s, &resolve, Path::new("/tmp/o.mp4"), "ffprobe").unwrap();
+        let fc_i = args.iter().position(|a| a == "-filter_complex").unwrap();
+        let fc = &args[fc_i + 1];
+        assert!(fc.contains("it\\'s\\: 100\\%"));
+    }
+}

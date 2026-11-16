@@ -987,6 +987,22 @@ fn parse_range(v: &str, size: u64) -> Option<(u64, u64)> {
     Some((start, end))
 }
 
+#[cfg(test)]
+mod tests {
+    use super::parse_range;
+
+    #[test]
+    fn ranges() {
+        assert_eq!(parse_range("bytes=0-99", 1000), Some((0, 99)));
+        assert_eq!(parse_range("bytes=500-", 1000), Some((500, 999)));
+        assert_eq!(parse_range("bytes=-100", 1000), Some((900, 999)));
+        assert_eq!(parse_range("bytes=0-9999", 1000), Some((0, 999)));
+        assert_eq!(parse_range("bytes=2000-3000", 1000), None);
+        assert_eq!(parse_range("garbage", 1000), None);
+        assert_eq!(parse_range("bytes=50-20", 1000), None);
+    }
+}
+
 // ---------- locks ----------
 
 #[derive(Deserialize)]

@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'package:fetch_client/fetch_client.dart';
+import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 
 class ApiException implements Exception {
@@ -11,17 +11,19 @@ class ApiException implements Exception {
 }
 
 class User {
-  final String id, username, name, role;
+  final String id, username, name, role, studentId, note;
   final bool disabled;
-  final String studentId, note;
+  final int createdAt, lastLogin;
   User.fromJson(Map<String, dynamic> j)
       : id = j['id'] ?? '',
         username = j['username'] ?? '',
-        name = j['name'] ?? j['displayName'] ?? '',
+        name = j['displayName'] ?? '',
         role = j['role'] ?? 'student',
         disabled = j['disabled'] ?? false,
         studentId = j['studentId'] ?? '',
-        note = j['note'] ?? '';
+        note = j['note'] ?? '',
+        createdAt = j['createdAt'] ?? 0,
+        lastLogin = j['lastLogin'] ?? 0;
 
   static const ranks = {
     'student': 0,
@@ -31,15 +33,80 @@ class User {
     'owner': 4,
   };
   int get rank => ranks[role] ?? 0;
-  bool get canManage => rank >= ranks['teacher']!;
+  bool get isAdmin => rank >= ranks['admin']!;
+  bool get isOwner => role == 'owner';
+}
+
+class Caps {
+  final List<String> creatable;
+  final bool manage, audit;
+  Caps.fromJson(Map<String, dynamic> j)
+      : creatable = [for (final r in (j['creatable'] as List? ?? [])) '$r'],
+        manage = j['canManage'] == true,
+        audit = j['canAudit'] == true;
+  static const none = Caps._();
+  const Caps._() : creatable = const [], manage = false, audit = false;
 }
 
 class Project {
   final String id, name, displayName;
+  final int createdAt;
   Project.fromJson(Map<String, dynamic> j)
       : id = j['id'] ?? '',
         name = j['name'] ?? '',
-        displayName = j['displayName'] ?? j['display_name'] ?? j['name'] ?? '';
+        displayName = j['displayName'] ?? j['name'] ?? '',
+        createdAt = j['createdAt'] ?? 0;
+}
+
+class FileEntry {
+  final String name, path, type;
+  final int size, modified;
+  FileEntry.fromJson(Map<String, dynamic> j)
+      : name = j['name'] ?? '',
+        path = j['path'] ?? '',
+        type = j['type'] ?? 'file',
+        size = j['size'] ?? 0,
+        modified = j['modified'] ?? 0;
+  bool get isDir => type == 'dir';
+}
+
+class RenderJob {
+  final String id, status, outputName, error, worker;
+  final double progress;
+  final int createdAt, finishedAt;
+  RenderJob.fromJson(Map<String, dynamic> j)
+      : id = j['id'] ?? '',
+        status = j['status'] ?? '',
+        outputName = j['outputName'] ?? 'export',
+        error = j['error'] ?? '',
+        worker = j['worker'] ?? '',
+        progress = (j['progress'] ?? 0).toDouble(),
+        createdAt = j['createdAt'] ?? 0,
+        finishedAt = j['finishedAt'] ?? 0;
+  bool get active => status == 'queued' || status == 'running';
+}
+
+class RenderNode {
+  final String id, name;
+  final bool disabled;
+  final int createdAt, lastSeen;
+  RenderNode.fromJson(Map<String, dynamic> j)
+      : id = j['id'] ?? '',
+        name = j['name'] ?? '',
+        disabled = j['disabled'] ?? false,
+        createdAt = j['createdAt'] ?? 0,
+        lastSeen = j['lastSeen'] ?? 0;
+}
+
+class AuditEntry {
+  final int ts;
+  final String actor, action, target, detail;
+  AuditEntry.fromJson(Map<String, dynamic> j)
+      : ts = j['ts'] ?? 0,
+        actor = j['actorName'] ?? '',
+        action = j['action'] ?? '',
+        target = j['target'] ?? '',
+        detail = j['detail'] ?? '';
 }
 
 class Api {
@@ -47,13 +114,16 @@ class Api {
   late final http.Client _c;
   String csrf = '';
   User? user;
+  Caps caps = Caps.none;
 
   Api._() {
-    _c = FetchClient(mode: RequestMode.cors, credentials: RequestCredentials.sameOrigin);
+    _c = http.Client();
   }
 
-  Uri _u(String p, [Map<String, String>? q]) =>
-      Uri(path: '/api$p', queryParameters: (q == null || q.isEmpty) ? null : q);
+  static const _base = String.fromEnvironment('WFM_API');
+
+  Uri _u(String p, [Map<String, String>? q]) => Uri.parse('$_base/api$p')
+      .replace(queryParameters: (q == null || q.isEmpty) ? null : q);
 
   Map<String, String> get _h => {
         'content-type': 'application/json',
@@ -75,32 +145,35 @@ class Api {
 
   Future<dynamic> get(String p, [Map<String, String>? q]) => _go(() => _c.get(_u(p, q)));
   Future<dynamic> post(String p, Object? body, [Map<String, String>? q]) =>
-      _go(() => _c.post(_u(p, q), headers: _h, body: jsonEncode(body)));
+      _go(() => _c.post(_u(p, q), headers: _h, body: jsonEncode(body ?? {})));
   Future<dynamic> patch(String p, Object? body) =>
       _go(() => _c.patch(_u(p), headers: _h, body: jsonEncode(body)));
-  Future<dynamic> delete(String p, [Map<String, String>? q]) => _go(() => _c.delete(_u(p, q)));
-  Future<dynamic> putFile(String p, List<int> bytes, Map<String, String> q) =>
+  Future<dynamic> del(String p, [Map<String, String>? q]) =>
+      _go(() => _c.delete(_u(p, q), headers: _h));
+  Future<dynamic> putFile(String p, Uint8List bytes, Map<String, String> q) =>
       _go(() => _c.put(_u(p, q), body: bytes));
+
+  void _session(Map<String, dynamic> j) {
+    csrf = j['csrf'] ?? csrf;
+    user = User.fromJson(j['user'] ?? j);
+  }
 
   Future<bool> needsSetup() async => (await get('/setup'))['needsSetup'] == true;
 
   Future<User> setupOwner(String username, String password, String name) async {
-    final j = await post('/setup', {'username': username, 'password': password, 'name': name});
-    csrf = j['csrf'] ?? '';
-    return user = User.fromJson(j['user']);
+    _session(await post('/setup', {'username': username, 'password': password, 'name': name}));
+    return user!;
   }
 
   Future<User> login(String username, String password) async {
-    final j = await post('/login', {'username': username, 'password': password});
-    csrf = j['csrf'] ?? '';
-    return user = User.fromJson(j['user']);
+    _session(await post('/login', {'username': username, 'password': password}));
+    return user!;
   }
 
   Future<User?> me() async {
     try {
-      final j = await get('/me');
-      csrf = j['csrf'] ?? csrf;
-      return user = User.fromJson(j);
+      _session(await get('/me'));
+      return user;
     } on ApiException {
       return user = null;
     }
@@ -112,34 +185,77 @@ class Api {
     } finally {
       user = null;
       csrf = '';
+      caps = Caps.none;
     }
   }
 
+  Future<Caps> roles() async => caps = Caps.fromJson(await get('/roles'));
+
   Future<List<Project>> projects() async =>
-      ((await get('/projects')) as List).map((e) => Project.fromJson(e)).toList();
+      [for (final e in (await get('/projects')) as List) Project.fromJson(e)];
 
-  Future<Project> createProject(String name, [String? display]) async =>
-      Project.fromJson(await post('/projects', {'name': name, 'displayName': display ?? name}));
+  Future<Project> createProject(String name) async =>
+      Project.fromJson(await post('/projects', {'name': name, 'displayName': name}));
 
-  Future<List<dynamic>> files(String pid, String path) async =>
-      (await get('/projects/$pid/files', {'path': path})) as List;
+  Future<void> renameProject(String id, String displayName) =>
+      patch('/projects/$id', {'displayName': displayName});
+
+  Future<void> deleteProject(String id) => del('/projects/$id');
+
+  Future<List<FileEntry>> files(String pid, String path) async =>
+      [for (final e in (await get('/projects/$pid/files', {'path': path})) as List) FileEntry.fromJson(e)];
+
+  Future<void> upload(String pid, String path, Uint8List bytes) =>
+      putFile('/projects/$pid/files', bytes, {'path': path});
+
+  Future<void> mkdir(String pid, String path) => post('/projects/$pid/files/mkdir', {'path': path});
+
+  Future<void> move(String pid, String from, String to) =>
+      post('/projects/$pid/files/move', {'from': from, 'to': to});
+
+  Future<void> deleteFile(String pid, String path) =>
+      del('/projects/$pid/files', {'path': path});
 
   String projectUrl(String pid) => '/filmcraft/wfm.html?project=$pid';
-  String downloadUrl(String pid, String path) =>
-      '/api/projects/$pid/download?path=${Uri.encodeComponent(path)}';
+  String downloadUrl(String pid, String path, {bool dl = false}) =>
+      '$_base/api/projects/$pid/download?path=${Uri.encodeComponent(path)}${dl ? '&dl=true' : ''}';
+
+  Future<List<RenderJob>> renders(String pid) async =>
+      [for (final e in (await get('/projects/$pid/renders')) as List) RenderJob.fromJson(e)];
+
+  Future<RenderJob> createRender(String pid, Map<String, dynamic> spec) async =>
+      RenderJob.fromJson(await post('/projects/$pid/renders', spec));
+
+  Future<void> cancelRender(String id) => post('/renders/$id/cancel', {});
 
   Future<List<User>> accounts() async =>
-      ((await get('/accounts')) as List).map((e) => User.fromJson(e)).toList();
-
-  Future<List<String>> roles() async =>
-      ((await get('/roles')) as List).map((e) => e.toString()).toList();
+      [for (final e in (await get('/accounts')) as List) User.fromJson(e)];
 
   Future<User> createAccount(Map<String, dynamic> body) async =>
       User.fromJson(await post('/accounts', body));
 
-  Future<void> resetPassword(String id, String password) async =>
+  Future<void> resetPassword(String id, String password) =>
       post('/accounts/$id/password', {'password': password});
 
-  Future<void> setDisabled(String id, bool disabled) async =>
+  Future<void> setDisabled(String id, bool disabled) =>
       post('/accounts/$id/status', {'disabled': disabled});
+
+  Future<void> changePassword(String current, String next) =>
+      post('/me/password', {'current': current, 'next': next});
+
+  Future<List<AuditEntry>> audit({String scope = 'account', int limit = 200}) async => [
+        for (final e in (await get('/audit', {'scope': scope, 'limit': '$limit'})) as List)
+          AuditEntry.fromJson(e)
+      ];
+
+  Future<List<RenderNode>> nodes() async =>
+      [for (final e in (await get('/nodes')) as List) RenderNode.fromJson(e)];
+
+  Future<Map<String, dynamic>> createNode(String name) async =>
+      Map<String, dynamic>.from(await post('/nodes', {'name': name}));
+
+  Future<void> setNodeDisabled(String id, bool disabled) =>
+      patch('/nodes/$id', {'disabled': disabled});
+
+  Future<void> deleteNode(String id) => del('/nodes/$id');
 }

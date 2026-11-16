@@ -51,3 +51,5 @@ filmcraft/dist/
 *.db
 *.db-*
 .env
+server/web/app/
+server/target/

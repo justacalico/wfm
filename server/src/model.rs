@@ -274,3 +274,53 @@ pub fn lineage_has(lineage: &str, id: &str) -> bool {
     let hay = format!("/{}/", lineage.trim_matches('/'));
     hay.contains(&format!("/{}/", id))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn user(id: &str, role: Role, created_by: &str, lineage: &str) -> User {
+        User {
+            id: id.into(),
+            username: id.into(),
+            display_name: id.into(),
+            role,
+            role_name: role.as_str().into(),
+            student_id: String::new(),
+            note: String::new(),
+            disabled: false,
+            created_by: created_by.into(),
+            lineage: lineage.into(),
+            created_at: 0,
+            last_login: 0,
+        }
+    }
+
+    #[test]
+    fn manage_requires_subtree_and_lower_rank() {
+        let teacher = user("t1", Role::Teacher, "a1", "/a1/");
+        let student = user("s1", Role::Student, "t1", "/a1/t1/");
+        let outsider = user("s2", Role::Student, "t2", "/a1/t2/");
+        assert!(can_manage(&teacher, &student));
+        assert!(!can_manage(&teacher, &outsider));
+        assert!(!can_manage(&teacher, &teacher.clone()));
+    }
+
+    #[test]
+    fn mod_only_polices_own_tree_students() {
+        let modd = user("m1", Role::Mod, "t1", "/a1/t1/");
+        let in_tree = user("s1", Role::Student, "t1", "/a1/t1/m1/");
+        let not_in_tree = user("s2", Role::Student, "t2", "/a1/t2/");
+        let teacher = user("t9", Role::Teacher, "a1", "/a1/t1/m1/");
+        assert!(can_manage(&modd, &in_tree));
+        assert!(!can_manage(&modd, &not_in_tree));
+        assert!(!can_manage(&modd, &teacher));
+    }
+
+    #[test]
+    fn lineage_matching_is_segment_exact() {
+        assert!(lineage_has("/a/b/c/", "b"));
+        assert!(!lineage_has("/ab/c/", "b"));
+        assert!(!lineage_has("/", "x"));
+    }
+}

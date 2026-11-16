@@ -117,6 +117,8 @@ async fn security_headers(req: axum::extract::Request, next: Next) -> Response {
                 header::CACHE_CONTROL,
                 HeaderValue::from_static("public, max-age=86400"),
             );
+        } else if path.ends_with('/') || path.ends_with(".html") {
+            h.insert(header::CACHE_CONTROL, HeaderValue::from_static("no-cache"));
         }
     }
     resp
@@ -130,6 +132,7 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/filmcraft/", get(filmcraft_asset))
         .route("/filmcraft/{*path}", get(filmcraft_asset))
         .with_state(state.clone())
+        .layer(tower_http::compression::CompressionLayer::new())
         .layer(middleware::from_fn(security_headers))
 }
 
