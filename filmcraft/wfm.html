@@ -78,7 +78,7 @@ async function api(path, opt = {}) {
 async function boot() {
   if (!projectId) return overlay("No project specified.");
   const me = await (await api("/me")).json().catch(() => null);
-  if (!me || !me.id) return overlay("Sign in first.", [["Open app", () => location.href = "/app/"]]);
+  if (!me || !me.user) return overlay("Sign in first.", [["Open app", () => location.href = "/app/"]]);
   csrf = me.csrf || "";
   const lock = await api("/projects/" + projectId + "/locks", {
     method: "POST", headers: { "content-type": "application/json" },
@@ -150,9 +150,14 @@ async function refreshBin(path) {
   }
   const r = await api("/projects/" + projectId + "/files?path=" + encodeURIComponent(path));
   const list = await r.json().catch(() => []);
-  for (const e of Array.isArray(list) ? list : []) {
+  const fmt = (n) => { const u = ["B","KB","MB","GB"]; let i = 0; while (n >= 1024 && i < u.length-1) { n /= 1024; i++; } return n.toFixed(i ? 1 : 0) + " " + u[i]; };
+  const entries = Array.isArray(list) ? list : [];
+  if (!entries.length) { const d = document.createElement("div"); d.className = "entry"; d.textContent = "Empty"; d.style.cursor = "default"; box.appendChild(d); }
+  for (const e of entries) {
     const el = document.createElement("div");
-    el.className = "entry " + e.type; el.textContent = e.name; el.title = e.path;
+    el.className = "entry " + e.type;
+    el.textContent = e.type === "dir" ? e.name : e.name + "  ·  " + fmt(e.size || 0);
+    el.title = e.path;
     if (e.type === "dir") el.onclick = () => refreshBin(e.path);
     else el.onclick = () => sendMedia(e.path, el);
     box.appendChild(el);
@@ -180,11 +185,18 @@ $("up-input").onchange = async (ev) => {
   refreshBin(binPath);
 };
 $("up-btn").onclick = () => $("up-input").click();
-$("btn-close").onclick = () => window.close();
+$("btn-close").onclick = () => { window.close(); setTimeout(() => { if (!window.closed) location.href = "/app/"; }, 80); };
+function releaseLock() {
+  fetch(API + "/projects/" + projectId + "/locks/release?kind=edit&clientId=" + encodeURIComponent(clientId), {
+    method: "POST", keepalive: true,
+    headers: { "x-csrf-token": csrf, "content-type": "application/json" }
+  });
+}
 window.addEventListener("beforeunload", (e) => {
-  navigator.sendBeacon(API + "/projects/" + projectId + "/locks?kind=edit&clientId=" + encodeURIComponent(clientId) + "&csrf=" + encodeURIComponent(csrf));
+  releaseLock();
   if (dirty) { e.preventDefault(); e.returnValue = ""; }
 });
+window.addEventListener("pagehide", releaseLock);
 boot();
 </script>
 </body>
