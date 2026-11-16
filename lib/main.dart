@@ -217,6 +217,31 @@ IconData themeIcon(AppTheme t) => switch (t) {
       AppTheme.oled => Icons.brightness_2,
     };
 
+Widget themeMenu(WfmAppState app, AppLocalizations l10n) =>
+    PopupMenuButton<AppTheme>(
+      icon: Icon(themeIcon(app.appTheme)),
+      initialValue: app.appTheme,
+      onSelected: (t) {
+        app.setTheme(t);
+        FocusManager.instance.primaryFocus?.unfocus();
+      },
+      itemBuilder: (context) => [
+        for (final (t, label) in [
+          (AppTheme.system, l10n.themeSystem),
+          (AppTheme.light, l10n.themeLight),
+          (AppTheme.dark, l10n.themeDark),
+          (AppTheme.oled, l10n.themeOled),
+        ])
+          PopupMenuItem(
+              value: t,
+              child: Row(children: [
+                Icon(themeIcon(t), size: 16),
+                const SizedBox(width: 8),
+                Text(label),
+              ])),
+      ],
+    );
+
 class AuthPickers extends StatelessWidget {
   const AuthPickers({super.key});
 
@@ -246,29 +271,7 @@ class AuthPickers extends StatelessWidget {
         ),
         const SizedBox(width: 8),
         if (tight)
-          PopupMenuButton<AppTheme>(
-            icon: Icon(themeIcon(app.appTheme)),
-            initialValue: app.appTheme,
-            onSelected: (t) {
-              app.setTheme(t);
-              FocusManager.instance.primaryFocus?.unfocus();
-            },
-            itemBuilder: (context) => [
-              for (final (t, label) in [
-                (AppTheme.system, l10n.themeSystem),
-                (AppTheme.light, l10n.themeLight),
-                (AppTheme.dark, l10n.themeDark),
-                (AppTheme.oled, l10n.themeOled),
-              ])
-                PopupMenuItem(
-                    value: t,
-                    child: Row(children: [
-                      Icon(themeIcon(t), size: 16),
-                      const SizedBox(width: 8),
-                      Text(label),
-                    ])),
-            ],
-          )
+          themeMenu(app, l10n)
         else
           SegmentedButton<AppTheme>(
             showSelectedIcon: false,

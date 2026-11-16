@@ -38,6 +38,27 @@ void main() {
     expect(p.getInt('theme'), AppTheme.dark.index);
   });
 
+  testWidgets('narrow settings uses popup theme and inline password', (t) async {
+    installApi(extra: {'GET *': (_) => []});
+    t.view.physicalSize = const Size(400, 800);
+    t.view.devicePixelRatio = 1.0;
+    addTearDown(t.view.reset);
+    await pumpApp(t);
+    await t.tap(find.byIcon(Icons.menu));
+    await settle(t);
+    await t.tap(find.widgetWithText(ListTile, 'Settings').last);
+    await settle(t);
+    expect(find.byType(SegmentedButton<AppTheme>), findsNothing);
+    expect(find.byType(PopupMenuButton<AppTheme>), findsOneWidget);
+    expect(find.text('Change password'), findsOneWidget);
+    await t.tap(find.byType(PopupMenuButton<AppTheme>));
+    await settle(t);
+    await t.tap(find.text('Light').last);
+    await settle(t);
+    final p = await SharedPreferences.getInstance();
+    expect(p.getInt('theme'), AppTheme.light.index);
+  });
+
   testWidgets('owner sees and saves trusted proxies', (t) async {
     String? saved;
     installApi(extra: {

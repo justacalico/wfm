@@ -119,26 +119,41 @@ class _SettingsPageState extends State<SettingsPage> {
     final app = context.findAncestorStateOfType<WfmAppState>()!;
     final u = Api.i.user!;
     final proxies = TextEditingController(text: _proxies);
+    final tight = MediaQuery.sizeOf(context).width < 720;
     return ListView(padding: const EdgeInsets.all(24), children: [
-      Text(l10n.settings, style: Theme.of(context).textTheme.headlineSmall),
-      const SizedBox(height: 16),
+      if (!tight) ...[
+        Text(l10n.settings, style: Theme.of(context).textTheme.headlineSmall),
+        const SizedBox(height: 16),
+      ],
       ListTile(
         leading: const Icon(Icons.person_outline),
         title: Text(u.name.isEmpty ? u.username : u.name),
         subtitle: Text(l10n.userLine(
             '${u.username}${u.studentId.isNotEmpty ? '  ·  ${u.studentId}' : ''}  ·  ${u.role}',
             fmtAgo(l10n, u.lastLogin))),
-        trailing: TextButton.icon(
-          onPressed: _changePassword,
-          icon: const Icon(Icons.key, size: 16),
-          label: Text(l10n.changePassword),
-        ),
+        trailing: tight
+            ? null
+            : TextButton.icon(
+                onPressed: _changePassword,
+                icon: const Icon(Icons.key, size: 16),
+                label: Text(l10n.changePassword),
+              ),
       ),
+      if (tight)
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            onPressed: _changePassword,
+            icon: const Icon(Icons.key, size: 16),
+            label: Text(l10n.changePassword),
+          ),
+        ),
       const SizedBox(height: 16),
       AnimatedBuilder(
         animation: Listenable.merge([app.themeCtl, app.localeCtl]),
         builder: (context, _) => Column(children: [
           DropdownButtonFormField<Locale?>(
+            isExpanded: true,
             initialValue: app.appLocale,
             decoration: dec(l10n.language),
             items: [
@@ -155,21 +170,26 @@ class _SettingsPageState extends State<SettingsPage> {
           const SizedBox(height: 16),
           Align(
             alignment: Alignment.centerLeft,
-            child: SegmentedButton<AppTheme>(
-              segments: [
-                ButtonSegment(
-                    value: AppTheme.system, label: Text(l10n.themeSystem)),
-                ButtonSegment(
-                    value: AppTheme.light, label: Text(l10n.themeLight)),
-                ButtonSegment(value: AppTheme.dark, label: Text(l10n.themeDark)),
-                ButtonSegment(value: AppTheme.oled, label: Text(l10n.themeOled)),
-              ],
-              selected: {app.appTheme},
-              onSelectionChanged: (s) {
-                app.setTheme(s.first);
-                FocusManager.instance.primaryFocus?.unfocus();
-              },
-            ),
+            child: tight
+                ? themeMenu(app, l10n)
+                : SegmentedButton<AppTheme>(
+                    segments: [
+                      ButtonSegment(
+                          value: AppTheme.system,
+                          label: Text(l10n.themeSystem)),
+                      ButtonSegment(
+                          value: AppTheme.light, label: Text(l10n.themeLight)),
+                      ButtonSegment(
+                          value: AppTheme.dark, label: Text(l10n.themeDark)),
+                      ButtonSegment(
+                          value: AppTheme.oled, label: Text(l10n.themeOled)),
+                    ],
+                    selected: {app.appTheme},
+                    onSelectionChanged: (s) {
+                      app.setTheme(s.first);
+                      FocusManager.instance.primaryFocus?.unfocus();
+                    },
+                  ),
           ),
         ]),
       ),
