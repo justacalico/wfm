@@ -1,11 +1,11 @@
 {
-    "name": "wfm",
-    "short_name": "wfm",
+    "name": "WFM",
+    "short_name": "WFM",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#0F0F14",
+    "theme_color": "#8B5CF6",
+    "description": "Web Film Manager",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
