@@ -133,7 +133,7 @@ class _AccountsTabState extends State<AccountsTab> {
     if (pw == null || pw.isEmpty || !mounted) return;
     try {
       await Api.i.resetPassword(u.id, pw);
-      if (mounted) snack(context, context.l10n.passwordReset);
+      if (mounted) snack(context, context.l10n.passwordReset, good: true);
     } catch (e) {
       if (mounted) snack(context, e);
     }

@@ -27,7 +27,6 @@
   "signingIn": "Signing in…",
   "signInFailed": "Sign in failed: {error}",
   "@signInFailed": {"placeholders": {"error": {}}},
-  "behindProxy": "This server sits behind a reverse proxy",
   "trustedProxies": "Trusted proxies",
   "trustedProxiesHint": "Comma-separated IPs or CIDR ranges, e.g. 10.0.0.1, 172.16.0.0/12",
 

@@ -46,7 +46,7 @@ class _SettingsPageState extends State<SettingsPage> {
       await Api.i.saveSettings(value);
       if (mounted) {
         _proxies = value;
-        snack(context, context.l10n.settingsSaved);
+        snack(context, context.l10n.settingsSaved, good: true);
       }
     } catch (e) {
       if (mounted) snack(context, e);
@@ -107,7 +107,7 @@ class _SettingsPageState extends State<SettingsPage> {
     if (ok != true || !mounted) return;
     try {
       await Api.i.changePassword(cur.text, next.text);
-      if (mounted) snack(context, context.l10n.passwordChanged);
+      if (mounted) snack(context, context.l10n.passwordChanged, good: true);
     } catch (e) {
       if (mounted) snack(context, e);
     }

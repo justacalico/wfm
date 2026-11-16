@@ -31,10 +31,8 @@ void main() {
     }));
     await pumpWfm(t);
     expect(find.byType(SetupPage), findsOneWidget);
+    expect(find.byType(CheckboxListTile), findsNothing);
     expect(find.text('Trusted proxies'), findsNothing);
-    await t.tap(find.byType(CheckboxListTile));
-    await t.pump();
-    expect(find.text('Trusted proxies'), findsOneWidget);
   });
 
   testWidgets('setup creates owner and lands on shell', (t) async {
@@ -56,13 +54,9 @@ void main() {
     await t.enterText(find.byType(TextField).at(0), 'Ada');
     await t.enterText(find.byType(TextField).at(1), 'ada');
     await t.enterText(find.byType(TextField).at(2), 'pw');
-    await t.tap(find.byType(CheckboxListTile));
-    await t.pump();
-    await t.enterText(find.byType(TextField).at(3), '10.0.0.0/8');
-    await t.testTextInput.receiveAction(TextInputAction.done);
     await t.tap(find.byType(FilledButton));
     await settle(t);
-    expect(body, contains('10.0.0.0/8'));
+    expect(body, isNot(contains('trustedProxies')));
     expect(find.byType(Shell), findsOneWidget);
   });
 

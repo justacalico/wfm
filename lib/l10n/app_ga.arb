@@ -27,7 +27,6 @@
   "signingIn": "Ag logáil isteach…",
   "signInFailed": "Theip ar an logáil isteach: {error}",
   "@signInFailed": {"placeholders": {"error": {}}},
-  "behindProxy": "Tá an freastalaí seo taobh thiar de sheachfhreastalaí",
   "trustedProxies": "Seachfhreastalaithe iontaofa",
   "trustedProxiesHint": "Seoltaí IP nó raonta CIDR scartha le camóg, m.sh. 10.0.0.1, 172.16.0.0/12",
 

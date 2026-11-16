@@ -88,9 +88,6 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get behindProxy => '此服务器位于反向代理之后';
-
-  @override
   String get trustedProxies => '受信任的代理';
 
   @override

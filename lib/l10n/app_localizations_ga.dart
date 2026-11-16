@@ -88,10 +88,6 @@ class AppLocalizationsGa extends AppLocalizations {
   }
 
   @override
-  String get behindProxy =>
-      'Tá an freastalaí seo taobh thiar de sheachfhreastalaí';
-
-  @override
   String get trustedProxies => 'Seachfhreastalaithe iontaofa';
 
   @override

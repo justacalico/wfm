@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wfm/api.dart';
 import 'package:wfm/main.dart' as app;
@@ -69,6 +70,47 @@ void main() {
     await t.pump();
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getString('locale'), isNull);
+    await t.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('auth pickers change locale and theme', (t) async {
+    Api.i = Api(FakeClient({
+      'GET /api/setup': (_) => {'needsSetup': true},
+    }));
+    await t.pumpWidget(const app.WfmApp());
+    await settle(t);
+    await t.tap(find.byType(DropdownButton<Locale?>));
+    await settle(t);
+    await t.tap(find.text('简体中文').last);
+    await t.pump();
+    await t.tap(find.byIcon(Icons.dark_mode));
+    await t.pump();
+    final appState = t.state<app.WfmAppState>(find.byType(app.WfmApp));
+    expect(appState.appTheme, app.AppTheme.dark);
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getString('locale'), 'zh_');
+    await t.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('notices stack, close and auto-dismiss', (t) async {
+    Api.i = Api(FakeClient({
+      'GET /api/setup': (_) => {'needsSetup': true},
+      'POST /api/setup': (_) => http.Response('{"error":"nope"}', 400),
+    }));
+    await t.pumpWidget(const app.WfmApp());
+    await settle(t);
+    await t.tap(find.byType(FilledButton));
+    await settle(t);
+    expect(find.byType(app.Notice), findsOneWidget);
+    await t.tap(find.byType(FilledButton));
+    await settle(t);
+    expect(find.byType(app.Notice), findsNWidgets(2));
+    await t.tap(find.byIcon(Icons.close).first);
+    await t.pump();
+    expect(find.byType(app.Notice), findsOneWidget);
+    await t.pump(const Duration(seconds: 6));
+    await t.pump();
+    expect(find.byType(app.Notice), findsNothing);
     await t.pumpWidget(const SizedBox());
   });
 

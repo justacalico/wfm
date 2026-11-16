@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wfm/api.dart';
 import 'package:wfm/manage.dart';
+import 'package:wfm/main.dart';
 import 'package:wfm/platform.dart';
 import 'helpers.dart';
 
@@ -73,7 +74,7 @@ void main() {
       await t.enterText(find.byType(TextField).last, 'newpw');
       await t.tap(find.text('OK'));
       await settle(t);
-      expect(find.byType(SnackBar), findsOneWidget);
+      expect(find.byType(Notice), findsOneWidget);
       await t.tap(find.byIcon(Icons.key).first);
       await settle(t);
       await t.tap(find.text('Cancel'));
@@ -90,10 +91,10 @@ void main() {
       await t.enterText(find.byType(TextField).last, 'x');
       await t.tap(find.text('OK'));
       await settle(t);
-      expect(find.byType(SnackBar), findsOneWidget);
+      expect(find.byType(Notice), findsOneWidget);
       await t.tap(find.byIcon(Icons.block).first);
       await settle(t);
-      expect(find.byType(SnackBar), findsWidgets);
+      expect(find.byType(Notice), findsWidgets);
     });
 
     testWidgets('create account dialog', (t) async {
@@ -136,7 +137,7 @@ void main() {
       await settle(t);
       await t.tap(find.text('Create'));
       await settle(t);
-      expect(find.byType(SnackBar), findsOneWidget);
+      expect(find.byType(Notice), findsOneWidget);
     });
 
     testWidgets('error state and no fab without creatable', (t) async {
@@ -253,7 +254,7 @@ void main() {
       await t.enterText(find.byType(TextField).last, 'x');
       await t.tap(find.text('OK'));
       await settle(t);
-      expect(find.byType(SnackBar), findsOneWidget);
+      expect(find.byType(Notice), findsOneWidget);
     });
 
     testWidgets('empty and error states', (t) async {

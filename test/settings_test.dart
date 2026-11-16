@@ -53,7 +53,7 @@ void main() {
     await t.tap(find.text('Save'));
     await settle(t);
     expect(saved, contains('192.168.1.1'));
-    expect(find.byType(SnackBar), findsOneWidget);
+    expect(find.byType(Notice), findsOneWidget);
   });
 
   testWidgets('save proxies error and submit via keyboard', (t) async {
@@ -65,10 +65,10 @@ void main() {
     await t.enterText(find.byType(TextField).last, 'bad');
     await t.testTextInput.receiveAction(TextInputAction.done);
     await settle(t);
-    expect(find.byType(SnackBar), findsOneWidget);
+    expect(find.byType(Notice), findsOneWidget);
     await t.tap(find.text('Save'));
     await settle(t);
-    expect(find.byType(SnackBar), findsWidgets);
+    expect(find.byType(Notice), findsWidgets);
   });
 
   testWidgets('non-owner hides server settings', (t) async {
@@ -115,7 +115,7 @@ void main() {
         of: find.byType(AlertDialog), matching: find.text('Save')));
     await settle(t);
     expect(body, contains('"next":"new"'));
-    expect(find.byType(SnackBar), findsOneWidget);
+    expect(find.byType(Notice), findsOneWidget);
 
     await t.tap(find.byIcon(Icons.key));
     await settle(t);
@@ -134,7 +134,7 @@ void main() {
     await t.tap(find.descendant(
         of: find.byType(AlertDialog), matching: find.text('Save')));
     await settle(t);
-    expect(find.byType(SnackBar), findsOneWidget);
+    expect(find.byType(Notice), findsOneWidget);
   });
 
   testWidgets('update check up to date', (t) async {
@@ -184,7 +184,7 @@ void main() {
     await settle(t);
     await t.tap(find.text('View release'));
     await settle(t);
-    expect(find.byType(SnackBar), findsOneWidget);
+    expect(find.byType(Notice), findsOneWidget);
   });
 
   testWidgets('update check failure', (t) async {

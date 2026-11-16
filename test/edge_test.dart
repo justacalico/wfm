@@ -52,7 +52,7 @@ void main() {
       await settle(t);
       await t.tap(find.text('Download'));
       await settle(t);
-      expect(find.byType(SnackBar), findsOneWidget);
+      expect(find.byType(Notice), findsOneWidget);
     });
 
     testWidgets('mkdir error shows snack', (t) async {
@@ -66,7 +66,7 @@ void main() {
       await t.enterText(find.byType(TextField).last, 'x');
       await t.tap(find.text('OK'));
       await settle(t);
-      expect(find.byType(SnackBar), findsOneWidget);
+      expect(find.byType(Notice), findsOneWidget);
     });
 
     testWidgets('rename and delete errors show snacks', (t) async {
@@ -84,14 +84,14 @@ void main() {
       await t.enterText(find.byType(TextField).last, 'renamed.txt');
       await t.tap(find.text('OK'));
       await settle(t);
-      expect(find.byType(SnackBar), findsWidgets);
+      expect(find.byType(Notice), findsWidgets);
       await t.tap(find.byType(PopupMenuButton<String>).last);
       await settle(t);
       await t.tap(find.text('Delete'));
       await settle(t);
       await t.tap(find.text('Confirm'));
       await settle(t);
-      expect(find.byType(SnackBar), findsWidgets);
+      expect(find.byType(Notice), findsWidgets);
     });
 
     testWidgets('rename cancelled dialog and unchanged name', (t) async {
@@ -149,7 +149,7 @@ void main() {
       await pump(t, RendersTab(project: p1));
       await t.tap(find.byIcon(Icons.stop));
       await settle(t);
-      expect(find.byType(SnackBar), findsOneWidget);
+      expect(find.byType(Notice), findsOneWidget);
       final before = loads;
       await t.pump(const Duration(seconds: 6));
       await settle(t, 3);
@@ -166,7 +166,7 @@ void main() {
       await pump(t, RendersTab(project: p1));
       await t.tap(find.byIcon(Icons.download));
       await settle(t);
-      expect(find.byType(SnackBar), findsOneWidget);
+      expect(find.byType(Notice), findsOneWidget);
       await t.pumpWidget(const SizedBox());
     });
 
@@ -240,7 +240,7 @@ void main() {
       await settle(t);
       await t.tap(find.text('sub'));
       await settle(t);
-      expect(find.byType(SnackBar), findsOneWidget);
+      expect(find.byType(Notice), findsOneWidget);
       await t.tap(find.text('..'));
       await settle(t);
       expect(find.text('Cancel'), findsOneWidget);
@@ -312,12 +312,12 @@ void main() {
       await pump(t, const NodesTab());
       await t.tap(find.byIcon(Icons.pause_circle_outline));
       await settle(t);
-      expect(find.byType(SnackBar), findsOneWidget);
+      expect(find.byType(Notice), findsOneWidget);
       await t.tap(find.byIcon(Icons.delete_outline).first);
       await settle(t);
       await t.tap(find.text('Confirm'));
       await settle(t);
-      expect(find.byType(SnackBar), findsWidgets);
+      expect(find.byType(Notice), findsWidgets);
     });
   });
 }

@@ -27,7 +27,6 @@
   "signingIn": "正在登录…",
   "signInFailed": "登录失败：{error}",
   "@signInFailed": {"placeholders": {"error": {}}},
-  "behindProxy": "此服务器位于反向代理之后",
   "trustedProxies": "受信任的代理",
   "trustedProxiesHint": "以逗号分隔的 IP 或 CIDR 网段，例如 10.0.0.1, 172.16.0.0/12",
 

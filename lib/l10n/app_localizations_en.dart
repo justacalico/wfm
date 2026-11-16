@@ -88,9 +88,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get behindProxy => 'This server sits behind a reverse proxy';
-
-  @override
   String get trustedProxies => 'Trusted proxies';
 
   @override

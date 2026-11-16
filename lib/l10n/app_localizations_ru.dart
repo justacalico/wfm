@@ -89,9 +89,6 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
-  String get behindProxy => 'Сервер находится за обратным прокси';
-
-  @override
   String get trustedProxies => 'Доверенные прокси';
 
   @override

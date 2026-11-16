@@ -27,7 +27,6 @@
   "signingIn": "Вход…",
   "signInFailed": "Ошибка входа: {error}",
   "@signInFailed": {"placeholders": {"error": {}}},
-  "behindProxy": "Сервер находится за обратным прокси",
   "trustedProxies": "Доверенные прокси",
   "trustedProxiesHint": "IP-адреса или CIDR через запятую, например 10.0.0.1, 172.16.0.0/12",
 

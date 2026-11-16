@@ -254,12 +254,6 @@ abstract class AppLocalizations {
   /// **'Sign in failed: {error}'**
   String signInFailed(Object error);
 
-  /// No description provided for @behindProxy.
-  ///
-  /// In en, this message translates to:
-  /// **'This server sits behind a reverse proxy'**
-  String get behindProxy;
-
   /// No description provided for @trustedProxies.
   ///
   /// In en, this message translates to:

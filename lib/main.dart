@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -49,7 +50,7 @@ class WfmAppState extends State<WfmApp> {
     super.initState();
     SharedPreferences.getInstance().then((p) {
       setState(() {
-        _theme = AppTheme.values[p.getInt('theme') ?? 0];
+        _theme = AppTheme.values[p.getInt('theme') ?? AppTheme.light.index];
         final code = p.getString('locale');
         if (code != null && code.isNotEmpty) {
           final parts = code.split('_');
@@ -102,9 +103,124 @@ class WfmAppState extends State<WfmApp> {
 InputDecoration dec(String label, [String? hint]) => InputDecoration(
     labelText: label, hintText: hint, border: const OutlineInputBorder());
 
-void snack(BuildContext context, Object e) {
-  if (context.mounted) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+final _toasts = <OverlayEntry>[];
+
+void snack(BuildContext context, Object e, {bool good = false}) {
+  if (!context.mounted) return;
+  late OverlayEntry entry;
+  void dismiss() {
+    if (entry.mounted) entry.remove();
+    _toasts.remove(entry);
+  }
+
+  _toasts.removeWhere((t) => !t.mounted);
+  entry = OverlayEntry(
+      builder: (_) => Positioned(
+          top: 16 + _toasts.length * 64,
+          left: 16,
+          child: Notice('$e', good: good, onClose: dismiss)));
+  _toasts.add(entry);
+  Overlay.of(context).insert(entry);
+}
+
+class Notice extends StatefulWidget {
+  final String message;
+  final bool good;
+  final VoidCallback onClose;
+  const Notice(this.message,
+      {super.key, this.good = false, required this.onClose});
+
+  @override
+  State<Notice> createState() => _NoticeState();
+}
+
+class _NoticeState extends State<Notice> {
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer(const Duration(seconds: 6), widget.onClose);
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 360),
+      child: Card(
+        elevation: 6,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 4, 4, 4),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Icon(widget.good ? Icons.check_circle_outline : Icons.error_outline,
+                size: 18, color: widget.good ? cs.primary : cs.error),
+            const SizedBox(width: 8),
+            Flexible(child: Text(widget.message)),
+            IconButton(
+                visualDensity: VisualDensity.compact,
+                icon: const Icon(Icons.close, size: 16),
+                onPressed: widget.onClose),
+          ]),
+        ),
+      ),
+    );
+  }
+}
+
+class AuthPickers extends StatelessWidget {
+  const AuthPickers({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final app = context.findAncestorStateOfType<WfmAppState>()!;
+    final l10n = context.l10n;
+    return Row(mainAxisSize: MainAxisSize.min, children: [
+      DropdownButtonHideUnderline(
+        child: DropdownButton<Locale?>(
+          value: app.appLocale,
+          icon: const Icon(Icons.language),
+          items: [
+            for (final e in langNames.entries)
+              DropdownMenuItem(
+                  value: e.key,
+                  child: Text(e.key == null ? l10n.langSystem : e.value)),
+          ],
+          onChanged: app.setLocale,
+        ),
+      ),
+      const SizedBox(width: 8),
+      SegmentedButton<AppTheme>(
+        showSelectedIcon: false,
+        style: const ButtonStyle(visualDensity: VisualDensity.compact),
+        segments: [
+          ButtonSegment(
+              value: AppTheme.system,
+              icon: const Icon(Icons.brightness_auto, size: 16),
+              tooltip: l10n.themeSystem),
+          ButtonSegment(
+              value: AppTheme.light,
+              icon: const Icon(Icons.light_mode, size: 16),
+              tooltip: l10n.themeLight),
+          ButtonSegment(
+              value: AppTheme.dark,
+              icon: const Icon(Icons.dark_mode, size: 16),
+              tooltip: l10n.themeDark),
+          ButtonSegment(
+              value: AppTheme.oled,
+              icon: const Icon(Icons.brightness_2, size: 16),
+              tooltip: l10n.themeOled),
+        ],
+        selected: {app.appTheme},
+        onSelectionChanged: (s) => app.setTheme(s.first),
+      ),
+    ]);
   }
 }
 
@@ -195,25 +311,20 @@ class _SetupPageState extends State<SetupPage> {
   final _user = TextEditingController(),
       _pass = TextEditingController(),
       _name = TextEditingController();
-  final _proxies = TextEditingController();
-  String _err = '';
-  bool _busy = false, _behindProxy = false;
+  bool _busy = false;
 
   Future<void> _go() async {
-    setState(() {
-      _busy = true;
-      _err = '';
-    });
+    setState(() => _busy = true);
     try {
-      await Api.i.setupOwner(_user.text.trim(), _pass.text, _name.text.trim(),
-          trustedProxies: _behindProxy ? _proxies.text : '');
+      await Api.i
+          .setupOwner(_user.text.trim(), _pass.text, _name.text.trim());
       await Api.i.roles().catchError((_) => Api.i.caps);
       if (mounted) {
         Navigator.of(context)
             .pushReplacement(MaterialPageRoute(builder: (_) => const Shell()));
       }
     } catch (e) {
-      setState(() => _err = '$e');
+      if (mounted) snack(context, e);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -223,6 +334,12 @@ class _SetupPageState extends State<SetupPage> {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     return Scaffold(
+      appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          actions: const [
+            Padding(
+                padding: EdgeInsets.only(right: 8), child: AuthPickers()),
+          ]),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 360),
@@ -230,8 +347,13 @@ class _SetupPageState extends State<SetupPage> {
               shrinkWrap: true,
               padding: const EdgeInsets.all(24),
               children: [
-                Text(l10n.welcomeTitle,
-                    style: Theme.of(context).textTheme.headlineSmall),
+                Row(children: [
+                  Image.asset('assets/icon.png', width: 32, height: 32),
+                  const SizedBox(width: 10),
+                  Expanded(
+                      child: Text(l10n.welcomeTitle,
+                          style: Theme.of(context).textTheme.headlineSmall)),
+                ]),
                 const SizedBox(height: 8),
                 Text(l10n.setupSubtitle),
                 const SizedBox(height: 20),
@@ -244,25 +366,6 @@ class _SetupPageState extends State<SetupPage> {
                     obscureText: true,
                     decoration: dec(l10n.password),
                     onSubmitted: (_) => _go()),
-                CheckboxListTile(
-                  value: _behindProxy,
-                  onChanged: (v) => setState(() => _behindProxy = v ?? false),
-                  title: Text(l10n.behindProxy,
-                      style: const TextStyle(fontSize: 14)),
-                  contentPadding: EdgeInsets.zero,
-                  controlAffinity: ListTileControlAffinity.leading,
-                ),
-                if (_behindProxy)
-                  TextField(
-                      controller: _proxies,
-                      decoration:
-                          dec(l10n.trustedProxies, l10n.trustedProxiesHint)),
-                if (_err.isNotEmpty)
-                  Padding(
-                      padding: const EdgeInsets.only(top: 12),
-                      child: Text(_err,
-                          style: TextStyle(
-                              color: Theme.of(context).colorScheme.error))),
                 const SizedBox(height: 20),
                 FilledButton(
                     onPressed: _busy ? null : _go,
@@ -282,14 +385,10 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> {
   final _user = TextEditingController(), _pass = TextEditingController();
-  String _err = '';
   bool _busy = false;
 
   Future<void> _go() async {
-    setState(() {
-      _busy = true;
-      _err = '';
-    });
+    setState(() => _busy = true);
     try {
       await Api.i.login(_user.text.trim(), _pass.text);
       await Api.i.roles().catchError((_) => Api.i.caps);
@@ -298,7 +397,7 @@ class _LoginPageState extends State<LoginPage> {
             .pushReplacement(MaterialPageRoute(builder: (_) => const Shell()));
       }
     } catch (e) {
-      setState(() => _err = context.l10n.signInFailed('$e'));
+      if (mounted) snack(context, context.l10n.signInFailed('$e'));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -308,6 +407,12 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     return Scaffold(
+      appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          actions: const [
+            Padding(
+                padding: EdgeInsets.only(right: 8), child: AuthPickers()),
+          ]),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 360),
@@ -315,9 +420,12 @@ class _LoginPageState extends State<LoginPage> {
               shrinkWrap: true,
               padding: const EdgeInsets.all(24),
               children: [
-                Text(l10n.appTitle,
-                    style: Theme.of(context).textTheme.headlineMedium,
-                    textAlign: TextAlign.center),
+                Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  Image.asset('assets/icon.png', width: 36, height: 36),
+                  const SizedBox(width: 10),
+                  Text(l10n.appTitle,
+                      style: Theme.of(context).textTheme.headlineMedium),
+                ]),
                 const SizedBox(height: 24),
                 TextField(
                     controller: _user,
@@ -329,12 +437,6 @@ class _LoginPageState extends State<LoginPage> {
                     obscureText: true,
                     decoration: dec(l10n.password),
                     onSubmitted: (_) => _go()),
-                if (_err.isNotEmpty)
-                  Padding(
-                      padding: const EdgeInsets.only(top: 12),
-                      child: Text(_err,
-                          style: TextStyle(
-                              color: Theme.of(context).colorScheme.error))),
                 const SizedBox(height: 20),
                 FilledButton(
                     onPressed: _busy ? null : _go,

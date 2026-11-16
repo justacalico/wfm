@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wfm/api.dart';
 import 'package:wfm/platform.dart';
+import 'package:wfm/main.dart';
 import 'package:wfm/projects.dart';
 import 'helpers.dart';
 
@@ -46,7 +47,7 @@ void main() {
       await pump(t, const ProjectsPage());
       await t.tap(find.text('Open in Filmcraft'));
       await settle(t);
-      expect(find.byType(SnackBar), findsOneWidget);
+      expect(find.byType(Notice), findsOneWidget);
     });
 
     testWidgets('empty and error states', (t) async {
@@ -102,7 +103,7 @@ void main() {
       await t.enterText(find.byType(TextField).last, 'x');
       await t.tap(find.text('OK'));
       await settle(t);
-      expect(find.byType(SnackBar), findsOneWidget);
+      expect(find.byType(Notice), findsOneWidget);
     });
   });
 
@@ -162,7 +163,7 @@ void main() {
       await pump(t, ProjectPage(project: p1));
       await t.tap(find.text('Open in Filmcraft'));
       await settle(t);
-      expect(find.byType(SnackBar), findsOneWidget);
+      expect(find.byType(Notice), findsOneWidget);
       await t.tap(find.descendant(
           of: find.byType(AppBar),
           matching: find.byType(PopupMenuButton<String>)));
@@ -301,7 +302,7 @@ void main() {
       pickFilesForTesting = () => throw Exception('no picker');
       await t.tap(find.text('Upload'));
       await settle(t);
-      expect(find.byType(SnackBar), findsOneWidget);
+      expect(find.byType(Notice), findsOneWidget);
       pickFilesForTesting = () async => [PickedFile('v.mp4', Uint8List(2))];
       installApi(extra: {
         'PUT /api/projects/p1/files': (_) =>
@@ -309,7 +310,7 @@ void main() {
       });
       await t.tap(find.text('Upload'));
       await settle(t);
-      expect(find.byType(SnackBar), findsWidgets);
+      expect(find.byType(Notice), findsWidgets);
     });
 
     testWidgets('mkdir via dialog', (t) async {
@@ -509,7 +510,7 @@ void main() {
       await t.pump();
       await t.tap(find.text('Render'));
       await settle(t);
-      expect(find.byType(SnackBar), findsOneWidget);
+      expect(find.byType(Notice), findsOneWidget);
       await t.tap(find.text('Cancel'));
       await settle(t);
     });
