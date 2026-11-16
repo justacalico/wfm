@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.1.1 - 2026-11-16
+#### Bug Fixes
+- Pages 根域名下使用根资源路径 - (c3be4c3) - calico, *Devin*
+
+- - -
+
 ## v0.1.0 - 2026-11-16
 #### Features
 - 落地页截图区块与代码格式化 - (424116a) - calico
