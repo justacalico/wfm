@@ -198,8 +198,7 @@ class _NoticeState extends State<Notice> with SingleTickerProviderStateMixin {
             left: 0,
             child: IconButton(
               padding: EdgeInsets.zero,
-              constraints:
-                  const BoxConstraints.tightFor(width: 22, height: 22),
+              constraints: const BoxConstraints.tightFor(width: 22, height: 22),
               iconSize: 13,
               icon: const Icon(Icons.close),
               onPressed: dismiss,
@@ -211,6 +210,13 @@ class _NoticeState extends State<Notice> with SingleTickerProviderStateMixin {
   }
 }
 
+IconData themeIcon(AppTheme t) => switch (t) {
+      AppTheme.system => Icons.brightness_auto,
+      AppTheme.light => Icons.light_mode,
+      AppTheme.dark => Icons.dark_mode,
+      AppTheme.oled => Icons.brightness_2,
+    };
+
 class AuthPickers extends StatelessWidget {
   const AuthPickers({super.key});
 
@@ -218,6 +224,7 @@ class AuthPickers extends StatelessWidget {
   Widget build(BuildContext context) {
     final app = context.findAncestorStateOfType<WfmAppState>()!;
     final l10n = context.l10n;
+    final tight = MediaQuery.sizeOf(context).width < 480;
     return AnimatedBuilder(
       animation: Listenable.merge([app.themeCtl, app.localeCtl]),
       builder: (context, _) => Row(mainAxisSize: MainAxisSize.min, children: [
@@ -238,33 +245,58 @@ class AuthPickers extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 8),
-        SegmentedButton<AppTheme>(
-          showSelectedIcon: false,
-          style: const ButtonStyle(visualDensity: VisualDensity.compact),
-          segments: [
-            ButtonSegment(
-                value: AppTheme.system,
-                icon: const Icon(Icons.brightness_auto, size: 16),
-                tooltip: l10n.themeSystem),
-            ButtonSegment(
-                value: AppTheme.light,
-                icon: const Icon(Icons.light_mode, size: 16),
-                tooltip: l10n.themeLight),
-            ButtonSegment(
-                value: AppTheme.dark,
-                icon: const Icon(Icons.dark_mode, size: 16),
-                tooltip: l10n.themeDark),
-            ButtonSegment(
-                value: AppTheme.oled,
-                icon: const Icon(Icons.brightness_2, size: 16),
-                tooltip: l10n.themeOled),
-          ],
-          selected: {app.appTheme},
-          onSelectionChanged: (s) {
-            app.setTheme(s.first);
-            FocusManager.instance.primaryFocus?.unfocus();
-          },
-        ),
+        if (tight)
+          PopupMenuButton<AppTheme>(
+            icon: Icon(themeIcon(app.appTheme)),
+            initialValue: app.appTheme,
+            onSelected: (t) {
+              app.setTheme(t);
+              FocusManager.instance.primaryFocus?.unfocus();
+            },
+            itemBuilder: (context) => [
+              for (final (t, label) in [
+                (AppTheme.system, l10n.themeSystem),
+                (AppTheme.light, l10n.themeLight),
+                (AppTheme.dark, l10n.themeDark),
+                (AppTheme.oled, l10n.themeOled),
+              ])
+                PopupMenuItem(
+                    value: t,
+                    child: Row(children: [
+                      Icon(themeIcon(t), size: 16),
+                      const SizedBox(width: 8),
+                      Text(label),
+                    ])),
+            ],
+          )
+        else
+          SegmentedButton<AppTheme>(
+            showSelectedIcon: false,
+            style: const ButtonStyle(visualDensity: VisualDensity.compact),
+            segments: [
+              ButtonSegment(
+                  value: AppTheme.system,
+                  icon: const Icon(Icons.brightness_auto, size: 16),
+                  tooltip: l10n.themeSystem),
+              ButtonSegment(
+                  value: AppTheme.light,
+                  icon: const Icon(Icons.light_mode, size: 16),
+                  tooltip: l10n.themeLight),
+              ButtonSegment(
+                  value: AppTheme.dark,
+                  icon: const Icon(Icons.dark_mode, size: 16),
+                  tooltip: l10n.themeDark),
+              ButtonSegment(
+                  value: AppTheme.oled,
+                  icon: const Icon(Icons.brightness_2, size: 16),
+                  tooltip: l10n.themeOled),
+            ],
+            selected: {app.appTheme},
+            onSelectionChanged: (s) {
+              app.setTheme(s.first);
+              FocusManager.instance.primaryFocus?.unfocus();
+            },
+          ),
       ]),
     );
   }
@@ -362,8 +394,7 @@ class _SetupPageState extends State<SetupPage> {
   Future<void> _go() async {
     setState(() => _busy = true);
     try {
-      await Api.i
-          .setupOwner(_user.text.trim(), _pass.text, _name.text.trim());
+      await Api.i.setupOwner(_user.text.trim(), _pass.text, _name.text.trim());
       await Api.i.roles().catchError((_) => Api.i.caps);
       if (mounted) {
         Navigator.of(context)
@@ -380,12 +411,9 @@ class _SetupPageState extends State<SetupPage> {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     return Scaffold(
-      appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          actions: const [
-            Padding(
-                padding: EdgeInsets.only(right: 8), child: AuthPickers()),
-          ]),
+      appBar: AppBar(backgroundColor: Colors.transparent, actions: const [
+        Padding(padding: EdgeInsets.only(right: 8), child: AuthPickers()),
+      ]),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 360),
@@ -453,12 +481,9 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     return Scaffold(
-      appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          actions: const [
-            Padding(
-                padding: EdgeInsets.only(right: 8), child: AuthPickers()),
-          ]),
+      appBar: AppBar(backgroundColor: Colors.transparent, actions: const [
+        Padding(padding: EdgeInsets.only(right: 8), child: AuthPickers()),
+      ]),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 360),

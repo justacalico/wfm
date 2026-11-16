@@ -92,6 +92,25 @@ void main() {
     await t.pumpWidget(const SizedBox());
   });
 
+  testWidgets('narrow auth bar uses theme dropdown', (t) async {
+    Api.i = Api(FakeClient({
+      'GET /api/setup': (_) => {'needsSetup': true},
+    }));
+    t.view.physicalSize = const Size(400, 800);
+    t.view.devicePixelRatio = 1.0;
+    addTearDown(t.view.reset);
+    await t.pumpWidget(const app.WfmApp());
+    await settle(t);
+    expect(find.byType(PopupMenuButton<app.AppTheme>), findsOneWidget);
+    await t.tap(find.byType(PopupMenuButton<app.AppTheme>));
+    await settle(t);
+    await t.tap(find.text('OLED').last);
+    await settle(t);
+    final appState = t.state<app.WfmAppState>(find.byType(app.WfmApp));
+    expect(appState.appTheme, app.AppTheme.oled);
+    await t.pumpWidget(const SizedBox());
+  });
+
   testWidgets('notices stack, close and auto-dismiss', (t) async {
     Api.i = Api(FakeClient({
       'GET /api/setup': (_) => {'needsSetup': true},
