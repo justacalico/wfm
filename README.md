@@ -21,10 +21,10 @@ and queue renders on the server. Teachers manage accounts, roles and the audit l
 
 - `server/` - Rust (axum) backend: auth, projects, file API, render queue, audit
 - `lib/` - Flutter web app, embedded into the server binary
-- `filmcraft/` - vendored FilmCraft release + `wfm.html` host page (locks, media bin, saves)
+- `filmcraft/` - pinned FilmCraft source patches + `wfm.html` host page (locks, media bin, saves)
 - `server/migrations/{sqlite,postgres}/` - plain `.sql` migrations, applied in filename order
 - `landing/` - small standalone landing page (optional)
-- `scripts/` - `fetch-filmcraft.sh`, `build-web.sh`
+- `scripts/` - `build-filmcraft.sh`, `build-web.sh`
 
 ## Quick start (Docker)
 
@@ -92,8 +92,8 @@ account created at `/api/setup` is the owner.
 
 ## Editing
 
-FilmCraft is pinned in `filmcraft/VERSION` and fetched as a release bundle
-(`./scripts/fetch-filmcraft.sh`). `filmcraft/wfm.html` is the host page: it
+FilmCraft is pinned in `filmcraft/VERSION` and built from source with the patches
+in `filmcraft/patches/` applied (`./scripts/build-filmcraft.sh`). `filmcraft/wfm.html` is the host page: it
 acquires the project edit lock, serves the media bin, and stores the project as
 `project.fcproj` in project storage. Projects are locked while open; a second
 tab gets a take-over prompt.

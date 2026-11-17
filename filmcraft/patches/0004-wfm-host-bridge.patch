@@ -1,0 +1,240 @@
+diff --git a/apps/filmcraft-web/src/host.rs b/apps/filmcraft-web/src/host.rs
+index 985104e..42044be 100644
+--- a/apps/filmcraft-web/src/host.rs
++++ b/apps/filmcraft-web/src/host.rs
+@@ -52,6 +52,7 @@ use std::cell::RefCell;
+ use std::rc::Rc;
+ 
+ use craft_web_host::web::{FileData, Host, Message};
++use serde_json::{Value, json};
+ use filmcraft_engine::Session;
+ 
+ use crate::hostmode::{MAX_OPEN_BYTES, PROJECT_OPEN_MAX, is_project, is_save_as, open_name, open_size_ok, project_open_ok};
+@@ -59,6 +60,24 @@ use crate::hostmode::{MAX_OPEN_BYTES, PROJECT_OPEN_MAX, is_project, is_save_as,
+ /// The app id in the host messages (`filmcraft:ready`).
+ const APP: &str = "filmcraft";
+ 
++thread_local! {
++    /// The installed bridge, so import code can hand new media to the host.
++    static BRIDGE: RefCell<Option<Bridge>> = const { RefCell::new(None) };
++    /// Files the host sent for the open project (`Media_` opens), held until the project is
++    /// open: (virtual path, folders from the project's root).
++    static RESTORED: RefCell<Vec<(String, Vec<String>)>> = const { RefCell::new(Vec::new()) };
++}
++
++/// Hand a file the user imported to the host (`Raw/<name>` in the project), when a bridge is
++/// installed.
++pub fn post_media(path: &str, blob: web_sys::Blob) {
++    BRIDGE.with(|b| {
++        if let Some(bridge) = &*b.borrow() {
++            bridge.post_media(path, blob);
++        }
++    });
++}
++
+ /// The host bridge in host mode. Cloned into the write hook and the open listener; the state
+ /// they share is behind `Rc`.
+ #[derive(Clone)]
+@@ -84,10 +103,25 @@ impl Bridge {
+     /// the browser's download.
+     pub fn install(&self) {
+         self.listen();
++        BRIDGE.with(|b| *b.borrow_mut() = Some(self.clone()));
+         let bridge = self.clone();
+         crate::fs::set_on_write(move |path: &str, _bytes: &[u8]| bridge.wrote(path));
+     }
+ 
++    /// Hand an imported media file to the host as `Raw/<name>` so it lives in the project on
++    /// the server, not only in this browser session. The host crate strips `name` to a
++    /// basename, so the path inside the project rides in `id`.
++    pub fn post_media(&self, path: &str, blob: web_sys::Blob) {
++        let name = path.rsplit('/').next().unwrap_or(path).to_string();
++        let host = self.host.clone();
++        wasm_bindgen_futures::spawn_local(async move {
++            if let Ok(buf) = wasm_bindgen_futures::JsFuture::from(blob.array_buffer()).await {
++                let bytes = js_sys::Uint8Array::new(&buf).to_vec();
++                let _ = host.post_save(&format!("Raw/{name}"), &bytes, Some(&format!("Raw/{name}")), false);
++            }
++        });
++    }
++
+     /// After each frame's commands (the web app's per-frame logic pass): files written this
+     /// frame go to the host, with the `saveAs` decision from the session's state (the module
+     /// doc has the rule), and the host hears when unsaved changes appear or go away (the crate
+@@ -179,7 +213,22 @@ fn deliver_open(bridge: &Bridge, name: &str, data: &FileData) {
+         return rejected_open(format!("{len} bytes is over the {} MiB host open limit", MAX_OPEN_BYTES >> 20));
+     }
+     let name = open_name(name);
+-    if is_project(&name) {
++    if let Some(rest) = name.strip_prefix("Media_") {
++        // Media the host stores for the open project, named `Media_<dir>::…::<file>`: back
++        // under the `/files/` name the project's items reference, ready to play, and listed
++        // for the bin pass once the project is open.
++        let (dirs, file) = rest.rsplit_once("::").map(|(d, f)| (d.split("::").map(str::to_string).collect::<Vec<_>>(), f)).unwrap_or((
++            Vec::new(),
++            rest,
++        ));
++        let Some(blob) = blob_from_bytes(array) else { return rejected_open("couldn't wrap the bytes in a Blob".to_string()) };
++        let file = file.to_string();
++        wasm_bindgen_futures::spawn_local(async move {
++            let path = crate::fs::register_blob(&file, blob);
++            RESTORED.with(|r| r.borrow_mut().push((path.clone(), dirs)));
++            crate::import::prewarm(&path, len).await;
++        });
++    } else if is_project(&name) {
+         // A project is read whole, and that read stops at 256 MiB. Refuse a larger one before
+         // copying it into the file table, where the open would then fail.
+         if !project_open_ok(len) {
+@@ -188,14 +237,38 @@ fn deliver_open(bridge: &Bridge, name: &str, data: &FileData) {
+         let bytes = array.to_vec();
+         let path = format!("/projects/{name}");
+         let opened = bridge.clone();
+-        wasm_bindgen_futures::spawn_local(async move {
+-            match crate::import::open_project_bytes(path.clone(), bytes).await {
+-                // The host has this file as the document now: a Save of it goes out under its
+-                // own name (`saveAs: false`).
+-                Ok(_) => opened.opened_document(&path),
+-                Err(e) => crate::post(move |w, _| w.app.status(e)),
+-            }
+-        });
++        if bytes.is_empty() {
++            // An empty document is the host asking for a new project named after the file:
++            // made, then a first Save hands it back under that name.
++            let stem = std::path::Path::new(&name).file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or(name);
++            wasm_bindgen_futures::spawn_local(async move {
++                let save = path.clone();
++                let r = crate::import::on_ui(move |w, _| {
++                    w.app.session.execute("file.newProject", json!({"name": stem})).map_err(|e| e.to_string())?;
++                    w.app.session.execute("file.save", json!({"path": save})).map_err(|e| e.to_string())
++                })
++                .await;
++                match r {
++                    Ok(_) => {
++                        opened.opened_document(&path);
++                        restore_bins();
++                    }
++                    Err(e) => crate::post(move |w, _| w.app.status(e)),
++                }
++            });
++        } else {
++            wasm_bindgen_futures::spawn_local(async move {
++                match crate::import::open_project_bytes(path.clone(), bytes).await {
++                    // The host has this file as the document now: a Save of it goes out under its
++                    // own name (`saveAs: false`).
++                    Ok(_) => {
++                        opened.opened_document(&path);
++                        restore_bins();
++                    }
++                    Err(e) => crate::post(move |w, _| w.app.status(e)),
++                }
++            });
++        }
+     } else {
+         // Media registers like a dropped file: a `Blob` over the bytes, never copied whole.
+         let Some(blob) = blob_from_bytes(array) else { return rejected_open("couldn't wrap the bytes in a Blob".to_string()) };
+@@ -203,6 +276,53 @@ fn deliver_open(bridge: &Bridge, name: &str, data: &FileData) {
+     }
+ }
+ 
++/// The project is open: every file the host sent for it that the project does not already
++/// reference is imported into bins matching its folders on the server, so the project's media
++/// shows in the Project panel instead of living only in the file table.
++fn restore_bins() {
++    let files = RESTORED.with(|r| std::mem::take(&mut *r.borrow_mut()));
++    if files.is_empty() {
++        return;
++    }
++    wasm_bindgen_futures::spawn_local(async move {
++        for (path, dirs) in files {
++            let r = crate::import::on_ui(move |w, _| {
++                let s = &mut w.app.session;
++                let referenced = s.project.items.values().any(|i| match &i.kind {
++                    filmcraft_engine::project::ItemKind::Media(m) => matches!(&m.media, filmcraft_engine::project::MediaRef::File { path: p } if *p == path),
++                    _ => false,
++                });
++                if referenced {
++                    return Ok(json!(null));
++                }
++                let mut parent = s.project.root.id;
++                for name in &dirs {
++                    parent = match find_bin(&s.project.root, parent, name) {
++                        Some(id) => id,
++                        None => match s.execute("file.newBin", json!({"name": name, "parent": parent.0})) {
++                            Ok(v) => filmcraft_engine::project::BinId(v.get("bin").and_then(Value::as_u64).unwrap_or_default()),
++                            Err(e) => return Err(e.to_string()),
++                        },
++                    };
++                }
++                s.execute("file.import", json!({"paths": [path], "bin": parent.0})).map_err(|e| e.to_string())
++            })
++            .await;
++            if let Err(e) = r {
++                crate::post(move |w, _| w.app.status(e));
++            }
++        }
++    });
++}
++
++/// The immediate child of `parent` named `name`, if it is a bin.
++fn find_bin(root: &filmcraft_engine::project::Bin, parent: filmcraft_engine::project::BinId, name: &str) -> Option<filmcraft_engine::project::BinId> {
++    root.find_bin(parent)?.children.iter().find_map(|c| match c {
++        filmcraft_engine::project::BinEntry::Bin(b) if b.name == name => Some(b.id),
++        _ => None,
++    })
++}
++
+ /// An open request the app can't act on: said in the app's status bar, never a panic. Takes
+ /// the reason owned: it reaches the status bar a frame later.
+ fn rejected_open(why: String) {
+diff --git a/apps/filmcraft-web/src/import.rs b/apps/filmcraft-web/src/import.rs
+index 4f033ec..2d7d264 100644
+--- a/apps/filmcraft-web/src/import.rs
++++ b/apps/filmcraft-web/src/import.rs
+@@ -36,7 +36,7 @@ fn be32(b: &[u8]) -> u64 {
+ }
+ 
+ /// Load what opening the file will read first: the container index.
+-async fn prewarm(path: &str, size: u64) {
++pub(crate) async fn prewarm(path: &str, size: u64) {
+     let head_len = size.min(64 << 10);
+     fs::prefetch(path, 0, head_len).await;
+     let Ok(head) = fs::WebServices.read_range(path, 0, head_len as usize) else { return };
+@@ -120,6 +120,7 @@ pub async fn import_files(files: Vec<web_sys::File>) -> Value {
+                 items.extend(v.get("items").and_then(Value::as_array).cloned().unwrap_or_default());
+                 errors.extend(v.get("errors").and_then(Value::as_array).cloned().unwrap_or_default());
+                 crate::recovery::keep_media(&path, &f);
++                crate::host::post_media(&path, f.clone().into());
+             }
+             Err(e) => errors.push(json!(e)),
+         }
+@@ -139,10 +140,20 @@ pub async fn open_project_file(file: web_sys::File) -> Result<Value, String> {
+ }
+ 
+ /// Open a `.fcproj` handed over as bytes (a host's `filmcraft:open`) at a virtual `/projects/`
+-/// path, like a picked or dropped project: into the file table, then `file.open`.
++/// path, like a picked or dropped project: into the file table, then `file.open`. The project
++/// takes the file's name, as a save names a project after its file.
+ pub async fn open_project_bytes(path: String, bytes: Vec<u8>) -> Result<Value, String> {
+     fs::put(&path, bytes);
+-    on_ui(move |w, _| w.app.session.execute("file.open", json!({ "path": path })).map_err(|e| e.to_string())).await
++    on_ui(move |w, _| {
++        w.app.session.execute("file.open", json!({ "path": path })).map_err(|e| e.to_string())?;
++        if let Some(name) = std::path::Path::new(&path).file_stem().map(|s| s.to_string_lossy().to_string()).filter(|s| !s.is_empty()) {
++            let p = std::sync::Arc::make_mut(&mut w.app.session.project);
++            p.root.name.clone_from(&name);
++            p.name = name;
++        }
++        Ok(json!({}))
++    })
++    .await
+ }
+ 
+ /// Import a file handed over by a host (`filmcraft:open`): registered like a dropped file (a
+@@ -188,6 +199,7 @@ fn picked(files: Vec<web_sys::File>, relink: Option<RelinkHint>) {
+     wasm_bindgen_futures::spawn_local(async move {
+         let path = fs::register_blob(&f.name(), f.clone().into());
+         crate::recovery::keep_media(&path, &f);
++        crate::host::post_media(&path, f.clone().into());
+         let mut params = hint.params;
+         if !params.is_object() {
+             params = json!({});

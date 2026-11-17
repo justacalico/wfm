@@ -8,45 +8,19 @@
 <style>
   :root { color-scheme: dark; }
   * { box-sizing: border-box; margin: 0; }
-  body { background: #101014; color: #e6e6ea; font: 14px/1.4 system-ui, sans-serif; height: 100vh; display: flex; flex-direction: column; }
-  #top { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: #17171d; border-bottom: 1px solid #26262e; }
-  #top .logo { font-weight: 700; color: #8b5cf6; }
-  #proj-name { font-weight: 600; }
-  #save-state { color: #8d8d96; font-size: 12px; }
-  .spacer { flex: 1; }
-  button { background: #26262e; color: inherit; border: 1px solid #3a3a44; border-radius: 6px; padding: 6px 12px; cursor: pointer; font: inherit; }
-  button:hover { background: #31313b; }
-  #main { flex: 1; display: flex; min-height: 0; }
-  #bin { width: 240px; background: #141419; border-right: 1px solid #26262e; overflow-y: auto; padding: 8px; }
-  #bin h2 { font-size: 12px; text-transform: uppercase; color: #8d8d96; margin: 8px 4px 4px; }
-  .entry { padding: 5px 8px; border-radius: 5px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13px; }
-  .entry:hover { background: #26262e; }
-  .entry.dir { color: #9db4ff; }
-  .entry.file { color: #cfcfd6; }
-  .entry.sending { opacity: .5; pointer-events: none; }
-  #up-btn { width: 100%; margin-top: 8px; }
-  #frame-wrap { flex: 1; min-width: 0; position: relative; }
+  body { background: #101014; height: 100vh; overflow: hidden; }
   iframe { width: 100%; height: 100%; border: 0; display: block; }
-  #overlay { position: fixed; inset: 0; background: #101014; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 12px; z-index: 10; }
+  #overlay { position: fixed; inset: 0; background: #101014; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 12px; z-index: 10; color: #e6e6ea; font: 14px/1.4 system-ui, sans-serif; }
   #overlay.hidden { display: none; }
   #overlay h1 { font-size: 20px; }
   #overlay p { color: #8d8d96; max-width: 420px; text-align: center; }
-  #toast { position: fixed; bottom: 16px; right: 16px; background: #26262e; border: 1px solid #3a3a44; border-radius: 8px; padding: 10px 14px; display: none; z-index: 20; max-width: 340px; }
+  #overlay button { background: #26262e; color: inherit; border: 1px solid #3a3a44; border-radius: 6px; padding: 6px 12px; cursor: pointer; font: inherit; }
+  #toast { position: fixed; bottom: 16px; right: 16px; background: #26262e; color: #e6e6ea; border: 1px solid #3a3a44; border-radius: 8px; padding: 10px 14px; display: none; z-index: 20; max-width: 340px; font: 13px/1.4 system-ui, sans-serif; }
 </style>
 </head>
 <body>
 <div id="overlay"><h1>Filmcraft</h1><p id="overlay-msg">Loading…</p><div id="overlay-btns"></div></div>
-<header id="top">
-  <span class="logo">Filmcraft</span>
-  <span id="proj-name"></span>
-  <span id="save-state"></span>
-  <div class="spacer"></div>
-  <button id="btn-close">Close</button>
-</header>
-<div id="main">
-  <aside id="bin"><h2>Project media</h2><div id="bin-list"></div><button id="up-btn">Upload file</button><input id="up-input" type="file" multiple hidden></aside>
-  <div id="frame-wrap"><iframe id="fc" title="FilmCraft" allow="fullscreen; clipboard-read; clipboard-write" allowfullscreen></iframe></div>
-</div>
+<iframe id="fc" title="FilmCraft" allow="fullscreen; clipboard-read; clipboard-write" allowfullscreen></iframe>
 <div id="toast"></div>
 <script>
 "use strict";
@@ -54,7 +28,7 @@ const qs = new URLSearchParams(location.search);
 const projectId = qs.get("project");
 const API = "/api";
 const clientId = crypto.randomUUID();
-let csrf = "", dirty = false, docSent = false, binPath = "";
+let csrf = "", dirty = false, docSent = false, pending = 0, docName = "project.fcproj";
 const $ = (id) => document.getElementById(id);
 const overlay = (msg, btns) => {
   $("overlay").classList.remove("hidden");
@@ -66,7 +40,10 @@ const overlay = (msg, btns) => {
 };
 const hideOverlay = () => $("overlay").classList.add("hidden");
 const toast = (m) => { const t = $("toast"); t.textContent = m; t.style.display = "block"; clearTimeout(t._t); t._t = setTimeout(() => t.style.display = "none", 4000); };
-const setState = (s) => $("save-state").textContent = s;
+const cleanName = (s) => {
+  const n = (s || "").replace(/[\\/:*?"<>|\x00-\x1f]+/g, " ").replace(/\s+/g, " ").trim().replace(/^\.+|\.+$/g, "").trim();
+  return n || "Project";
+};
 
 async function api(path, opt = {}) {
   opt.headers = Object.assign({}, opt.headers, csrf && opt.method && opt.method !== "GET" ? { "x-csrf-token": csrf } : {});
@@ -97,7 +74,9 @@ async function boot() {
     ]);
   }
   const p = await (await api("/projects/" + projectId)).json();
-  $("proj-name").textContent = p.displayName || p.display_name || "";
+  const title = p.displayName || p.display_name || "";
+  document.title = title ? title + " - WFM" : "Filmcraft - WFM";
+  docName = cleanName(title) + ".fcproj";
   $("fc").src = "/filmcraft/dist/index.html?host=parent&fresh";
   setInterval(heartbeat, 20000);
   setInterval(() => {
@@ -106,7 +85,6 @@ async function boot() {
       if (s && s.className === "err") overlay(s.textContent);
     } catch (_) {}
   }, 1500);
-  refreshBin("");
 }
 
 function heartbeat() {
@@ -118,7 +96,7 @@ window.addEventListener("message", async (ev) => {
   const d = ev.data || {};
   if (d.type === "filmcraft:ready") { hideOverlay(); if (!docSent) { docSent = true; sendDoc(); } }
   else if (d.type === "filmcraft:save") { handleSave(d); }
-  else if (d.type === "filmcraft:dirty") { dirty = !!d.dirty; setState(dirty ? "Unsaved changes" : "Saved"); }
+  else if (d.type === "filmcraft:dirty") { dirty = !!d.dirty; }
   else if (d.type === "filmcraft:failed") { overlay("FilmCraft could not start: " + (d.error || "unknown error")); }
 });
 
@@ -126,72 +104,52 @@ function send(name, bytes) {
   $("fc").contentWindow.postMessage({ type: "filmcraft:open", name, bytes }, "*", [bytes instanceof ArrayBuffer ? bytes : bytes.buffer]);
 }
 
+async function listFiles(path) {
+  const r = await api("/projects/" + projectId + "/files?path=" + encodeURIComponent(path));
+  const list = await r.json().catch(() => []);
+  let out = [];
+  for (const e of Array.isArray(list) ? list : []) {
+    if (e.type === "dir") out = out.concat(await listFiles(e.path));
+    else out.push(e);
+  }
+  return out;
+}
+
+const MEDIA_EXT = /\.(mp4|mov|mkv|webm|avi|mts|m2ts|mxf|mp3|wav|aac|flac|ogg|oga|m4a|opus|png|jpe?g|webp|gif|tiff?|bmp|srt|vtt|dng|exr|hdr)$/i;
+
 async function sendDoc() {
+  try {
+    const media = (await listFiles(""))
+      .filter(e => !e.path.startsWith("Exports/") && !e.name.endsWith(".fcproj") && MEDIA_EXT.test(e.name))
+      .sort((a, b) => (a.path < b.path ? -1 : 1));
+    for (const m of media) {
+      const r = await api("/projects/" + projectId + "/download?path=" + encodeURIComponent(m.path));
+      if (r.ok) send("Media_" + m.path.replace(/\//g, "::"), await r.arrayBuffer());
+    }
+  } catch (_) {}
   const r = await api("/projects/" + projectId + "/download?path=project.fcproj");
-  if (!r.ok) { setState("New project"); return; }
-  const bytes = await r.arrayBuffer();
-  if (bytes.byteLength > 0) send("project.fcproj", bytes);
+  const bytes = r.ok ? await r.arrayBuffer() : new ArrayBuffer(0);
+  send(docName, bytes);
 }
 
 async function handleSave(d) {
+  let path = d.name || "export.bin";
+  if (d.id && d.id.startsWith("Raw/") && !d.id.includes("..")) path = d.id;
+  else if (!path.startsWith("Raw/")) {
+    path = path.toLowerCase().endsWith(".fcproj") ? "project.fcproj" : "Exports/" + path.replace(/^.*\//, "");
+  }
+  pending++;
   try {
-    let path = d.name || "export.bin";
-    if (!path.toLowerCase().endsWith(".fcproj") && !path.startsWith("Exports/")) path = "Exports/" + path.replace(/^.*\//, "");
-    if (path.endsWith(".fcproj")) path = "project.fcproj";
     const r = await api("/projects/" + projectId + "/files?path=" + encodeURIComponent(path), {
       method: "PUT", body: d.bytes
     });
     if (!r.ok) toast("Save failed: " + (await r.text()));
-    else if (path === "project.fcproj") { dirty = false; setState("Saved"); refreshBin(binPath); }
-    else toast("Saved to " + path);
+    else if (path === "project.fcproj") dirty = false;
+    else toast("Saved " + path);
   } catch (e) { toast("Save failed"); }
+  pending--;
 }
 
-async function refreshBin(path) {
-  binPath = path;
-  const box = $("bin-list"); box.innerHTML = "";
-  if (path) {
-    const b = document.createElement("div"); b.className = "entry dir"; b.textContent = "..";
-    b.onclick = () => refreshBin(path.split("/").slice(0, -1).join("/")); box.appendChild(b);
-  }
-  const r = await api("/projects/" + projectId + "/files?path=" + encodeURIComponent(path));
-  const list = await r.json().catch(() => []);
-  const fmt = (n) => { const u = ["B","KB","MB","GB"]; let i = 0; while (n >= 1024 && i < u.length-1) { n /= 1024; i++; } return n.toFixed(i ? 1 : 0) + " " + u[i]; };
-  const entries = Array.isArray(list) ? list : [];
-  if (!entries.length) { const d = document.createElement("div"); d.className = "entry"; d.textContent = "Empty"; d.style.cursor = "default"; box.appendChild(d); }
-  for (const e of entries) {
-    const el = document.createElement("div");
-    el.className = "entry " + e.type;
-    el.textContent = e.type === "dir" ? e.name : e.name + "  ·  " + fmt(e.size || 0);
-    el.title = e.path;
-    if (e.type === "dir") el.onclick = () => refreshBin(e.path);
-    else el.onclick = () => sendMedia(e.path, el);
-    box.appendChild(el);
-  }
-}
-
-async function sendMedia(path, el) {
-  el.classList.add("sending");
-  try {
-    const r = await api("/projects/" + projectId + "/download?path=" + encodeURIComponent(path));
-    if (!r.ok) return toast("Could not read " + path);
-    const bytes = await r.arrayBuffer();
-    send(path.split("/").pop(), bytes);
-    toast("Sent to editor: " + path);
-  } finally { el.classList.remove("sending"); }
-}
-
-$("up-input").onchange = async (ev) => {
-  for (const f of ev.target.files) {
-    const folder = binPath || "Raw/Other";
-    const r = await api("/projects/" + projectId + "/files?path=" + encodeURIComponent(folder + "/" + f.name), { method: "PUT", body: f });
-    if (!r.ok) toast("Upload failed: " + f.name);
-  }
-  ev.target.value = "";
-  refreshBin(binPath);
-};
-$("up-btn").onclick = () => $("up-input").click();
-$("btn-close").onclick = () => { window.close(); setTimeout(() => { if (!window.closed) location.href = "/app/"; }, 80); };
 function releaseLock() {
   fetch(API + "/projects/" + projectId + "/locks/release?kind=edit&clientId=" + encodeURIComponent(clientId), {
     method: "POST", keepalive: true,
@@ -200,7 +158,7 @@ function releaseLock() {
 }
 window.addEventListener("beforeunload", (e) => {
   releaseLock();
-  if (dirty) { e.preventDefault(); e.returnValue = ""; }
+  if (dirty || pending > 0) { e.preventDefault(); e.returnValue = ""; }
 });
 window.addEventListener("pagehide", releaseLock);
 boot();

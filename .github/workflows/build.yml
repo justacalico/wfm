@@ -146,9 +146,29 @@ jobs:
           cd server
           cargo test --locked
 
+  filmcraft:
+    name: Build FilmCraft bundle
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup wasm toolchain
+        run: |
+          rustup target add wasm32-unknown-unknown
+          curl -fsSL https://github.com/rustwasm/wasm-bindgen/releases/download/0.2.129/wasm-bindgen-0.2.129-x86_64-unknown-linux-musl.tar.gz | tar -xz -C /opt
+          echo "/opt/wasm-bindgen-0.2.129-x86_64-unknown-linux-musl" >> "$GITHUB_PATH"
+
+      - name: Build patched bundle
+        run: bash scripts/build-filmcraft.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: filmcraft-dist
+          path: filmcraft/dist
+
   build:
     name: Build ${{ matrix.target }}
-    needs: [setup, verify]
+    needs: [setup, verify, filmcraft]
     if: ${{ needs.setup.outputs.build_all == 'true' }}
     strategy:
       fail-fast: false
@@ -190,11 +210,14 @@ jobs:
       - name: Stage FilmCraft bundle
         if: matrix.target != 'web'
         run: |
-          bash scripts/fetch-filmcraft.sh
           mkdir -p server/web/filmcraft
           cp filmcraft/wfm.html filmcraft/icon.svg filmcraft/VERSION server/web/filmcraft/
-          rm -rf server/web/filmcraft/dist
-          cp -a filmcraft/dist server/web/filmcraft/dist
+
+      - uses: actions/download-artifact@v4
+        if: matrix.target != 'web'
+        with:
+          name: filmcraft-dist
+          path: server/web/filmcraft/dist
 
       - name: Build server binary
         if: matrix.target != 'web'
