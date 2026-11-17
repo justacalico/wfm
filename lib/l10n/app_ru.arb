@@ -57,6 +57,18 @@
   "deleteProjectBody": "Удалить «{name}» со всеми медиафайлами? Это действие нельзя отменить.",
   "@deleteProjectBody": {"placeholders": {"name": {}}},
 
+  "newGroup": "Новая группа",
+  "groupName": "Название группы",
+  "ungrouped": "Без группы",
+  "noGroup": "Без группы",
+  "moveToGroup": "Переместить в группу",
+  "renameGroup": "Переименовать группу",
+  "deleteGroupBody": "Удалить группу «{name}»? Проекты сохранятся без группы.",
+  "@deleteGroupBody": {"placeholders": {"name": {}}},
+  "editTags": "Изменить теги",
+  "tagsHint": "Теги через запятую",
+  "noMatchingProjects": "Нет проектов с этим тегом.",
+
   "files": "Файлы",
   "renders": "Рендеры",
   "emptyFolder": "Пустая папка",

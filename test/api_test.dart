@@ -187,6 +187,10 @@ void main() {
           {'id': 'p1', 'name': 'n', 'displayName': 'N', 'createdAt': 1}
         ],
         'POST /api/projects': {'id': 'p2', 'name': 'n2', 'displayName': 'n2'},
+        'GET /api/groups': [
+          {'id': 'g1', 'name': 'Class A'}
+        ],
+        'POST /api/groups': {'id': 'g2', 'name': 'g2'},
         'PATCH *': {'ok': true},
         'DELETE *': {'ok': true},
         'GET /api/projects/p1/files': [
@@ -199,8 +203,19 @@ void main() {
       expect(ps.single.id, 'p1');
       final p2 = await api.createProject('n2');
       expect(p2.id, 'p2');
-      await api.renameProject('p1', 'New');
-      expect(jsonDecode(lastRequest!.body)['displayName'], 'New');
+      await api.updateProject('p1',
+          displayName: 'New', groupId: 'g1', tags: ['a', 'b']);
+      final patchBody = jsonDecode(lastRequest!.body);
+      expect(patchBody['displayName'], 'New');
+      expect(patchBody['groupId'], 'g1');
+      expect(patchBody['tags'], ['a', 'b']);
+      final gs = await api.groups();
+      expect(gs.single.id, 'g1');
+      final g2 = await api.createGroup('g2');
+      expect(g2.id, 'g2');
+      await api.renameGroup('g1', 'Renamed');
+      expect(jsonDecode(lastRequest!.body)['name'], 'Renamed');
+      await api.deleteGroup('g1');
       await api.deleteProject('p1');
       final fs = await api.files('p1', 'Raw');
       expect(fs.single.name, 'a.txt');

@@ -52,13 +52,23 @@ class Caps {
 }
 
 class Project {
-  final String id, name, displayName;
+  final String id, name, displayName, groupId;
+  final List<String> tags;
   final int createdAt;
   Project.fromJson(Map<String, dynamic> j)
       : id = j['id'] ?? '',
         name = j['name'] ?? '',
         displayName = j['displayName'] ?? j['name'] ?? '',
+        groupId = j['groupId'] ?? '',
+        tags = [for (final t in (j['tags'] ?? []) as List) '$t'],
         createdAt = j['createdAt'] ?? 0;
+}
+
+class ProjectGroup {
+  final String id, name;
+  ProjectGroup.fromJson(Map<String, dynamic> j)
+      : id = j['id'] ?? '',
+        name = j['name'] ?? '';
 }
 
 class FileEntry {
@@ -218,11 +228,32 @@ class Api {
   Future<List<Project>> projects() async =>
       [for (final e in (await get('/projects')) as List) Project.fromJson(e)];
 
-  Future<Project> createProject(String name) async => Project.fromJson(
-      await post('/projects', {'name': name, 'displayName': name}));
+  Future<Project> createProject(String name, {String groupId = ''}) async =>
+      Project.fromJson(await post('/projects', {
+        'name': name,
+        'displayName': name,
+        if (groupId.isNotEmpty) 'groupId': groupId,
+      }));
 
-  Future<void> renameProject(String id, String displayName) =>
-      patch('/projects/$id', {'displayName': displayName});
+  Future<void> updateProject(String id,
+          {String? displayName, String? groupId, List<String>? tags}) =>
+      patch('/projects/$id', {
+        if (displayName != null) 'displayName': displayName,
+        if (groupId != null) 'groupId': groupId,
+        if (tags != null) 'tags': tags,
+      });
+
+  Future<List<ProjectGroup>> groups() async => [
+        for (final e in (await get('/groups')) as List) ProjectGroup.fromJson(e)
+      ];
+
+  Future<ProjectGroup> createGroup(String name) async =>
+      ProjectGroup.fromJson(await post('/groups', {'name': name}));
+
+  Future<void> renameGroup(String id, String name) =>
+      patch('/groups/$id', {'name': name});
+
+  Future<void> deleteGroup(String id) => del('/groups/$id');
 
   Future<void> deleteProject(String id) => del('/projects/$id');
 

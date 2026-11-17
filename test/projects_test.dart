@@ -105,6 +105,249 @@ void main() {
       await settle(t);
       expect(find.byType(Notice), findsOneWidget);
     });
+
+    Map<String, dynamic> proj(String id, String name,
+            [String gid = '', List<String> tags = const []]) =>
+        {
+          'id': id,
+          'name': id,
+          'displayName': name,
+          'groupId': gid,
+          'tags': tags,
+          'createdAt': 1
+        };
+
+    testWidgets('group sections, tag filter and orphan group', (t) async {
+      installApi(extra: {
+        'GET /api/projects': (_) => [
+              proj('p1', 'Alpha', 'g1', ['doc']),
+              proj('p2', 'Beta', '', ['doc']),
+              proj('p3', 'Gamma', 'gone', ['other']),
+            ],
+        'GET /api/groups': (_) => [
+              {'id': 'g1', 'name': 'Class A'}
+            ],
+      });
+      await pump(t, const ProjectsPage());
+      expect(find.text('Class A'), findsOneWidget);
+      expect(find.text('Ungrouped'), findsOneWidget);
+      expect(find.text('Alpha'), findsOneWidget);
+      expect(find.text('Gamma'), findsOneWidget);
+      expect(find.byType(FilterChip), findsNWidgets(2));
+      await t.tap(find.byType(FilterChip).first);
+      await settle(t);
+      expect(find.text('Gamma'), findsNothing);
+      expect(find.text('Alpha'), findsOneWidget);
+      await t.tap(find.byType(FilterChip).at(1));
+      await settle(t);
+      expect(find.text('Gamma'), findsOneWidget);
+      expect(find.text('Beta'), findsNothing);
+      await t.tap(find.byType(FilterChip).at(1));
+      await settle(t);
+      expect(find.text('Beta'), findsOneWidget);
+    });
+
+    testWidgets('new group, rename, delete group', (t) async {
+      var have = false;
+      var calls = <String>[];
+      installApi(extra: {
+        'GET /api/groups': (_) => have
+            ? [
+                {'id': 'g1', 'name': 'Class A'}
+              ]
+            : [],
+        'POST /api/groups': (_) {
+          have = true;
+          calls.add('create');
+          return {'id': 'g1', 'name': 'Class A'};
+        },
+        'PATCH /api/groups/g1': (_) {
+          calls.add('rename');
+          return {'ok': true};
+        },
+        'DELETE /api/groups/g1': (_) {
+          have = false;
+          calls.add('delete');
+          return {'ok': true};
+        },
+      });
+      await pump(t, const ProjectsPage());
+      expect(find.text('Class A'), findsNothing);
+      await t.tap(find.text('New group'));
+      await settle(t);
+      await t.tap(find.text('Cancel'));
+      await settle(t);
+      expect(calls, isEmpty);
+      await t.tap(find.text('New group'));
+      await settle(t);
+      await t.enterText(find.byType(TextField).last, 'Class A');
+      await t.tap(find.text('OK'));
+      await settle(t);
+      expect(calls, ['create']);
+      expect(find.text('Class A'), findsOneWidget);
+
+      await t.tap(find.byType(PopupMenuButton<String>).first);
+      await settle(t);
+      await t.tap(find.text('Rename'));
+      await settle(t);
+      await t.enterText(find.byType(TextField).last, 'Class B');
+      await t.tap(find.text('OK'));
+      await settle(t);
+      expect(calls, ['create', 'rename']);
+
+      await t.tap(find.byType(PopupMenuButton<String>).first);
+      await settle(t);
+      await t.tap(find.text('Delete'));
+      await settle(t);
+      await t.tap(find.text('Cancel'));
+      await settle(t);
+      expect(find.text('Class A'), findsOneWidget);
+      await t.tap(find.byType(PopupMenuButton<String>).first);
+      await settle(t);
+      await t.tap(find.text('Delete'));
+      await settle(t);
+      await t.tap(find.text('Confirm'));
+      await settle(t);
+      expect(calls, ['create', 'rename', 'delete']);
+      expect(find.text('Class A'), findsNothing);
+      expect(find.text('Ungrouped'), findsNothing);
+    });
+
+    testWidgets('move to group dialog', (t) async {
+      var patched = <String>[];
+      installApi(extra: {
+        'GET /api/groups': (_) => [
+              {'id': 'g1', 'name': 'Class A'}
+            ],
+        'PATCH /api/projects/p1': (req) {
+          patched.add(req.body);
+          return {'ok': true};
+        },
+      });
+      await pump(t, const ProjectsPage());
+      await t.tap(find.byType(PopupMenuButton<String>).last);
+      await settle(t);
+      await t.tap(find.text('Move to group'));
+      await settle(t);
+      Navigator.of(t.element(find.byType(SimpleDialog)), rootNavigator: true)
+          .pop();
+      await settle(t);
+      expect(patched, isEmpty);
+
+      await t.tap(find.byType(PopupMenuButton<String>).last);
+      await settle(t);
+      await t.tap(find.text('Move to group'));
+      await settle(t);
+      await t.tap(find.text('No group'));
+      await settle(t);
+      expect(patched, isEmpty);
+
+      await t.tap(find.byType(PopupMenuButton<String>).last);
+      await settle(t);
+      await t.tap(find.text('Move to group'));
+      await settle(t);
+      await t.tap(find.descendant(
+          of: find.byType(SimpleDialog), matching: find.text('Class A')));
+      await settle(t);
+      expect(patched.single, contains('"groupId":"g1"'));
+    });
+
+    testWidgets('edit tags and stale tag filter', (t) async {
+      var tagged = true;
+      installApi(extra: {
+        'GET /api/projects': (_) => [
+              proj('p1', 'Alpha', '', tagged ? ['doc'] : ['x'])
+            ],
+        'PATCH /api/projects/p1': (_) {
+          tagged = false;
+          return {'ok': true};
+        },
+      });
+      await pump(t, const ProjectsPage());
+      expect(find.text('doc'), findsWidgets);
+      await t.tap(find.byType(PopupMenuButton<String>));
+      await settle(t);
+      await t.tap(find.text('Edit tags'));
+      await settle(t);
+      await t.tap(find.text('Cancel'));
+      await settle(t);
+      await t.tap(find.byType(FilterChip));
+      await settle(t);
+      await t.tap(find.byType(PopupMenuButton<String>));
+      await settle(t);
+      await t.tap(find.text('Edit tags'));
+      await settle(t);
+      await t.enterText(find.byType(TextField).last, 'x');
+      await t.tap(find.text('OK'));
+      await settle(t);
+      expect(find.text('No projects match this tag.'), findsOneWidget);
+    });
+
+    testWidgets('group and tag errors show snack', (t) async {
+      installApi(extra: {
+        'GET /api/groups': (_) => [
+              {'id': 'g1', 'name': 'Class A'}
+            ],
+        'POST /api/groups': (_) => http.Response('{"error":"dup"}', 409),
+        'PATCH *': (_) => http.Response('{"error":"nope"}', 500),
+        'DELETE *': (_) => http.Response('{"error":"nope"}', 500),
+      });
+      await pump(t, const ProjectsPage());
+      await t.tap(find.text('New group'));
+      await settle(t);
+      await t.enterText(find.byType(TextField).last, 'x');
+      await t.tap(find.text('OK'));
+      await settle(t);
+      expect(find.byType(Notice), findsOneWidget);
+      await t.pumpWidget(const SizedBox());
+
+      installApi(extra: {
+        'GET /api/groups': (_) => [
+              {'id': 'g1', 'name': 'Class A'}
+            ],
+        'PATCH *': (_) => http.Response('{"error":"nope"}', 500),
+        'DELETE *': (_) => http.Response('{"error":"nope"}', 500),
+      });
+      await pump(t, const ProjectsPage());
+      await t.tap(find.byType(PopupMenuButton<String>).first);
+      await settle(t);
+      await t.tap(find.text('Rename'));
+      await settle(t);
+      await t.enterText(find.byType(TextField).last, 'y');
+      await t.tap(find.text('OK'));
+      await settle(t);
+      await t.tap(find.byType(PopupMenuButton<String>).first);
+      await settle(t);
+      await t.tap(find.text('Delete'));
+      await settle(t);
+      await t.tap(find.text('Confirm'));
+      await settle(t);
+      await t.tap(find.byType(PopupMenuButton<String>).last);
+      await settle(t);
+      await t.tap(find.text('Move to group'));
+      await settle(t);
+      await t.tap(find.descendant(
+          of: find.byType(SimpleDialog), matching: find.text('Class A')));
+      await settle(t);
+      await t.tap(find.byType(PopupMenuButton<String>).last);
+      await settle(t);
+      await t.tap(find.text('Edit tags'));
+      await settle(t);
+      await t.enterText(find.byType(TextField).last, 'a');
+      await t.tap(find.text('OK'));
+      await settle(t);
+      expect(find.byType(Notice), findsWidgets);
+    });
+
+    testWidgets('narrow layout hides appbar and spans cards', (t) async {
+      installApi();
+      t.view.physicalSize = const Size(400, 800);
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.reset);
+      await pump(t, const ProjectsPage());
+      expect(find.byType(AppBar), findsNothing);
+      expect(t.getSize(find.byType(Card)).width, greaterThan(340));
+    });
   });
 
   group('ProjectPage', () {

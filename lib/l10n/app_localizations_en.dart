@@ -164,6 +164,38 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get newGroup => 'New group';
+
+  @override
+  String get groupName => 'Group name';
+
+  @override
+  String get ungrouped => 'Ungrouped';
+
+  @override
+  String get noGroup => 'No group';
+
+  @override
+  String get moveToGroup => 'Move to group';
+
+  @override
+  String get renameGroup => 'Rename group';
+
+  @override
+  String deleteGroupBody(Object name) {
+    return 'Delete group \"$name\"? Its projects are kept and become ungrouped.';
+  }
+
+  @override
+  String get editTags => 'Edit tags';
+
+  @override
+  String get tagsHint => 'Tags, comma separated';
+
+  @override
+  String get noMatchingProjects => 'No projects match this tag.';
+
+  @override
   String get files => 'Files';
 
   @override

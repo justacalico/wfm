@@ -57,6 +57,18 @@
   "deleteProjectBody": "删除“{name}”及其所有媒体？此操作无法撤销。",
   "@deleteProjectBody": {"placeholders": {"name": {}}},
 
+  "newGroup": "新建分组",
+  "groupName": "分组名称",
+  "ungrouped": "未分组",
+  "noGroup": "无分组",
+  "moveToGroup": "移动到分组",
+  "renameGroup": "重命名分组",
+  "deleteGroupBody": "删除分组“{name}”？其中的项目会保留并变为未分组。",
+  "@deleteGroupBody": {"placeholders": {"name": {}}},
+  "editTags": "编辑标签",
+  "tagsHint": "标签，用逗号分隔",
+  "noMatchingProjects": "没有符合此标签的项目。",
+
   "files": "文件",
   "renders": "渲染",
   "emptyFolder": "空文件夹",

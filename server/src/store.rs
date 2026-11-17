@@ -76,8 +76,21 @@ pub trait Db: Send + Sync {
     async fn create_project(&self, p: &Project) -> DbResult<()>;
     async fn project_by_id(&self, id: &str) -> DbResult<Project>;
     async fn projects_by_owner(&self, owner_id: &str) -> DbResult<Vec<Project>>;
-    async fn rename_project(&self, id: &str, display_name: &str) -> DbResult<()>;
+    async fn update_project(
+        &self,
+        id: &str,
+        display_name: &str,
+        group_id: &str,
+        tags: &str,
+    ) -> DbResult<()>;
     async fn delete_project(&self, id: &str) -> DbResult<()>;
+
+    // project groups
+    async fn create_group(&self, g: &ProjectGroup) -> DbResult<()>;
+    async fn group_by_id(&self, id: &str) -> DbResult<ProjectGroup>;
+    async fn groups_by_owner(&self, owner_id: &str) -> DbResult<Vec<ProjectGroup>>;
+    async fn rename_group(&self, id: &str, name: &str) -> DbResult<()>;
+    async fn delete_group(&self, id: &str) -> DbResult<()>;
 
     // locks
     #[allow(dead_code)]

@@ -14,7 +14,7 @@ use crate::auth::{
     self, client_ip, err, login_failed, login_ok, login_throttle, AppState, NodeSession, Session,
 };
 use crate::files::{self, FsError};
-use crate::model::{self, can_manage, Project, RenderJob, RenderSpec, Role, User};
+use crate::model::{self, can_manage, Project, ProjectGroup, RenderJob, RenderSpec, Role, User};
 use crate::store::{DbError, LockOutcome};
 
 fn blob_key(dir: &str, rel: &str) -> String {
@@ -38,7 +38,12 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/projects", get(list_projects).post(create_project))
         .route(
             "/projects/{id}",
-            get(get_project).patch(rename_project).delete(delete_project),
+            get(get_project).patch(update_project).delete(delete_project),
+        )
+        .route("/groups", get(list_groups).post(create_group))
+        .route(
+            "/groups/{id}",
+            patch(rename_group).delete(delete_group),
         )
         .route(
             "/projects/{id}/files",
@@ -561,6 +566,10 @@ struct CreateProjectReq {
     name: String,
     #[serde(default, rename = "displayName")]
     display_name: String,
+    #[serde(default, rename = "groupId")]
+    group_id: String,
+    #[serde(default)]
+    tags: Vec<String>,
 }
 
 async fn create_project(
@@ -585,6 +594,15 @@ async fn create_project(
     } else {
         req.display_name.trim().chars().take(100).collect()
     };
+    let group_id = req.group_id.trim().to_string();
+    if !group_id.is_empty() {
+        match s.db.group_by_id(&group_id).await {
+            Ok(g) if g.owner_id == session.user.id => {}
+            Ok(_) => return err(StatusCode::FORBIDDEN, "not your group"),
+            Err(_) => return err(StatusCode::NOT_FOUND, "no such group"),
+        }
+    }
+    let tags = model::norm_tags(&req.tags);
     let id = model::new_id();
     let dir = files::rel_project_dir(&session.user.username, &session.user.id, &name, &id);
     for f in files::PROJECT_FOLDERS {
@@ -598,6 +616,8 @@ async fn create_project(
         name,
         display_name: display,
         dir,
+        group_id,
+        tags,
         created_at: AppState::now(),
     };
     if let Err(e) = s.db.create_project(&p).await {
@@ -636,28 +656,147 @@ async fn get_project(State(s): State<Arc<AppState>>, session: Session, Path(id):
 }
 
 #[derive(Deserialize)]
-struct RenameReq {
-    #[serde(rename = "displayName")]
-    display_name: String,
+struct UpdateProjectReq {
+    #[serde(default, rename = "displayName")]
+    display_name: Option<String>,
+    #[serde(default, rename = "groupId")]
+    group_id: Option<String>,
+    #[serde(default)]
+    tags: Option<Vec<String>>,
 }
 
-async fn rename_project(
+async fn update_project(
     State(s): State<Arc<AppState>>,
     session: Session,
     Path(id): Path<String>,
-    Json(req): Json<RenameReq>,
+    Json(req): Json<UpdateProjectReq>,
 ) -> Response {
-    if let Err(r) = owned_project(&s, &session, &id).await {
-        return r;
-    }
-    let name: String = req.display_name.trim().chars().take(100).collect();
-    if name.is_empty() {
-        return err(StatusCode::BAD_REQUEST, "empty name");
-    }
-    if let Err(e) = s.db.rename_project(&id, &name).await {
+    let p = match owned_project(&s, &session, &id).await {
+        Ok(p) => p,
+        Err(r) => return r,
+    };
+    let name = match req.display_name {
+        Some(n) => {
+            let n: String = n.trim().chars().take(100).collect();
+            if n.is_empty() {
+                return err(StatusCode::BAD_REQUEST, "empty name");
+            }
+            n
+        }
+        None => p.display_name.clone(),
+    };
+    let group_id = match req.group_id {
+        Some(g) => {
+            let g = g.trim().to_string();
+            if !g.is_empty() {
+                match s.db.group_by_id(&g).await {
+                    Ok(gr) if gr.owner_id == p.owner_id => {}
+                    Ok(_) => return err(StatusCode::FORBIDDEN, "not your group"),
+                    Err(_) => return err(StatusCode::NOT_FOUND, "no such group"),
+                }
+            }
+            g
+        }
+        None => p.group_id.clone(),
+    };
+    let tags = model::norm_tags(req.tags.as_deref().unwrap_or(&p.tags));
+    if let Err(e) = s
+        .db
+        .update_project(&id, &name, &group_id, &model::tags_csv(&tags))
+        .await
+    {
         return db_resp(e);
     }
-    s.audit("project", &session.user, "rename_project", &name, "", "")
+    s.audit("project", &session.user, "update_project", &name, "", "")
+        .await;
+    Json(json!({"ok": true})).into_response()
+}
+
+async fn owned_group(
+    s: &Arc<AppState>,
+    session: &Session,
+    id: &str,
+) -> Result<ProjectGroup, Response> {
+    let g = s
+        .db
+        .group_by_id(id)
+        .await
+        .map_err(|_| err(StatusCode::NOT_FOUND, "no such group"))?;
+    if g.owner_id != session.user.id && session.user.role != Role::Owner {
+        return Err(err(StatusCode::FORBIDDEN, "not your group"));
+    }
+    Ok(g)
+}
+
+async fn list_groups(State(s): State<Arc<AppState>>, session: Session) -> Response {
+    match s.db.groups_by_owner(&session.user.id).await {
+        Ok(groups) => Json(json!(groups)).into_response(),
+        Err(e) => db_resp(e),
+    }
+}
+
+#[derive(Deserialize)]
+struct GroupReq {
+    name: String,
+}
+
+async fn create_group(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Json(req): Json<GroupReq>,
+) -> Response {
+    let name: String = req.name.trim().chars().take(64).collect();
+    if name.is_empty() {
+        return err(StatusCode::BAD_REQUEST, "empty group name");
+    }
+    let g = ProjectGroup {
+        id: model::new_id(),
+        owner_id: session.user.id.clone(),
+        name: name.clone(),
+        created_at: AppState::now(),
+    };
+    if let Err(e) = s.db.create_group(&g).await {
+        return db_resp(e);
+    }
+    s.audit("project", &session.user, "create_group", &name, "", "")
+        .await;
+    Json(json!(g)).into_response()
+}
+
+async fn rename_group(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Path(id): Path<String>,
+    Json(req): Json<GroupReq>,
+) -> Response {
+    if let Err(r) = owned_group(&s, &session, &id).await {
+        return r;
+    }
+    let name: String = req.name.trim().chars().take(64).collect();
+    if name.is_empty() {
+        return err(StatusCode::BAD_REQUEST, "empty group name");
+    }
+    if let Err(e) = s.db.rename_group(&id, &name).await {
+        return db_resp(e);
+    }
+    s.audit("project", &session.user, "rename_group", &name, "", "")
+        .await;
+    Json(json!({"ok": true})).into_response()
+}
+
+async fn delete_group(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Path(id): Path<String>,
+) -> Response {
+    let g = match owned_group(&s, &session, &id).await {
+        Ok(g) => g,
+        Err(r) => return r,
+    };
+    if let Err(e) = s.db.delete_group(&id).await {
+        return db_resp(e);
+    }
+    s.audit("project", &session.user, "delete_group", &g.name, "", "")
         .await;
     Json(json!({"ok": true})).into_response()
 }

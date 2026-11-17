@@ -65,7 +65,7 @@ fn map_err(e: sqlx::Error) -> DbError {
     }
 }
 
-fn row_user(r: impl Row) -> User {
+fn row_user(r: sqlx::postgres::PgRow) -> User {
     let role: i32 = r.get("role");
     User {
         id: r.get("id"),
@@ -83,18 +83,29 @@ fn row_user(r: impl Row) -> User {
     }
 }
 
-fn row_project(r: impl Row) -> Project {
+fn row_project(r: sqlx::postgres::PgRow) -> Project {
     Project {
         id: r.get("id"),
         owner_id: r.get("owner_id"),
         name: r.get("name"),
         display_name: r.get("display_name"),
         dir: r.get("dir"),
+        group_id: r.get("group_id"),
+        tags: tags_split(&r.get::<String, _>("tags")),
         created_at: r.get("created_at"),
     }
 }
 
-fn row_job(r: impl Row) -> RenderJob {
+fn row_group(r: sqlx::postgres::PgRow) -> ProjectGroup {
+    ProjectGroup {
+        id: r.get("id"),
+        owner_id: r.get("owner_id"),
+        name: r.get("name"),
+        created_at: r.get("created_at"),
+    }
+}
+
+fn row_job(r: sqlx::postgres::PgRow) -> RenderJob {
     RenderJob {
         id: r.get("id"),
         project_id: r.get("project_id"),
@@ -112,7 +123,7 @@ fn row_job(r: impl Row) -> RenderJob {
     }
 }
 
-fn row_node(r: impl Row) -> RenderNode {
+fn row_node(r: sqlx::postgres::PgRow) -> RenderNode {
     RenderNode {
         id: r.get("id"),
         name: r.get("name"),
@@ -122,7 +133,7 @@ fn row_node(r: impl Row) -> RenderNode {
     }
 }
 
-fn row_audit(r: impl Row) -> AuditEntry {
+fn row_audit(r: sqlx::postgres::PgRow) -> AuditEntry {
     AuditEntry {
         id: r.get("id"),
         ts: r.get("ts"),
@@ -151,7 +162,10 @@ impl Db for PgDb {
             .bind(name)
             .fetch_one(&self.pool)
             .await
-            .map(|r| (row_user(r), r.get("pass_hash")))
+            .map(|r| {
+                let hash: String = r.get("pass_hash");
+                (row_user(r), hash)
+            })
             .map_err(map_err)
     }
 
@@ -307,13 +321,15 @@ impl Db for PgDb {
 
     async fn create_project(&self, p: &Project) -> DbResult<()> {
         sqlx::query(
-            "INSERT INTO projects(id,owner_id,name,display_name,dir,created_at) VALUES($1,$2,$3,$4,$5,$6)",
+            "INSERT INTO projects(id,owner_id,name,display_name,dir,group_id,tags,created_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8)",
         )
         .bind(&p.id)
         .bind(&p.owner_id)
         .bind(&p.name)
         .bind(&p.display_name)
         .bind(&p.dir)
+        .bind(&p.group_id)
+        .bind(tags_csv(&p.tags))
         .bind(p.created_at)
         .execute(&self.pool)
         .await
@@ -339,9 +355,17 @@ impl Db for PgDb {
             .map_err(map_err)
     }
 
-    async fn rename_project(&self, id: &str, display_name: &str) -> DbResult<()> {
-        sqlx::query("UPDATE projects SET display_name=$1 WHERE id=$2")
+    async fn update_project(
+        &self,
+        id: &str,
+        display_name: &str,
+        group_id: &str,
+        tags: &str,
+    ) -> DbResult<()> {
+        sqlx::query("UPDATE projects SET display_name=$1, group_id=$2, tags=$3 WHERE id=$4")
             .bind(display_name)
+            .bind(group_id)
+            .bind(tags)
             .bind(id)
             .execute(&self.pool)
             .await
@@ -362,6 +386,61 @@ impl Db for PgDb {
             .await
             .map_err(map_err)?;
         sqlx::query("DELETE FROM render_jobs WHERE project_id=$1")
+            .bind(id)
+            .execute(&mut *tx)
+            .await
+            .map_err(map_err)?;
+        tx.commit().await.map_err(map_err)
+    }
+
+    async fn create_group(&self, g: &ProjectGroup) -> DbResult<()> {
+        sqlx::query("INSERT INTO project_groups(id,owner_id,name,created_at) VALUES($1,$2,$3,$4)")
+            .bind(&g.id)
+            .bind(&g.owner_id)
+            .bind(&g.name)
+            .bind(g.created_at)
+            .execute(&self.pool)
+            .await
+            .map(|_| ())
+            .map_err(map_err)
+    }
+
+    async fn group_by_id(&self, id: &str) -> DbResult<ProjectGroup> {
+        sqlx::query("SELECT * FROM project_groups WHERE id=$1")
+            .bind(id)
+            .fetch_one(&self.pool)
+            .await
+            .map(row_group)
+            .map_err(map_err)
+    }
+
+    async fn groups_by_owner(&self, owner_id: &str) -> DbResult<Vec<ProjectGroup>> {
+        sqlx::query("SELECT * FROM project_groups WHERE owner_id=$1 ORDER BY lower(name)")
+            .bind(owner_id)
+            .fetch_all(&self.pool)
+            .await
+            .map(|rows| rows.into_iter().map(row_group).collect())
+            .map_err(map_err)
+    }
+
+    async fn rename_group(&self, id: &str, name: &str) -> DbResult<()> {
+        sqlx::query("UPDATE project_groups SET name=$1 WHERE id=$2")
+            .bind(name)
+            .bind(id)
+            .execute(&self.pool)
+            .await
+            .map(|_| ())
+            .map_err(map_err)
+    }
+
+    async fn delete_group(&self, id: &str) -> DbResult<()> {
+        let mut tx = self.pool.begin().await.map_err(map_err)?;
+        sqlx::query("DELETE FROM project_groups WHERE id=$1")
+            .bind(id)
+            .execute(&mut *tx)
+            .await
+            .map_err(map_err)?;
+        sqlx::query("UPDATE projects SET group_id='' WHERE group_id=$1")
             .bind(id)
             .execute(&mut *tx)
             .await

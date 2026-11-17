@@ -57,6 +57,18 @@
   "deleteProjectBody": "Scrios \"{name}\" agus a mheáin go léir? Ní féidir é seo a chealú.",
   "@deleteProjectBody": {"placeholders": {"name": {}}},
 
+  "newGroup": "Grúpa nua",
+  "groupName": "Ainm an ghrúpa",
+  "ungrouped": "Gan ghrúpa",
+  "noGroup": "Gan ghrúpa",
+  "moveToGroup": "Bog go grúpa",
+  "renameGroup": "Athainmnigh an grúpa",
+  "deleteGroupBody": "Scrios an grúpa \"{name}\"? Coinnítear na tionscadail gan ghrúpa.",
+  "@deleteGroupBody": {"placeholders": {"name": {}}},
+  "editTags": "Cuir clibeanna in eagar",
+  "tagsHint": "Clibeanna, scartha le camóga",
+  "noMatchingProjects": "Níl aon tionscadal leis an gclib seo.",
+
   "files": "Comhaid",
   "renders": "Rindreálacha",
   "emptyFolder": "Fillteán folamh",

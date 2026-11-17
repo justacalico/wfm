@@ -164,6 +164,38 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get newGroup => '新建分组';
+
+  @override
+  String get groupName => '分组名称';
+
+  @override
+  String get ungrouped => '未分组';
+
+  @override
+  String get noGroup => '无分组';
+
+  @override
+  String get moveToGroup => '移动到分组';
+
+  @override
+  String get renameGroup => '重命名分组';
+
+  @override
+  String deleteGroupBody(Object name) {
+    return '删除分组“$name”？其中的项目会保留并变为未分组。';
+  }
+
+  @override
+  String get editTags => '编辑标签';
+
+  @override
+  String get tagsHint => '标签，用逗号分隔';
+
+  @override
+  String get noMatchingProjects => '没有符合此标签的项目。';
+
+  @override
   String get files => '文件';
 
   @override

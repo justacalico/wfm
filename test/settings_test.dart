@@ -38,7 +38,8 @@ void main() {
     expect(p.getInt('theme'), AppTheme.dark.index);
   });
 
-  testWidgets('narrow settings uses popup theme and inline password', (t) async {
+  testWidgets('narrow settings uses popup theme and inline password',
+      (t) async {
     installApi(extra: {'GET *': (_) => []});
     t.view.physicalSize = const Size(400, 800);
     t.view.devicePixelRatio = 1.0;

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'api.dart';
+import 'l10n/app_localizations.dart';
 import 'main.dart';
 import 'platform.dart';
 import 'util.dart';
@@ -13,7 +14,9 @@ class ProjectsPage extends StatefulWidget {
 
 class _ProjectsPageState extends State<ProjectsPage> {
   List<Project>? _items;
+  List<ProjectGroup> _groups = [];
   String _err = '';
+  String? _tagFilter;
 
   @override
   void initState() {
@@ -23,8 +26,11 @@ class _ProjectsPageState extends State<ProjectsPage> {
 
   Future<void> _load() async {
     try {
-      final p = await Api.i.projects();
-      setState(() => _items = p);
+      final res = await Future.wait([Api.i.projects(), Api.i.groups()]);
+      setState(() {
+        _items = res[0] as List<Project>;
+        _groups = res[1] as List<ProjectGroup>;
+      });
     } catch (e) {
       setState(() => _err = '$e');
     }
@@ -42,68 +48,271 @@ class _ProjectsPageState extends State<ProjectsPage> {
     }
   }
 
+  Future<void> _newGroup() async {
+    final name = await promptText(
+        context, context.l10n.newGroup, context.l10n.groupName);
+    if (name == null || name.isEmpty || !mounted) return;
+    try {
+      await Api.i.createGroup(name);
+      _load();
+    } catch (e) {
+      if (mounted) snack(context, e);
+    }
+  }
+
+  Future<void> _renameGroup(ProjectGroup g) async {
+    final name = await promptText(
+        context, context.l10n.renameGroup, context.l10n.groupName, g.name);
+    if (name == null || name.isEmpty || !mounted) return;
+    try {
+      await Api.i.renameGroup(g.id, name);
+      _load();
+    } catch (e) {
+      if (mounted) snack(context, e);
+    }
+  }
+
+  Future<void> _deleteGroup(ProjectGroup g) async {
+    if (!await confirm(
+        context, context.l10n.delete, context.l10n.deleteGroupBody(g.name))) {
+      return;
+    }
+    try {
+      await Api.i.deleteGroup(g.id);
+      _load();
+    } catch (e) {
+      if (mounted) snack(context, e);
+    }
+  }
+
+  Future<void> _moveToGroup(Project p) async {
+    final l10n = context.l10n;
+    final gid = await showDialog<String>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: Text(l10n.moveToGroup),
+        children: [
+          SimpleDialogOption(
+              onPressed: () => Navigator.pop(ctx, ''),
+              child: Text(l10n.noGroup)),
+          for (final g in _groups)
+            SimpleDialogOption(
+                onPressed: () => Navigator.pop(ctx, g.id), child: Text(g.name)),
+        ],
+      ),
+    );
+    if (gid == null || gid == p.groupId || !mounted) return;
+    try {
+      await Api.i.updateProject(p.id, groupId: gid);
+      _load();
+    } catch (e) {
+      if (mounted) snack(context, e);
+    }
+  }
+
+  Future<void> _editTags(Project p) async {
+    final v = await promptText(context, context.l10n.editTags,
+        context.l10n.tagsHint, p.tags.join(', '));
+    if (v == null || !mounted) return;
+    try {
+      await Api.i
+          .updateProject(p.id, tags: [for (final t in v.split(',')) t.trim()]);
+      _load();
+    } catch (e) {
+      if (mounted) snack(context, e);
+    }
+  }
+
+  Widget _card(BuildContext c, AppLocalizations l10n, Project p, bool tight) {
+    return SizedBox(
+      width: tight ? double.infinity : 290,
+      child: Card(
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () => Navigator.of(c)
+              .push(MaterialPageRoute(builder: (_) => ProjectPage(project: p))),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                Expanded(
+                  child: Text(p.displayName,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 16),
+                      overflow: TextOverflow.ellipsis),
+                ),
+                SizedBox(
+                  width: 28,
+                  height: 28,
+                  child: PopupMenuButton<String>(
+                    iconSize: 18,
+                    padding: EdgeInsets.zero,
+                    onSelected: (v) =>
+                        v == 'tags' ? _editTags(p) : _moveToGroup(p),
+                    itemBuilder: (_) => [
+                      PopupMenuItem(value: 'tags', child: Text(l10n.editTags)),
+                      PopupMenuItem(
+                          value: 'group', child: Text(l10n.moveToGroup)),
+                    ],
+                  ),
+                ),
+              ]),
+              Text(l10n.createdAgo(fmtAgo(l10n, p.createdAt)),
+                  style: Theme.of(c).textTheme.bodySmall),
+              if (p.tags.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Wrap(spacing: 6, runSpacing: 6, children: [
+                    for (final t in p.tags) tagChip(context, t),
+                  ]),
+                ),
+              TextButton.icon(
+                onPressed: () {
+                  try {
+                    openExternal(Api.i.projectUrl(p.id));
+                  } catch (e) {
+                    if (c.mounted) snack(c, e);
+                  }
+                },
+                icon: const Icon(Icons.open_in_new, size: 16),
+                label: Text(l10n.openInFilmcraft),
+              ),
+            ]),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     if (_err.isNotEmpty) return Center(child: Text(_err));
     final items = _items;
+    final tight = MediaQuery.sizeOf(context).width < 720;
+    final filtered = [
+      for (final p in items ?? <Project>[])
+        if (_tagFilter == null || p.tags.contains(_tagFilter)) p,
+    ];
+    final allTags = {
+      for (final p in items ?? <Project>[]) ...p.tags,
+    }.toList()
+      ..sort();
+    final byGroup = <String, List<Project>>{};
+    for (final p in filtered) {
+      byGroup.putIfAbsent(p.groupId, () => []).add(p);
+    }
+    final orphans = [
+      for (final e in byGroup.entries)
+        if (e.key.isNotEmpty && !_groups.any((g) => g.id == e.key)) ...e.value,
+    ];
+    final ungrouped = [...?byGroup[''], ...orphans];
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.projects)),
+      appBar: tight ? null : AppBar(title: Text(l10n.projects)),
       floatingActionButton: FloatingActionButton.extended(
           onPressed: _create,
           icon: const Icon(Icons.add),
           label: Text(l10n.newProject)),
       body: items == null
           ? const Center(child: CircularProgressIndicator())
-          : items.isEmpty
-              ? Center(child: Text(l10n.noProjects))
-              : GridView.builder(
-                  padding: const EdgeInsets.all(16),
-                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                      maxCrossAxisExtent: 280,
-                      mainAxisExtent: 170,
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 12),
-                  itemCount: items.length,
-                  itemBuilder: (c, i) {
-                    final p = items[i];
-                    return Card(
-                      clipBehavior: Clip.antiAlias,
-                      child: InkWell(
-                        onTap: () => Navigator.of(c).push(MaterialPageRoute(
-                            builder: (_) => ProjectPage(project: p))),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(p.displayName,
-                                    style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16),
-                                    overflow: TextOverflow.ellipsis),
-                                Text(l10n.createdAgo(fmtAgo(l10n, p.createdAt)),
-                                    style: Theme.of(c).textTheme.bodySmall),
-                                const Spacer(),
-                                TextButton.icon(
-                                  onPressed: () {
-                                    try {
-                                      openExternal(Api.i.projectUrl(p.id));
-                                    } catch (e) {
-                                      if (c.mounted) snack(c, e);
-                                    }
-                                  },
-                                  icon: const Icon(Icons.open_in_new, size: 16),
-                                  label: Text(l10n.openInFilmcraft),
-                                ),
-                              ]),
-                        ),
-                      ),
-                    );
-                  },
+          : ListView(padding: const EdgeInsets.all(16), children: [
+              Row(children: [
+                if (allTags.isNotEmpty)
+                  Expanded(
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(children: [
+                        for (final t in allTags)
+                          Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: FilterChip(
+                              label: Text(t),
+                              selected: _tagFilter == t,
+                              onSelected: (v) =>
+                                  setState(() => _tagFilter = v ? t : null),
+                            ),
+                          ),
+                      ]),
+                    ),
+                  )
+                else
+                  const Spacer(),
+                TextButton.icon(
+                  onPressed: _newGroup,
+                  icon: const Icon(Icons.create_new_folder_outlined, size: 18),
+                  label: Text(l10n.newGroup),
                 ),
+              ]),
+              const SizedBox(height: 8),
+              if (items.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 60),
+                  child: Center(child: Text(l10n.noProjects)),
+                )
+              else if (filtered.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 60),
+                  child: Center(child: Text(l10n.noMatchingProjects)),
+                )
+              else ...[
+                for (final g in _groups) ...[
+                  _groupHeader(l10n, g),
+                  Wrap(spacing: 12, runSpacing: 12, children: [
+                    for (final p in byGroup[g.id] ?? <Project>[])
+                      _card(context, l10n, p, tight),
+                  ]),
+                ],
+                if (_groups.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8, bottom: 4),
+                    child: Text(l10n.ungrouped,
+                        style: Theme.of(context).textTheme.titleSmall),
+                  ),
+                Wrap(spacing: 12, runSpacing: 12, children: [
+                  for (final p in ungrouped) _card(context, l10n, p, tight),
+                ]),
+              ],
+            ]),
     );
   }
+
+  Widget _groupHeader(AppLocalizations l10n, ProjectGroup g) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 8, bottom: 4),
+      child: Row(children: [
+        const Icon(Icons.folder_outlined, size: 18),
+        const SizedBox(width: 8),
+        Expanded(
+            child: Text(g.name, style: Theme.of(context).textTheme.titleSmall)),
+        SizedBox(
+          width: 28,
+          height: 28,
+          child: PopupMenuButton<String>(
+            iconSize: 18,
+            padding: EdgeInsets.zero,
+            onSelected: (v) =>
+                v == 'rename' ? _renameGroup(g) : _deleteGroup(g),
+            itemBuilder: (_) => [
+              PopupMenuItem(value: 'rename', child: Text(l10n.rename)),
+              PopupMenuItem(value: 'delete', child: Text(l10n.delete)),
+            ],
+          ),
+        ),
+      ]),
+    );
+  }
+}
+
+Widget tagChip(BuildContext context, String t) {
+  final c = Theme.of(context).colorScheme;
+  return Container(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+    decoration: BoxDecoration(
+        color: c.secondaryContainer, borderRadius: BorderRadius.circular(12)),
+    child:
+        Text(t, style: TextStyle(fontSize: 11, color: c.onSecondaryContainer)),
+  );
 }
 
 class ProjectPage extends StatefulWidget {
@@ -122,11 +331,13 @@ class _ProjectPageState extends State<ProjectPage> {
         context.l10n.displayName, _p.displayName);
     if (name == null || name.isEmpty || !mounted) return;
     try {
-      await Api.i.renameProject(_p.id, name);
+      await Api.i.updateProject(_p.id, displayName: name);
       setState(() => _p = Project.fromJson({
             'id': _p.id,
             'name': _p.name,
             'displayName': name,
+            'groupId': _p.groupId,
+            'tags': _p.tags,
             'createdAt': _p.createdAt
           }));
     } catch (e) {

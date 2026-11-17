@@ -392,6 +392,66 @@ abstract class AppLocalizations {
   /// **'Delete \"{name}\" and all of its media? This cannot be undone.'**
   String deleteProjectBody(Object name);
 
+  /// No description provided for @newGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'New group'**
+  String get newGroup;
+
+  /// No description provided for @groupName.
+  ///
+  /// In en, this message translates to:
+  /// **'Group name'**
+  String get groupName;
+
+  /// No description provided for @ungrouped.
+  ///
+  /// In en, this message translates to:
+  /// **'Ungrouped'**
+  String get ungrouped;
+
+  /// No description provided for @noGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'No group'**
+  String get noGroup;
+
+  /// No description provided for @moveToGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Move to group'**
+  String get moveToGroup;
+
+  /// No description provided for @renameGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename group'**
+  String get renameGroup;
+
+  /// No description provided for @deleteGroupBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete group \"{name}\"? Its projects are kept and become ungrouped.'**
+  String deleteGroupBody(Object name);
+
+  /// No description provided for @editTags.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit tags'**
+  String get editTags;
+
+  /// No description provided for @tagsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Tags, comma separated'**
+  String get tagsHint;
+
+  /// No description provided for @noMatchingProjects.
+  ///
+  /// In en, this message translates to:
+  /// **'No projects match this tag.'**
+  String get noMatchingProjects;
+
   /// No description provided for @files.
   ///
   /// In en, this message translates to:

@@ -57,6 +57,18 @@
   "deleteProjectBody": "Delete \"{name}\" and all of its media? This cannot be undone.",
   "@deleteProjectBody": {"placeholders": {"name": {}}},
 
+  "newGroup": "New group",
+  "groupName": "Group name",
+  "ungrouped": "Ungrouped",
+  "noGroup": "No group",
+  "moveToGroup": "Move to group",
+  "renameGroup": "Rename group",
+  "deleteGroupBody": "Delete group \"{name}\"? Its projects are kept and become ungrouped.",
+  "@deleteGroupBody": {"placeholders": {"name": {}}},
+  "editTags": "Edit tags",
+  "tagsHint": "Tags, comma separated",
+  "noMatchingProjects": "No projects match this tag.",
+
   "files": "Files",
   "renders": "Renders",
   "emptyFolder": "Empty folder",

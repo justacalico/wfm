@@ -165,6 +165,38 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
+  String get newGroup => 'Новая группа';
+
+  @override
+  String get groupName => 'Название группы';
+
+  @override
+  String get ungrouped => 'Без группы';
+
+  @override
+  String get noGroup => 'Без группы';
+
+  @override
+  String get moveToGroup => 'Переместить в группу';
+
+  @override
+  String get renameGroup => 'Переименовать группу';
+
+  @override
+  String deleteGroupBody(Object name) {
+    return 'Удалить группу «$name»? Проекты сохранятся без группы.';
+  }
+
+  @override
+  String get editTags => 'Изменить теги';
+
+  @override
+  String get tagsHint => 'Теги через запятую';
+
+  @override
+  String get noMatchingProjects => 'Нет проектов с этим тегом.';
+
+  @override
   String get files => 'Файлы';
 
   @override

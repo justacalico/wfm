@@ -91,8 +91,47 @@ pub struct Project {
     pub display_name: String,
     #[serde(skip)]
     pub dir: String,
+    #[serde(rename = "groupId")]
+    pub group_id: String,
+    pub tags: Vec<String>,
     #[serde(rename = "createdAt")]
     pub created_at: i64,
+}
+
+#[derive(Clone, Serialize)]
+pub struct ProjectGroup {
+    pub id: String,
+    #[serde(skip)]
+    pub owner_id: String,
+    pub name: String,
+    #[serde(skip)]
+    pub created_at: i64,
+}
+
+/// Normalize tag input: trim, lowercase, dedupe, cap length and count.
+pub fn norm_tags(tags: &[String]) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for t in tags {
+        let t: String = t.trim().to_lowercase().chars().take(32).collect();
+        if !t.is_empty() && !out.contains(&t) {
+            out.push(t);
+        }
+        if out.len() >= 12 {
+            break;
+        }
+    }
+    out
+}
+
+pub fn tags_csv(tags: &[String]) -> String {
+    tags.join(",")
+}
+
+pub fn tags_split(csv: &str) -> Vec<String> {
+    csv.split(',')
+        .map(|t| t.trim().to_string())
+        .filter(|t| !t.is_empty())
+        .collect()
 }
 
 #[derive(Clone, Serialize)]

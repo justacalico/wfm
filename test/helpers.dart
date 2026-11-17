@@ -69,6 +69,7 @@ FakeClient sessionClient({Map<String, dynamic> extra = const {}}) =>
               'createdAt': 1700000000
             },
           ],
+      'GET /api/groups': (_) => [],
       'GET /api/projects/p1/files': (_) => [
             {'name': 'Raw', 'path': 'Raw', 'type': 'dir'},
             {

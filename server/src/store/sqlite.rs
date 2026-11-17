@@ -122,6 +122,8 @@ fn map_user(r: &rusqlite::Row<'_>) -> rusqlite::Result<User> {
 const USER_COLS: &str =
     "id,username,display_name,pass_hash,role,student_id,note,disabled,created_by,lineage,created_at,last_login";
 
+const PROJECT_COLS: &str = "id,owner_id,name,display_name,dir,group_id,tags,created_at";
+
 fn map_project(r: &rusqlite::Row<'_>) -> rusqlite::Result<Project> {
     Ok(Project {
         id: r.get(0)?,
@@ -129,7 +131,18 @@ fn map_project(r: &rusqlite::Row<'_>) -> rusqlite::Result<Project> {
         name: r.get(2)?,
         display_name: r.get(3)?,
         dir: r.get(4)?,
-        created_at: r.get(5)?,
+        group_id: r.get(5)?,
+        tags: tags_split(&r.get::<_, String>(6)?),
+        created_at: r.get(7)?,
+    })
+}
+
+fn map_group(r: &rusqlite::Row<'_>) -> rusqlite::Result<ProjectGroup> {
+    Ok(ProjectGroup {
+        id: r.get(0)?,
+        owner_id: r.get(1)?,
+        name: r.get(2)?,
+        created_at: r.get(3)?,
     })
 }
 
@@ -364,8 +377,8 @@ impl Db for SqliteDb {
         let p = p.clone();
         self.q(move |c| {
                 c.execute(
-                    "INSERT INTO projects(id,owner_id,name,display_name,dir,created_at) VALUES(?,?,?,?,?,?)",
-                    params![p.id, p.owner_id, p.name, p.display_name, p.dir, p.created_at],
+                    "INSERT INTO projects(id,owner_id,name,display_name,dir,group_id,tags,created_at) VALUES(?,?,?,?,?,?,?,?)",
+                    params![p.id, p.owner_id, p.name, p.display_name, p.dir, p.group_id, tags_csv(&p.tags), p.created_at],
                 )
             })
             .await
@@ -377,7 +390,7 @@ impl Db for SqliteDb {
         let id = id.to_string();
         self.q(move |c| {
                 c.query_row(
-                    "SELECT id,owner_id,name,display_name,dir,created_at FROM projects WHERE id=?",
+                    &format!("SELECT {PROJECT_COLS} FROM projects WHERE id=?"),
                     [id],
                     map_project,
                 )
@@ -390,7 +403,7 @@ impl Db for SqliteDb {
         let oid = owner_id.to_string();
         self.q(move |c| {
                 let mut st = c.prepare(
-                    "SELECT id,owner_id,name,display_name,dir,created_at FROM projects WHERE owner_id=? ORDER BY created_at DESC",
+                    &format!("SELECT {PROJECT_COLS} FROM projects WHERE owner_id=? ORDER BY created_at DESC"),
                 )?;
                 let rows = st.query_map([oid], map_project)?;
                 rows.collect::<rusqlite::Result<Vec<_>>>()
@@ -399,12 +412,23 @@ impl Db for SqliteDb {
             .map_err(dberr)
     }
 
-    async fn rename_project(&self, id: &str, display_name: &str) -> DbResult<()> {
-        let (id, name) = (id.to_string(), display_name.to_string());
+    async fn update_project(
+        &self,
+        id: &str,
+        display_name: &str,
+        group_id: &str,
+        tags: &str,
+    ) -> DbResult<()> {
+        let (id, name, gid, tags) = (
+            id.to_string(),
+            display_name.to_string(),
+            group_id.to_string(),
+            tags.to_string(),
+        );
         self.q(move |c| {
                 c.execute(
-                    "UPDATE projects SET display_name=? WHERE id=?",
-                    params![name, id],
+                    "UPDATE projects SET display_name=?, group_id=?, tags=? WHERE id=?",
+                    params![name, gid, tags, id],
                 )
             })
             .await
@@ -419,6 +443,70 @@ impl Db for SqliteDb {
                 tx.execute("DELETE FROM projects WHERE id=?", [&id])?;
                 tx.execute("DELETE FROM locks WHERE project_id=?", [&id])?;
                 tx.execute("DELETE FROM render_jobs WHERE project_id=?", [&id])?;
+                tx.commit()
+            })
+            .await
+            .map_err(dberr)
+    }
+
+    async fn create_group(&self, g: &ProjectGroup) -> DbResult<()> {
+        let g = g.clone();
+        self.q(move |c| {
+                c.execute(
+                    "INSERT INTO project_groups(id,owner_id,name,created_at) VALUES(?,?,?,?)",
+                    params![g.id, g.owner_id, g.name, g.created_at],
+                )
+            })
+            .await
+            .map(|_| ())
+            .map_err(dberr)
+    }
+
+    async fn group_by_id(&self, id: &str) -> DbResult<ProjectGroup> {
+        let id = id.to_string();
+        self.q(move |c| {
+                c.query_row(
+                    "SELECT id,owner_id,name,created_at FROM project_groups WHERE id=?",
+                    [id],
+                    map_group,
+                )
+            })
+            .await
+            .map_err(dberr)
+    }
+
+    async fn groups_by_owner(&self, owner_id: &str) -> DbResult<Vec<ProjectGroup>> {
+        let oid = owner_id.to_string();
+        self.q(move |c| {
+                let mut st = c.prepare(
+                    "SELECT id,owner_id,name,created_at FROM project_groups WHERE owner_id=? ORDER BY name COLLATE NOCASE",
+                )?;
+                let rows = st.query_map([oid], map_group)?;
+                rows.collect::<rusqlite::Result<Vec<_>>>()
+            })
+            .await
+            .map_err(dberr)
+    }
+
+    async fn rename_group(&self, id: &str, name: &str) -> DbResult<()> {
+        let (id, name) = (id.to_string(), name.to_string());
+        self.q(move |c| {
+                c.execute(
+                    "UPDATE project_groups SET name=? WHERE id=?",
+                    params![name, id],
+                )
+            })
+            .await
+            .map(|_| ())
+            .map_err(dberr)
+    }
+
+    async fn delete_group(&self, id: &str) -> DbResult<()> {
+        let id = id.to_string();
+        self.q(move |c| {
+                let tx = c.transaction()?;
+                tx.execute("DELETE FROM project_groups WHERE id=?", [&id])?;
+                tx.execute("UPDATE projects SET group_id='' WHERE group_id=?", [&id])?;
                 tx.commit()
             })
             .await
