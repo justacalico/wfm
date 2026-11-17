@@ -282,6 +282,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get newAccount => 'Новая учётная запись';
 
   @override
+  String get editAccount => 'Изменить учётную запись';
+
+  @override
   String get name => 'Имя';
 
   @override

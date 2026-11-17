@@ -100,6 +100,7 @@
   "activity": "动态",
   "renderNodes": "渲染节点",
   "newAccount": "新建账户",
+  "editAccount": "编辑账户",
   "name": "姓名",
   "role": "角色",
   "studentIdOptional": "学号（可选）",

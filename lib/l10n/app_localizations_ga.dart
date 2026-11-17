@@ -282,6 +282,9 @@ class AppLocalizationsGa extends AppLocalizations {
   String get newAccount => 'Cuntas nua';
 
   @override
+  String get editAccount => 'Cuir an cuntas in eagar';
+
+  @override
   String get name => 'Ainm';
 
   @override

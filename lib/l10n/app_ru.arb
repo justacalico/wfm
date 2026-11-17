@@ -100,6 +100,7 @@
   "activity": "Активность",
   "renderNodes": "Узлы рендера",
   "newAccount": "Новая учётная запись",
+  "editAccount": "Изменить учётную запись",
   "name": "Имя",
   "role": "Роль",
   "studentIdOptional": "ID студента (необязательно)",

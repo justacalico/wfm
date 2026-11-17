@@ -602,6 +602,12 @@ abstract class AppLocalizations {
   /// **'New account'**
   String get newAccount;
 
+  /// No description provided for @editAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit account'**
+  String get editAccount;
+
   /// No description provided for @name.
   ///
   /// In en, this message translates to:

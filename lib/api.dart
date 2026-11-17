@@ -296,6 +296,9 @@ class Api {
   Future<User> createAccount(Map<String, dynamic> body) async =>
       User.fromJson(await post('/accounts', body));
 
+  Future<User> updateAccount(String id, Map<String, dynamic> body) async =>
+      User.fromJson(await patch('/accounts/$id', body));
+
   Future<void> resetPassword(String id, String password) =>
       post('/accounts/$id/password', {'password': password});
 

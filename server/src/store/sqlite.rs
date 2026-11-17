@@ -244,6 +244,26 @@ impl Db for SqliteDb {
             .map_err(dberr)
     }
 
+    async fn update_user(&self, u: &User) -> DbResult<()> {
+        let u = u.clone();
+        self.q(move |c| {
+                c.execute(
+                    "UPDATE users SET username=?, display_name=?, role=?, student_id=?, note=? WHERE id=?",
+                    params![
+                        u.username,
+                        u.display_name,
+                        u.role as i64,
+                        u.student_id,
+                        u.note,
+                        u.id
+                    ],
+                )
+            })
+            .await
+            .map(|_| ())
+            .map_err(dberr)
+    }
+
     async fn set_user_disabled(&self, id: &str, disabled: bool) -> DbResult<()> {
         let id = id.to_string();
         self.q(move |c| {

@@ -127,6 +127,75 @@ class _AccountsTabState extends State<AccountsTab> {
     }
   }
 
+  Future<void> _edit(User u) async {
+    final l10n = context.l10n;
+    final name = TextEditingController(text: u.name),
+        user = TextEditingController(text: u.username),
+        sid = TextEditingController(text: u.studentId),
+        note = TextEditingController(text: u.note);
+    final roles = [...Api.i.caps.creatable];
+    if (!roles.contains(u.role)) roles.add(u.role);
+    String role = u.role;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, ss) => AlertDialog(
+          scrollable: true,
+          title: Text(l10n.editAccount),
+          content: SizedBox(
+            width: 340,
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              TextField(controller: name, decoration: dec(l10n.name)),
+              const SizedBox(height: 8),
+              TextField(controller: user, decoration: dec(l10n.username)),
+              const SizedBox(height: 8),
+              if (roles.length > 1) ...[
+                DropdownButtonFormField<String>(
+                  initialValue: role,
+                  decoration: dec(l10n.role),
+                  items: [
+                    for (final r in roles)
+                      DropdownMenuItem(value: r, child: Text(r))
+                  ],
+                  onChanged: (v) => ss(() => role = v!),
+                ),
+                const SizedBox(height: 8),
+              ],
+              TextField(
+                  controller: sid, decoration: dec(l10n.studentIdOptional)),
+              const SizedBox(height: 8),
+              TextField(
+                  controller: note,
+                  maxLength: 20,
+                  decoration: dec(l10n.noteOptional)),
+            ]),
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: Text(l10n.cancel)),
+            FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: Text(l10n.save)),
+          ],
+        ),
+      ),
+    );
+    if (ok != true || !mounted) return;
+    try {
+      await Api.i.updateAccount(u.id, {
+        'username': user.text.trim(),
+        'name': name.text.trim(),
+        'role': role,
+        'studentId': sid.text.trim(),
+        'note': note.text.trim(),
+      });
+      _load();
+    } catch (e) {
+      if (mounted) snack(context, e);
+    }
+  }
+
   Future<void> _reset(User u) async {
     final pw = await promptText(context,
         context.l10n.resetPasswordTitle(u.username), context.l10n.newPassword);
@@ -166,6 +235,10 @@ class _AccountsTabState extends State<AccountsTab> {
                       '${u.username}${u.studentId.isNotEmpty ? " · ${u.studentId}" : ""}${u.note.isNotEmpty ? " · ${u.note}" : ""}',
                       fmtAgo(l10n, u.lastLogin))),
                   trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                    IconButton(
+                        icon: const Icon(Icons.edit_outlined),
+                        tooltip: l10n.editAccount,
+                        onPressed: () => _edit(u)),
                     IconButton(
                         icon: const Icon(Icons.key),
                         tooltip: l10n.resetPassword,

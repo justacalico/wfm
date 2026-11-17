@@ -281,6 +281,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get newAccount => '新建账户';
 
   @override
+  String get editAccount => '编辑账户';
+
+  @override
   String get name => '姓名';
 
   @override

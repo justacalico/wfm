@@ -262,6 +262,7 @@ void main() {
       final api = Api(client({
         'GET /api/accounts': [userJson],
         'POST /api/accounts': userJson,
+        'PATCH /api/accounts/u1': userJson,
         'POST /api/accounts/u1/password': {'ok': true},
         'POST /api/accounts/u1/status': {'ok': true},
         'POST /api/me/password': {'ok': true},
@@ -277,6 +278,8 @@ void main() {
       }));
       expect((await api.accounts()).single.username, 'ada');
       expect((await api.createAccount({'username': 'x'})).username, 'ada');
+      expect((await api.updateAccount('u1', {'name': 'Ada'})).id, 'u1');
+      expect(jsonDecode(lastRequest!.body)['name'], 'Ada');
       await api.resetPassword('u1', 'pw');
       expect(jsonDecode(lastRequest!.body)['password'], 'pw');
       await api.setDisabled('u1', true);

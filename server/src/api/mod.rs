@@ -32,6 +32,7 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/me/password", post(change_password))
         .route("/roles", get(roles))
         .route("/accounts", get(list_accounts).post(create_account))
+        .route("/accounts/{id}", patch(update_account))
         .route("/accounts/{id}/password", post(reset_password))
         .route("/accounts/{id}/status", post(set_status))
         .route("/audit", get(audit))
@@ -506,6 +507,92 @@ async fn set_status(
     )
     .await;
     Json(json!({"ok": true})).into_response()
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct UpdateAccountReq {
+    username: Option<String>,
+    name: Option<String>,
+    role: Option<String>,
+    student_id: Option<String>,
+    note: Option<String>,
+}
+
+async fn update_account(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Path(id): Path<String>,
+    Json(req): Json<UpdateAccountReq>,
+) -> Response {
+    let mut target = match require_manager(&s, &session, &id).await {
+        Ok(t) => t,
+        Err(r) => return r,
+    };
+    let mut detail: Vec<&str> = Vec::new();
+    if let Some(username) = req.username {
+        let username = username.trim();
+        if !model::valid_username(username) {
+            return err(StatusCode::BAD_REQUEST, "invalid username");
+        }
+        if username != target.username {
+            target.username = username.to_string();
+            detail.push("username");
+        }
+    }
+    if let Some(name) = req.name {
+        let name = name.trim();
+        if name.is_empty() || name.len() > 64 {
+            return err(StatusCode::BAD_REQUEST, "invalid name");
+        }
+        if name != target.display_name {
+            target.display_name = name.to_string();
+            detail.push("name");
+        }
+    }
+    if let Some(role) = req.role {
+        let role = match Role::parse(&role) {
+            Some(r) if r < session.user.role && r != Role::Owner => r,
+            _ => return err(StatusCode::BAD_REQUEST, "cannot set that role"),
+        };
+        if role != target.role {
+            target.role = role;
+            target.role_name = role.as_str().into();
+            detail.push("role");
+        }
+    }
+    if let Some(student_id) = req.student_id {
+        let student_id: String = student_id.trim().chars().take(32).collect();
+        if student_id != target.student_id {
+            target.student_id = student_id;
+            detail.push("studentId");
+        }
+    }
+    if let Some(note) = req.note {
+        let note: String = note.chars().take(20).collect();
+        if note != target.note {
+            target.note = note;
+            detail.push("note");
+        }
+    }
+    if !detail.is_empty() {
+        if let Err(e) = s.db.update_user(&target).await {
+            return match e {
+                DbError::Conflict => err(StatusCode::CONFLICT, "username taken"),
+                other => db_resp(other),
+            };
+        }
+        s.audit(
+            "account",
+            &session.user,
+            "update_account",
+            &target.username,
+            &detail.join(","),
+            &target.lineage,
+        )
+        .await;
+    }
+    Json(json!(target)).into_response()
 }
 
 #[derive(Deserialize)]

@@ -140,6 +140,56 @@ void main() {
       expect(find.byType(Notice), findsOneWidget);
     });
 
+    testWidgets('edit account dialog', (t) async {
+      String? body;
+      installApi(extra: {
+        'PATCH /api/accounts/u1': (req) {
+          body = req.body;
+          return userJson;
+        },
+      });
+      await pump(t, const AccountsTab());
+      await t.tap(find.byIcon(Icons.edit_outlined).first);
+      await settle(t);
+      expect(find.text('Edit account'), findsOneWidget);
+      await t.enterText(find.byType(TextField).at(0), 'Ada L');
+      await t.enterText(find.byType(TextField).at(1), 'ada2');
+      await t.tap(find.byType(DropdownButtonFormField<String>));
+      await settle(t);
+      await t.tap(find.text('mod').last);
+      await settle(t);
+      await t.enterText(find.byType(TextField).at(2), 'S99');
+      await t.enterText(find.byType(TextField).at(3), 'hi');
+      await t.tap(find.text('Save'));
+      await settle(t);
+      expect(body, contains('"username":"ada2"'));
+      expect(body, contains('"role":"mod"'));
+      expect(body, contains('S99'));
+    });
+
+    testWidgets('edit account cancel, error, and hidden role', (t) async {
+      installApi(extra: {
+        'PATCH *': (_) => http.Response('{"error":"denied"}', 403),
+      });
+      await pump(t, const AccountsTab());
+      await t.tap(find.byIcon(Icons.edit_outlined).first);
+      await settle(t);
+      await t.tap(find.text('Cancel'));
+      await settle(t);
+      expect(find.byType(AlertDialog), findsNothing);
+      await t.tap(find.byIcon(Icons.edit_outlined).first);
+      await settle(t);
+      await t.tap(find.text('Save'));
+      await settle(t);
+      expect(find.byType(Notice), findsOneWidget);
+      Api.i.caps = Caps.fromJson({'creatable': [], 'canManage': true});
+      await t.tap(find.byIcon(Icons.edit_outlined).last);
+      await settle(t);
+      expect(find.byType(DropdownButtonFormField<String>), findsNothing);
+      await t.tap(find.text('Cancel'));
+      await settle(t);
+    });
+
     testWidgets('error state and no fab without creatable', (t) async {
       installApi(extra: {
         'GET /api/accounts': (_) => http.Response('{"error":"nope"}', 500)

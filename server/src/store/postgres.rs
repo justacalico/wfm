@@ -202,6 +202,22 @@ impl Db for PgDb {
             .map_err(map_err)
     }
 
+    async fn update_user(&self, u: &User) -> DbResult<()> {
+        sqlx::query(
+            "UPDATE users SET username=$1, display_name=$2, role=$3, student_id=$4, note=$5 WHERE id=$6",
+        )
+        .bind(&u.username)
+        .bind(&u.display_name)
+        .bind(u.role as i32)
+        .bind(&u.student_id)
+        .bind(&u.note)
+        .bind(&u.id)
+        .execute(&self.pool)
+        .await
+        .map(|_| ())
+        .map_err(map_err)
+    }
+
     async fn set_user_disabled(&self, id: &str, disabled: bool) -> DbResult<()> {
         sqlx::query("UPDATE users SET disabled=$1 WHERE id=$2")
             .bind(disabled as i32)

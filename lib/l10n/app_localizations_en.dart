@@ -281,6 +281,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get newAccount => 'New account';
 
   @override
+  String get editAccount => 'Edit account';
+
+  @override
   String get name => 'Name';
 
   @override
