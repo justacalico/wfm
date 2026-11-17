@@ -2,6 +2,18 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.2.0 - 2026-11-17
+#### Features
+- 项目分组与标签 - (d0b2d7a) - calico
+#### Bug Fixes
+- 窄屏设置页布局修正 - (c85c2d5) - calico
+- 移动端首页卡片铺满宽度 - (bd6c137) - calico
+- 窄屏下主题切换改为弹出菜单 - (8f1d14a) - calico
+- 修复主题切换与通知样式 - (9c37f4e) - calico
+- 登录前界面与通知提示优化 - (8ad7608) - calico
+
+- - -
+
 ## v0.1.2 - 2026-11-16
 #### Bug Fixes
 - 前端资源全部改为同源加载 - (ae127cd) - calico
