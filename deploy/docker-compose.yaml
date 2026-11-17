@@ -1,0 +1,33 @@
+services:
+  wfm:
+    image: registry.gitlab.com/httpanimations/wfm:latest
+    restart: unless-stopped
+    environment:
+      WFM_MEDIA: ${WFM_MEDIA:-local}
+      WFM_SECURE_COOKIES: ${WFM_SECURE_COOKIES:-false}
+      WFM_MAX_UPLOAD_MB: ${WFM_MAX_UPLOAD_MB:-4096}
+      WFM_SESSION_DAYS: ${WFM_SESSION_DAYS:-7}
+      WFM_S3_ENDPOINT: ${WFM_S3_ENDPOINT:-http://rustfs:9000}
+      WFM_S3_BUCKET: ${WFM_S3_BUCKET:-wfm}
+      WFM_S3_ACCESS_KEY: ${S3_ACCESS_KEY:-}
+      WFM_S3_SECRET_KEY: ${S3_SECRET_KEY:-}
+    volumes:
+      - wfm-data:/data
+    ports:
+      - "${WFM_PORT:-8080}:8080"
+
+volumes:
+  wfm-data:
+
+# Optional S3 storage: set WFM_MEDIA=s3 and uncomment the service below,
+# then set WFM_S3_ENDPOINT=http://rustfs:9000 plus S3_ACCESS_KEY and
+# S3_SECRET_KEY in a .env file next to this file.
+#
+#   rustfs:
+#     image: rustfs/rustfs:latest
+#     restart: unless-stopped
+#     environment:
+#       RUSTFS_ACCESS_KEY: ${S3_ACCESS_KEY:?set in .env}
+#       RUSTFS_SECRET_KEY: ${S3_SECRET_KEY:?set in .env}
+#     volumes:
+#       - rustfs-data:/data

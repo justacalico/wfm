@@ -28,13 +28,44 @@ and queue renders on the server. Teachers manage accounts, roles and the audit l
 
 ## Quick start (Docker)
 
+Prebuilt images live in GitLab's container registry (built on every push to
+`main` and every release tag). One container, one volume:
+
+```sh
+docker run -d --name wfm -p 8080:8080 -v wfm-data:/data \
+  registry.gitlab.com/httpanimations/wfm:latest
+```
+
+Open http://localhost:8080 and create the owner account. Everything (SQLite
+database and media files) persists in the `wfm-data` volume.
+
+Or with compose: grab [`deploy/docker-compose.yaml`](deploy/docker-compose.yaml)
+and run `docker compose up -d` next to it. To update later:
+
+```sh
+docker compose pull && docker compose up -d
+```
+
+### TrueNAS SCALE
+
+Apps > Discover Apps > Custom App:
+
+- Image repository: `registry.gitlab.com/httpanimations/wfm`, tag `latest`
+- Port forwarding: container `8080` to a host port you like
+- Storage: a host path (dataset) mounted at `/data`
+
+Everything works out of the box with those three settings. To update, edit
+the app and repull `latest`, or pin a version tag such as `v0.3.0`.
+
+### Build from source
+
+The root `docker-compose.yml` builds the whole stack locally (RustFS plus a
+from-source WFM image, about 40 minutes the first time):
+
 ```sh
 cp .env.example .env   # set real secrets
 docker compose up --build
 ```
-
-This runs RustFS (S3) on :9000 and WFM on :8080. Open http://localhost:8080
-and create the owner account.
 
 ## Quick start (dev)
 
