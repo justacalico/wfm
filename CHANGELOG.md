@@ -2,6 +2,13 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.4.1 - 2026-11-17
+#### Bug Fixes
+- 镜像同步允许强制推送 - (faf8027) - calico
+- 修复发布产物校验步骤 - (7806ca4) - calico
+
+- - -
+
 ## v0.4.0 - 2026-11-17
 #### Features
 - 发布 GitLab 注册表镜像与一键部署 - (8a8fa37) - calico
