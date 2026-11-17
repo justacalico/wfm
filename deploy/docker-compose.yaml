@@ -1,3 +1,5 @@
+# Deploy stack: runs the published image. For a local dev build with
+# bundled S3 storage, use the repository-root docker-compose.yml.
 services:
   wfm:
     image: registry.gitlab.com/httpanimations/wfm:latest
