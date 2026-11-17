@@ -2,6 +2,13 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.4.0 - 2026-11-17
+#### Features
+- 发布 GitLab 注册表镜像与一键部署 - (8a8fa37) - calico
+- 精简 FilmCraft 界面并改用打开按钮 - (44b08d4) - calico
+
+- - -
+
 ## v0.3.0 - 2026-11-17
 #### Features
 - FilmCraft 源码补丁与项目媒体集成 - (ff79110) - calico
