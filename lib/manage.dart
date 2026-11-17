@@ -9,19 +9,20 @@ class ManagePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final tight = MediaQuery.sizeOf(context).width < 720;
     final tabs = <(String, Widget)>[
       if (Api.i.caps.manage) (l10n.accounts, const AccountsTab()),
       if (Api.i.caps.audit) (l10n.activity, const AuditTab()),
       if (Api.i.user?.isAdmin ?? false) (l10n.renderNodes, const NodesTab()),
     ];
     if (tabs.isEmpty) return Center(child: Text(l10n.nothingToManage));
+    final tabBar = TabBar(tabs: [for (final t in tabs) Tab(text: t.$1)]);
+    final PreferredSizeWidget appBar =
+        tight ? tabBar : AppBar(title: Text(l10n.manage), bottom: tabBar);
     return DefaultTabController(
       length: tabs.length,
       child: Scaffold(
-        appBar: AppBar(
-          title: Text(l10n.manage),
-          bottom: TabBar(tabs: [for (final t in tabs) Tab(text: t.$1)]),
-        ),
+        appBar: appBar,
         body: TabBarView(children: [for (final t in tabs) t.$2]),
       ),
     );
