@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.5.1 - 2026-11-17
+#### Bug Fixes
+- 发布卡片链接到 GitLab 发布页面而非 API JSON - (4589dc3) - calico, *Devin*
+
+- - -
+
 ## v0.5.0 - 2026-11-17
 #### Features
 - 用 FilmCraft 引擎替换自定义渲染 - (68ac0a4) - calico
