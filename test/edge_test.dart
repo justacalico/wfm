@@ -482,6 +482,18 @@ void main() {
       await t.pumpWidget(const SizedBox());
     });
 
+    testWidgets('malformed extra json shows a snack', (t) async {
+      await openDialog(t);
+      await t.ensureVisible(find.text('Advanced options'));
+      await t.tap(find.text('Advanced options'));
+      await settle(t);
+      await enter(t, 'Extra export params (JSON)', '{oops');
+      await t.tap(find.text('Render'));
+      await settle(t);
+      expect(find.byType(Notice), findsOneWidget);
+      await t.pumpWidget(const SizedBox());
+    });
+
     testWidgets('submit failure shows a snack', (t) async {
       await openDialog(t, extra: {
         'POST /api/projects/p1/renders': (_) =>

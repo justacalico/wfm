@@ -942,7 +942,13 @@ class _RenderDialogState extends State<RenderDialog> {
     if (_burnCaptions) p['burnCaptions'] = true;
     if (_alpha) p['alpha'] = true;
     if (_extra.text.trim().isNotEmpty) {
-      final v = jsonDecode(_extra.text.trim());
+      final Object? v;
+      try {
+        v = jsonDecode(_extra.text.trim());
+      } on FormatException {
+        snack(context, l10n.invalidJson);
+        return null;
+      }
       if (v is! Map) {
         snack(context, l10n.invalidJson);
         return null;
