@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, SystemTime};
 
 use futures::StreamExt;
 use serde_json::{json, Value};
@@ -254,16 +254,69 @@ impl Mcp {
 pub fn spawn_janitor(state: Arc<AppState>) {
     tokio::spawn(async move {
         let mut tick = tokio::time::interval(Duration::from_secs(20));
+        let mut sweep = tokio::time::interval(Duration::from_secs(3600));
         loop {
-            tick.tick().await;
-            let now = AppState::now();
-            let _ = state.db.clean_locks(now).await;
-            let _ = state.db.clean_sessions(now).await;
-            let _ = state.db.job_requeue_stale(now).await;
-            let _ = state.db.job_fail_stale(now).await;
-            crate::auth::login_prune(&state.logins);
+            tokio::select! {
+                _ = tick.tick() => {
+                    let now = AppState::now();
+                    let _ = state.db.clean_locks(now).await;
+                    let _ = state.db.clean_sessions(now).await;
+                    let _ = state.db.job_requeue_stale(now).await;
+                    let _ = state.db.job_fail_stale(now).await;
+                    crate::auth::login_prune(&state.logins);
+                }
+                _ = sweep.tick() => sweep_stale_dirs(&state.cfg.data_dir).await,
+            }
         }
     });
+}
+
+/// Delete upload spool files and render/inspect/worker staging dirs that have
+/// been untouched for a day; a kill mid-upload or mid-render leaves them
+/// behind forever otherwise.
+async fn sweep_stale_dirs(root: &Path) {
+    let cutoff = SystemTime::now() - Duration::from_secs(24 * 3600);
+    for d in ["tmp", "render", "inspect", "worker"] {
+        let mut rd = match tokio::fs::read_dir(root.join(d)).await {
+            Ok(r) => r,
+            Err(_) => continue,
+        };
+        while let Ok(Some(e)) = rd.next_entry().await {
+            if let Some(t) = newest_mtime(&e.path()).await {
+                if t < cutoff {
+                    let _ = if e.file_type().await.map(|t| t.is_dir()).unwrap_or(false) {
+                        tokio::fs::remove_dir_all(e.path()).await
+                    } else {
+                        tokio::fs::remove_file(e.path()).await
+                    };
+                }
+            }
+        }
+    }
+}
+
+/// Most recent mtime anywhere under `p`, so a staging dir whose output file
+/// is still being written counts as in-flight rather than stale.
+async fn newest_mtime(p: &Path) -> Option<SystemTime> {
+    let mut newest = tokio::fs::metadata(p).await.ok()?.modified().ok()?;
+    let mut stack = vec![p.to_path_buf()];
+    while let Some(d) = stack.pop() {
+        if let Ok(mut rd) = tokio::fs::read_dir(&d).await {
+            while let Ok(Some(e)) = rd.next_entry().await {
+                if let Ok(md) = e.metadata().await {
+                    if let Ok(t) = md.modified() {
+                        if t > newest {
+                            newest = t;
+                        }
+                    }
+                    if md.is_dir() {
+                        stack.push(e.path());
+                    }
+                }
+            }
+        }
+    }
+    Some(newest)
 }
 
 /// Local render workers draining the queue on this machine.
@@ -526,6 +579,27 @@ async fn run_job(state: &Arc<AppState>, job: &RenderJob) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn sweep_removes_stale_and_keeps_fresh() {
+        let root = std::env::temp_dir().join(format!("wfm-sweep-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let stale = root.join("tmp/up-old");
+        std::fs::create_dir_all(stale.parent().unwrap()).unwrap();
+        std::fs::write(&stale, b"x").unwrap();
+        let fresh = root.join("render/j1/out");
+        std::fs::create_dir_all(&fresh).unwrap();
+        std::fs::File::options()
+            .write(true)
+            .open(&stale)
+            .unwrap()
+            .set_modified(SystemTime::now() - Duration::from_secs(48 * 3600))
+            .unwrap();
+        sweep_stale_dirs(&root).await;
+        assert!(!stale.exists());
+        assert!(fresh.exists());
+        let _ = std::fs::remove_dir_all(&root);
+    }
 
     #[test]
     fn stage_names_match_the_app() {
