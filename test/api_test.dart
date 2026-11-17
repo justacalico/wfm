@@ -223,6 +223,10 @@ void main() {
       await api.upload('p1', 'Raw/x.mp4', Uint8List.fromList([1, 2]));
       expect(lastRequest!.url.path, '/api/projects/p1/files');
       expect(lastRequest!.bodyBytes, [1, 2]);
+      expect(lastRequest!.headers['x-csrf-token'], isNull);
+      api.csrf = 'tok';
+      await api.upload('p1', 'Raw/y.mp4', Uint8List.fromList([3]));
+      expect(lastRequest!.headers['x-csrf-token'], 'tok');
       await api.mkdir('p1', 'Raw/New');
       await api.move('p1', 'a', 'b');
       expect(jsonDecode(lastRequest!.body)['from'], 'a');
