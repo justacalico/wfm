@@ -285,8 +285,8 @@ jobs:
           file: server/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=registry,ref=registry.gitlab.com/httpanimations/wfm:buildcache
+          cache-to: type=registry,ref=registry.gitlab.com/httpanimations/wfm:buildcache,mode=max
 
   release:
     name: GitHub release
@@ -320,10 +320,13 @@ jobs:
           git push origin "${{ steps.rel.outputs.tag }}" || true
 
       - name: Download artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: merged-artifacts
-          merge-multiple: true
+        run: |
+          mkdir -p merged-artifacts
+          for t in $(echo '${{ needs.setup.outputs.targets }}' | jq -r '.[].target'); do
+            gh run download "$GITHUB_RUN_ID" -n "$t" -D merged-artifacts
+          done
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Stage release assets
         run: |
