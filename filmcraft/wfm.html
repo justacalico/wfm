@@ -40,9 +40,16 @@
 "use strict";
 const qs = new URLSearchParams(location.search);
 const projectId = qs.get("project");
+const renderId = qs.get("render");
 const API = "/api";
 const clientId = crypto.randomUUID();
 let csrf = "", dirty = false, docSent = false, pending = 0, docName = "project.fcproj";
+const FMT_EXT = {
+  h264: ".mp4", hevc: ".mp4", prores: ".mov", dnxhr: ".mov", apv: ".mp4",
+  mjpeg: ".avi", "mxf-op1a": ".mxf", "mxf-opatom": ".mxf",
+  png: ".png", tiff: ".tiff", bmp: ".bmp", jpg: ".jpg", tga: ".tga", dpx: ".dpx",
+  exr: ".exr", gif: ".gif", wav: ".wav", aiff: ".aiff", aac: ".m4a", mp3: ".mp3", flac: ".flac"
+};
 const $ = (id) => document.getElementById(id);
 const overlay = (msg, btns) => {
   $("overlay").classList.remove("hidden");
@@ -71,6 +78,14 @@ async function boot() {
   const me = await (await api("/me")).json().catch(() => null);
   if (!me || !me.user) return overlay("Sign in first.", [["Open app", () => location.href = "/app/"]]);
   csrf = me.csrf || "";
+  if (renderId) {
+    const p = await (await api("/projects/" + projectId)).json();
+    const title = p.displayName || p.display_name || "";
+    document.title = "Rendering" + (title ? " " + title : "") + " - WFM";
+    docName = cleanName(title) + ".fcproj";
+    $("fc").src = "/filmcraft/dist/index.html?host=parent&fresh";
+    return;
+  }
   const lock = await api("/projects/" + projectId + "/locks", {
     method: "POST", headers: { "content-type": "application/json" },
     body: JSON.stringify({ kind: "edit", clientId })
@@ -108,7 +123,14 @@ function heartbeat() {
 
 window.addEventListener("message", async (ev) => {
   const d = ev.data || {};
-  if (d.type === "filmcraft:ready") { hideOverlay(); if (!docSent) { docSent = true; sendDoc(); } }
+  if (d.type === "filmcraft:ready") {
+    hideOverlay();
+    if (!docSent) {
+      docSent = true;
+      if (renderId) sendDoc().then(runRender).catch(e => finishRender(e.message || "load failed"));
+      else sendDoc();
+    }
+  }
   else if (d.type === "filmcraft:save") { handleSave(d); }
   else if (d.type === "filmcraft:dirty") { dirty = !!d.dirty; }
   else if (d.type === "filmcraft:failed") { overlay("FilmCraft could not start: " + (d.error || "unknown error")); }
@@ -254,6 +276,95 @@ async function handleSave(d) {
   pending--;
 }
 
+let rendering = false, renderDone = false;
+const fcExec = (id, params) => $("fc").contentWindow.filmcraft.execute(id, params || {});
+
+async function reportProgress(p) {
+  const r = await api("/renders/" + renderId + "/progress", {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ progress: p })
+  });
+  return r.ok ? (await r.json()).canceled === true : false;
+}
+
+async function finishRender(error) {
+  if (renderDone) return;
+  renderDone = true;
+  rendering = false;
+  for (let i = 0; i < 600 && pending > 0; i++) await new Promise(r => setTimeout(r, 500));
+  try {
+    await api("/renders/" + renderId + "/finish", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ error: error || "" })
+    });
+  } catch (_) {}
+  if (error) overlay("Render failed: " + error);
+  else overlay("Render finished. The output is in Exports.", [["Close tab", () => window.close()]]);
+}
+
+async function runRender() {
+  const r = await api("/projects/" + projectId + "/renders");
+  const jobs = await r.json().catch(() => []);
+  const job = (Array.isArray(jobs) ? jobs : []).find(j => j.id === renderId);
+  if (!job) return finishRender("no such render job");
+  let spec;
+  try { spec = JSON.parse(job.spec || "{}"); } catch (_) { return finishRender("bad render spec"); }
+  const fmt = (spec.params || {}).format || ((spec.params || {}).settings || {}).format;
+  const out = (spec.output || "export") + (FMT_EXT[fmt] || ".mp4");
+
+  overlay("Preparing the render…");
+  const t0 = Date.now();
+  for (;;) {
+    let insp = null;
+    try { insp = await fcExec("project.inspect", {}); } catch (_) {}
+    if (insp && insp.root && (insp.root.children || []).length) break;
+    if (Date.now() - t0 > 120000) return finishRender("project did not load");
+    await new Promise(r => setTimeout(r, 500));
+  }
+  for (;;) {
+    let res = null;
+    try { res = await fcExec("media.findMissing", {}); } catch (_) {}
+    const left = ((res || {}).missing || []).filter(m => m.status === "missing");
+    if (res && !left.length) break;
+    if (Date.now() - t0 > 240000) break;
+    await new Promise(r => setTimeout(r, 500));
+  }
+
+  const params = Object.assign({}, spec.params || {}, { wait: true, path: out });
+  if (spec.sequence) params.sequence = spec.sequence;
+  uplSet("Render", 0);
+  rendering = true;
+  hideOverlay();
+  let exportJob = 0, canceled = false;
+  const poll = setInterval(async () => {
+    try {
+      const list = await fcExec("jobs.list", {});
+      const run = (Array.isArray(list) ? list : []).filter(j => !j.finished);
+      const j = exportJob ? run.find(j => j.id === exportJob) : run[run.length - 1];
+      if (!j) return;
+      exportJob = j.id;
+      uplSet("Render", j.progress || 0, "", j.status || Math.round((j.progress || 0) * 100) + "%");
+      if (await reportProgress(j.progress || 0)) {
+        canceled = true;
+        fcExec("jobs.cancel", { job: exportJob }).catch(() => {});
+      }
+    } catch (_) {}
+  }, 1000);
+  try {
+    await fcExec("file.exportMedia", params);
+    clearInterval(poll);
+    if (canceled) return finishRender("canceled");
+    uplSet("Render", 1, "done", "Done");
+    uplRemove("Render", 1500);
+    finishRender("");
+  } catch (e) {
+    clearInterval(poll);
+    uplSet("Render", 1, "err", "Failed");
+    uplRemove("Render", 4000);
+    finishRender(canceled ? "canceled" : (e && e.message) || "export failed");
+  }
+}
+
 function releaseLock() {
   fetch(API + "/projects/" + projectId + "/locks/release?kind=edit&clientId=" + encodeURIComponent(clientId), {
     method: "POST", keepalive: true,
@@ -262,7 +373,7 @@ function releaseLock() {
 }
 window.addEventListener("beforeunload", (e) => {
   releaseLock();
-  if (dirty || pending > 0) { e.preventDefault(); e.returnValue = ""; }
+  if (dirty || pending > 0 || rendering) { e.preventDefault(); e.returnValue = ""; }
 });
 window.addEventListener("pagehide", releaseLock);
 boot();

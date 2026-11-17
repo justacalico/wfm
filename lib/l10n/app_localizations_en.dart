@@ -250,9 +250,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get resolution => 'Resolution';
 
   @override
-  String get frameRate => 'FPS';
-
-  @override
   String get addClips => 'Add clips from the browser';
 
   @override
@@ -445,6 +442,130 @@ class AppLocalizationsEn extends AppLocalizations {
   String daysAgo(Object count) {
     return '${count}d ago';
   }
+
+  @override
+  String get renderMode => 'Render on';
+
+  @override
+  String get renderOnDevice => 'This device';
+
+  @override
+  String get renderOnServer => 'Server';
+
+  @override
+  String get sequence => 'Sequence';
+
+  @override
+  String get matchSource => 'Match source';
+
+  @override
+  String get outputFormat => 'Format';
+
+  @override
+  String get exportRange => 'Range';
+
+  @override
+  String get rangeEntire => 'Entire sequence';
+
+  @override
+  String get rangeInOut => 'In/out';
+
+  @override
+  String get rangeWorkArea => 'Work area';
+
+  @override
+  String get rangeCustom => 'Custom';
+
+  @override
+  String get rangeStart => 'Start (seconds)';
+
+  @override
+  String get rangeEnd => 'End (seconds)';
+
+  @override
+  String get rangeNeedTimes => 'Enter the range start and end in seconds';
+
+  @override
+  String get renderAudio => 'Audio';
+
+  @override
+  String get preset => 'Preset (optional)';
+
+  @override
+  String get advancedOptions => 'Advanced options';
+
+  @override
+  String get openInFilmcraftFirst =>
+      'Open this project in FilmCraft once so it can be rendered.';
+
+  @override
+  String get noSequences => 'This project has no sequences to export.';
+
+  @override
+  String get quality => 'Quality (0-100)';
+
+  @override
+  String get bitrateKbps => 'Bitrate (kbps)';
+
+  @override
+  String get crf => 'CRF';
+
+  @override
+  String get bitrateMode => 'Bitrate mode';
+
+  @override
+  String get audioCodec => 'Audio codec';
+
+  @override
+  String get flacLevel => 'FLAC level';
+
+  @override
+  String get hardwareEncoding => 'Hardware encoding';
+
+  @override
+  String get renderScale => 'Scale';
+
+  @override
+  String get loudnessLufs => 'Loudness (LUFS)';
+
+  @override
+  String get h264Profile => 'H.264 profile';
+
+  @override
+  String get h264IntraOnly => 'H.264 intra-only';
+
+  @override
+  String get proresProfile => 'ProRes profile';
+
+  @override
+  String get dnxProfile => 'DNx profile';
+
+  @override
+  String get apvProfile => 'APV profile';
+
+  @override
+  String get mxfVideoCodec => 'MXF video codec';
+
+  @override
+  String get burnCaptions => 'Burn captions';
+
+  @override
+  String get alphaChannel => 'Alpha channel';
+
+  @override
+  String get exrCompression => 'EXR compression';
+
+  @override
+  String get captionSidecar => 'Caption sidecar';
+
+  @override
+  String get extraParams => 'Extra export params (JSON)';
+
+  @override
+  String get invalidJson => 'Invalid JSON';
+
+  @override
+  String get defaultOption => 'Default';
 }
 
 /// The translations for English, as used in the United Kingdom (`en_GB`).

@@ -1,0 +1,27 @@
+diff --git a/crates/h264enc/src/lib.rs b/crates/h264enc/src/lib.rs
+index c280e61..d5361ba 100644
+--- a/crates/h264enc/src/lib.rs
++++ b/crates/h264enc/src/lib.rs
+@@ -568,12 +568,16 @@ impl<P: Pixel> Core<P> {
+         let slices = if cfg.slices > 0 { cfg.slices.min(mbh) } else { threads.min(mbh.div_ceil(4)).max(1) };
+         #[cfg(feature = "threads")]
+         let pool = Pool {
+-            pool: Some(
+-                rayon::ThreadPoolBuilder::new()
+-                    .num_threads(threads)
+-                    .build()
+-                    .map_err(|e| Error::InvalidConfig(format!("cannot build the {threads}-thread pool: {e}")))?,
+-            ),
++            pool: if cfg!(target_arch = "wasm32") {
++                None
++            } else {
++                Some(
++                    rayon::ThreadPoolBuilder::new()
++                        .num_threads(threads)
++                        .build()
++                        .map_err(|e| Error::InvalidConfig(format!("cannot build the {threads}-thread pool: {e}")))?,
++                )
++            },
+         };
+         #[cfg(not(feature = "threads"))]
+         let pool = Pool {};

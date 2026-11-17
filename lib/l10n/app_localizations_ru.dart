@@ -251,9 +251,6 @@ class AppLocalizationsRu extends AppLocalizations {
   String get resolution => 'Разрешение';
 
   @override
-  String get frameRate => 'FPS';
-
-  @override
   String get addClips => 'Добавьте клипы из списка файлов';
 
   @override
@@ -446,4 +443,128 @@ class AppLocalizationsRu extends AppLocalizations {
   String daysAgo(Object count) {
     return '$count дн. назад';
   }
+
+  @override
+  String get renderMode => 'Где рендерить';
+
+  @override
+  String get renderOnDevice => 'Это устройство';
+
+  @override
+  String get renderOnServer => 'Сервер';
+
+  @override
+  String get sequence => 'Секвенция';
+
+  @override
+  String get matchSource => 'Как в исходнике';
+
+  @override
+  String get outputFormat => 'Формат';
+
+  @override
+  String get exportRange => 'Диапазон';
+
+  @override
+  String get rangeEntire => 'Вся секвенция';
+
+  @override
+  String get rangeInOut => 'Точки входа/выхода';
+
+  @override
+  String get rangeWorkArea => 'Рабочая область';
+
+  @override
+  String get rangeCustom => 'Свой диапазон';
+
+  @override
+  String get rangeStart => 'Начало (сек)';
+
+  @override
+  String get rangeEnd => 'Конец (сек)';
+
+  @override
+  String get rangeNeedTimes => 'Укажите начало и конец диапазона в секундах';
+
+  @override
+  String get renderAudio => 'Аудио';
+
+  @override
+  String get preset => 'Пресет (необязательно)';
+
+  @override
+  String get advancedOptions => 'Расширенные настройки';
+
+  @override
+  String get openInFilmcraftFirst =>
+      'Откройте проект в FilmCraft хотя бы раз, чтобы его можно было отрендерить.';
+
+  @override
+  String get noSequences => 'В проекте нет секвенций для экспорта.';
+
+  @override
+  String get quality => 'Качество (0-100)';
+
+  @override
+  String get bitrateKbps => 'Битрейт (кбит/с)';
+
+  @override
+  String get crf => 'CRF';
+
+  @override
+  String get bitrateMode => 'Режим битрейта';
+
+  @override
+  String get audioCodec => 'Аудиокодек';
+
+  @override
+  String get flacLevel => 'Уровень FLAC';
+
+  @override
+  String get hardwareEncoding => 'Аппаратное кодирование';
+
+  @override
+  String get renderScale => 'Масштаб';
+
+  @override
+  String get loudnessLufs => 'Громкость (LUFS)';
+
+  @override
+  String get h264Profile => 'Профиль H.264';
+
+  @override
+  String get h264IntraOnly => 'H.264 только intra';
+
+  @override
+  String get proresProfile => 'Профиль ProRes';
+
+  @override
+  String get dnxProfile => 'Профиль DNx';
+
+  @override
+  String get apvProfile => 'Профиль APV';
+
+  @override
+  String get mxfVideoCodec => 'Видеокодек MXF';
+
+  @override
+  String get burnCaptions => 'Вжечь субтитры';
+
+  @override
+  String get alphaChannel => 'Альфа-канал';
+
+  @override
+  String get exrCompression => 'Сжатие EXR';
+
+  @override
+  String get captionSidecar => 'Файл субтитров';
+
+  @override
+  String get extraParams => 'Доп. параметры экспорта (JSON)';
+
+  @override
+  String get invalidJson => 'Неверный JSON';
+
+  @override
+  String get defaultOption => 'По умолчанию';
 }

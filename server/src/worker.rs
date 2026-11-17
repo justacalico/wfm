@@ -1,15 +1,15 @@
-use std::path::PathBuf;
 use std::time::Duration;
 
 use serde::Deserialize;
 
 use crate::config::WorkerCfg;
+use crate::files;
 use crate::model::RenderSpec;
-use crate::render::{ffmpeg_args, run_ffmpeg, spec_duration};
+use crate::render::render_with_cli;
 
 /// `wfm --worker URL TOKEN NAME` turns this binary into a render node that
-/// polls the main server for jobs, downloads the referenced media, renders
-/// with local ffmpeg, and uploads the result to Exports/.
+/// polls the main server for jobs, stages the project's FilmCraft file and
+/// media, renders with filmcraft-cli, and uploads the result to Exports/.
 pub async fn run(cfg: WorkerCfg) -> Result<(), String> {
     std::fs::create_dir_all(&cfg.work_dir).map_err(|e| e.to_string())?;
     let client = reqwest::Client::builder()
@@ -68,57 +68,53 @@ async fn poll_once(client: &reqwest::Client, cfg: &WorkerCfg) -> Result<bool, St
     Ok(true)
 }
 
+async fn pull_file(
+    client: &reqwest::Client,
+    cfg: &WorkerCfg,
+    job: &Job,
+    rel: &str,
+    dest: &std::path::Path,
+) -> Result<(), String> {
+    if let Some(p) = dest.parent() {
+        std::fs::create_dir_all(p).map_err(|e| e.to_string())?;
+    }
+    let resp = client
+        .get(format!("{}/api/worker/jobs/{}/file", cfg.server, job.id))
+        .bearer_auth(&cfg.token)
+        .query(&[("path", rel)])
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    if !resp.status().is_success() {
+        return Err(format!("download {rel}: http {}", resp.status()));
+    }
+    let bytes = resp.bytes().await.map_err(|e| e.to_string())?;
+    std::fs::write(dest, &bytes).map_err(|e| e.to_string())
+}
+
 async fn run_job(client: &reqwest::Client, cfg: &WorkerCfg, job: &Job) -> Result<(), String> {
     let spec: RenderSpec = serde_json::from_str(&job.spec).map_err(|e| e.to_string())?;
     let dir = cfg.work_dir.join(&job.id);
     let _ = std::fs::remove_dir_all(&dir);
-    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-    let cleanup = |d: &PathBuf| {
+    std::fs::create_dir_all(dir.join("files")).map_err(|e| e.to_string())?;
+    let cleanup = |d: &std::path::Path| {
         let _ = std::fs::remove_dir_all(d);
     };
 
-    let mut paths: Vec<String> = spec.clips.iter().map(|c| c.path.clone()).collect();
-    if let Some(a) = &spec.audio {
-        paths.push(a.path.clone());
-    }
-    for rel in &paths {
-        let dest = dir.join(rel);
-        if let Some(p) = dest.parent() {
-            std::fs::create_dir_all(p).map_err(|e| e.to_string())?;
-        }
-        let resp = client
-            .get(format!(
-                "{}/api/worker/jobs/{}/file",
-                cfg.server, job.id
-            ))
-            .bearer_auth(&cfg.token)
-            .query(&[("path", rel)])
-            .send()
-            .await
-            .map_err(|e| e.to_string())?;
-        if !resp.status().is_success() {
+    pull_file(
+        client,
+        cfg,
+        job,
+        files::PROJECT_FILE,
+        &dir.join(files::PROJECT_FILE),
+    )
+    .await?;
+    for m in &spec.media {
+        if let Err(e) = pull_file(client, cfg, job, &m.path, &dir.join("files").join(&m.name)).await {
             cleanup(&dir);
-            return Err(format!("download {rel}: http {}", resp.status()));
+            return Err(e);
         }
-        let bytes = resp.bytes().await.map_err(|e| e.to_string())?;
-        std::fs::write(&dest, &bytes).map_err(|e| e.to_string())?;
     }
-
-    let out = dir.join("output.mp4");
-    let resolve = |rel: &str| -> Result<PathBuf, crate::files::FsError> {
-        let p = dir.join(rel);
-        if p.is_file() {
-            Ok(p)
-        } else {
-            Err(crate::files::FsError::NotFound)
-        }
-    };
-    let args = ffmpeg_args(&spec, &resolve, &out, &cfg.ffprobe).map_err(|e| {
-        cleanup(&dir);
-        e
-    })?;
-
-    let total = spec_duration(&spec, &resolve, &cfg.ffprobe);
 
     let (client2, server, token, jid) = (
         client.clone(),
@@ -129,11 +125,11 @@ async fn run_job(client: &reqwest::Client, cfg: &WorkerCfg, job: &Job) -> Result
     let mut last = std::time::Instant::now();
     let canceled = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
     let canceled2 = canceled.clone();
-    let result = run_ffmpeg(
-        &cfg.ffmpeg,
-        &args,
-        total,
-        move |p| {
+    let produced = render_with_cli(
+        &cfg.filmcraft_cli,
+        &dir,
+        &spec,
+        move |p, _status| {
             if last.elapsed().as_secs() < 2 {
                 return;
             }
@@ -164,33 +160,46 @@ async fn run_job(client: &reqwest::Client, cfg: &WorkerCfg, job: &Job) -> Result
         move || canceled.load(std::sync::atomic::Ordering::Relaxed),
     )
     .await;
-    result?;
-
-    if !out.is_file() {
-        cleanup(&dir);
-        return Err("ffmpeg produced no output".into());
-    }
-    let name = if job.output_name.to_lowercase().ends_with(".mp4") {
-        job.output_name.clone()
-    } else {
-        format!("{}.mp4", job.output_name)
+    let produced = match produced {
+        Ok(p) => p,
+        Err(e) => {
+            cleanup(&dir);
+            return Err(e);
+        }
     };
-    let bytes = std::fs::read(&out).map_err(|e| e.to_string())?;
-    let resp = client
-        .post(format!(
-            "{}/api/worker/jobs/{}/complete",
-            cfg.server, job.id
-        ))
-        .bearer_auth(&cfg.token)
-        .query(&[("path", name)])
-        .body(bytes)
-        .send()
-        .await
-        .map_err(|e| e.to_string())?;
-    cleanup(&dir);
-    if !resp.status().is_success() {
-        return Err(format!("upload: http {}", resp.status()));
+
+    let out_name = files::valid_project_name_or_err(&job.output_name)
+        .unwrap_or_else(|_| "export".into());
+    let multi = produced.len() > 1;
+    let last_idx = produced.len() - 1;
+    for (i, f) in produced.iter().enumerate() {
+        let ext = f
+            .extension()
+            .map(|e| format!(".{}", e.to_string_lossy()))
+            .unwrap_or_default();
+        let base = f
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        let name = if multi { base } else { format!("{out_name}{ext}") };
+        let bytes = std::fs::read(f).map_err(|e| e.to_string())?;
+        let resp = client
+            .post(format!(
+                "{}/api/worker/jobs/{}/complete",
+                cfg.server, job.id
+            ))
+            .bearer_auth(&cfg.token)
+            .query(&[("path", name), ("done", (i == last_idx).to_string())])
+            .body(bytes)
+            .send()
+            .await
+            .map_err(|e| e.to_string())?;
+        if !resp.status().is_success() {
+            cleanup(&dir);
+            return Err(format!("upload: http {}", resp.status()));
+        }
     }
+    cleanup(&dir);
     tracing::info!(job = %job.id, "render finished");
     Ok(())
 }

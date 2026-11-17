@@ -12,6 +12,7 @@ import 'package:wfm/main.dart';
 class FakeClient extends MockClient {
   FakeClient(Map<String, dynamic Function(http.Request)> routes)
       : super((req) async {
+          lastRequest = req;
           final key = '${req.method} ${req.url.path}';
           final f = routes[key] ?? routes['${req.method} *'];
           if (f == null)

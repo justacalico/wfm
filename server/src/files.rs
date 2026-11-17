@@ -95,40 +95,6 @@ pub fn clean_rel_key(rel: &str) -> Result<String, FsError> {
     Ok(rel.to_string_lossy().replace('\\', "/"))
 }
 
-/// Resolve a relative path inside a project dir. Operations are restricted to
-/// the managed folder roots; nothing may escape or sit at project root level.
-pub fn resolve(project_root: &Path, rel: &str) -> Result<PathBuf, FsError> {
-    let rel = clean_rel(rel)?;
-    let first = rel
-        .components()
-        .next()
-        .and_then(|c| match c {
-            Component::Normal(s) => Some(s.to_string_lossy().to_string()),
-            _ => None,
-        })
-        .ok_or(FsError::BadPath)?;
-    // The editor state file is the one file allowed at project root level.
-    let is_state_file = rel == Path::new(STATE_FILE) || rel == Path::new(PROJECT_FILE);
-    if !is_state_file && !ROOT_FOLDERS.contains(&first.as_str()) {
-        return Err(FsError::BadPath);
-    }
-    let full = project_root.join(&rel);
-    // Containment check: resolved path must stay under project_root. Existing
-    // symlinks in the parent chain are honoured by canonicalize.
-    let parent = full.parent().unwrap_or(project_root);
-    if parent.exists() {
-        let canon = parent.canonicalize()?;
-        let root_canon = project_root.canonicalize()?;
-        if !canon.starts_with(&root_canon) {
-            return Err(FsError::Forbidden);
-        }
-    }
-    if full.is_symlink() {
-        return Err(FsError::Forbidden);
-    }
-    Ok(full)
-}
-
 #[derive(Serialize)]
 pub struct FileEntry {
     pub name: String,
@@ -171,13 +137,4 @@ mod tests {
         assert!(clean_rel_key("stray.txt").is_err());
     }
 
-    #[test]
-    fn resolve_stays_inside_root() {
-        let root = std::env::temp_dir().join(format!("wfm-test-{}", crate::model::new_id()));
-        std::fs::create_dir_all(root.join("Raw")).unwrap();
-        assert!(resolve(&root, "Raw/clip.mp4").is_ok());
-        assert!(resolve(&root, "../escape").is_err());
-        assert!(resolve(&root, "Exports/../Raw/ok.mp4").is_err());
-        std::fs::remove_dir_all(&root).ok();
-    }
 }

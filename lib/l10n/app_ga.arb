@@ -16,7 +16,6 @@
   "enable": "Cumasaigh",
   "disable": "Díchumasaigh",
   "logout": "Logáil amach",
-
   "welcomeTitle": "Fáilte go WFM",
   "setupSubtitle": "Cruthaigh an cuntas úinéara chun tosú.",
   "yourName": "D'ainm",
@@ -27,37 +26,49 @@
   "signIn": "Logáil isteach",
   "signingIn": "Ag logáil isteach…",
   "signInFailed": "Theip ar an logáil isteach: {error}",
-  "@signInFailed": {"placeholders": {"error": {}}},
+  "@signInFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
   "trustedProxies": "Seachfhreastalaithe iontaofa",
   "trustedProxiesHint": "Seoltaí IP nó raonta CIDR scartha le camóg, m.sh. 10.0.0.1, 172.16.0.0/12",
-
   "navHome": "Baile",
   "navProjects": "Tionscadail",
   "navManage": "Bainistigh",
   "navSettings": "Socruithe",
-
   "greeting": "Dia dhuit, {name}",
-  "@greeting": {"placeholders": {"name": {}}},
+  "@greeting": {
+    "placeholders": {
+      "name": {}
+    }
+  },
   "cardProjects": "Tionscadail",
   "cardProjectsSub": "Oscail do thionscadail scannáin",
   "cardManage": "Bainistigh",
   "cardManageSub": "Cuntais agus ceadanna",
   "cardSettings": "Socruithe",
   "cardSettingsSub": "Téama agus teanga",
-
   "projects": "Tionscadail",
   "newProject": "Tionscadal nua",
   "projectName": "Ainm an tionscadail",
   "noProjects": "Níl aon tionscadal ann fós. Cruthaigh ceann chun tosú.",
   "createdAgo": "Cruthaithe {when}",
-  "@createdAgo": {"placeholders": {"when": {}}},
+  "@createdAgo": {
+    "placeholders": {
+      "when": {}
+    }
+  },
   "openInFilmcraft": "Oscail",
   "renameProject": "Athainmnigh tionscadal",
   "displayName": "Ainm taispeána",
   "deleteProject": "Scrios tionscadal",
   "deleteProjectBody": "Scrios \"{name}\" agus a mheáin go léir? Ní féidir é seo a chealú.",
-  "@deleteProjectBody": {"placeholders": {"name": {}}},
-
+  "@deleteProjectBody": {
+    "placeholders": {
+      "name": {}
+    }
+  },
   "newGroup": "Grúpa nua",
   "groupName": "Ainm an ghrúpa",
   "ungrouped": "Gan ghrúpa",
@@ -65,11 +76,14 @@
   "moveToGroup": "Bog go grúpa",
   "renameGroup": "Athainmnigh an grúpa",
   "deleteGroupBody": "Scrios an grúpa \"{name}\"? Coinnítear na tionscadail gan ghrúpa.",
-  "@deleteGroupBody": {"placeholders": {"name": {}}},
+  "@deleteGroupBody": {
+    "placeholders": {
+      "name": {}
+    }
+  },
   "editTags": "Cuir clibeanna in eagar",
   "tagsHint": "Clibeanna, scartha le camóga",
   "noMatchingProjects": "Níl aon tionscadal leis an gclib seo.",
-
   "files": "Comhaid",
   "renders": "Rindreálacha",
   "emptyFolder": "Fillteán folamh",
@@ -77,24 +91,45 @@
   "folderName": "Ainm an fhillteáin",
   "newName": "Ainm nua",
   "deleteFileBody": "Scrios \"{path}\"?",
-  "@deleteFileBody": {"placeholders": {"path": {}}},
+  "@deleteFileBody": {
+    "placeholders": {
+      "path": {}
+    }
+  },
   "noRenders": "Níl aon rindreáil ann fós.",
   "newRender": "Rindreáil nua",
   "render": "Rindreáil",
   "queuing": "Á chur sa scuaine…",
   "renderStatusWorker": "{status} ar {worker}  ·  {when}",
-  "@renderStatusWorker": {"placeholders": {"status": {}, "worker": {}, "when": {}}},
+  "@renderStatusWorker": {
+    "placeholders": {
+      "status": {},
+      "worker": {},
+      "when": {}
+    }
+  },
   "renderStatus": "{status}  ·  {when}",
-  "@renderStatus": {"placeholders": {"status": {}, "when": {}}},
+  "@renderStatus": {
+    "placeholders": {
+      "status": {},
+      "when": {}
+    }
+  },
   "outputName": "Ainm aschuir",
   "resolution": "Taifeach",
-  "frameRate": "FPS",
   "addClips": "Cuir gearrthóga leis ón mbrabhsálaí",
   "clipsCount": "Gearrthóga ({count})",
-  "@clipsCount": {"placeholders": {"count": {}}},
+  "@clipsCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "browseFolder": "Brabhsáil: {folder}",
-  "@browseFolder": {"placeholders": {"folder": {}}},
-
+  "@browseFolder": {
+    "placeholders": {
+      "folder": {}
+    }
+  },
   "manage": "Bainistigh",
   "nothingToManage": "Níl aon rud le bainistiú.",
   "accounts": "Cuntais",
@@ -108,25 +143,45 @@
   "noteOptional": "Nóta (20 carachtar ar a mhéad)",
   "resetPassword": "Athshocraigh pasfhocal",
   "resetPasswordTitle": "Athshocraigh pasfhocal: {username}",
-  "@resetPasswordTitle": {"placeholders": {"username": {}}},
+  "@resetPasswordTitle": {
+    "placeholders": {
+      "username": {}
+    }
+  },
   "newPassword": "Pasfhocal nua",
   "passwordReset": "Pasfhocal athshocraithe",
   "disabledSuffix": "  (díchumasaithe)",
   "userLine": "@{username}  ·  logáil isteach dheireanach {when}",
-  "@userLine": {"placeholders": {"username": {}, "when": {}}},
+  "@userLine": {
+    "placeholders": {
+      "username": {},
+      "when": {}
+    }
+  },
   "nothingRecorded": "Níl aon taifead ann fós.",
   "newNode": "Nód nua",
   "nodeName": "Ainm an nóid",
   "nodeCreatedTitle": "Cruthaíodh an nód \"{name}\"",
-  "@nodeCreatedTitle": {"placeholders": {"name": {}}},
+  "@nodeCreatedTitle": {
+    "placeholders": {
+      "name": {}
+    }
+  },
   "nodeTokenNote": "Sábháil an tóchamharc seo, ní thaispeánfar é ach uair amháin. Toscaigh an nód le:",
   "noNodes": "Níl aon nód rindreála ann. Rithfidh oibrithe áitiúla ar an bhfreastalaí i gcónaí.",
   "lastSeen": "feicthe {when} ó shin",
-  "@lastSeen": {"placeholders": {"when": {}}},
+  "@lastSeen": {
+    "placeholders": {
+      "when": {}
+    }
+  },
   "deleteNode": "Scrios nód",
   "deleteNodeBody": "Scrios an nód \"{name}\"?",
-  "@deleteNodeBody": {"placeholders": {"name": {}}},
-
+  "@deleteNodeBody": {
+    "placeholders": {
+      "name": {}
+    }
+  },
   "settings": "Socruithe",
   "language": "Teanga",
   "langSystem": "Córas",
@@ -144,20 +199,84 @@
   "checkUpdates": "Seiceáil le haghaidh nuashonruithe",
   "checking": "Ag seiceáil…",
   "upToDate": "Tá WFM cothrom le dáta (v{version})",
-  "@upToDate": {"placeholders": {"version": {}}},
+  "@upToDate": {
+    "placeholders": {
+      "version": {}
+    }
+  },
   "updateAvailable": "Nuashonrú ar fáil: {version}",
-  "@updateAvailable": {"placeholders": {"version": {}}},
+  "@updateAvailable": {
+    "placeholders": {
+      "version": {}
+    }
+  },
   "checkFailed": "Theip ar an seiceáil nuashonrúcháin",
   "viewRelease": "Amharc ar an eisiúint",
   "versionLabel": "Leagan {version}",
-  "@versionLabel": {"placeholders": {"version": {}}},
-
+  "@versionLabel": {
+    "placeholders": {
+      "version": {}
+    }
+  },
   "never": "riamh",
   "justNow": "anois díreach",
   "minutesAgo": "{count} nóiméad ó shin",
-  "@minutesAgo": {"placeholders": {"count": {}}},
+  "@minutesAgo": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "hoursAgo": "{count} uair ó shin",
-  "@hoursAgo": {"placeholders": {"count": {}}},
+  "@hoursAgo": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "daysAgo": "{count} lá ó shin",
-  "@daysAgo": {"placeholders": {"count": {}}}
+  "@daysAgo": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "renderMode": "Rindreáil ar",
+  "renderOnDevice": "An gléas seo",
+  "renderOnServer": "Freastalaí",
+  "sequence": "Seicheamh",
+  "matchSource": "Meaitseáil leis an bhfoinse",
+  "outputFormat": "Formáid",
+  "exportRange": "Raon",
+  "rangeEntire": "An seicheamh ar fad",
+  "rangeInOut": "Pointí isteach/amach",
+  "rangeWorkArea": "Limistéar oibre",
+  "rangeCustom": "Saincheaptha",
+  "rangeStart": "Tús (soicindí)",
+  "rangeEnd": "Deireadh (soicindí)",
+  "rangeNeedTimes": "Cuir tús agus deireadh an raoin i soicindí isteach",
+  "renderAudio": "Fuaim",
+  "preset": "Réamhshocrú (roghnach)",
+  "advancedOptions": "Roghanna casta",
+  "openInFilmcraftFirst": "Oscail an tionscadal in FilmCraft uair amháin sular féidir é a rindreáil.",
+  "noSequences": "Níl aon seicheamh le heaspórtáil sa tionscadal seo.",
+  "quality": "Cáilíocht (0-100)",
+  "bitrateKbps": "Bítráta (kbps)",
+  "crf": "CRF",
+  "bitrateMode": "Mód bítráta",
+  "audioCodec": "Codec fuaime",
+  "flacLevel": "Leibhéal FLAC",
+  "hardwareEncoding": "Ionchódú crua-earraí",
+  "renderScale": "Scála",
+  "loudnessLufs": "Airde fuaime (LUFS)",
+  "h264Profile": "Próifíl H.264",
+  "h264IntraOnly": "H.264 intra amháin",
+  "proresProfile": "Próifíl ProRes",
+  "dnxProfile": "Próifíl DNx",
+  "apvProfile": "Próifíl APV",
+  "mxfVideoCodec": "Codec físe MXF",
+  "burnCaptions": "Dóigh fotheideail",
+  "alphaChannel": "Cainéal alfa",
+  "exrCompression": "Comhbhrú EXR",
+  "captionSidecar": "Comhad fotheideal ar leith",
+  "extraParams": "Paraiméadair bhreise easpórtála (JSON)",
+  "invalidJson": "JSON neamhbhailí",
+  "defaultOption": "Réamhshocrú"
 }

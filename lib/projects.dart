@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'api.dart';
 import 'l10n/app_localizations.dart';
@@ -738,6 +739,21 @@ class _RendersTabState extends State<RendersTab> {
     }
   }
 
+  Future<void> _download(RenderJob j) async {
+    try {
+      final files = await Api.i.files(widget.project.id, 'Exports');
+      final f = files.where((e) =>
+          !e.isDir &&
+          (e.name == j.outputName || e.name.startsWith('${j.outputName}.')));
+      if (f.isEmpty) throw StateError('not found');
+      openExternal(
+          Api.i.downloadUrl(widget.project.id, 'Exports/${f.first.name}',
+              dl: true));
+    } catch (e) {
+      if (mounted) snack(context, e);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
@@ -761,9 +777,6 @@ class _RendersTabState extends State<RendersTab> {
                   itemCount: jobs.length,
                   itemBuilder: (c, i) {
                     final j = jobs[i];
-                    final name = j.outputName.toLowerCase().endsWith('.mp4')
-                        ? j.outputName
-                        : '${j.outputName}.mp4';
                     return ListTile(
                       leading: Icon(switch (j.status) {
                         'done' => Icons.check_circle_outline,
@@ -771,7 +784,7 @@ class _RendersTabState extends State<RendersTab> {
                         'canceled' => Icons.cancel_outlined,
                         _ => Icons.timelapse,
                       }),
-                      title: Text(name),
+                      title: Text(j.outputName),
                       subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -798,15 +811,7 @@ class _RendersTabState extends State<RendersTab> {
                           IconButton(
                             icon: const Icon(Icons.download),
                             tooltip: l10n.download,
-                            onPressed: () {
-                              try {
-                                openExternal(Api.i.downloadUrl(
-                                    widget.project.id, 'Exports/$name',
-                                    dl: true));
-                              } catch (e) {
-                                if (c.mounted) snack(c, e);
-                              }
-                            },
+                            onPressed: () => _download(j),
                           ),
                         if (j.active)
                           IconButton(
@@ -829,45 +834,143 @@ class RenderDialog extends StatefulWidget {
 }
 
 class _RenderDialogState extends State<RenderDialog> {
-  String _folder = 'Raw/A-Roll';
-  List<FileEntry> _folderItems = [];
-  final List<String> _clips = [];
+  static const _formats = {
+    'h264': 'H.264 (MP4)',
+    'hevc': 'HEVC (MP4)',
+    'prores': 'ProRes',
+    'dnxhr': 'DNxHR',
+    'apv': 'APV',
+    'mjpeg': 'MJPEG',
+    'mxf-op1a': 'MXF OP1a',
+    'mxf-opatom': 'MXF OP-Atom',
+    'png': 'PNG sequence',
+    'tiff': 'TIFF sequence',
+    'bmp': 'BMP sequence',
+    'jpg': 'JPEG sequence',
+    'tga': 'TGA sequence',
+    'dpx': 'DPX sequence',
+    'exr': 'EXR sequence',
+    'gif': 'GIF',
+    'wav': 'WAV',
+    'aiff': 'AIFF',
+    'aac': 'AAC',
+    'mp3': 'MP3',
+    'flac': 'FLAC',
+  };
+
+  RenderInfo? _info;
+  String? _infoError;
+  int _seq = 0;
+  String _mode = 'device';
   final _out = TextEditingController(text: 'export');
-  (int, int) _res = (1920, 1080);
-  int _fps = 30;
+  String _format = 'h264';
+  (int, int)? _res;
+  String _range = 'entire';
+  final _rangeStart = TextEditingController();
+  final _rangeEnd = TextEditingController();
+  bool _audio = true;
+  final _preset = TextEditingController();
   bool _busy = false;
+  final _quality = TextEditingController();
+  final _bitrate = TextEditingController();
+  final _crf = TextEditingController();
+  final _flacLevel = TextEditingController();
+  final _scale = TextEditingController();
+  final _loudness = TextEditingController();
+  final _extra = TextEditingController();
+  String? _bitrateMode, _audioCodec, _hardware;
+  String? _h264Profile, _proresProfile, _dnxProfile, _apvProfile, _mxfCodec;
+  String? _exrCompression, _captionSidecar;
+  bool _h264Intra = false, _burnCaptions = false, _alpha = false;
 
   @override
   void initState() {
     super.initState();
-    _loadFolder(_folder);
+    Api.i.renderInfo(widget.project.id).then((i) {
+      if (mounted) {
+        setState(() {
+          _info = i;
+          _seq = i.activeSequence ??
+              (i.sequences.isEmpty ? 0 : i.sequences.first.id);
+          _mode = i.serverRender ? 'server' : 'device';
+        });
+      }
+    }).catchError((e) {
+      if (mounted) setState(() => _infoError = '$e');
+    });
   }
 
-  Future<void> _loadFolder(String path) async {
-    try {
-      final f = await Api.i.files(widget.project.id, path);
-      setState(() {
-        _folder = path;
-        _folderItems = f;
-      });
-    } catch (e) {
-      if (mounted) snack(context, e);
+  Map<String, dynamic>? _params() {
+    final l10n = context.l10n;
+    final p = <String, dynamic>{'format': _format};
+    if (_res != null) {
+      p['width'] = _res!.$1;
+      p['height'] = _res!.$2;
     }
+    if (_range != 'entire') p['range'] = _range;
+    if (_range == 'custom') {
+      final s = double.tryParse(_rangeStart.text.trim());
+      final e = double.tryParse(_rangeEnd.text.trim());
+      if (s == null || e == null) {
+        snack(context, l10n.rangeNeedTimes);
+        return null;
+      }
+      p['startSeconds'] = s;
+      p['endSeconds'] = e;
+    }
+    if (!_audio) p['audio'] = false;
+    if (_preset.text.trim().isNotEmpty) p['preset'] = _preset.text.trim();
+    void num(String key, TextEditingController c, {bool dbl = false}) {
+      final v = dbl
+          ? double.tryParse(c.text.trim())
+          : int.tryParse(c.text.trim());
+      if (v != null) p[key] = v;
+    }
+
+    num('quality', _quality);
+    num('bitrateKbps', _bitrate);
+    num('crf', _crf);
+    num('flacLevel', _flacLevel);
+    num('scale', _scale, dbl: true);
+    num('loudnessLufs', _loudness, dbl: true);
+    if (_bitrateMode != null) p['bitrateMode'] = _bitrateMode;
+    if (_audioCodec != null) p['audioCodec'] = _audioCodec;
+    if (_hardware != null) p['hardwareEncoding'] = _hardware;
+    if (_h264Profile != null) p['h264Profile'] = _h264Profile;
+    if (_proresProfile != null) p['proresProfile'] = _proresProfile;
+    if (_dnxProfile != null) p['dnxProfile'] = _dnxProfile;
+    if (_apvProfile != null) p['apvProfile'] = _apvProfile;
+    if (_mxfCodec != null) p['mxfVideoCodec'] = _mxfCodec;
+    if (_exrCompression != null) p['exrCompression'] = _exrCompression;
+    if (_captionSidecar != null) p['captionSidecar'] = _captionSidecar;
+    if (_h264Intra) p['h264IntraOnly'] = true;
+    if (_burnCaptions) p['burnCaptions'] = true;
+    if (_alpha) p['alpha'] = true;
+    if (_extra.text.trim().isNotEmpty) {
+      final v = jsonDecode(_extra.text.trim());
+      if (v is! Map) {
+        snack(context, l10n.invalidJson);
+        return null;
+      }
+      p.addAll(Map<String, dynamic>.from(v));
+    }
+    return p;
   }
 
   Future<void> _submit() async {
-    if (_clips.isEmpty) return;
+    final params = _params();
+    if (params == null) return;
     setState(() => _busy = true);
     try {
-      await Api.i.createRender(widget.project.id, {
-        'width': _res.$1,
-        'height': _res.$2,
-        'fps': _fps,
-        'clips': [
-          for (final p in _clips) {'path': p}
-        ],
+      final job = await Api.i.createRender(widget.project.id, {
+        'mode': _mode,
+        'sequence': _seq,
         'output': _out.text.trim().isEmpty ? 'export' : _out.text.trim(),
+        'params': params,
       });
+      if (_mode == 'device') {
+        openExternal(Api.i.renderUrl(widget.project.id, job.id));
+      }
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
       if (mounted) {
@@ -877,130 +980,346 @@ class _RenderDialogState extends State<RenderDialog> {
     }
   }
 
+  Widget _drop<T>(String label, T? value, List<(T?, String)> items,
+          void Function(T?) set) =>
+      DropdownButtonFormField<T>(
+        isExpanded: true,
+        initialValue: value,
+        decoration: dec(label),
+        items: [
+          for (final (v, label) in items)
+            DropdownMenuItem<T>(value: v, child: Text(label)),
+        ],
+        onChanged: set,
+      );
+
+  Widget _field(String label, TextEditingController c) =>
+      TextField(controller: c, decoration: dec(label));
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final info = _info;
+    final canSubmit = !_busy &&
+        info != null &&
+        info.project &&
+        (info.sequences.isNotEmpty || _seq > 0);
     return AlertDialog(
       title: Text(l10n.newRender),
       content: SizedBox(
-        width: 560,
-        height: 480,
-        child: Row(children: [
-          Expanded(
-            child:
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(l10n.browseFolder(_folder),
-                  style: Theme.of(context).textTheme.bodySmall),
-              const SizedBox(height: 4),
-              Expanded(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                      border:
-                          Border.all(color: Theme.of(context).dividerColor)),
-                  child: ListView(children: [
-                    if (_folder.isNotEmpty)
-                      ListTile(
-                        dense: true,
-                        leading: const Icon(Icons.arrow_upward, size: 18),
-                        title: const Text('..'),
-                        onTap: () => _loadFolder(_folder.contains('/')
-                            ? _folder.substring(0, _folder.lastIndexOf('/'))
-                            : ''),
-                      ),
-                    for (final e in _folderItems)
-                      ListTile(
-                        dense: true,
-                        leading: Icon(fileIcon(e), size: 18),
-                        title: Text(e.name, overflow: TextOverflow.ellipsis),
-                        onTap: e.isDir ? () => _loadFolder(e.path) : null,
-                        trailing: e.isDir || _clips.contains(e.path)
-                            ? null
-                            : IconButton(
-                                icon: const Icon(Icons.add, size: 18),
-                                onPressed: () =>
-                                    setState(() => _clips.add(e.path)),
+        width: 620,
+        height: 560,
+        child: _infoError != null
+            ? Center(child: Text(_infoError!))
+            : info == null
+                ? const Center(child: CircularProgressIndicator())
+                : !info.project
+                    ? Center(child: Text(l10n.openInFilmcraftFirst))
+                    : SingleChildScrollView(
+                        child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                            if (info.sequences.isEmpty)
+                              Text(l10n.noSequences)
+                            else
+                              _drop<int>(
+                                  l10n.sequence,
+                                  _seq,
+                                  [
+                                    for (final s in info.sequences)
+                                      (s.id, s.name)
+                                  ],
+                                  (v) => setState(() => _seq = v ?? 0)),
+                            const SizedBox(height: 8),
+                            _drop<String>(
+                                l10n.renderMode,
+                                _mode,
+                                [
+                                  ('device', l10n.renderOnDevice),
+                                  if (info.serverRender)
+                                    ('server', l10n.renderOnServer),
+                                ],
+                                (v) =>
+                                    setState(() => _mode = v ?? 'device')),
+                            const SizedBox(height: 8),
+                            _field(l10n.outputName, _out),
+                            const SizedBox(height: 8),
+                            Row(children: [
+                              Expanded(
+                                child: _drop<String>(
+                                    l10n.outputFormat,
+                                    _format,
+                                    [
+                                      for (final e in _formats.entries)
+                                        (e.key, e.value)
+                                    ],
+                                    (v) => setState(
+                                        () => _format = v ?? 'h264')),
                               ),
-                      ),
-                  ]),
-                ),
-              ),
-            ]),
-          ),
-          const VerticalDivider(width: 24),
-          Expanded(
-            child:
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(l10n.clipsCount(_clips.length),
-                  style: Theme.of(context).textTheme.bodySmall),
-              const SizedBox(height: 4),
-              Expanded(
-                child: _clips.isEmpty
-                    ? Center(child: Text(l10n.addClips))
-                    : ReorderableListView(
-                        onReorderItem: (a, b) => setState(() {
-                          _clips.insert(b, _clips.removeAt(a));
-                        }),
-                        children: [
-                          for (final p in _clips)
-                            ListTile(
-                              key: ValueKey(p),
-                              dense: true,
-                              title: Text(p,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(fontSize: 12)),
-                              trailing: IconButton(
-                                  icon: const Icon(Icons.close, size: 16),
-                                  onPressed: () =>
-                                      setState(() => _clips.remove(p))),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: _drop<(int, int)>(
+                                    l10n.resolution,
+                                    _res,
+                                    [
+                                      (null, l10n.matchSource),
+                                      ((3840, 2160), '2160p'),
+                                      ((1920, 1080), '1080p'),
+                                      ((1280, 720), '720p'),
+                                      ((854, 480), '480p'),
+                                    ],
+                                    (v) => setState(() => _res = v)),
+                              ),
+                            ]),
+                            const SizedBox(height: 8),
+                            Row(children: [
+                              Expanded(
+                                child: _drop<String>(
+                                    l10n.exportRange,
+                                    _range,
+                                    [
+                                      ('entire', l10n.rangeEntire),
+                                      ('inOut', l10n.rangeInOut),
+                                      ('workArea', l10n.rangeWorkArea),
+                                      ('custom', l10n.rangeCustom),
+                                    ],
+                                    (v) => setState(
+                                        () => _range = v ?? 'entire')),
+                              ),
+                              if (_range == 'custom') ...[
+                                const SizedBox(width: 8),
+                                Expanded(
+                                    child:
+                                        _field(l10n.rangeStart, _rangeStart)),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                    child: _field(l10n.rangeEnd, _rangeEnd)),
+                              ],
+                            ]),
+                            SwitchListTile(
+                              contentPadding: EdgeInsets.zero,
+                              title: Text(l10n.renderAudio),
+                              value: _audio,
+                              onChanged: (v) => setState(() => _audio = v),
                             ),
-                        ],
+                            _field(l10n.preset, _preset),
+                            ExpansionTile(
+                              tilePadding: EdgeInsets.zero,
+                              title: Text(l10n.advancedOptions),
+                              children: [
+                                Row(children: [
+                                  Expanded(
+                                      child:
+                                          _field(l10n.quality, _quality)),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                      child: _field(
+                                          l10n.bitrateKbps, _bitrate)),
+                                  const SizedBox(width: 8),
+                                  Expanded(child: _field(l10n.crf, _crf)),
+                                ]),
+                                const SizedBox(height: 8),
+                                Row(children: [
+                                  Expanded(
+                                    child: _drop<String>(
+                                        l10n.bitrateMode,
+                                        _bitrateMode,
+                                        [
+                                          (null, l10n.defaultOption),
+                                          ('cbr', 'CBR'),
+                                          ('vbr1Pass', 'VBR 1-pass'),
+                                          ('vbr2Pass', 'VBR 2-pass'),
+                                          ('crf', 'CRF'),
+                                        ],
+                                        (v) => setState(
+                                            () => _bitrateMode = v)),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: _drop<String>(
+                                        l10n.audioCodec,
+                                        _audioCodec,
+                                        [
+                                          (null, l10n.defaultOption),
+                                          ('auto', 'Auto'),
+                                          ('aac', 'AAC'),
+                                          ('pcm', 'PCM'),
+                                          ('flac', 'FLAC'),
+                                        ],
+                                        (v) => setState(
+                                            () => _audioCodec = v)),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                      child: _field(
+                                          l10n.flacLevel, _flacLevel)),
+                                ]),
+                                const SizedBox(height: 8),
+                                Row(children: [
+                                  Expanded(
+                                    child: _drop<String>(
+                                        l10n.hardwareEncoding,
+                                        _hardware,
+                                        [
+                                          (null, l10n.defaultOption),
+                                          ('auto', 'Auto'),
+                                          ('off', 'Off'),
+                                        ],
+                                        (v) =>
+                                            setState(() => _hardware = v)),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                      child: _field(
+                                          l10n.renderScale, _scale)),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                      child: _field(
+                                          l10n.loudnessLufs, _loudness)),
+                                ]),
+                                const SizedBox(height: 8),
+                                Row(children: [
+                                  Expanded(
+                                    child: _drop<String>(
+                                        l10n.h264Profile,
+                                        _h264Profile,
+                                        [
+                                          (null, l10n.defaultOption),
+                                          ('baseline', 'Baseline'),
+                                          ('main', 'Main'),
+                                          ('high', 'High'),
+                                          ('high10', 'High 10'),
+                                        ],
+                                        (v) => setState(
+                                            () => _h264Profile = v)),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: _drop<String>(
+                                        l10n.proresProfile,
+                                        _proresProfile,
+                                        [
+                                          (null, l10n.defaultOption),
+                                          ('proxy', 'Proxy'),
+                                          ('lt', 'LT'),
+                                          ('standard', 'Standard'),
+                                          ('hq', 'HQ'),
+                                          ('4444', '4444'),
+                                          ('4444xq', '4444 XQ'),
+                                        ],
+                                        (v) => setState(
+                                            () => _proresProfile = v)),
+                                  ),
+                                ]),
+                                const SizedBox(height: 8),
+                                Row(children: [
+                                  Expanded(
+                                    child: _drop<String>(
+                                        l10n.dnxProfile,
+                                        _dnxProfile,
+                                        [
+                                          (null, l10n.defaultOption),
+                                          ('lb', 'LB'),
+                                          ('sq', 'SQ'),
+                                          ('hq', 'HQ'),
+                                          ('hqx', 'HQX'),
+                                        ],
+                                        (v) =>
+                                            setState(() => _dnxProfile = v)),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: _drop<String>(
+                                        l10n.apvProfile,
+                                        _apvProfile,
+                                        [
+                                          (null, l10n.defaultOption),
+                                          ('422-10', '422-10'),
+                                          ('422-12', '422-12'),
+                                          ('444-10', '444-10'),
+                                          ('444-12', '444-12'),
+                                          ('4444-10', '4444-10'),
+                                          ('4444-12', '4444-12'),
+                                          ('400-10', '400-10'),
+                                        ],
+                                        (v) =>
+                                            setState(() => _apvProfile = v)),
+                                  ),
+                                ]),
+                                const SizedBox(height: 8),
+                                Row(children: [
+                                  Expanded(
+                                    child: _drop<String>(
+                                        l10n.mxfVideoCodec,
+                                        _mxfCodec,
+                                        [
+                                          (null, l10n.defaultOption),
+                                          ('dnxhr', 'DNxHR'),
+                                          ('proRes', 'ProRes'),
+                                          ('h264', 'H.264'),
+                                        ],
+                                        (v) =>
+                                            setState(() => _mxfCodec = v)),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: _drop<String>(
+                                        l10n.exrCompression,
+                                        _exrCompression,
+                                        [
+                                          (null, l10n.defaultOption),
+                                          ('none', 'None'),
+                                          ('rle', 'RLE'),
+                                          ('zips', 'ZIPS'),
+                                          ('zip', 'ZIP'),
+                                        ],
+                                        (v) => setState(
+                                            () => _exrCompression = v)),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: _drop<String>(
+                                        l10n.captionSidecar,
+                                        _captionSidecar,
+                                        [
+                                          (null, l10n.defaultOption),
+                                          ('srt', 'SRT'),
+                                          ('vtt', 'VTT'),
+                                        ],
+                                        (v) => setState(
+                                            () => _captionSidecar = v)),
+                                  ),
+                                ]),
+                                Wrap(spacing: 8, children: [
+                                  FilterChip(
+                                      label: Text(l10n.h264IntraOnly),
+                                      selected: _h264Intra,
+                                      onSelected: (v) =>
+                                          setState(() => _h264Intra = v)),
+                                  FilterChip(
+                                      label: Text(l10n.burnCaptions),
+                                      selected: _burnCaptions,
+                                      onSelected: (v) =>
+                                          setState(() => _burnCaptions = v)),
+                                  FilterChip(
+                                      label: Text(l10n.alphaChannel),
+                                      selected: _alpha,
+                                      onSelected: (v) =>
+                                          setState(() => _alpha = v)),
+                                ]),
+                                const SizedBox(height: 8),
+                                _field(l10n.extraParams, _extra),
+                              ],
+                            ),
+                          ]),
                       ),
-              ),
-              const SizedBox(height: 8),
-              TextField(controller: _out, decoration: dec(l10n.outputName)),
-              const SizedBox(height: 8),
-              Row(children: [
-                Expanded(
-                  child: DropdownButtonFormField<(int, int)>(
-                    isExpanded: true,
-                    initialValue: _res,
-                    decoration: dec(l10n.resolution),
-                    items: const [
-                      DropdownMenuItem(
-                          value: (3840, 2160), child: Text('4K 2160p')),
-                      DropdownMenuItem(
-                          value: (1920, 1080), child: Text('1080p')),
-                      DropdownMenuItem(value: (1280, 720), child: Text('720p')),
-                    ],
-                    onChanged: (v) => setState(() => _res = v!),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: DropdownButtonFormField<int>(
-                    isExpanded: true,
-                    initialValue: _fps,
-                    decoration: dec(l10n.frameRate),
-                    items: const [
-                      DropdownMenuItem(value: 24, child: Text('24')),
-                      DropdownMenuItem(value: 25, child: Text('25')),
-                      DropdownMenuItem(value: 30, child: Text('30')),
-                      DropdownMenuItem(value: 60, child: Text('60')),
-                    ],
-                    onChanged: (v) => setState(() => _fps = v!),
-                  ),
-                ),
-              ]),
-            ]),
-          ),
-        ]),
       ),
       actions: [
         TextButton(
             onPressed: () => Navigator.of(context).pop(false),
             child: Text(l10n.cancel)),
         FilledButton(
-          onPressed: _busy || _clips.isEmpty ? null : _submit,
+          onPressed: canSubmit ? _submit : null,
           child: Text(_busy ? l10n.queuing : l10n.render),
         ),
       ],

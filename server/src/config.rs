@@ -10,8 +10,7 @@ pub struct Config {
     pub secure_cookies: bool,
     pub cors_origins: Vec<String>,
     pub render_workers: usize,
-    pub ffmpeg: String,
-    pub ffprobe: String,
+    pub filmcraft_cli: String,
     pub local_renders: bool,
     pub db_url: Option<String>,
     pub session_ttl: i64,
@@ -34,8 +33,7 @@ pub struct WorkerCfg {
     pub server: String,
     pub token: String,
     pub name: String,
-    pub ffmpeg: String,
-    pub ffprobe: String,
+    pub filmcraft_cli: String,
     pub work_dir: PathBuf,
 }
 
@@ -93,8 +91,7 @@ impl Config {
                 .filter(|s| !s.is_empty())
                 .collect(),
             render_workers: env_int("WFM_RENDER_WORKERS", 1).max(0) as usize,
-            ffmpeg: env("WFM_FFMPEG", "ffmpeg"),
-            ffprobe: env("WFM_FFPROBE", "ffprobe"),
+            filmcraft_cli: env("WFM_FILMCRAFT_CLI", "filmcraft-cli"),
             local_renders: env_bool("WFM_LOCAL_RENDERS", true),
             db_url: std::env::var("WFM_DB").ok().filter(|s| !s.is_empty()),
             session_ttl: env_int("WFM_SESSION_DAYS", 7) * 86400,
@@ -140,8 +137,7 @@ impl Config {
                 "--render-workers" => {
                     c.render_workers = next(&mut i)?.parse::<usize>().map_err(|e| e.to_string())?
                 }
-                "--ffmpeg" => c.ffmpeg = next(&mut i)?,
-                "--ffprobe" => c.ffprobe = next(&mut i)?,
+                "--filmcraft-cli" => c.filmcraft_cli = next(&mut i)?,
                 "--no-local-renders" => c.local_renders = false,
                 "--db" => c.db_url = Some(next(&mut i)?),
                 "--media" => c.media_kind = next(&mut i)?,
@@ -168,8 +164,7 @@ impl Config {
                         server,
                         token,
                         name,
-                        ffmpeg: c.ffmpeg.clone(),
-                        ffprobe: c.ffprobe.clone(),
+                        filmcraft_cli: c.filmcraft_cli.clone(),
                         work_dir: c.data_dir.join("worker"),
                     });
                 }
@@ -185,15 +180,14 @@ impl Config {
                          --secure-cookies       mark cookies Secure (use behind HTTPS)\n\
                          --cors-origins LIST    extra allowed CORS origins\n\
                          --render-workers N     local render workers (default 1)\n\
-                         --ffmpeg PATH          ffmpeg binary path\n\
-                         --ffprobe PATH         ffprobe binary path\n\
+                         --filmcraft-cli PATH   filmcraft-cli binary path\n\
                          --no-local-renders     disable local render processing\n\
                          --db URL               database url: sqlite (default) or postgres://\n\
                          --trusted-proxies LIST honor X-Forwarded-For from these proxies\n\
                          --worker URL TOKEN [NAME]  run as a remote render node\n\
                          Env: WFM_ADDR WFM_DATA WFM_DB WFM_WEB_DIR WFM_FILMCRAFT_DIR \
                          WFM_MAX_UPLOAD_MB WFM_SECURE_COOKIES WFM_CORS_ORIGINS \
-                         WFM_RENDER_WORKERS WFM_FFMPEG WFM_LOCAL_RENDERS \
+                         WFM_RENDER_WORKERS WFM_FILMCRAFT_CLI WFM_LOCAL_RENDERS \
                          WFM_SESSION_DAYS WFM_LOCK_TTL WFM_PUBLIC_URL \
                          WFM_TRUSTED_PROXIES"
                     );

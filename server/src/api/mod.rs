@@ -15,6 +15,7 @@ use crate::auth::{
 };
 use crate::files::{self, FsError};
 use crate::model::{self, can_manage, Project, ProjectGroup, RenderJob, RenderSpec, Role, User};
+use crate::render;
 use crate::store::{DbError, LockOutcome};
 
 fn blob_key(dir: &str, rel: &str) -> String {
@@ -57,7 +58,10 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/projects/{id}/locks/release", post(lock_release))
         .route("/projects/{id}/locks/heartbeat", post(lock_heartbeat))
         .route("/projects/{id}/renders", get(list_renders).post(create_render))
+        .route("/projects/{id}/render-info", get(render_info))
         .route("/renders/{id}/cancel", post(cancel_render))
+        .route("/renders/{id}/progress", post(render_progress))
+        .route("/renders/{id}/finish", post(render_finish))
         .route("/settings", get(get_settings).put(put_settings))
         .route("/nodes", get(list_nodes).post(create_node))
         .route("/nodes/{id}", patch(update_node).delete(delete_node))
@@ -919,6 +923,8 @@ struct FileQuery {
     path: String,
     #[serde(default)]
     dl: bool,
+    #[serde(default)]
+    done: bool,
 }
 
 async fn list_files(
@@ -1363,45 +1369,113 @@ async fn list_renders(
     }
 }
 
+#[derive(Deserialize)]
+struct RenderReq {
+    #[serde(default = "mode_server")]
+    mode: String,
+    #[serde(default)]
+    sequence: u64,
+    #[serde(default)]
+    output: String,
+    #[serde(default)]
+    params: Value,
+}
+
+fn mode_server() -> String {
+    "server".into()
+}
+
+/// True when something on this deployment can run a queued render: local
+/// workers, or a render node that checked in recently.
+async fn server_render_capacity(s: &Arc<AppState>) -> bool {
+    if s.cfg.local_renders && s.cfg.render_workers > 0 {
+        return true;
+    }
+    let fresh = AppState::now() - 120;
+    s.db
+        .node_list()
+        .await
+        .map(|ns| ns.iter().any(|n| !n.disabled && n.last_seen > fresh))
+        .unwrap_or(false)
+}
+
+/// Strip params a job submitter may not control, so a device job requeued to
+/// a server worker still renders where the worker says.
+fn sanitize_export_params(params: &Value) -> Result<Value, String> {
+    let mut p = match params {
+        Value::Null => json!({}),
+        Value::Object(_) => params.clone(),
+        _ => return Err("params must be an object".into()),
+    };
+    let o = p.as_object_mut().unwrap();
+    for k in ["path", "wait", "sequence"] {
+        o.remove(k);
+    }
+    if let Some(settings) = o.get_mut("settings").and_then(Value::as_object_mut) {
+        for k in ["path", "sink", "output_file"] {
+            settings.remove(k);
+        }
+    }
+    if serde_json::to_string(&p).map_err(|e| e.to_string())?.len() > 32 * 1024 {
+        return Err("params too large".into());
+    }
+    Ok(p)
+}
+
 async fn create_render(
     State(s): State<Arc<AppState>>,
     session: Session,
     Path(id): Path<String>,
-    Json(req): Json<RenderSpec>,
+    Json(req): Json<RenderReq>,
 ) -> Response {
     let p = match owned_project(&s, &session, &id).await {
         Ok(p) => p,
         Err(r) => return r,
     };
-    if req.clips.is_empty() || req.clips.len() > 200 {
-        return err(StatusCode::BAD_REQUEST, "render needs 1-200 clips");
+    if req.mode != "server" && req.mode != "device" {
+        return err(StatusCode::BAD_REQUEST, "mode must be server or device");
     }
-    for c in &req.clips {
-        if files::clean_rel_key(&c.path).is_err() {
-            return err(StatusCode::BAD_REQUEST, &format!("bad clip path {}", c.path));
-        }
+    if req.mode == "server" && !server_render_capacity(&s).await {
+        return err(StatusCode::CONFLICT, "no server render capacity");
     }
-    if let Some(a) = &req.audio {
-        if files::clean_rel_key(&a.path).is_err() {
-            return err(StatusCode::BAD_REQUEST, "bad audio path");
-        }
-    }
-    let spec = serde_json::to_string(&req).unwrap();
+    let params = match sanitize_export_params(&req.params) {
+        Ok(p) => p,
+        Err(e) => return err(StatusCode::BAD_REQUEST, &e),
+    };
+    let output = req.output.trim().chars().take(80).collect::<String>();
+    let output = if output.is_empty() {
+        "export".into()
+    } else if files::valid_project_name_or_err(&output).is_err() {
+        return err(StatusCode::BAD_REQUEST, "bad output name");
+    } else {
+        output
+    };
+    let paths = match render::project_files(&s, &p.dir).await {
+        Ok(v) => v,
+        Err(e) => return err(StatusCode::INTERNAL_SERVER_ERROR, &e),
+    };
+    let spec = RenderSpec {
+        sequence: req.sequence,
+        output: output.clone(),
+        params,
+        media: render::stage_media(&paths),
+    };
+    let spec = match serde_json::to_string(&spec) {
+        Ok(s) => s,
+        Err(e) => return err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
+    };
+    let device = req.mode == "device";
     let job = RenderJob {
         id: model::new_id(),
         project_id: id.clone(),
         user_id: session.user.id.clone(),
-        status: "queued".into(),
-        mode: "server".into(),
+        status: if device { "running".into() } else { "queued".into() },
+        mode: req.mode.clone(),
         spec,
-        output_name: if req.output.is_empty() {
-            "export".into()
-        } else {
-            req.output.chars().take(80).collect()
-        },
+        output_name: output,
         progress: 0.0,
         error: String::new(),
-        worker: String::new(),
+        worker: if device { "device".into() } else { String::new() },
         attempts: 0,
         created_at: AppState::now(),
         finished_at: 0,
@@ -1414,6 +1488,12 @@ async fn create_render(
             ),
             other => db_resp(other),
         };
+    }
+    if device {
+        let _ = s
+            .db
+            .job_progress(&job.id, 0.0, AppState::now() + 90)
+            .await;
     }
     let _ = s
         .db
@@ -1437,6 +1517,174 @@ async fn create_render(
     )
     .await;
     Json(json!(job)).into_response()
+}
+
+/// Sequences in the project's FilmCraft file plus whether server renders are
+/// possible, for the render dialog.
+async fn render_info(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Path(id): Path<String>,
+) -> Response {
+    let p = match owned_project(&s, &session, &id).await {
+        Ok(p) => p,
+        Err(r) => return r,
+    };
+    let server_render = server_render_capacity(&s).await;
+    let dir = s
+        .cfg
+        .data_dir
+        .join("inspect")
+        .join(model::new_id());
+    if std::fs::create_dir_all(&dir).is_err() {
+        return err(StatusCode::INTERNAL_SERVER_ERROR, "stage failed");
+    }
+    let fcproj = dir.join(files::PROJECT_FILE);
+    let got = match render::blob_download(
+        &s.blobs,
+        &format!("{}/{}", p.dir, files::PROJECT_FILE),
+        &fcproj,
+    )
+    .await
+    {
+        Ok(()) => true,
+        Err(_) => false,
+    };
+    if !got {
+        let _ = std::fs::remove_dir_all(&dir);
+        return Json(json!({"sequences": [], "serverRender": server_render, "project": false}))
+            .into_response();
+    }
+    let cli = s.cfg.filmcraft_cli.clone();
+    let inspect = async move {
+        let mut mcp = render::Mcp::spawn(&cli, &fcproj).await?;
+        mcp.request(
+            "tools/call",
+            json!({"name": "command_run", "arguments": {"id": "project.inspect", "params": {}}}),
+        )
+        .await
+    };
+    let res = tokio::time::timeout(std::time::Duration::from_secs(30), inspect).await;
+    let _ = std::fs::remove_dir_all(&dir);
+    let text = match res {
+        Ok(Ok(v)) => v["content"]
+            .as_array()
+            .and_then(|c| c.first())
+            .and_then(|c| c["text"].as_str())
+            .unwrap_or("")
+            .to_string(),
+        Ok(Err(e)) => return err(StatusCode::BAD_GATEWAY, &format!("filmcraft: {e}")),
+        Err(_) => return err(StatusCode::BAD_GATEWAY, "filmcraft inspect timed out"),
+    };
+    let info: Value = match serde_json::from_str(&text) {
+        Ok(v) => v,
+        Err(e) => return err(StatusCode::BAD_GATEWAY, &format!("inspect: {e}")),
+    };
+    fn seqs(bin: &Value, out: &mut Vec<Value>) {
+        if let Some(children) = bin["children"].as_array() {
+            for c in children {
+                match c["type"].as_str() {
+                    Some("Sequence")
+                    | Some("Multi-Camera Source Sequence")
+                    | Some("Merged Clip") => out.push(json!({
+                        "id": c["item"], "name": c["name"] })),
+                    _ => seqs(c, out),
+                }
+            }
+        }
+    }
+    let mut sequences = Vec::new();
+    seqs(&info["root"], &mut sequences);
+    Json(json!({
+        "sequences": sequences,
+        "activeSequence": info["activeSequence"],
+        "serverRender": server_render,
+        "project": true,
+    }))
+    .into_response()
+}
+
+/// A device-mode render posting its progress; the response tells the page
+/// whether the job was canceled so it can stop.
+async fn render_progress(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Path(id): Path<String>,
+    Json(req): Json<Value>,
+) -> Response {
+    let job = match device_render_job(&s, &session, &id).await {
+        Ok(j) => j,
+        Err(r) => return r,
+    };
+    if job.status != "running" {
+        return Json(json!({"ok": true, "canceled": true})).into_response();
+    }
+    let canceled = s.cancels.lock().unwrap().contains(&id);
+    if !canceled {
+        let p = req["progress"].as_f64().unwrap_or(0.0).clamp(0.0, 1.0);
+        let _ = s.db.job_progress(&id, p, AppState::now() + 90).await;
+    }
+    Json(json!({"ok": true, "canceled": canceled})).into_response()
+}
+
+/// A device-mode render reporting success or failure; the output upload is a
+/// normal project file PUT, done by the page before this call.
+async fn render_finish(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Path(id): Path<String>,
+    Json(req): Json<Value>,
+) -> Response {
+    let job = match device_render_job(&s, &session, &id).await {
+        Ok(j) => j,
+        Err(r) => return r,
+    };
+    if job.status != "running" {
+        return Json(json!({"ok": true})).into_response();
+    }
+    let e = req["error"].as_str().unwrap_or("").chars().take(500).collect::<String>();
+    let status = if e.is_empty() { "done" } else { "failed" };
+    let _ = s
+        .db
+        .job_finish(&id, status, &e, AppState::now())
+        .await;
+    let _ = s
+        .db
+        .lock_release(&job.project_id, "render", &job.id)
+        .await;
+    if e.is_empty() {
+        if let Ok(p) = s.db.project_by_id(&job.project_id).await {
+            s.audit(
+                "project",
+                &session.user,
+                "render_done",
+                &p.display_name,
+                &job.output_name,
+                "",
+            )
+            .await;
+        }
+    }
+    Json(json!({"ok": true})).into_response()
+}
+
+async fn device_render_job(
+    s: &Arc<AppState>,
+    session: &Session,
+    id: &str,
+) -> Result<RenderJob, Response> {
+    let job = s
+        .db
+        .job_by_id(id)
+        .await
+        .map_err(|_| err(StatusCode::NOT_FOUND, "no such render"))?;
+    if job.mode != "device" {
+        return Err(err(StatusCode::BAD_REQUEST, "not a device render"));
+    }
+    if job.user_id != session.user.id {
+        return Err(err(StatusCode::FORBIDDEN, "not your render"));
+    }
+    Ok(job)
 }
 
 async fn cancel_render(
@@ -1708,11 +1956,13 @@ async fn worker_complete(
     if let Err(e) = put {
         return err(StatusCode::INTERNAL_SERVER_ERROR, &e);
     }
-    let _ = s.db.job_finish(&id, "done", "", AppState::now()).await;
-    let _ = s.db.lock_release(&job.project_id, "render", &job.id).await;
-    if let Ok(u) = s.db.user_by_id(&job.user_id).await {
-        s.audit("project", &u, "render_done", &project.display_name, &name, "")
-            .await;
+    if q.done {
+        let _ = s.db.job_finish(&id, "done", "", AppState::now()).await;
+        let _ = s.db.lock_release(&job.project_id, "render", &job.id).await;
+        if let Ok(u) = s.db.user_by_id(&job.user_id).await {
+            s.audit("project", &u, "render_done", &project.display_name, &name, "")
+                .await;
+        }
     }
     Json(json!({"ok": true})).into_response()
 }

@@ -189,63 +189,27 @@ pub struct AuditEntry {
     pub detail: String,
 }
 
+/// One project media file staged for a render: `name` is the `/files/<name>`
+/// the project references inside FilmCraft, `path` the project-relative key.
 #[derive(Serialize, Deserialize)]
-pub struct RenderClip {
+pub struct RenderStageFile {
+    pub name: String,
     pub path: String,
-    #[serde(default, rename = "in")]
-    pub in_point: f64,
-    #[serde(default)]
-    pub out: f64,
-    #[serde(default)]
-    pub duration: f64,
 }
 
-#[derive(Serialize, Deserialize)]
-pub struct RenderTitle {
-    pub text: String,
-    #[serde(default)]
-    pub start: f64,
-    #[serde(default)]
-    pub end: f64,
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct RenderAudio {
-    pub path: String,
-    #[serde(default = "one")]
-    pub volume: f64,
-}
-
-fn one() -> f64 {
-    1.0
-}
-
+/// What a render job is: a FilmCraft `file.exportMedia` call. `params` is the
+/// command's parameter object minus path/wait/sequence (the worker forces
+/// those); `media` lists the project files to stage under `/files`.
 #[derive(Serialize, Deserialize)]
 pub struct RenderSpec {
-    #[serde(default = "d1920")]
-    pub width: u32,
-    #[serde(default = "d1080")]
-    pub height: u32,
-    #[serde(default = "d30")]
-    pub fps: u32,
     #[serde(default)]
-    pub clips: Vec<RenderClip>,
-    #[serde(default)]
-    pub audio: Option<RenderAudio>,
-    #[serde(default)]
-    pub titles: Vec<RenderTitle>,
+    pub sequence: u64,
     #[serde(default)]
     pub output: String,
-}
-
-fn d1920() -> u32 {
-    1920
-}
-fn d1080() -> u32 {
-    1080
-}
-fn d30() -> u32 {
-    30
+    #[serde(default)]
+    pub params: serde_json::Value,
+    #[serde(default)]
+    pub media: Vec<RenderStageFile>,
 }
 
 pub fn new_id() -> String {

@@ -606,17 +606,30 @@ void main() {
       var canceled = 0;
       openExternalForTesting = (u) => opened = u;
       installApi(extra: {
+        'GET /api/projects/p1/files': (req) =>
+            req.url.queryParameters['path'] == 'Exports'
+                ? [
+                    {
+                      'name': 'final.mp4',
+                      'path': 'Exports/final.mp4',
+                      'type': 'file',
+                      'size': 1,
+                      'modified': 0
+                    },
+                  ]
+                : [],
         'POST /api/renders/r2/cancel': (req) {
           canceled++;
           return {'ok': true};
         },
       });
       await pump(t, Scaffold(body: RendersTab(project: p1)));
-      expect(find.text('final.mp4'), findsOneWidget);
+      expect(find.text('final'), findsOneWidget);
       expect(find.text('scene2.mp4'), findsOneWidget);
       expect(find.text('ffmpeg exploded'), findsOneWidget);
       expect(find.byIcon(Icons.download), findsOneWidget);
       await t.tap(find.byIcon(Icons.download));
+      await settle(t);
       expect(opened, contains('Exports%2Ffinal.mp4'));
       expect(find.byIcon(Icons.stop), findsNWidgets(2));
       await t.tap(find.byIcon(Icons.stop).first);
@@ -634,33 +647,19 @@ void main() {
   });
 
   group('RenderDialog', () {
-    testWidgets('pick clips, reorder, submit', (t) async {
+    testWidgets('submits a server render and pops true', (t) async {
       await t.binding.setSurfaceSize(const Size(1280, 800));
       addTearDown(() => t.binding.setSurfaceSize(null));
       String? renderBody;
       installApi(extra: {
-        'GET /api/projects/p1/files': (req) {
-          final path = req.url.queryParameters['path'] ?? '';
-          if (path == 'Raw/A-Roll' || path == 'Raw') {
-            return [
-              {
-                'name': 'a.mp4',
-                'path': 'Raw/A-Roll/a.mp4',
-                'type': 'file',
-                'size': 10,
-                'modified': 0
-              },
-              {
-                'name': 'b.mp4',
-                'path': 'Raw/A-Roll/b.mp4',
-                'type': 'file',
-                'size': 10,
-                'modified': 0
-              },
-            ];
-          }
-          return [];
-        },
+        'GET /api/projects/p1/render-info': (_) => {
+              'sequences': [
+                {'id': 21, 'name': 'Main Edit'}
+              ],
+              'activeSequence': 21,
+              'serverRender': true,
+              'project': true,
+            },
         'POST /api/projects/p1/renders': (req) {
           renderBody = req.body;
           return {'id': 'r9', 'status': 'queued'};
@@ -680,46 +679,21 @@ void main() {
       await t.tap(find.text('open'));
       await settle(t);
       expect(find.byType(RenderDialog), findsOneWidget);
-      expect(find.byType(FilledButton), findsOneWidget);
-
-      await t.tap(find.byIcon(Icons.add).first);
-      await t.pump();
-      await t.tap(find.byIcon(Icons.add).first);
-      await t.pump();
-      expect(find.text('Raw/A-Roll/a.mp4'), findsOneWidget);
-
-      final list = find.byType(ReorderableListView);
-      expect(list, findsOneWidget);
-      final first = find.text('Raw/A-Roll/a.mp4');
-      final g = await t.startGesture(t.getCenter(first));
-      await t.pump(const Duration(milliseconds: 600));
-      await g.moveBy(const Offset(0, 60));
-      await t.pump();
-      await g.up();
-      await settle(t);
-
-      await t.tap(find.byIcon(Icons.close).first);
-      await t.pump();
-
-      await t.tap(find.byType(DropdownButtonFormField<(int, int)>));
-      await settle(t);
-      await t.tap(find.text('720p').last);
-      await settle(t);
-      await t.tap(find.byType(DropdownButtonFormField<int>));
-      await settle(t);
-      await t.tap(find.text('60').last);
-      await settle(t);
-      await t.enterText(find.byType(TextField).last, '  ');
       await t.tap(find.text('Render'));
       await settle(t);
-      expect(renderBody, contains('Raw/A-Roll'));
-      expect(renderBody, contains('"fps":60'));
-      expect(renderBody, contains('"height":720'));
-      await settle(t);
+      expect(renderBody, contains('"mode":"server"'));
+      expect(renderBody, contains('"sequence":21'));
+      expect(find.text('true'), findsOneWidget);
     });
 
     testWidgets('cancel closes dialog', (t) async {
-      installApi();
+      installApi(extra: {
+        'GET /api/projects/p1/render-info': (_) => {
+              'sequences': [],
+              'serverRender': false,
+              'project': true,
+            },
+      });
       await t.pumpWidget(testApp(Scaffold(
           body: Builder(
               builder: (c) => TextButton(
@@ -738,6 +712,14 @@ void main() {
       await t.binding.setSurfaceSize(const Size(1280, 800));
       addTearDown(() => t.binding.setSurfaceSize(null));
       installApi(extra: {
+        'GET /api/projects/p1/render-info': (_) => {
+              'sequences': [
+                {'id': 21, 'name': 'Main Edit'}
+              ],
+              'activeSequence': 21,
+              'serverRender': true,
+              'project': true,
+            },
         'POST /api/projects/p1/renders': (_) =>
             http.Response('{"error":"bad spec"}', 400),
       });
@@ -750,8 +732,6 @@ void main() {
       await settle(t);
       await t.tap(find.text('open'));
       await settle(t);
-      await t.tap(find.byIcon(Icons.add).first);
-      await t.pump();
       await t.tap(find.text('Render'));
       await settle(t);
       expect(find.byType(Notice), findsOneWidget);

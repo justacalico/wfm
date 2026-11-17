@@ -16,7 +16,6 @@
   "enable": "启用",
   "disable": "禁用",
   "logout": "退出登录",
-
   "welcomeTitle": "欢迎使用 WFM",
   "setupSubtitle": "创建所有者账户以开始使用。",
   "yourName": "你的姓名",
@@ -27,37 +26,49 @@
   "signIn": "登录",
   "signingIn": "正在登录…",
   "signInFailed": "登录失败：{error}",
-  "@signInFailed": {"placeholders": {"error": {}}},
+  "@signInFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
   "trustedProxies": "受信任的代理",
   "trustedProxiesHint": "以逗号分隔的 IP 或 CIDR 网段，例如 10.0.0.1, 172.16.0.0/12",
-
   "navHome": "首页",
   "navProjects": "项目",
   "navManage": "管理",
   "navSettings": "设置",
-
   "greeting": "你好，{name}",
-  "@greeting": {"placeholders": {"name": {}}},
+  "@greeting": {
+    "placeholders": {
+      "name": {}
+    }
+  },
   "cardProjects": "项目",
   "cardProjectsSub": "打开你的影片项目",
   "cardManage": "管理",
   "cardManageSub": "账户与权限",
   "cardSettings": "设置",
   "cardSettingsSub": "主题和语言",
-
   "projects": "项目",
   "newProject": "新建项目",
   "projectName": "项目名称",
   "noProjects": "还没有项目，创建一个开始使用。",
   "createdAgo": "创建于 {when}",
-  "@createdAgo": {"placeholders": {"when": {}}},
+  "@createdAgo": {
+    "placeholders": {
+      "when": {}
+    }
+  },
   "openInFilmcraft": "打开",
   "renameProject": "重命名项目",
   "displayName": "显示名称",
   "deleteProject": "删除项目",
   "deleteProjectBody": "删除“{name}”及其所有媒体？此操作无法撤销。",
-  "@deleteProjectBody": {"placeholders": {"name": {}}},
-
+  "@deleteProjectBody": {
+    "placeholders": {
+      "name": {}
+    }
+  },
   "newGroup": "新建分组",
   "groupName": "分组名称",
   "ungrouped": "未分组",
@@ -65,11 +76,14 @@
   "moveToGroup": "移动到分组",
   "renameGroup": "重命名分组",
   "deleteGroupBody": "删除分组“{name}”？其中的项目会保留并变为未分组。",
-  "@deleteGroupBody": {"placeholders": {"name": {}}},
+  "@deleteGroupBody": {
+    "placeholders": {
+      "name": {}
+    }
+  },
   "editTags": "编辑标签",
   "tagsHint": "标签，用逗号分隔",
   "noMatchingProjects": "没有符合此标签的项目。",
-
   "files": "文件",
   "renders": "渲染",
   "emptyFolder": "空文件夹",
@@ -77,24 +91,45 @@
   "folderName": "文件夹名称",
   "newName": "新名称",
   "deleteFileBody": "删除“{path}”？",
-  "@deleteFileBody": {"placeholders": {"path": {}}},
+  "@deleteFileBody": {
+    "placeholders": {
+      "path": {}
+    }
+  },
   "noRenders": "还没有渲染任务。",
   "newRender": "新建渲染",
   "render": "渲染",
   "queuing": "正在排队…",
   "renderStatusWorker": "{status}，节点 {worker}  ·  {when}",
-  "@renderStatusWorker": {"placeholders": {"status": {}, "worker": {}, "when": {}}},
+  "@renderStatusWorker": {
+    "placeholders": {
+      "status": {},
+      "worker": {},
+      "when": {}
+    }
+  },
   "renderStatus": "{status}  ·  {when}",
-  "@renderStatus": {"placeholders": {"status": {}, "when": {}}},
+  "@renderStatus": {
+    "placeholders": {
+      "status": {},
+      "when": {}
+    }
+  },
   "outputName": "输出名称",
   "resolution": "分辨率",
-  "frameRate": "帧率",
   "addClips": "从浏览器中添加片段",
   "clipsCount": "片段 ({count})",
-  "@clipsCount": {"placeholders": {"count": {}}},
+  "@clipsCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "browseFolder": "浏览：{folder}",
-  "@browseFolder": {"placeholders": {"folder": {}}},
-
+  "@browseFolder": {
+    "placeholders": {
+      "folder": {}
+    }
+  },
   "manage": "管理",
   "nothingToManage": "没有可管理的内容。",
   "accounts": "账户",
@@ -108,25 +143,45 @@
   "noteOptional": "备注（最多 20 个字符）",
   "resetPassword": "重置密码",
   "resetPasswordTitle": "重置密码：{username}",
-  "@resetPasswordTitle": {"placeholders": {"username": {}}},
+  "@resetPasswordTitle": {
+    "placeholders": {
+      "username": {}
+    }
+  },
   "newPassword": "新密码",
   "passwordReset": "密码已重置",
   "disabledSuffix": "（已禁用）",
   "userLine": "@{username}  ·  上次登录 {when}",
-  "@userLine": {"placeholders": {"username": {}, "when": {}}},
+  "@userLine": {
+    "placeholders": {
+      "username": {},
+      "when": {}
+    }
+  },
   "nothingRecorded": "暂无记录。",
   "newNode": "新建节点",
   "nodeName": "节点名称",
   "nodeCreatedTitle": "节点“{name}”已创建",
-  "@nodeCreatedTitle": {"placeholders": {"name": {}}},
+  "@nodeCreatedTitle": {
+    "placeholders": {
+      "name": {}
+    }
+  },
   "nodeTokenNote": "请保存此令牌，它只显示一次。启动节点：",
   "noNodes": "没有渲染节点，服务器上的本地渲染仍会运行。",
   "lastSeen": "最近在线 {when}",
-  "@lastSeen": {"placeholders": {"when": {}}},
+  "@lastSeen": {
+    "placeholders": {
+      "when": {}
+    }
+  },
   "deleteNode": "删除节点",
   "deleteNodeBody": "删除节点“{name}”？",
-  "@deleteNodeBody": {"placeholders": {"name": {}}},
-
+  "@deleteNodeBody": {
+    "placeholders": {
+      "name": {}
+    }
+  },
   "settings": "设置",
   "language": "语言",
   "langSystem": "跟随系统",
@@ -144,20 +199,84 @@
   "checkUpdates": "检查更新",
   "checking": "正在检查…",
   "upToDate": "WFM 已是最新版本 (v{version})",
-  "@upToDate": {"placeholders": {"version": {}}},
+  "@upToDate": {
+    "placeholders": {
+      "version": {}
+    }
+  },
   "updateAvailable": "发现新版本：{version}",
-  "@updateAvailable": {"placeholders": {"version": {}}},
+  "@updateAvailable": {
+    "placeholders": {
+      "version": {}
+    }
+  },
   "checkFailed": "检查更新失败",
   "viewRelease": "查看版本",
   "versionLabel": "版本 {version}",
-  "@versionLabel": {"placeholders": {"version": {}}},
-
+  "@versionLabel": {
+    "placeholders": {
+      "version": {}
+    }
+  },
   "never": "从未",
   "justNow": "刚刚",
   "minutesAgo": "{count} 分钟前",
-  "@minutesAgo": {"placeholders": {"count": {}}},
+  "@minutesAgo": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "hoursAgo": "{count} 小时前",
-  "@hoursAgo": {"placeholders": {"count": {}}},
+  "@hoursAgo": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "daysAgo": "{count} 天前",
-  "@daysAgo": {"placeholders": {"count": {}}}
+  "@daysAgo": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "renderMode": "渲染位置",
+  "renderOnDevice": "本机渲染",
+  "renderOnServer": "服务器渲染",
+  "sequence": "序列",
+  "matchSource": "匹配源",
+  "outputFormat": "格式",
+  "exportRange": "范围",
+  "rangeEntire": "整个序列",
+  "rangeInOut": "入点/出点",
+  "rangeWorkArea": "工作区域",
+  "rangeCustom": "自定义",
+  "rangeStart": "开始（秒）",
+  "rangeEnd": "结束（秒）",
+  "rangeNeedTimes": "请输入以秒为单位的起止时间",
+  "renderAudio": "音频",
+  "preset": "预设（可选）",
+  "advancedOptions": "高级选项",
+  "openInFilmcraftFirst": "请先在 FilmCraft 中打开一次该项目后再渲染。",
+  "noSequences": "该项目没有可导出的序列。",
+  "quality": "质量（0-100）",
+  "bitrateKbps": "码率（kbps）",
+  "crf": "CRF",
+  "bitrateMode": "码率模式",
+  "audioCodec": "音频编码",
+  "flacLevel": "FLAC 级别",
+  "hardwareEncoding": "硬件编码",
+  "renderScale": "缩放",
+  "loudnessLufs": "响度（LUFS）",
+  "h264Profile": "H.264 档次",
+  "h264IntraOnly": "H.264 仅帧内",
+  "proresProfile": "ProRes 档次",
+  "dnxProfile": "DNx 档次",
+  "apvProfile": "APV 档次",
+  "mxfVideoCodec": "MXF 视频编码",
+  "burnCaptions": "烧录字幕",
+  "alphaChannel": "Alpha 通道",
+  "exrCompression": "EXR 压缩",
+  "captionSidecar": "字幕旁挂文件",
+  "extraParams": "额外导出参数（JSON）",
+  "invalidJson": "JSON 无效",
+  "defaultOption": "默认"
 }

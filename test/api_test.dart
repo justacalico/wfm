@@ -250,12 +250,28 @@ void main() {
         ],
         'POST /api/projects/p1/renders': {'id': 'r2', 'status': 'queued'},
         'POST /api/renders/r2/cancel': {'ok': true},
+        'GET /api/projects/p1/render-info': {
+          'sequences': [
+            {'id': 21, 'name': 'Main Edit'}
+          ],
+          'activeSequence': 21,
+          'serverRender': false,
+          'project': true,
+        },
       }));
       expect((await api.renders('p1')).single.id, 'r1');
-      final r = await api.createRender('p1', {'fps': 30});
+      final r = await api.createRender('p1', {'mode': 'server'});
       expect(r.status, 'queued');
+      expect(r.mode, 'server');
       await api.cancelRender('r2');
       expect(lastRequest!.url.path, '/api/renders/r2/cancel');
+      final info = await api.renderInfo('p1');
+      expect(info.sequences.single.name, 'Main Edit');
+      expect(info.activeSequence, 21);
+      expect(info.serverRender, isFalse);
+      expect(info.project, isTrue);
+      expect(api.renderUrl('p1', 'r9'),
+          '/filmcraft/wfm.html?project=p1&render=r9');
     });
 
     test('accounts/audit/nodes', () async {

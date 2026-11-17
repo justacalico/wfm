@@ -251,9 +251,6 @@ class AppLocalizationsGa extends AppLocalizations {
   String get resolution => 'Taifeach';
 
   @override
-  String get frameRate => 'FPS';
-
-  @override
   String get addClips => 'Cuir gearrthóga leis ón mbrabhsálaí';
 
   @override
@@ -446,4 +443,130 @@ class AppLocalizationsGa extends AppLocalizations {
   String daysAgo(Object count) {
     return '$count lá ó shin';
   }
+
+  @override
+  String get renderMode => 'Rindreáil ar';
+
+  @override
+  String get renderOnDevice => 'An gléas seo';
+
+  @override
+  String get renderOnServer => 'Freastalaí';
+
+  @override
+  String get sequence => 'Seicheamh';
+
+  @override
+  String get matchSource => 'Meaitseáil leis an bhfoinse';
+
+  @override
+  String get outputFormat => 'Formáid';
+
+  @override
+  String get exportRange => 'Raon';
+
+  @override
+  String get rangeEntire => 'An seicheamh ar fad';
+
+  @override
+  String get rangeInOut => 'Pointí isteach/amach';
+
+  @override
+  String get rangeWorkArea => 'Limistéar oibre';
+
+  @override
+  String get rangeCustom => 'Saincheaptha';
+
+  @override
+  String get rangeStart => 'Tús (soicindí)';
+
+  @override
+  String get rangeEnd => 'Deireadh (soicindí)';
+
+  @override
+  String get rangeNeedTimes =>
+      'Cuir tús agus deireadh an raoin i soicindí isteach';
+
+  @override
+  String get renderAudio => 'Fuaim';
+
+  @override
+  String get preset => 'Réamhshocrú (roghnach)';
+
+  @override
+  String get advancedOptions => 'Roghanna casta';
+
+  @override
+  String get openInFilmcraftFirst =>
+      'Oscail an tionscadal in FilmCraft uair amháin sular féidir é a rindreáil.';
+
+  @override
+  String get noSequences =>
+      'Níl aon seicheamh le heaspórtáil sa tionscadal seo.';
+
+  @override
+  String get quality => 'Cáilíocht (0-100)';
+
+  @override
+  String get bitrateKbps => 'Bítráta (kbps)';
+
+  @override
+  String get crf => 'CRF';
+
+  @override
+  String get bitrateMode => 'Mód bítráta';
+
+  @override
+  String get audioCodec => 'Codec fuaime';
+
+  @override
+  String get flacLevel => 'Leibhéal FLAC';
+
+  @override
+  String get hardwareEncoding => 'Ionchódú crua-earraí';
+
+  @override
+  String get renderScale => 'Scála';
+
+  @override
+  String get loudnessLufs => 'Airde fuaime (LUFS)';
+
+  @override
+  String get h264Profile => 'Próifíl H.264';
+
+  @override
+  String get h264IntraOnly => 'H.264 intra amháin';
+
+  @override
+  String get proresProfile => 'Próifíl ProRes';
+
+  @override
+  String get dnxProfile => 'Próifíl DNx';
+
+  @override
+  String get apvProfile => 'Próifíl APV';
+
+  @override
+  String get mxfVideoCodec => 'Codec físe MXF';
+
+  @override
+  String get burnCaptions => 'Dóigh fotheideail';
+
+  @override
+  String get alphaChannel => 'Cainéal alfa';
+
+  @override
+  String get exrCompression => 'Comhbhrú EXR';
+
+  @override
+  String get captionSidecar => 'Comhad fotheideal ar leith';
+
+  @override
+  String get extraParams => 'Paraiméadair bhreise easpórtála (JSON)';
+
+  @override
+  String get invalidJson => 'JSON neamhbhailí';
+
+  @override
+  String get defaultOption => 'Réamhshocrú';
 }

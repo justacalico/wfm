@@ -548,12 +548,6 @@ abstract class AppLocalizations {
   /// **'Resolution'**
   String get resolution;
 
-  /// No description provided for @frameRate.
-  ///
-  /// In en, this message translates to:
-  /// **'FPS'**
-  String get frameRate;
-
   /// No description provided for @addClips.
   ///
   /// In en, this message translates to:
@@ -883,6 +877,252 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count}d ago'**
   String daysAgo(Object count);
+
+  /// No description provided for @renderMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Render on'**
+  String get renderMode;
+
+  /// No description provided for @renderOnDevice.
+  ///
+  /// In en, this message translates to:
+  /// **'This device'**
+  String get renderOnDevice;
+
+  /// No description provided for @renderOnServer.
+  ///
+  /// In en, this message translates to:
+  /// **'Server'**
+  String get renderOnServer;
+
+  /// No description provided for @sequence.
+  ///
+  /// In en, this message translates to:
+  /// **'Sequence'**
+  String get sequence;
+
+  /// No description provided for @matchSource.
+  ///
+  /// In en, this message translates to:
+  /// **'Match source'**
+  String get matchSource;
+
+  /// No description provided for @outputFormat.
+  ///
+  /// In en, this message translates to:
+  /// **'Format'**
+  String get outputFormat;
+
+  /// No description provided for @exportRange.
+  ///
+  /// In en, this message translates to:
+  /// **'Range'**
+  String get exportRange;
+
+  /// No description provided for @rangeEntire.
+  ///
+  /// In en, this message translates to:
+  /// **'Entire sequence'**
+  String get rangeEntire;
+
+  /// No description provided for @rangeInOut.
+  ///
+  /// In en, this message translates to:
+  /// **'In/out'**
+  String get rangeInOut;
+
+  /// No description provided for @rangeWorkArea.
+  ///
+  /// In en, this message translates to:
+  /// **'Work area'**
+  String get rangeWorkArea;
+
+  /// No description provided for @rangeCustom.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom'**
+  String get rangeCustom;
+
+  /// No description provided for @rangeStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Start (seconds)'**
+  String get rangeStart;
+
+  /// No description provided for @rangeEnd.
+  ///
+  /// In en, this message translates to:
+  /// **'End (seconds)'**
+  String get rangeEnd;
+
+  /// No description provided for @rangeNeedTimes.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the range start and end in seconds'**
+  String get rangeNeedTimes;
+
+  /// No description provided for @renderAudio.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio'**
+  String get renderAudio;
+
+  /// No description provided for @preset.
+  ///
+  /// In en, this message translates to:
+  /// **'Preset (optional)'**
+  String get preset;
+
+  /// No description provided for @advancedOptions.
+  ///
+  /// In en, this message translates to:
+  /// **'Advanced options'**
+  String get advancedOptions;
+
+  /// No description provided for @openInFilmcraftFirst.
+  ///
+  /// In en, this message translates to:
+  /// **'Open this project in FilmCraft once so it can be rendered.'**
+  String get openInFilmcraftFirst;
+
+  /// No description provided for @noSequences.
+  ///
+  /// In en, this message translates to:
+  /// **'This project has no sequences to export.'**
+  String get noSequences;
+
+  /// No description provided for @quality.
+  ///
+  /// In en, this message translates to:
+  /// **'Quality (0-100)'**
+  String get quality;
+
+  /// No description provided for @bitrateKbps.
+  ///
+  /// In en, this message translates to:
+  /// **'Bitrate (kbps)'**
+  String get bitrateKbps;
+
+  /// No description provided for @crf.
+  ///
+  /// In en, this message translates to:
+  /// **'CRF'**
+  String get crf;
+
+  /// No description provided for @bitrateMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Bitrate mode'**
+  String get bitrateMode;
+
+  /// No description provided for @audioCodec.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio codec'**
+  String get audioCodec;
+
+  /// No description provided for @flacLevel.
+  ///
+  /// In en, this message translates to:
+  /// **'FLAC level'**
+  String get flacLevel;
+
+  /// No description provided for @hardwareEncoding.
+  ///
+  /// In en, this message translates to:
+  /// **'Hardware encoding'**
+  String get hardwareEncoding;
+
+  /// No description provided for @renderScale.
+  ///
+  /// In en, this message translates to:
+  /// **'Scale'**
+  String get renderScale;
+
+  /// No description provided for @loudnessLufs.
+  ///
+  /// In en, this message translates to:
+  /// **'Loudness (LUFS)'**
+  String get loudnessLufs;
+
+  /// No description provided for @h264Profile.
+  ///
+  /// In en, this message translates to:
+  /// **'H.264 profile'**
+  String get h264Profile;
+
+  /// No description provided for @h264IntraOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'H.264 intra-only'**
+  String get h264IntraOnly;
+
+  /// No description provided for @proresProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'ProRes profile'**
+  String get proresProfile;
+
+  /// No description provided for @dnxProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'DNx profile'**
+  String get dnxProfile;
+
+  /// No description provided for @apvProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'APV profile'**
+  String get apvProfile;
+
+  /// No description provided for @mxfVideoCodec.
+  ///
+  /// In en, this message translates to:
+  /// **'MXF video codec'**
+  String get mxfVideoCodec;
+
+  /// No description provided for @burnCaptions.
+  ///
+  /// In en, this message translates to:
+  /// **'Burn captions'**
+  String get burnCaptions;
+
+  /// No description provided for @alphaChannel.
+  ///
+  /// In en, this message translates to:
+  /// **'Alpha channel'**
+  String get alphaChannel;
+
+  /// No description provided for @exrCompression.
+  ///
+  /// In en, this message translates to:
+  /// **'EXR compression'**
+  String get exrCompression;
+
+  /// No description provided for @captionSidecar.
+  ///
+  /// In en, this message translates to:
+  /// **'Caption sidecar'**
+  String get captionSidecar;
+
+  /// No description provided for @extraParams.
+  ///
+  /// In en, this message translates to:
+  /// **'Extra export params (JSON)'**
+  String get extraParams;
+
+  /// No description provided for @invalidJson.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid JSON'**
+  String get invalidJson;
+
+  /// No description provided for @defaultOption.
+  ///
+  /// In en, this message translates to:
+  /// **'Default'**
+  String get defaultOption;
 }
 
 class _AppLocalizationsDelegate

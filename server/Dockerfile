@@ -16,7 +16,8 @@ COPY filmcraft/VERSION /wfm/VERSION
 COPY filmcraft/patches/ /wfm/patches/
 RUN git clone --depth 1 --branch "v$(cat /wfm/VERSION)" https://github.com/storytold/filmcraft /fc/src
 WORKDIR /fc/src
-RUN for p in /wfm/patches/*.patch; do git apply "$p"; done && cargo xtask web
+RUN for p in /wfm/patches/*.patch; do git apply "$p"; done && cargo xtask web \
+ && cargo build --release -p filmcraft-cli
 
 FROM rust:1-slim AS build
 WORKDIR /src
@@ -26,12 +27,13 @@ WORKDIR /src/server
 RUN cargo build --release
 
 FROM debian:bookworm-slim
-RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg curl ca-certificates && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=build /src/server/target/release/wfm /app/wfm
+COPY --from=filmcraft /fc/src/target/release/filmcraft-cli /usr/local/bin/filmcraft-cli
 COPY filmcraft/ /app/filmcraft/
 COPY --from=filmcraft /fc/src/target/web/dist /app/filmcraft/dist
-ENV WFM_ADDR=0.0.0.0:8080 WFM_DATA=/data WFM_FILMCRAFT_DIR=/app/filmcraft
+ENV WFM_ADDR=0.0.0.0:8080 WFM_DATA=/data WFM_FILMCRAFT_DIR=/app/filmcraft WFM_FILMCRAFT_CLI=/usr/local/bin/filmcraft-cli
 EXPOSE 8080
 VOLUME /data
 ENTRYPOINT ["/app/wfm"]

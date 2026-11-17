@@ -16,7 +16,6 @@
   "enable": "Включить",
   "disable": "Отключить",
   "logout": "Выйти",
-
   "welcomeTitle": "Добро пожаловать в WFM",
   "setupSubtitle": "Создайте учётную запись владельца, чтобы начать.",
   "yourName": "Ваше имя",
@@ -27,37 +26,49 @@
   "signIn": "Войти",
   "signingIn": "Вход…",
   "signInFailed": "Ошибка входа: {error}",
-  "@signInFailed": {"placeholders": {"error": {}}},
+  "@signInFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
   "trustedProxies": "Доверенные прокси",
   "trustedProxiesHint": "IP-адреса или CIDR через запятую, например 10.0.0.1, 172.16.0.0/12",
-
   "navHome": "Главная",
   "navProjects": "Проекты",
   "navManage": "Управление",
   "navSettings": "Настройки",
-
   "greeting": "Привет, {name}",
-  "@greeting": {"placeholders": {"name": {}}},
+  "@greeting": {
+    "placeholders": {
+      "name": {}
+    }
+  },
   "cardProjects": "Проекты",
   "cardProjectsSub": "Открыть ваши фильмы",
   "cardManage": "Управление",
   "cardManageSub": "Учётные записи и права",
   "cardSettings": "Настройки",
   "cardSettingsSub": "Тема и язык",
-
   "projects": "Проекты",
   "newProject": "Новый проект",
   "projectName": "Название проекта",
   "noProjects": "Проектов пока нет. Создайте первый.",
   "createdAgo": "Создан {when}",
-  "@createdAgo": {"placeholders": {"when": {}}},
+  "@createdAgo": {
+    "placeholders": {
+      "when": {}
+    }
+  },
   "openInFilmcraft": "Открыть",
   "renameProject": "Переименовать проект",
   "displayName": "Отображаемое имя",
   "deleteProject": "Удалить проект",
   "deleteProjectBody": "Удалить «{name}» со всеми медиафайлами? Это действие нельзя отменить.",
-  "@deleteProjectBody": {"placeholders": {"name": {}}},
-
+  "@deleteProjectBody": {
+    "placeholders": {
+      "name": {}
+    }
+  },
   "newGroup": "Новая группа",
   "groupName": "Название группы",
   "ungrouped": "Без группы",
@@ -65,11 +76,14 @@
   "moveToGroup": "Переместить в группу",
   "renameGroup": "Переименовать группу",
   "deleteGroupBody": "Удалить группу «{name}»? Проекты сохранятся без группы.",
-  "@deleteGroupBody": {"placeholders": {"name": {}}},
+  "@deleteGroupBody": {
+    "placeholders": {
+      "name": {}
+    }
+  },
   "editTags": "Изменить теги",
   "tagsHint": "Теги через запятую",
   "noMatchingProjects": "Нет проектов с этим тегом.",
-
   "files": "Файлы",
   "renders": "Рендеры",
   "emptyFolder": "Пустая папка",
@@ -77,24 +91,45 @@
   "folderName": "Имя папки",
   "newName": "Новое имя",
   "deleteFileBody": "Удалить «{path}»?",
-  "@deleteFileBody": {"placeholders": {"path": {}}},
+  "@deleteFileBody": {
+    "placeholders": {
+      "path": {}
+    }
+  },
   "noRenders": "Рендеров пока нет.",
   "newRender": "Новый рендер",
   "render": "Рендер",
   "queuing": "В очередь…",
   "renderStatusWorker": "{status} на {worker}  ·  {when}",
-  "@renderStatusWorker": {"placeholders": {"status": {}, "worker": {}, "when": {}}},
+  "@renderStatusWorker": {
+    "placeholders": {
+      "status": {},
+      "worker": {},
+      "when": {}
+    }
+  },
   "renderStatus": "{status}  ·  {when}",
-  "@renderStatus": {"placeholders": {"status": {}, "when": {}}},
+  "@renderStatus": {
+    "placeholders": {
+      "status": {},
+      "when": {}
+    }
+  },
   "outputName": "Имя файла",
   "resolution": "Разрешение",
-  "frameRate": "FPS",
   "addClips": "Добавьте клипы из списка файлов",
   "clipsCount": "Клипы ({count})",
-  "@clipsCount": {"placeholders": {"count": {}}},
+  "@clipsCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "browseFolder": "Папка: {folder}",
-  "@browseFolder": {"placeholders": {"folder": {}}},
-
+  "@browseFolder": {
+    "placeholders": {
+      "folder": {}
+    }
+  },
   "manage": "Управление",
   "nothingToManage": "Нечего управлять.",
   "accounts": "Учётные записи",
@@ -108,25 +143,45 @@
   "noteOptional": "Заметка (до 20 символов)",
   "resetPassword": "Сбросить пароль",
   "resetPasswordTitle": "Сброс пароля: {username}",
-  "@resetPasswordTitle": {"placeholders": {"username": {}}},
+  "@resetPasswordTitle": {
+    "placeholders": {
+      "username": {}
+    }
+  },
   "newPassword": "Новый пароль",
   "passwordReset": "Пароль сброшен",
   "disabledSuffix": "  (отключён)",
   "userLine": "@{username}  ·  последний вход {when}",
-  "@userLine": {"placeholders": {"username": {}, "when": {}}},
+  "@userLine": {
+    "placeholders": {
+      "username": {},
+      "when": {}
+    }
+  },
   "nothingRecorded": "Записей пока нет.",
   "newNode": "Новый узел",
   "nodeName": "Имя узла",
   "nodeCreatedTitle": "Узел «{name}» создан",
-  "@nodeCreatedTitle": {"placeholders": {"name": {}}},
+  "@nodeCreatedTitle": {
+    "placeholders": {
+      "name": {}
+    }
+  },
   "nodeTokenNote": "Сохраните этот токен, он показывается один раз. Запустите узел командой:",
   "noNodes": "Узлов рендера нет. Локальные воркеры на сервере продолжат работу.",
   "lastSeen": "был в сети {when}",
-  "@lastSeen": {"placeholders": {"when": {}}},
+  "@lastSeen": {
+    "placeholders": {
+      "when": {}
+    }
+  },
   "deleteNode": "Удалить узел",
   "deleteNodeBody": "Удалить узел «{name}»?",
-  "@deleteNodeBody": {"placeholders": {"name": {}}},
-
+  "@deleteNodeBody": {
+    "placeholders": {
+      "name": {}
+    }
+  },
   "settings": "Настройки",
   "language": "Язык",
   "langSystem": "Системный",
@@ -144,20 +199,84 @@
   "checkUpdates": "Проверить обновления",
   "checking": "Проверка…",
   "upToDate": "WFM последней версии (v{version})",
-  "@upToDate": {"placeholders": {"version": {}}},
+  "@upToDate": {
+    "placeholders": {
+      "version": {}
+    }
+  },
   "updateAvailable": "Доступно обновление: {version}",
-  "@updateAvailable": {"placeholders": {"version": {}}},
+  "@updateAvailable": {
+    "placeholders": {
+      "version": {}
+    }
+  },
   "checkFailed": "Не удалось проверить обновления",
   "viewRelease": "Открыть релиз",
   "versionLabel": "Версия {version}",
-  "@versionLabel": {"placeholders": {"version": {}}},
-
+  "@versionLabel": {
+    "placeholders": {
+      "version": {}
+    }
+  },
   "never": "никогда",
   "justNow": "только что",
   "minutesAgo": "{count} мин. назад",
-  "@minutesAgo": {"placeholders": {"count": {}}},
+  "@minutesAgo": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "hoursAgo": "{count} ч. назад",
-  "@hoursAgo": {"placeholders": {"count": {}}},
+  "@hoursAgo": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "daysAgo": "{count} дн. назад",
-  "@daysAgo": {"placeholders": {"count": {}}}
+  "@daysAgo": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "renderMode": "Где рендерить",
+  "renderOnDevice": "Это устройство",
+  "renderOnServer": "Сервер",
+  "sequence": "Секвенция",
+  "matchSource": "Как в исходнике",
+  "outputFormat": "Формат",
+  "exportRange": "Диапазон",
+  "rangeEntire": "Вся секвенция",
+  "rangeInOut": "Точки входа/выхода",
+  "rangeWorkArea": "Рабочая область",
+  "rangeCustom": "Свой диапазон",
+  "rangeStart": "Начало (сек)",
+  "rangeEnd": "Конец (сек)",
+  "rangeNeedTimes": "Укажите начало и конец диапазона в секундах",
+  "renderAudio": "Аудио",
+  "preset": "Пресет (необязательно)",
+  "advancedOptions": "Расширенные настройки",
+  "openInFilmcraftFirst": "Откройте проект в FilmCraft хотя бы раз, чтобы его можно было отрендерить.",
+  "noSequences": "В проекте нет секвенций для экспорта.",
+  "quality": "Качество (0-100)",
+  "bitrateKbps": "Битрейт (кбит/с)",
+  "crf": "CRF",
+  "bitrateMode": "Режим битрейта",
+  "audioCodec": "Аудиокодек",
+  "flacLevel": "Уровень FLAC",
+  "hardwareEncoding": "Аппаратное кодирование",
+  "renderScale": "Масштаб",
+  "loudnessLufs": "Громкость (LUFS)",
+  "h264Profile": "Профиль H.264",
+  "h264IntraOnly": "H.264 только intra",
+  "proresProfile": "Профиль ProRes",
+  "dnxProfile": "Профиль DNx",
+  "apvProfile": "Профиль APV",
+  "mxfVideoCodec": "Видеокодек MXF",
+  "burnCaptions": "Вжечь субтитры",
+  "alphaChannel": "Альфа-канал",
+  "exrCompression": "Сжатие EXR",
+  "captionSidecar": "Файл субтитров",
+  "extraParams": "Доп. параметры экспорта (JSON)",
+  "invalidJson": "Неверный JSON",
+  "defaultOption": "По умолчанию"
 }

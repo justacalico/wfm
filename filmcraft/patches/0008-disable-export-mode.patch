@@ -1,0 +1,100 @@
+diff --git a/crates/engine/src/commands.rs b/crates/engine/src/commands.rs
+index 7b7f390..cd67abf 100644
+--- a/crates/engine/src/commands.rs
++++ b/crates/engine/src/commands.rs
+@@ -2095,7 +2095,7 @@ fn build() -> Vec<CommandSpec> {
+         cmd!(
+             "file.exportMedia",
+             "Media…",
+-            ["File", "Export"],
++            [],
+             None,
+             r#"{"path":str,"preset":str?,"settings":ExportSettings?,"format":"h264|hevc|prores|dnxhr|apv|mjpeg|mxf-op1a|mxf-opatom|png|tiff|bmp|jpg|tga|dpx|exr|gif|wav|aiff|aac|mp3|flac"?,"audioCodec":"auto|aac|pcm|flac"?,"flacLevel":0..8=5,"width":u32?,"height":u32?,"fps":f64?,"bitrateKbps":u32?,"bitrateMode":"cbr|vbr1Pass|vbr2Pass|crf"?,"crf":0..51=23,"hardwareEncoding":"off|auto"?,"scale":f32=1,"audio":bool=true,"quality":0..100,"burnCaptions":bool=false,"alpha":bool=false,"exrCompression":"none|rle|zips|zip"?,"captionSidecar":"srt|vtt"?,"loudnessLufs":f64?,"proresProfile":"proxy|lt|standard|hq|4444|4444xq"?,"dnxProfile":"lb|sq|hq|hqx"?,"apvProfile":"422-10|422-12|444-10|444-12|4444-10|4444-12|400-10"?,"h264Profile":"baseline|main|high|high10"?,"h264IntraOnly":bool=false,"mxfVideoCodec":"dnxhr|proRes|h264"?,"sequence":id?,"range":"entire|inOut|workArea|custom"?,"startSeconds":f64?,"endSeconds":f64?,"wait":bool=false}"#,
+             has_seq,
+diff --git a/crates/ui-egui/src/header.rs b/crates/ui-egui/src/header.rs
+index 9d6ca23..0671353 100644
+--- a/crates/ui-egui/src/header.rs
++++ b/crates/ui-egui/src/header.rs
+@@ -43,7 +43,7 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
+     }
+     x = home.max.x + 16.0;
+     // Mode tabs (14 pt; active = primary text with a 2 pt underline under the label)
+-    for (m, label, shown) in [(Mode::Import, "Import", tl!("Import")), (Mode::Edit, "Edit", tl!("Edit")), (Mode::Export, "Export", tl!("Export"))] {
++    for (m, label, shown) in [(Mode::Import, "Import", tl!("Import")), (Mode::Edit, "Edit", tl!("Edit"))] {
+         let active = app.ui.mode == m;
+         let galley = p.layout_no_wrap(shown.to_string(), Tokens::ui(14.0), if active { t.tab_text_active } else { t.tab_text });
+         let r = Rect::from_min_size(pos2(x - 6.0, rect.min.y + 6.0), vec2(galley.size().x + 12.0, rect.height() - 12.0));
+@@ -97,7 +97,7 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
+         app.show_panel(crate::dock::PanelKind::Effects);
+     }
+     if btn(ui, Icon::Bell, "notifications", tl!("Progress"), app).clicked() {
+-        app.ui.mode = Mode::Export;
++        app.ui.status = tl!("Export runs from the host: progress is reported there").into();
+     }
+     // Appearance Mode: click for the next one (Auto, Light, Dark); the icon shows the current one.
+     let (icon, mode) = match app.session.prefs.appearance.appearance_mode.as_str() {
+diff --git a/crates/ui-egui/src/menus.rs b/crates/ui-egui/src/menus.rs
+index 14f061e..717e016 100644
+--- a/crates/ui-egui/src/menus.rs
++++ b/crates/ui-egui/src/menus.rs
+@@ -146,7 +146,7 @@ pub const UI_COMMANDS: &[UiCommand] = &[
+     uic!("tool.verticalType", "Vertical Type Tool", [], None),
+     uic!("mode.import", "Import", [], None),
+     uic!("mode.edit", "Edit", [], None),
+-    uic!("mode.export", "Export", ["File", "Export"], Some("Cmd+M")),
++    uic!("mode.export", "Export", [], None),
+     uic!("app.about", "About FilmCraft", ["Help"], None),
+     uic!("app.keyboardShortcuts", "Keyboard Shortcuts…", ["Edit"], Some("Cmd+Alt+K")),
+     uic!("app.settings.general", "General…", ["Edit", "Preferences"], Some("Cmd+,")),
+@@ -495,8 +495,7 @@ pub fn invoke_command(app: &mut FilmcraftApp, ctx: &egui::Context, id: &str, mut
+             return Ok(Value::Null);
+         }
+         "mode.export" => {
+-            app.ui.mode = Mode::Export;
+-            return Ok(Value::Null);
++            return Err("export mode is disabled in this build".into());
+         }
+         "app.checkForUpdates" => {
+             let _ = crate::updates_ui::check(app);
+@@ -527,12 +526,6 @@ pub fn invoke_command(app: &mut FilmcraftApp, ctx: &egui::Context, id: &str, mut
+             filmcraft_engine::find_command(id).map_or(Ok(()), |c| (c.enabled)(&app.session))?;
+             return crate::panels::caption_export::open(app, ctx, &params);
+         }
+-        // File ▸ Export ▸ Media… opens the Export mode, like ⌘M (#382); with a path it exports directly.
+-        "file.exportMedia" if params.get("path").is_none() => {
+-            filmcraft_engine::find_command(id).map_or(Ok(()), |c| (c.enabled)(&app.session))?;
+-            app.ui.mode = Mode::Export;
+-            return Ok(json!({"mode": "export"}));
+-        }
+         // Audio Gain from the menu or G opens the dialog; with params it applies directly.
+         "clip.audioGain" if params.as_object().is_none_or(|m| m.is_empty()) => {
+             filmcraft_engine::find_command("clip.audioGain").map_or(Ok(()), |c| (c.enabled)(&app.session))?;
+diff --git a/crates/ui-egui/tests/it/export_menu_ui.rs b/crates/ui-egui/tests/it/export_menu_ui.rs
+index 6fe109d..cc0ba4b 100644
+--- a/crates/ui-egui/tests/it/export_menu_ui.rs
++++ b/crates/ui-egui/tests/it/export_menu_ui.rs
+@@ -131,7 +131,7 @@ fn media_from_the_menu_opens_the_export_mode() {
+     assert_eq!(d.harness.state().ui.mode, Mode::Edit);
+     d.ok("ui.menu.invoke", json!({"id": "file.exportMedia"}));
+     d.frames(2);
+-    assert_eq!(d.harness.state().ui.mode, Mode::Export);
++    assert_eq!(d.harness.state().ui.mode, Mode::Edit);
+     // with a path it still exports directly, as scripts and the CLI use it
+     let out = tmp("media").join("direct.wav");
+     let r = d.ok("ui.menu.invoke", json!({"id": "file.exportMedia", "params": {"path": out.to_string_lossy(), "format": "wav", "wait": true}}));
+diff --git a/crates/ui-egui/tests/it/frame_export_ui.rs b/crates/ui-egui/tests/it/frame_export_ui.rs
+index 646f88c..bd1fd7a 100644
+--- a/crates/ui-egui/tests/it/frame_export_ui.rs
++++ b/crates/ui-egui/tests/it/frame_export_ui.rs
+@@ -276,9 +276,9 @@ fn clicking_outside_dismisses_without_export_and_dropdowns_stay_open() {
+         click(&mut h, "exportFrame.depth.16");
+         assert!(has(&h, "exportFrame.name"));
+         assert_eq!(h.state().auto.elements.iter().find(|e| e.id == "exportFrame.depth").unwrap().label, "16 Bit");
+-        click(&mut h, "header.mode.export");
++        click(&mut h, "header.mode.edit");
+         assert!(!has(&h, "exportFrame.name"));
+-        assert_eq!(h.state().ui.mode, filmcraft_ui_egui::state::Mode::Export);
++        assert_eq!(h.state().ui.mode, filmcraft_ui_egui::state::Mode::Edit);
+         assert_eq!(h.state().session.project.items.len(), count);
+     }
+     let mut h = harness();

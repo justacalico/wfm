@@ -16,7 +16,6 @@
   "enable": "Enable",
   "disable": "Disable",
   "logout": "Log out",
-
   "welcomeTitle": "Welcome to WFM",
   "setupSubtitle": "Create the owner account to get started.",
   "yourName": "Your name",
@@ -27,37 +26,49 @@
   "signIn": "Sign in",
   "signingIn": "Signing in…",
   "signInFailed": "Sign in failed: {error}",
-  "@signInFailed": {"placeholders": {"error": {}}},
+  "@signInFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
   "trustedProxies": "Trusted proxies",
   "trustedProxiesHint": "Comma-separated IPs or CIDR ranges, e.g. 10.0.0.1, 172.16.0.0/12",
-
   "navHome": "Home",
   "navProjects": "Projects",
   "navManage": "Manage",
   "navSettings": "Settings",
-
   "greeting": "Hi, {name}",
-  "@greeting": {"placeholders": {"name": {}}},
+  "@greeting": {
+    "placeholders": {
+      "name": {}
+    }
+  },
   "cardProjects": "Projects",
   "cardProjectsSub": "Open your film projects",
   "cardManage": "Manage",
   "cardManageSub": "Accounts and permissions",
   "cardSettings": "Settings",
   "cardSettingsSub": "Theme and language",
-
   "projects": "Projects",
   "newProject": "New project",
   "projectName": "Project name",
   "noProjects": "No projects yet. Create one to get started.",
   "createdAgo": "Created {when}",
-  "@createdAgo": {"placeholders": {"when": {}}},
+  "@createdAgo": {
+    "placeholders": {
+      "when": {}
+    }
+  },
   "openInFilmcraft": "Open",
   "renameProject": "Rename project",
   "displayName": "Display name",
   "deleteProject": "Delete project",
   "deleteProjectBody": "Delete \"{name}\" and all of its media? This cannot be undone.",
-  "@deleteProjectBody": {"placeholders": {"name": {}}},
-
+  "@deleteProjectBody": {
+    "placeholders": {
+      "name": {}
+    }
+  },
   "newGroup": "New group",
   "groupName": "Group name",
   "ungrouped": "Ungrouped",
@@ -65,11 +76,14 @@
   "moveToGroup": "Move to group",
   "renameGroup": "Rename group",
   "deleteGroupBody": "Delete group \"{name}\"? Its projects are kept and become ungrouped.",
-  "@deleteGroupBody": {"placeholders": {"name": {}}},
+  "@deleteGroupBody": {
+    "placeholders": {
+      "name": {}
+    }
+  },
   "editTags": "Edit tags",
   "tagsHint": "Tags, comma separated",
   "noMatchingProjects": "No projects match this tag.",
-
   "files": "Files",
   "renders": "Renders",
   "emptyFolder": "Empty folder",
@@ -77,24 +91,45 @@
   "folderName": "Folder name",
   "newName": "New name",
   "deleteFileBody": "Delete \"{path}\"?",
-  "@deleteFileBody": {"placeholders": {"path": {}}},
+  "@deleteFileBody": {
+    "placeholders": {
+      "path": {}
+    }
+  },
   "noRenders": "No renders yet.",
   "newRender": "New render",
   "render": "Render",
   "queuing": "Queuing…",
   "renderStatusWorker": "{status} on {worker}  ·  {when}",
-  "@renderStatusWorker": {"placeholders": {"status": {}, "worker": {}, "when": {}}},
+  "@renderStatusWorker": {
+    "placeholders": {
+      "status": {},
+      "worker": {},
+      "when": {}
+    }
+  },
   "renderStatus": "{status}  ·  {when}",
-  "@renderStatus": {"placeholders": {"status": {}, "when": {}}},
+  "@renderStatus": {
+    "placeholders": {
+      "status": {},
+      "when": {}
+    }
+  },
   "outputName": "Output name",
   "resolution": "Resolution",
-  "frameRate": "FPS",
   "addClips": "Add clips from the browser",
   "clipsCount": "Clips ({count})",
-  "@clipsCount": {"placeholders": {"count": {}}},
+  "@clipsCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "browseFolder": "Browse: {folder}",
-  "@browseFolder": {"placeholders": {"folder": {}}},
-
+  "@browseFolder": {
+    "placeholders": {
+      "folder": {}
+    }
+  },
   "manage": "Manage",
   "nothingToManage": "Nothing to manage.",
   "accounts": "Accounts",
@@ -108,25 +143,45 @@
   "noteOptional": "Note (max 20 chars)",
   "resetPassword": "Reset password",
   "resetPasswordTitle": "Reset password: {username}",
-  "@resetPasswordTitle": {"placeholders": {"username": {}}},
+  "@resetPasswordTitle": {
+    "placeholders": {
+      "username": {}
+    }
+  },
   "newPassword": "New password",
   "passwordReset": "Password reset",
   "disabledSuffix": "  (disabled)",
   "userLine": "@{username}  ·  last login {when}",
-  "@userLine": {"placeholders": {"username": {}, "when": {}}},
+  "@userLine": {
+    "placeholders": {
+      "username": {},
+      "when": {}
+    }
+  },
   "nothingRecorded": "Nothing recorded yet.",
   "newNode": "New node",
   "nodeName": "Node name",
   "nodeCreatedTitle": "Node \"{name}\" created",
-  "@nodeCreatedTitle": {"placeholders": {"name": {}}},
+  "@nodeCreatedTitle": {
+    "placeholders": {
+      "name": {}
+    }
+  },
   "nodeTokenNote": "Save this token, it is shown once. Start the node with:",
   "noNodes": "No render nodes. Local workers on the server still run.",
   "lastSeen": "last seen {when}",
-  "@lastSeen": {"placeholders": {"when": {}}},
+  "@lastSeen": {
+    "placeholders": {
+      "when": {}
+    }
+  },
   "deleteNode": "Delete node",
   "deleteNodeBody": "Delete node \"{name}\"?",
-  "@deleteNodeBody": {"placeholders": {"name": {}}},
-
+  "@deleteNodeBody": {
+    "placeholders": {
+      "name": {}
+    }
+  },
   "settings": "Settings",
   "language": "Language",
   "langSystem": "System",
@@ -144,20 +199,84 @@
   "checkUpdates": "Check for updates",
   "checking": "Checking…",
   "upToDate": "WFM is up to date (v{version})",
-  "@upToDate": {"placeholders": {"version": {}}},
+  "@upToDate": {
+    "placeholders": {
+      "version": {}
+    }
+  },
   "updateAvailable": "Update available: {version}",
-  "@updateAvailable": {"placeholders": {"version": {}}},
+  "@updateAvailable": {
+    "placeholders": {
+      "version": {}
+    }
+  },
   "checkFailed": "Update check failed",
   "viewRelease": "View release",
   "versionLabel": "Version {version}",
-  "@versionLabel": {"placeholders": {"version": {}}},
-
+  "@versionLabel": {
+    "placeholders": {
+      "version": {}
+    }
+  },
   "never": "never",
   "justNow": "just now",
   "minutesAgo": "{count}m ago",
-  "@minutesAgo": {"placeholders": {"count": {}}},
+  "@minutesAgo": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "hoursAgo": "{count}h ago",
-  "@hoursAgo": {"placeholders": {"count": {}}},
+  "@hoursAgo": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "daysAgo": "{count}d ago",
-  "@daysAgo": {"placeholders": {"count": {}}}
+  "@daysAgo": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "renderMode": "Render on",
+  "renderOnDevice": "This device",
+  "renderOnServer": "Server",
+  "sequence": "Sequence",
+  "matchSource": "Match source",
+  "outputFormat": "Format",
+  "exportRange": "Range",
+  "rangeEntire": "Entire sequence",
+  "rangeInOut": "In/out",
+  "rangeWorkArea": "Work area",
+  "rangeCustom": "Custom",
+  "rangeStart": "Start (seconds)",
+  "rangeEnd": "End (seconds)",
+  "rangeNeedTimes": "Enter the range start and end in seconds",
+  "renderAudio": "Audio",
+  "preset": "Preset (optional)",
+  "advancedOptions": "Advanced options",
+  "openInFilmcraftFirst": "Open this project in FilmCraft once so it can be rendered.",
+  "noSequences": "This project has no sequences to export.",
+  "quality": "Quality (0-100)",
+  "bitrateKbps": "Bitrate (kbps)",
+  "crf": "CRF",
+  "bitrateMode": "Bitrate mode",
+  "audioCodec": "Audio codec",
+  "flacLevel": "FLAC level",
+  "hardwareEncoding": "Hardware encoding",
+  "renderScale": "Scale",
+  "loudnessLufs": "Loudness (LUFS)",
+  "h264Profile": "H.264 profile",
+  "h264IntraOnly": "H.264 intra-only",
+  "proresProfile": "ProRes profile",
+  "dnxProfile": "DNx profile",
+  "apvProfile": "APV profile",
+  "mxfVideoCodec": "MXF video codec",
+  "burnCaptions": "Burn captions",
+  "alphaChannel": "Alpha channel",
+  "exrCompression": "EXR compression",
+  "captionSidecar": "Caption sidecar",
+  "extraParams": "Extra export params (JSON)",
+  "invalidJson": "Invalid JSON",
+  "defaultOption": "Default"
 }

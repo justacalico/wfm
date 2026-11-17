@@ -250,9 +250,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get resolution => '分辨率';
 
   @override
-  String get frameRate => '帧率';
-
-  @override
   String get addClips => '从浏览器中添加片段';
 
   @override
@@ -443,4 +440,127 @@ class AppLocalizationsZh extends AppLocalizations {
   String daysAgo(Object count) {
     return '$count 天前';
   }
+
+  @override
+  String get renderMode => '渲染位置';
+
+  @override
+  String get renderOnDevice => '本机渲染';
+
+  @override
+  String get renderOnServer => '服务器渲染';
+
+  @override
+  String get sequence => '序列';
+
+  @override
+  String get matchSource => '匹配源';
+
+  @override
+  String get outputFormat => '格式';
+
+  @override
+  String get exportRange => '范围';
+
+  @override
+  String get rangeEntire => '整个序列';
+
+  @override
+  String get rangeInOut => '入点/出点';
+
+  @override
+  String get rangeWorkArea => '工作区域';
+
+  @override
+  String get rangeCustom => '自定义';
+
+  @override
+  String get rangeStart => '开始（秒）';
+
+  @override
+  String get rangeEnd => '结束（秒）';
+
+  @override
+  String get rangeNeedTimes => '请输入以秒为单位的起止时间';
+
+  @override
+  String get renderAudio => '音频';
+
+  @override
+  String get preset => '预设（可选）';
+
+  @override
+  String get advancedOptions => '高级选项';
+
+  @override
+  String get openInFilmcraftFirst => '请先在 FilmCraft 中打开一次该项目后再渲染。';
+
+  @override
+  String get noSequences => '该项目没有可导出的序列。';
+
+  @override
+  String get quality => '质量（0-100）';
+
+  @override
+  String get bitrateKbps => '码率（kbps）';
+
+  @override
+  String get crf => 'CRF';
+
+  @override
+  String get bitrateMode => '码率模式';
+
+  @override
+  String get audioCodec => '音频编码';
+
+  @override
+  String get flacLevel => 'FLAC 级别';
+
+  @override
+  String get hardwareEncoding => '硬件编码';
+
+  @override
+  String get renderScale => '缩放';
+
+  @override
+  String get loudnessLufs => '响度（LUFS）';
+
+  @override
+  String get h264Profile => 'H.264 档次';
+
+  @override
+  String get h264IntraOnly => 'H.264 仅帧内';
+
+  @override
+  String get proresProfile => 'ProRes 档次';
+
+  @override
+  String get dnxProfile => 'DNx 档次';
+
+  @override
+  String get apvProfile => 'APV 档次';
+
+  @override
+  String get mxfVideoCodec => 'MXF 视频编码';
+
+  @override
+  String get burnCaptions => '烧录字幕';
+
+  @override
+  String get alphaChannel => 'Alpha 通道';
+
+  @override
+  String get exrCompression => 'EXR 压缩';
+
+  @override
+  String get captionSidecar => '字幕旁挂文件';
+
+  @override
+  String get extraParams => '额外导出参数（JSON）';
+
+  @override
+  String get invalidJson => 'JSON 无效';
+
+  @override
+  String get defaultOption => '默认';
 }

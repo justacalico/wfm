@@ -84,7 +84,7 @@ class FileEntry {
 }
 
 class RenderJob {
-  final String id, status, outputName, error, worker;
+  final String id, status, outputName, error, worker, mode;
   final double progress;
   final int createdAt, finishedAt;
   RenderJob.fromJson(Map<String, dynamic> j)
@@ -93,10 +93,33 @@ class RenderJob {
         outputName = j['outputName'] ?? 'export',
         error = j['error'] ?? '',
         worker = j['worker'] ?? '',
+        mode = j['mode'] ?? 'server',
         progress = (j['progress'] ?? 0).toDouble(),
         createdAt = j['createdAt'] ?? 0,
         finishedAt = j['finishedAt'] ?? 0;
   bool get active => status == 'queued' || status == 'running';
+}
+
+class RenderSeq {
+  final int id;
+  final String name;
+  RenderSeq.fromJson(Map<String, dynamic> j)
+      : id = j['id'] ?? 0,
+        name = j['name'] ?? '';
+}
+
+class RenderInfo {
+  final List<RenderSeq> sequences;
+  final int? activeSequence;
+  final bool serverRender, project;
+  RenderInfo.fromJson(Map<String, dynamic> j)
+      : sequences = [
+          for (final s in (j['sequences'] as List? ?? []))
+            RenderSeq.fromJson(s)
+        ],
+        activeSequence = j['activeSequence'],
+        serverRender = j['serverRender'] ?? false,
+        project = j['project'] ?? false;
 }
 
 class RenderNode {
@@ -277,6 +300,12 @@ class Api {
       del('/projects/$pid/files', {'path': path});
 
   String projectUrl(String pid) => '/filmcraft/wfm.html?project=$pid';
+
+  String renderUrl(String pid, String rid) =>
+      '/filmcraft/wfm.html?project=$pid&render=$rid';
+
+  Future<RenderInfo> renderInfo(String pid) async =>
+      RenderInfo.fromJson(await get('/projects/$pid/render-info'));
   String downloadUrl(String pid, String path, {bool dl = false}) =>
       '$_base/api/projects/$pid/download?path=${Uri.encodeComponent(path)}${dl ? '&dl=true' : ''}';
 

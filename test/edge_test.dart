@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -176,6 +177,14 @@ void main() {
         'GET /api/projects/p1/renders': (_) => [
               {'id': 'r1', 'status': 'done', 'outputName': 'x'},
             ],
+        'GET /api/projects/p1/render-info': (_) => {
+              'sequences': [
+                {'id': 21, 'name': 'Main Edit'}
+              ],
+              'activeSequence': 21,
+              'serverRender': true,
+              'project': true,
+            },
         'POST /api/projects/p1/renders': (_) {
           renderPosts++;
           return {'id': 'r9', 'status': 'queued'};
@@ -187,14 +196,28 @@ void main() {
       await t.tap(find.byType(FloatingActionButton));
       await settle(t);
       expect(find.byType(RenderDialog), findsOneWidget);
-      await t.tap(find
-          .descendant(
-              of: find.byType(AlertDialog), matching: find.byIcon(Icons.add))
-          .first);
-      await t.pump();
       await t.tap(find.text('Render'));
       await settle(t);
       expect(renderPosts, 1);
+      await t.pumpWidget(const SizedBox());
+    });
+
+    testWidgets('download opens the produced export', (t) async {
+      String? url;
+      openExternalForTesting = (u) => url = u;
+      installApi(extra: {
+        'GET /api/projects/p1/renders': (_) => [
+              {'id': 'r1', 'status': 'done', 'outputName': 'final'},
+            ],
+        'GET /api/projects/p1/files': (_) => [
+              {'name': 'final.mp4', 'path': 'Exports/final.mp4', 'type': 'file'},
+              {'name': 'other.txt', 'path': 'Exports/other.txt', 'type': 'file'},
+            ],
+      });
+      await pump(t, RendersTab(project: p1));
+      await t.tap(find.byIcon(Icons.download));
+      await settle(t);
+      expect(url, contains('Exports%2Ffinal.mp4'));
       await t.pumpWidget(const SizedBox());
     });
   });
@@ -214,20 +237,23 @@ void main() {
   });
 
   group('RenderDialog leftovers', () {
-    testWidgets('folder up navigation and load error', (t) async {
-      var calls = 0;
+    const infoJson = {
+      'sequences': [
+        {'id': 21, 'name': 'Main Edit'},
+        {'id': 27, 'name': 'Rough Cut'},
+      ],
+      'activeSequence': 21,
+      'serverRender': true,
+      'project': true,
+    };
+
+    Future<void> openDialog(WidgetTester t,
+        {Map<String, dynamic> extra = const {}}) async {
       installApi(extra: {
-        'GET /api/projects/p1/files': (_) {
-          calls++;
-          if (calls == 1) {
-            return [
-              {'name': 'sub', 'path': 'Raw/A-Roll/sub', 'type': 'dir'},
-            ];
-          }
-          return http.Response('{"error":"gone"}', 404);
-        },
+        'GET /api/projects/p1/render-info': (_) => infoJson,
+        ...extra,
       });
-      await t.binding.setSurfaceSize(const Size(1280, 800));
+      await t.binding.setSurfaceSize(const Size(1400, 900));
       addTearDown(() => t.binding.setSurfaceSize(null));
       await t.pumpWidget(testApp(Scaffold(
           body: Builder(
@@ -238,68 +264,222 @@ void main() {
       await settle(t);
       await t.tap(find.text('open'));
       await settle(t);
-      await t.tap(find.text('sub'));
+      expect(find.byType(RenderDialog), findsOneWidget);
+    }
+
+    Finder drop(String label) => find.ancestor(
+        of: find.text(label),
+        matching:
+            find.byWidgetPredicate((w) => w is DropdownButtonFormField));
+
+    Future<void> choose(WidgetTester t, String label, String option) async {
+      final f = drop(label).first;
+      await t.ensureVisible(f);
+      await t.tap(f);
       await settle(t);
-      expect(find.byType(Notice), findsOneWidget);
-      await t.tap(find.text('..'));
+      await t.tap(find.text(option).last);
       await settle(t);
-      expect(find.text('Cancel'), findsOneWidget);
-      await t.tap(find.text('Cancel'));
+    }
+
+    Future<void> enter(WidgetTester t, String label, String v) async {
+      final f = find.widgetWithText(TextField, label);
+      await t.ensureVisible(f);
+      await t.enterText(f, v);
+    }
+
+    Map<String, dynamic> posted() =>
+        jsonDecode((lastRequest!.body)) as Map<String, dynamic>;
+
+    testWidgets('posts match-source defaults for the active sequence',
+        (t) async {
+      await openDialog(t);
+      await t.tap(find.text('Render'));
       await settle(t);
+      final body = posted();
+      expect(body['mode'], 'server');
+      expect(body['sequence'], 21);
+      expect(body['output'], 'export');
+      final p = body['params'] as Map<String, dynamic>;
+      expect(p['format'], 'h264');
+      expect(p.containsKey('width'), isFalse);
+      expect(p.containsKey('height'), isFalse);
+      expect(p.containsKey('fps'), isFalse);
     });
 
-    testWidgets('reorder moves clips', (t) async {
-      installApi(extra: {
-        'GET /api/projects/p1/files': (_) => [
-              {
-                'name': 'a.mp4',
-                'path': 'Raw/A-Roll/a.mp4',
-                'type': 'file',
-                'size': 1,
-                'modified': 0
-              },
-              {
-                'name': 'b.mp4',
-                'path': 'Raw/A-Roll/b.mp4',
-                'type': 'file',
-                'size': 1,
-                'modified': 0
-              },
-              {
-                'name': 'c.mp4',
-                'path': 'Raw/A-Roll/c.mp4',
-                'type': 'file',
-                'size': 1,
-                'modified': 0
-              },
-            ],
+    testWidgets('sequence dropdown selects another sequence', (t) async {
+      await openDialog(t);
+      await choose(t, 'Sequence', 'Rough Cut');
+      await t.tap(find.text('Render'));
+      await settle(t);
+      expect(posted()['sequence'], 27);
+    });
+
+    testWidgets('device mode opens the render page', (t) async {
+      String? url;
+      openExternalForTesting = (u) => url = u;
+      await openDialog(t, extra: {
+        'POST /api/projects/p1/renders': (_) => {'id': 'r9', 'status': 'running'},
       });
-      await t.binding.setSurfaceSize(const Size(1280, 800));
-      addTearDown(() => t.binding.setSurfaceSize(null));
-      await t.pumpWidget(testApp(Scaffold(
-          body: Builder(
-              builder: (c) => TextButton(
-                  onPressed: () => showDialog<bool>(
-                      context: c, builder: (_) => RenderDialog(project: p1)),
-                  child: const Text('open'))))));
+      await choose(t, 'Render on', 'This device');
+      await t.tap(find.text('Render'));
       await settle(t);
-      await t.tap(find.text('open'));
+      expect(posted()['mode'], 'device');
+      expect(url, '/filmcraft/wfm.html?project=p1&render=r9');
+      await t.pumpWidget(const SizedBox());
+    });
+
+    testWidgets('server option hidden without render capacity', (t) async {
+      await openDialog(t, extra: {
+        'GET /api/projects/p1/render-info': (_) => {
+              'sequences': [
+                {'id': 21, 'name': 'Main Edit'}
+              ],
+              'activeSequence': 21,
+              'serverRender': false,
+              'project': true,
+            },
+      });
+      await t.tap(find.text('Render'));
       await settle(t);
-      for (var i = 0; i < 3; i++) {
-        await t.tap(find.byIcon(Icons.add).first);
+      expect(posted()['mode'], 'device');
+      await t.pumpWidget(const SizedBox());
+    });
+
+    testWidgets('missing project shows the FilmCraft hint', (t) async {
+      await openDialog(t, extra: {
+        'GET /api/projects/p1/render-info': (_) => {
+              'sequences': [],
+              'serverRender': false,
+              'project': false,
+            },
+      });
+      expect(
+          find.textContaining('FilmCraft'), findsWidgets);
+      expect(t.widget<FilledButton>(find.byType(FilledButton).last).enabled,
+          isFalse);
+      await t.pumpWidget(const SizedBox());
+    });
+
+    testWidgets('no sequences disables render', (t) async {
+      await openDialog(t, extra: {
+        'GET /api/projects/p1/render-info': (_) => {
+              'sequences': [],
+              'serverRender': true,
+              'project': true,
+            },
+      });
+      expect(find.textContaining('no sequences'), findsOneWidget);
+      await t.pumpWidget(const SizedBox());
+    });
+
+    testWidgets('render-info failure shows the error', (t) async {
+      await openDialog(t, extra: {
+        'GET /api/projects/p1/render-info': (_) =>
+            http.Response('{"error":"inspect broke"}', 502),
+      });
+      expect(find.textContaining('inspect broke'), findsOneWidget);
+      await t.pumpWidget(const SizedBox());
+    });
+
+    testWidgets('custom range needs both times', (t) async {
+      await openDialog(t);
+      await choose(t, 'Range', 'Custom');
+      await t.tap(find.text('Render'));
+      await settle(t);
+      expect(find.byType(Notice), findsOneWidget);
+      await t.pumpWidget(const SizedBox());
+    });
+
+    testWidgets('all options map into params', (t) async {
+      await openDialog(t);
+      await choose(t, 'Format', 'ProRes');
+      await choose(t, 'Range', 'Custom');
+      await enter(t, 'Start (seconds)', '1');
+      await enter(t, 'End (seconds)', '2');
+      await choose(t, 'Resolution', '720p');
+      await t.ensureVisible(find.text('Audio'));
+      await t.tap(find.text('Audio'));
+      await t.pump();
+      await enter(t, 'Preset (optional)', 'my-preset');
+      await t.ensureVisible(find.text('Advanced options'));
+      await t.tap(find.text('Advanced options'));
+      await settle(t);
+      await enter(t, 'Quality (0-100)', '80');
+      await enter(t, 'Bitrate (kbps)', '5000');
+      await enter(t, 'CRF', '20');
+      await choose(t, 'Bitrate mode', 'CRF');
+      await choose(t, 'Audio codec', 'FLAC');
+      await enter(t, 'FLAC level', '8');
+      await choose(t, 'Hardware encoding', 'Off');
+      await enter(t, 'Scale', '0.5');
+      await enter(t, 'Loudness (LUFS)', '-14');
+      await choose(t, 'H.264 profile', 'High');
+      await choose(t, 'ProRes profile', 'HQ');
+      await choose(t, 'DNx profile', 'SQ');
+      await choose(t, 'APV profile', '444-10');
+      await choose(t, 'MXF video codec', 'ProRes');
+      await choose(t, 'EXR compression', 'ZIP');
+      await choose(t, 'Caption sidecar', 'SRT');
+      for (final chip in ['H.264 intra-only', 'Burn captions', 'Alpha channel']) {
+        await t.ensureVisible(find.text(chip));
+        await t.tap(find.text(chip));
         await t.pump();
       }
-      final a = find.text('Raw/A-Roll/a.mp4');
-      final c = find.text('Raw/A-Roll/c.mp4');
-      expect(a, findsOneWidget);
-      final g = await t.startGesture(t.getCenter(c));
-      await t.pump(const Duration(milliseconds: 600));
-      await g.moveBy(const Offset(0, -80));
-      await t.pump(const Duration(milliseconds: 300));
-      await g.up();
-      await t.pumpAndSettle();
-      await t.tap(find.text('Cancel'));
+      await enter(t, 'Extra export params (JSON)', '{"fps": 60}');
+      await t.tap(find.text('Render'));
       await settle(t);
+      final p = posted()['params'] as Map<String, dynamic>;
+      expect(p['format'], 'prores');
+      expect(p['range'], 'custom');
+      expect(p['startSeconds'], 1.0);
+      expect(p['endSeconds'], 2.0);
+      expect(p['width'], 1280);
+      expect(p['height'], 720);
+      expect(p['audio'], false);
+      expect(p['preset'], 'my-preset');
+      expect(p['quality'], 80);
+      expect(p['bitrateKbps'], 5000);
+      expect(p['crf'], 20);
+      expect(p['bitrateMode'], 'crf');
+      expect(p['audioCodec'], 'flac');
+      expect(p['flacLevel'], 8);
+      expect(p['hardwareEncoding'], 'off');
+      expect(p['scale'], 0.5);
+      expect(p['loudnessLufs'], -14.0);
+      expect(p['h264Profile'], 'high');
+      expect(p['proresProfile'], 'hq');
+      expect(p['dnxProfile'], 'sq');
+      expect(p['apvProfile'], '444-10');
+      expect(p['mxfVideoCodec'], 'proRes');
+      expect(p['exrCompression'], 'zip');
+      expect(p['captionSidecar'], 'srt');
+      expect(p['h264IntraOnly'], true);
+      expect(p['burnCaptions'], true);
+      expect(p['alpha'], true);
+      expect(p['fps'], 60);
+    });
+
+    testWidgets('invalid extra json shows a snack', (t) async {
+      await openDialog(t);
+      await t.ensureVisible(find.text('Advanced options'));
+      await t.tap(find.text('Advanced options'));
+      await settle(t);
+      await enter(t, 'Extra export params (JSON)', '[1,2]');
+      await t.tap(find.text('Render'));
+      await settle(t);
+      expect(find.byType(Notice), findsOneWidget);
+      await t.pumpWidget(const SizedBox());
+    });
+
+    testWidgets('submit failure shows a snack', (t) async {
+      await openDialog(t, extra: {
+        'POST /api/projects/p1/renders': (_) =>
+            http.Response('{"error":"queue full"}', 409),
+      });
+      await t.tap(find.text('Render'));
+      await settle(t);
+      expect(find.byType(Notice), findsOneWidget);
+      await t.pumpWidget(const SizedBox());
     });
   });
 
