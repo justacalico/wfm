@@ -326,6 +326,20 @@ impl Db for PgDb {
             .map_err(map_err)
     }
 
+    async fn delete_user_sessions_except(
+        &self,
+        user_id: &str,
+        token_hash: &str,
+    ) -> DbResult<()> {
+        sqlx::query("DELETE FROM sessions WHERE user_id=$1 AND token_hash<>$2")
+            .bind(user_id)
+            .bind(token_hash)
+            .execute(&self.pool)
+            .await
+            .map(|_| ())
+            .map_err(map_err)
+    }
+
     async fn clean_sessions(&self, now: i64) -> DbResult<()> {
         sqlx::query("DELETE FROM sessions WHERE expires_at<$1")
             .bind(now)

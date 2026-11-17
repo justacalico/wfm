@@ -386,6 +386,24 @@ impl Db for SqliteDb {
             .map_err(dberr)
     }
 
+    async fn delete_user_sessions_except(
+        &self,
+        user_id: &str,
+        token_hash: &str,
+    ) -> DbResult<()> {
+        let uid = user_id.to_string();
+        let th = token_hash.to_string();
+        self.q(move |c| {
+            c.execute(
+                "DELETE FROM sessions WHERE user_id=? AND token_hash<>?",
+                [uid, th],
+            )
+        })
+        .await
+        .map(|_| ())
+        .map_err(dberr)
+    }
+
     async fn clean_sessions(&self, now: i64) -> DbResult<()> {
         self.q(move |c| c.execute("DELETE FROM sessions WHERE expires_at<?", [now]))
             .await
