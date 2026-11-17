@@ -166,7 +166,8 @@ class Api {
   Future<dynamic> del(String p, [Map<String, String>? q]) =>
       _go(() => _c.delete(_u(p, q), headers: _h));
   Future<dynamic> putFile(String p, Uint8List bytes, Map<String, String> q) =>
-      _go(() => _c.put(_u(p, q), body: bytes));
+      _go(() => _c.put(_u(p, q),
+          headers: {if (csrf.isNotEmpty) 'x-csrf-token': csrf}, body: bytes));
 
   void _session(Map<String, dynamic> j) {
     csrf = j['csrf'] ?? csrf;

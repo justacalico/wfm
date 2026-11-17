@@ -109,7 +109,7 @@ async function listFiles(path) {
   const list = await r.json().catch(() => []);
   let out = [];
   for (const e of Array.isArray(list) ? list : []) {
-    if (e.type === "dir") out = out.concat(await listFiles(e.path));
+    if (e.type === "dir") out.push(e, ...(await listFiles(e.path)));
     else out.push(e);
   }
   return out;
@@ -119,8 +119,12 @@ const MEDIA_EXT = /\.(mp4|mov|mkv|webm|avi|mts|m2ts|mxf|mp3|wav|aac|flac|ogg|oga
 
 async function sendDoc() {
   try {
-    const media = (await listFiles(""))
-      .filter(e => !e.path.startsWith("Exports/") && !e.name.endsWith(".fcproj") && MEDIA_EXT.test(e.name))
+    const entries = await listFiles("");
+    for (const d of entries.filter(e => e.type === "dir" && !e.path.startsWith("Exports"))) {
+      send("Folder_" + d.path.replace(/\//g, "::"), new ArrayBuffer(0));
+    }
+    const media = entries
+      .filter(e => e.type !== "dir" && !e.path.startsWith("Exports/") && !e.name.endsWith(".fcproj") && MEDIA_EXT.test(e.name))
       .sort((a, b) => (a.path < b.path ? -1 : 1));
     for (const m of media) {
       const r = await api("/projects/" + projectId + "/download?path=" + encodeURIComponent(m.path));
@@ -132,9 +136,38 @@ async function sendDoc() {
   send(docName, bytes);
 }
 
+function binFolders(bin, prefix, out) {
+  for (const c of (bin && bin.children) || []) {
+    const b = c.Bin;
+    if (!b) continue;
+    const name = String(b.name || "").replace(/[\/\\:]/g, "-").trim();
+    if (!name) continue;
+    const p = prefix ? prefix + "/" + name : name;
+    out.push(p);
+    binFolders(b, p, out);
+  }
+}
+
+async function syncBins(bytes) {
+  try {
+    const doc = JSON.parse(new TextDecoder().decode(bytes));
+    const roots = new Set(["Raw", "Audio", "Images", "Exports"]);
+    const dirs = [];
+    binFolders(doc && doc.project && doc.project.root, "", dirs);
+    for (let d of new Set(dirs)) {
+      if (!roots.has(d.split("/")[0])) d = "Raw/" + d;
+      await api("/projects/" + projectId + "/files/mkdir", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ path: d })
+      });
+    }
+  } catch (_) {}
+}
+
 async function handleSave(d) {
   let path = d.name || "export.bin";
-  if (d.id && d.id.startsWith("Raw/") && !d.id.includes("..")) path = d.id;
+  if (d.id && !d.id.includes("..") && !d.id.startsWith("/") && !d.id.includes("\\") && d.id.trim()) path = d.id;
   else if (!path.startsWith("Raw/")) {
     path = path.toLowerCase().endsWith(".fcproj") ? "project.fcproj" : "Exports/" + path.replace(/^.*\//, "");
   }
@@ -144,7 +177,7 @@ async function handleSave(d) {
       method: "PUT", body: d.bytes
     });
     if (!r.ok) toast("Save failed: " + (await r.text()));
-    else if (path === "project.fcproj") dirty = false;
+    else if (path === "project.fcproj") { dirty = false; syncBins(d.bytes); }
     else toast("Saved " + path);
   } catch (e) { toast("Save failed"); }
   pending--;

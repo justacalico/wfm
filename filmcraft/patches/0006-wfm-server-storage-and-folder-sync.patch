@@ -1,0 +1,238 @@
+--- a/apps/filmcraft-web/src/host.rs	2026-11-17 06:38:09.786311722 -0700
++++ b/apps/filmcraft-web/src/host.rs	2026-11-17 06:38:09.532430804 -0700
+@@ -66,14 +66,23 @@
+     /// Files the host sent for the open project (`Media_` opens), held until the project is
+     /// open: (virtual path, folders from the project's root).
+     static RESTORED: RefCell<Vec<(String, Vec<String>)>> = const { RefCell::new(Vec::new()) };
++    /// Folders the host sent for the open project (`Folder_` opens): bin paths to create even
++    /// when they hold no media yet.
++    static FOLDERS: RefCell<Vec<Vec<String>>> = const { RefCell::new(Vec::new()) };
+ }
+ 
+-/// Hand a file the user imported to the host (`Raw/<name>` in the project), when a bridge is
+-/// installed.
+-pub fn post_media(path: &str, blob: web_sys::Blob) {
++/// Whether the host bridge is installed: media and snapshots belong to the host's project
++/// then, not to this browser's storage.
++pub fn installed() -> bool {
++    BRIDGE.with(|b| b.borrow().is_some())
++}
++
++/// Hand a file the user imported to the host (under `folder` in the project), when a bridge
++/// is installed.
++pub fn post_media(path: &str, blob: web_sys::Blob, folder: &str) {
+     BRIDGE.with(|b| {
+         if let Some(bridge) = &*b.borrow() {
+-            bridge.post_media(path, blob);
++            bridge.post_media(path, blob, folder);
+         }
+     });
+ }
+@@ -108,16 +117,18 @@
+         crate::fs::set_on_write(move |path: &str, _bytes: &[u8]| bridge.wrote(path));
+     }
+ 
+-    /// Hand an imported media file to the host as `Raw/<name>` so it lives in the project on
+-    /// the server, not only in this browser session. The host crate strips `name` to a
++    /// Hand an imported media file to the host as `<folder>/<name>` so it lives in the
++    /// project on the server, not only in this browser session. `folder` is the bin's folder
++    /// chain joined with `/` (empty for the root bin). The host crate strips `name` to a
+     /// basename, so the path inside the project rides in `id`.
+-    pub fn post_media(&self, path: &str, blob: web_sys::Blob) {
++    pub fn post_media(&self, path: &str, blob: web_sys::Blob, folder: &str) {
+         let name = path.rsplit('/').next().unwrap_or(path).to_string();
++        let target = if folder.is_empty() { name.clone() } else { format!("{folder}/{name}") };
+         let host = self.host.clone();
+         wasm_bindgen_futures::spawn_local(async move {
+             if let Ok(buf) = wasm_bindgen_futures::JsFuture::from(blob.array_buffer()).await {
+                 let bytes = js_sys::Uint8Array::new(&buf).to_vec();
+-                let _ = host.post_save(&format!("Raw/{name}"), &bytes, Some(&format!("Raw/{name}")), false);
++                let _ = host.post_save(&target, &bytes, Some(&target), false);
+             }
+         });
+     }
+@@ -213,6 +224,15 @@
+         return rejected_open(format!("{len} bytes is over the {} MiB host open limit", MAX_OPEN_BYTES >> 20));
+     }
+     let name = open_name(name);
++    if let Some(rest) = name.strip_prefix("Folder_") {
++        // A folder the host stores for the open project (`Folder_<dir>::…::<dir>`): held for
++        // the bin pass so the project's folder tree shows as bins, empty ones included.
++        let dirs = rest.split("::").filter(|d| !d.is_empty()).map(str::to_string).collect::<Vec<_>>();
++        if !dirs.is_empty() {
++            FOLDERS.with(|f| f.borrow_mut().push(dirs));
++        }
++        return;
++    }
+     if let Some(rest) = name.strip_prefix("Media_") {
+         // Media the host stores for the open project, named `Media_<dir>::…::<file>`: back
+         // under the `/files/` name the project's items reference, ready to play, and listed
+@@ -276,15 +296,29 @@
+     }
+ }
+ 
+-/// The project is open: every file the host sent for it that the project does not already
+-/// reference is imported into bins matching its folders on the server, so the project's media
+-/// shows in the Project panel instead of living only in the file table.
++/// The project is open: every folder the host sent becomes a bin (empty ones too), and every
++/// file the host sent that the project does not already reference is imported into the bin
++/// matching its folder on the server, so the project's media shows in the Project panel
++/// instead of living only in the file table.
+ fn restore_bins() {
++    let folders = FOLDERS.with(|f| std::mem::take(&mut *f.borrow_mut()));
+     let files = RESTORED.with(|r| std::mem::take(&mut *r.borrow_mut()));
+-    if files.is_empty() {
++    if folders.is_empty() && files.is_empty() {
+         return;
+     }
+     wasm_bindgen_futures::spawn_local(async move {
++        for dirs in folders.iter().chain(files.iter().map(|(_, d)| d)) {
++            let dirs = dirs.clone();
++            let r = crate::import::on_ui(move |w, _| {
++                let s = &mut w.app.session;
++                let root = s.project.root.clone();
++                bin_for(&root, s, &dirs).map(|_| json!(null))
++            })
++            .await;
++            if let Err(e) = r {
++                crate::post(move |w, _| w.app.status(e));
++            }
++        }
+         for (path, dirs) in files {
+             let r = crate::import::on_ui(move |w, _| {
+                 let s = &mut w.app.session;
+@@ -295,16 +329,8 @@
+                 if referenced {
+                     return Ok(json!(null));
+                 }
+-                let mut parent = s.project.root.id;
+-                for name in &dirs {
+-                    parent = match find_bin(&s.project.root, parent, name) {
+-                        Some(id) => id,
+-                        None => match s.execute("file.newBin", json!({"name": name, "parent": parent.0})) {
+-                            Ok(v) => filmcraft_engine::project::BinId(v.get("bin").and_then(Value::as_u64).unwrap_or_default()),
+-                            Err(e) => return Err(e.to_string()),
+-                        },
+-                    };
+-                }
++                let root = s.project.root.clone();
++                let parent = bin_for(&root, s, &dirs)?;
+                 s.execute("file.import", json!({"paths": [path], "bin": parent.0})).map_err(|e| e.to_string())
+             })
+             .await;
+@@ -315,6 +341,66 @@
+     });
+ }
+ 
++/// The bin under `root` matching the folder chain `dirs`, created piece by piece when
++/// missing: the id of the deepest bin (the root's own id for an empty chain).
++fn bin_for(
++    root: &filmcraft_engine::project::Bin,
++    s: &mut Session,
++    dirs: &[String],
++) -> Result<filmcraft_engine::project::BinId, String> {
++    let mut parent = root.id;
++    for name in dirs {
++        parent = match find_bin(root, parent, name) {
++            Some(id) => id,
++            None => match s.execute("file.newBin", json!({"name": name, "parent": parent.0})) {
++                Ok(v) => filmcraft_engine::project::BinId(v.get("bin").and_then(Value::as_u64).unwrap_or_default()),
++                Err(e) => return Err(e.to_string()),
++            },
++        };
++    }
++    Ok(parent)
++}
++
++/// The folder chain for `bin` under the project root (`Raw > A-Roll` → `Raw/A-Roll`), so a
++/// file imported into it lands in the matching folder on the server. Bin names get the
++/// file-name cleaning the host applies to paths (`/` and `\` already can't appear).
++pub async fn bin_folder(bin: filmcraft_engine::project::BinId) -> String {
++    let mut dirs = crate::import::on_ui(move |w, _| {
++        let mut dirs = Vec::new();
++        bin_chain(&w.app.session.project.root, bin, &mut dirs);
++        dirs
++    })
++    .await;
++    for d in &mut dirs {
++        *d = d.replace(['/', '\\', ':'], "-");
++    }
++    // The host only stores files under the project's media roots: imports taken at the
++    // panel root or in a bin outside those roots land under Raw so nothing is dropped.
++    match dirs.first().map(String::as_str) {
++        Some("Raw" | "Audio" | "Images" | "Exports") => dirs.join("/"),
++        Some(_) => format!("Raw/{}", dirs.join("/")),
++        None => "Raw".into(),
++    }
++}
++
++/// Push the names from `root` down to `target` onto `dirs`: `bin_chain(root, target, dirs)`
++/// is true when the bin exists under `root`.
++fn bin_chain(root: &filmcraft_engine::project::Bin, target: filmcraft_engine::project::BinId, dirs: &mut Vec<String>) -> bool {
++    if root.id == target {
++        return true;
++    }
++    for c in &root.children {
++        if let filmcraft_engine::project::BinEntry::Bin(b) = c {
++            dirs.push(b.name.clone());
++            if bin_chain(b, target, dirs) {
++                return true;
++            }
++            dirs.pop();
++        }
++    }
++    false
++}
++
+ /// The immediate child of `parent` named `name`, if it is a bin.
+ fn find_bin(root: &filmcraft_engine::project::Bin, parent: filmcraft_engine::project::BinId, name: &str) -> Option<filmcraft_engine::project::BinId> {
+     root.find_bin(parent)?.children.iter().find_map(|c| match c {
+--- a/apps/filmcraft-web/src/import.rs	2026-11-17 06:38:09.786343588 -0700
++++ b/apps/filmcraft-web/src/import.rs	2026-11-17 06:21:16.616005761 -0700
+@@ -107,6 +107,7 @@
+ pub async fn import_files(files: Vec<web_sys::File>) -> Value {
+     // Capture once per batch: navigation while prewarming must not redirect pending imports.
+     let bin = on_ui(|w, _| w.app.import_bin().0).await;
++    let folder = crate::host::bin_folder(filmcraft_engine::project::BinId(bin)).await;
+     let mut items = Vec::new();
+     let mut errors = Vec::new();
+     let mut paths = Vec::new();
+@@ -119,8 +120,10 @@
+             Ok(v) => {
+                 items.extend(v.get("items").and_then(Value::as_array).cloned().unwrap_or_default());
+                 errors.extend(v.get("errors").and_then(Value::as_array).cloned().unwrap_or_default());
+-                crate::recovery::keep_media(&path, &f);
+-                crate::host::post_media(&path, f.clone().into());
++                if !crate::host::installed() {
++                    crate::recovery::keep_media(&path, &f);
++                }
++                crate::host::post_media(&path, f.clone().into(), &folder);
+             }
+             Err(e) => errors.push(json!(e)),
+         }
+@@ -198,8 +201,12 @@
+     let Some(f) = files.into_iter().next() else { return };
+     wasm_bindgen_futures::spawn_local(async move {
+         let path = fs::register_blob(&f.name(), f.clone().into());
+-        crate::recovery::keep_media(&path, &f);
+-        crate::host::post_media(&path, f.clone().into());
++        if !crate::host::installed() {
++            crate::recovery::keep_media(&path, &f);
++        }
++        let bin = on_ui(|w, _| w.app.import_bin().0).await;
++        let folder = crate::host::bin_folder(filmcraft_engine::project::BinId(bin)).await;
++        crate::host::post_media(&path, f.clone().into(), &folder);
+         let mut params = hint.params;
+         if !params.is_object() {
+             params = json!({});
+--- a/apps/filmcraft-web/src/recovery.rs	2026-11-17 06:38:09.656433306 -0700
++++ b/apps/filmcraft-web/src/recovery.rs	2026-11-17 06:21:16.617005782 -0700
+@@ -45,7 +45,7 @@
+ impl Autosave {
+     /// Called every frame.
+     pub fn tick(&mut self, s: &Session, ctx: &egui::Context) {
+-        if !opfs::available() {
++        if !opfs::available() || crate::host::installed() {
+             return;
+         }
+         let now = self.clock.elapsed().as_secs_f64();
