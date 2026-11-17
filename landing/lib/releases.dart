@@ -29,7 +29,7 @@ class ReleaseFetcher {
         Release(
           '${e['tag_name'] ?? ''}',
           '${e['name'] ?? e['tag_name'] ?? ''}',
-          '${e['_links']?['self'] ?? pageUrl}',
+          e['tag_name'] == null ? pageUrl : '$pageUrl/${e['tag_name']}',
           [
             for (final a in (e['assets']?['links'] as List? ?? []))
               ReleaseAsset('${a['name'] ?? ''}',
