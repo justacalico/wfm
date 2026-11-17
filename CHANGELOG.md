@@ -2,6 +2,14 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.3.0 - 2026-11-17
+#### Features
+- FilmCraft 源码补丁与项目媒体集成 - (ff79110) - calico
+#### Bug Fixes
+- filmcraft 路由放行内联脚本 - (cb714c5) - calico
+
+- - -
+
 ## v0.2.0 - 2026-11-17
 #### Features
 - 项目分组与标签 - (d0b2d7a) - calico
