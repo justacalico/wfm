@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.5.2 - 2026-11-17
+#### Bug Fixes
+- 渲染对话框对畸形 JSON 参数提示而非崩溃 - (bd13862) - calico, *Devin*
+
+- - -
+
 ## v0.5.1 - 2026-11-17
 #### Bug Fixes
 - 发布卡片链接到 GitLab 发布页面而非 API JSON - (4589dc3) - calico, *Devin*
