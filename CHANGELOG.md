@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.5.5 - 2026-11-17
+#### Bug Fixes
+- 发布脚本同步 server crate 版本使 /api/version 跟随发布标签 - (ee69ec3) - calico, *Devin*
+
+- - -
+
 ## v0.5.4 - 2026-11-17
 #### Bug Fixes
 - FilmCraft 包装页在非安全上下文下生成 UUID 并可诊断加载错误 - (5abb5f4) - calico, *Devin*
