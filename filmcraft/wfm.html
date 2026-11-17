@@ -38,6 +38,24 @@
 <div id="toast"></div>
 <script>
 "use strict";
+let fcReady = false;
+const fcFail = (msg) => {
+  if (fcReady) return;
+  const o = document.getElementById("overlay");
+  o.classList.remove("hidden");
+  document.getElementById("overlay-msg").textContent = msg;
+  const box = document.getElementById("overlay-btns");
+  box.innerHTML = "";
+  const b = document.createElement("button");
+  b.textContent = "Back to WFM";
+  b.onclick = () => location.href = "/app/";
+  box.appendChild(b);
+};
+setTimeout(() => fcFail("FilmCraft could not load in this browser."), 60000);
+addEventListener("error", () => fcFail("FilmCraft could not load in this browser."));
+</script>
+<script>
+"use strict";
 const qs = new URLSearchParams(location.search);
 const projectId = qs.get("project");
 const renderId = qs.get("render");
@@ -74,7 +92,7 @@ async function api(path, opt = {}) {
 }
 
 async function boot() {
-  if (!projectId) return overlay("No project specified.");
+  if (!projectId) return fcFail("No project specified.");
   const me = await (await api("/me")).json().catch(() => null);
   if (!me || !me.user) return overlay("Sign in first.", [["Open app", () => location.href = "/app/"]]);
   csrf = me.csrf || "";
@@ -91,7 +109,7 @@ async function boot() {
     body: JSON.stringify({ kind: "edit", clientId })
   });
   const lr = await lock.json();
-  if (!lock.ok && !lr.lock) return overlay("Could not open the project.");
+  if (!lock.ok && !lr.lock) return fcFail("Could not open the project.");
   if (lr.lock && !lr.acquired) {
     return overlay("This project is already open in another tab or device.", [
       ["Take over", async () => {
@@ -108,12 +126,6 @@ async function boot() {
   docName = cleanName(title) + ".fcproj";
   $("fc").src = "/filmcraft/dist/index.html?host=parent&fresh";
   setInterval(heartbeat, 20000);
-  setInterval(() => {
-    try {
-      const s = $("fc").contentDocument?.getElementById("status");
-      if (s && s.className === "err") overlay(s.textContent);
-    } catch (_) {}
-  }, 1500);
 }
 
 function heartbeat() {
@@ -124,6 +136,7 @@ function heartbeat() {
 window.addEventListener("message", async (ev) => {
   const d = ev.data || {};
   if (d.type === "filmcraft:ready") {
+    fcReady = true;
     hideOverlay();
     if (!docSent) {
       docSent = true;
@@ -133,7 +146,7 @@ window.addEventListener("message", async (ev) => {
   }
   else if (d.type === "filmcraft:save") { handleSave(d); }
   else if (d.type === "filmcraft:dirty") { dirty = !!d.dirty; }
-  else if (d.type === "filmcraft:failed") { overlay("FilmCraft could not start: " + (d.error || "unknown error")); }
+  else if (d.type === "filmcraft:failed") { fcFail("FilmCraft could not start: " + (d.error || "unknown error")); }
 });
 
 function send(name, bytes) {
@@ -376,7 +389,13 @@ window.addEventListener("beforeunload", (e) => {
   if (dirty || pending > 0 || rendering) { e.preventDefault(); e.returnValue = ""; }
 });
 window.addEventListener("pagehide", releaseLock);
-boot();
+setInterval(() => {
+  try {
+    const s = $("fc").contentDocument?.getElementById("status");
+    if (s && s.className === "err") fcFail(s.textContent || "FilmCraft could not start.");
+  } catch (_) {}
+}, 1500);
+boot().catch((e) => { if (!e || e.message !== "auth") fcFail("Could not open the project: " + ((e && e.message) || e)); });
 </script>
 </body>
 </html>
