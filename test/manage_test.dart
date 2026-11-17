@@ -51,6 +51,17 @@ void main() {
       expect(find.text('Activity'), findsOneWidget);
       expect(find.text('Render nodes'), findsOneWidget);
     });
+
+    testWidgets('narrow layout drops the duplicate title', (t) async {
+      installApi();
+      t.view.physicalSize = const Size(500, 800);
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.reset);
+      await pump(t, const ManagePage());
+      expect(find.text('Manage'), findsNothing);
+      expect(find.text('Accounts'), findsOneWidget);
+      expect(find.byType(TabBar), findsOneWidget);
+    });
   });
 
   group('AccountsTab', () {
