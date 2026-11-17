@@ -2,6 +2,16 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.5.0 - 2026-11-17
+#### Features
+- 用 FilmCraft 引擎替换自定义渲染 - (68ac0a4) - calico
+- 移除媒体浏览器导入入口并显示上传进度 - (e1d9756) - calico
+- 支持编辑已有账号 - (c985d5e) - calico
+#### Bug Fixes
+- FilmCraft 加载失败时提示返回 WFM - (6dc86b6) - Devin
+
+- - -
+
 ## v0.4.3 - 2026-11-17
 #### Bug Fixes
 - 修复文件上传与 FilmCraft 存储同步 - (df2eebd) - calico
