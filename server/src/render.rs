@@ -261,6 +261,7 @@ pub fn spawn_janitor(state: Arc<AppState>) {
             let _ = state.db.clean_sessions(now).await;
             let _ = state.db.job_requeue_stale(now).await;
             let _ = state.db.job_fail_stale(now).await;
+            crate::auth::login_prune(&state.logins);
         }
     });
 }

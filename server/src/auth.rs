@@ -219,6 +219,16 @@ pub fn login_ok(state: &AppState, ip: IpAddr) {
     state.logins.lock().unwrap().remove(&ip);
 }
 
+/// Drop throttle entries idle longer than the window so the map cannot grow
+/// without bound on internet-facing instances.
+pub fn login_prune(logins: &Mutex<HashMap<IpAddr, (u32, Instant)>>) {
+    let now = Instant::now();
+    logins
+        .lock()
+        .unwrap()
+        .retain(|_, e| now.duration_since(e.1) <= LOGIN_WINDOW);
+}
+
 /// Parse a comma-separated list of IPs and CIDR ranges into networks.
 pub fn parse_nets(list: &str) -> Result<Vec<ipnet::IpNet>, String> {
     list.split(',')
@@ -270,6 +280,21 @@ mod tests {
 
     fn v4(a: u8, b: u8, c: u8, d: u8) -> IpAddr {
         IpAddr::V4(Ipv4Addr::new(a, b, c, d))
+    }
+
+    #[test]
+    fn login_prune_drops_stale_entries() {
+        let logins = Mutex::new(HashMap::new());
+        let stale = Instant::now() - LOGIN_WINDOW - Duration::from_secs(1);
+        logins.lock().unwrap().insert(v4(1, 1, 1, 1), (1, stale));
+        logins
+            .lock()
+            .unwrap()
+            .insert(v4(2, 2, 2, 2), (1, Instant::now()));
+        login_prune(&logins);
+        let m = logins.lock().unwrap();
+        assert!(!m.contains_key(&v4(1, 1, 1, 1)));
+        assert!(m.contains_key(&v4(2, 2, 2, 2)));
     }
 
     #[test]
