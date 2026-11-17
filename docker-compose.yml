@@ -1,3 +1,5 @@
+# Dev stack: builds the image locally and bundles a rustfs S3 store.
+# To deploy the published image instead, use deploy/docker-compose.yaml.
 services:
   rustfs:
     image: rustfs/rustfs:latest
