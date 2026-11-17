@@ -114,8 +114,7 @@ class RenderInfo {
   final bool serverRender, project;
   RenderInfo.fromJson(Map<String, dynamic> j)
       : sequences = [
-          for (final s in (j['sequences'] as List? ?? []))
-            RenderSeq.fromJson(s)
+          for (final s in (j['sequences'] as List? ?? [])) RenderSeq.fromJson(s)
         ],
         activeSequence = j['activeSequence'],
         serverRender = j['serverRender'] ?? false,

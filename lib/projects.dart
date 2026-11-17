@@ -501,8 +501,8 @@ class _FilesTabState extends State<FilesTab> {
                 child: Column(mainAxisSize: MainAxisSize.min, children: [
                   Row(children: [
                     Expanded(
-                        child: LinearProgressIndicator(
-                            value: done / ups.length)),
+                        child:
+                            LinearProgressIndicator(value: done / ups.length)),
                     const SizedBox(width: 12),
                     Text('$done/${ups.length}'),
                   ]),
@@ -512,19 +512,16 @@ class _FilesTabState extends State<FilesTab> {
                       padding: const EdgeInsets.symmetric(vertical: 5),
                       child: Row(children: [
                         Expanded(
-                            child: Text(
-                                '${u.name}  ·  ${fmtBytes(u.size)}',
+                            child: Text('${u.name}  ·  ${fmtBytes(u.size)}',
                                 overflow: TextOverflow.ellipsis)),
                         const SizedBox(width: 10),
                         switch (u.state) {
-                          2 => const Icon(Icons.check_circle_outline,
-                              size: 18),
+                          2 => const Icon(Icons.check_circle_outline, size: 18),
                           3 => const Icon(Icons.error_outline, size: 18),
                           1 => const SizedBox(
                               width: 16,
                               height: 16,
-                              child: CircularProgressIndicator(
-                                  strokeWidth: 2)),
+                              child: CircularProgressIndicator(strokeWidth: 2)),
                           _ => const Icon(Icons.schedule, size: 16),
                         },
                       ]),
@@ -541,8 +538,8 @@ class _FilesTabState extends State<FilesTab> {
       ups[i].state = 1;
       tick.value++;
       try {
-        await Api.i
-            .upload(widget.project.id, '$folder/${picked[i].name}', picked[i].bytes);
+        await Api.i.upload(
+            widget.project.id, '$folder/${picked[i].name}', picked[i].bytes);
         ups[i].state = 2;
       } catch (e) {
         ups[i].state = 3;
@@ -746,9 +743,8 @@ class _RendersTabState extends State<RendersTab> {
           !e.isDir &&
           (e.name == j.outputName || e.name.startsWith('${j.outputName}.')));
       if (f.isEmpty) throw StateError('not found');
-      openExternal(
-          Api.i.downloadUrl(widget.project.id, 'Exports/${f.first.name}',
-              dl: true));
+      openExternal(Api.i
+          .downloadUrl(widget.project.id, 'Exports/${f.first.name}', dl: true));
     } catch (e) {
       if (mounted) snack(context, e);
     }
@@ -921,9 +917,8 @@ class _RenderDialogState extends State<RenderDialog> {
     if (!_audio) p['audio'] = false;
     if (_preset.text.trim().isNotEmpty) p['preset'] = _preset.text.trim();
     void num(String key, TextEditingController c, {bool dbl = false}) {
-      final v = dbl
-          ? double.tryParse(c.text.trim())
-          : int.tryParse(c.text.trim());
+      final v =
+          dbl ? double.tryParse(c.text.trim()) : int.tryParse(c.text.trim());
       if (v != null) p[key] = v;
     }
 
@@ -1019,299 +1014,295 @@ class _RenderDialogState extends State<RenderDialog> {
                         child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                            if (info.sequences.isEmpty)
-                              Text(l10n.noSequences)
-                            else
-                              _drop<int>(
-                                  l10n.sequence,
-                                  _seq,
+                              if (info.sequences.isEmpty)
+                                Text(l10n.noSequences)
+                              else
+                                _drop<int>(
+                                    l10n.sequence,
+                                    _seq,
+                                    [
+                                      for (final s in info.sequences)
+                                        (s.id, s.name)
+                                    ],
+                                    (v) => setState(() => _seq = v ?? 0)),
+                              const SizedBox(height: 8),
+                              _drop<String>(
+                                  l10n.renderMode,
+                                  _mode,
                                   [
-                                    for (final s in info.sequences)
-                                      (s.id, s.name)
+                                    ('device', l10n.renderOnDevice),
+                                    if (info.serverRender)
+                                      ('server', l10n.renderOnServer),
                                   ],
-                                  (v) => setState(() => _seq = v ?? 0)),
-                            const SizedBox(height: 8),
-                            _drop<String>(
-                                l10n.renderMode,
-                                _mode,
-                                [
-                                  ('device', l10n.renderOnDevice),
-                                  if (info.serverRender)
-                                    ('server', l10n.renderOnServer),
-                                ],
-                                (v) =>
-                                    setState(() => _mode = v ?? 'device')),
-                            const SizedBox(height: 8),
-                            _field(l10n.outputName, _out),
-                            const SizedBox(height: 8),
-                            Row(children: [
-                              Expanded(
-                                child: _drop<String>(
-                                    l10n.outputFormat,
-                                    _format,
-                                    [
-                                      for (final e in _formats.entries)
-                                        (e.key, e.value)
-                                    ],
-                                    (v) => setState(
-                                        () => _format = v ?? 'h264')),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: _drop<(int, int)>(
-                                    l10n.resolution,
-                                    _res,
-                                    [
-                                      (null, l10n.matchSource),
-                                      ((3840, 2160), '2160p'),
-                                      ((1920, 1080), '1080p'),
-                                      ((1280, 720), '720p'),
-                                      ((854, 480), '480p'),
-                                    ],
-                                    (v) => setState(() => _res = v)),
-                              ),
-                            ]),
-                            const SizedBox(height: 8),
-                            Row(children: [
-                              Expanded(
-                                child: _drop<String>(
-                                    l10n.exportRange,
-                                    _range,
-                                    [
-                                      ('entire', l10n.rangeEntire),
-                                      ('inOut', l10n.rangeInOut),
-                                      ('workArea', l10n.rangeWorkArea),
-                                      ('custom', l10n.rangeCustom),
-                                    ],
-                                    (v) => setState(
-                                        () => _range = v ?? 'entire')),
-                              ),
-                              if (_range == 'custom') ...[
+                                  (v) => setState(() => _mode = v ?? 'device')),
+                              const SizedBox(height: 8),
+                              _field(l10n.outputName, _out),
+                              const SizedBox(height: 8),
+                              Row(children: [
+                                Expanded(
+                                  child: _drop<String>(
+                                      l10n.outputFormat,
+                                      _format,
+                                      [
+                                        for (final e in _formats.entries)
+                                          (e.key, e.value)
+                                      ],
+                                      (v) => setState(
+                                          () => _format = v ?? 'h264')),
+                                ),
                                 const SizedBox(width: 8),
                                 Expanded(
-                                    child:
-                                        _field(l10n.rangeStart, _rangeStart)),
-                                const SizedBox(width: 8),
+                                  child: _drop<(int, int)>(
+                                      l10n.resolution,
+                                      _res,
+                                      [
+                                        (null, l10n.matchSource),
+                                        ((3840, 2160), '2160p'),
+                                        ((1920, 1080), '1080p'),
+                                        ((1280, 720), '720p'),
+                                        ((854, 480), '480p'),
+                                      ],
+                                      (v) => setState(() => _res = v)),
+                                ),
+                              ]),
+                              const SizedBox(height: 8),
+                              Row(children: [
                                 Expanded(
-                                    child: _field(l10n.rangeEnd, _rangeEnd)),
-                              ],
-                            ]),
-                            SwitchListTile(
-                              contentPadding: EdgeInsets.zero,
-                              title: Text(l10n.renderAudio),
-                              value: _audio,
-                              onChanged: (v) => setState(() => _audio = v),
-                            ),
-                            _field(l10n.preset, _preset),
-                            ExpansionTile(
-                              tilePadding: EdgeInsets.zero,
-                              title: Text(l10n.advancedOptions),
-                              children: [
-                                Row(children: [
+                                  child: _drop<String>(
+                                      l10n.exportRange,
+                                      _range,
+                                      [
+                                        ('entire', l10n.rangeEntire),
+                                        ('inOut', l10n.rangeInOut),
+                                        ('workArea', l10n.rangeWorkArea),
+                                        ('custom', l10n.rangeCustom),
+                                      ],
+                                      (v) => setState(
+                                          () => _range = v ?? 'entire')),
+                                ),
+                                if (_range == 'custom') ...[
+                                  const SizedBox(width: 8),
                                   Expanded(
                                       child:
-                                          _field(l10n.quality, _quality)),
+                                          _field(l10n.rangeStart, _rangeStart)),
                                   const SizedBox(width: 8),
                                   Expanded(
-                                      child: _field(
-                                          l10n.bitrateKbps, _bitrate)),
-                                  const SizedBox(width: 8),
-                                  Expanded(child: _field(l10n.crf, _crf)),
-                                ]),
-                                const SizedBox(height: 8),
-                                Row(children: [
-                                  Expanded(
-                                    child: _drop<String>(
-                                        l10n.bitrateMode,
-                                        _bitrateMode,
-                                        [
-                                          (null, l10n.defaultOption),
-                                          ('cbr', 'CBR'),
-                                          ('vbr1Pass', 'VBR 1-pass'),
-                                          ('vbr2Pass', 'VBR 2-pass'),
-                                          ('crf', 'CRF'),
-                                        ],
-                                        (v) => setState(
-                                            () => _bitrateMode = v)),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: _drop<String>(
-                                        l10n.audioCodec,
-                                        _audioCodec,
-                                        [
-                                          (null, l10n.defaultOption),
-                                          ('auto', 'Auto'),
-                                          ('aac', 'AAC'),
-                                          ('pcm', 'PCM'),
-                                          ('flac', 'FLAC'),
-                                        ],
-                                        (v) => setState(
-                                            () => _audioCodec = v)),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                      child: _field(
-                                          l10n.flacLevel, _flacLevel)),
-                                ]),
-                                const SizedBox(height: 8),
-                                Row(children: [
-                                  Expanded(
-                                    child: _drop<String>(
-                                        l10n.hardwareEncoding,
-                                        _hardware,
-                                        [
-                                          (null, l10n.defaultOption),
-                                          ('auto', 'Auto'),
-                                          ('off', 'Off'),
-                                        ],
-                                        (v) =>
-                                            setState(() => _hardware = v)),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                      child: _field(
-                                          l10n.renderScale, _scale)),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                      child: _field(
-                                          l10n.loudnessLufs, _loudness)),
-                                ]),
-                                const SizedBox(height: 8),
-                                Row(children: [
-                                  Expanded(
-                                    child: _drop<String>(
-                                        l10n.h264Profile,
-                                        _h264Profile,
-                                        [
-                                          (null, l10n.defaultOption),
-                                          ('baseline', 'Baseline'),
-                                          ('main', 'Main'),
-                                          ('high', 'High'),
-                                          ('high10', 'High 10'),
-                                        ],
-                                        (v) => setState(
-                                            () => _h264Profile = v)),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: _drop<String>(
-                                        l10n.proresProfile,
-                                        _proresProfile,
-                                        [
-                                          (null, l10n.defaultOption),
-                                          ('proxy', 'Proxy'),
-                                          ('lt', 'LT'),
-                                          ('standard', 'Standard'),
-                                          ('hq', 'HQ'),
-                                          ('4444', '4444'),
-                                          ('4444xq', '4444 XQ'),
-                                        ],
-                                        (v) => setState(
-                                            () => _proresProfile = v)),
-                                  ),
-                                ]),
-                                const SizedBox(height: 8),
-                                Row(children: [
-                                  Expanded(
-                                    child: _drop<String>(
-                                        l10n.dnxProfile,
-                                        _dnxProfile,
-                                        [
-                                          (null, l10n.defaultOption),
-                                          ('lb', 'LB'),
-                                          ('sq', 'SQ'),
-                                          ('hq', 'HQ'),
-                                          ('hqx', 'HQX'),
-                                        ],
-                                        (v) =>
-                                            setState(() => _dnxProfile = v)),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: _drop<String>(
-                                        l10n.apvProfile,
-                                        _apvProfile,
-                                        [
-                                          (null, l10n.defaultOption),
-                                          ('422-10', '422-10'),
-                                          ('422-12', '422-12'),
-                                          ('444-10', '444-10'),
-                                          ('444-12', '444-12'),
-                                          ('4444-10', '4444-10'),
-                                          ('4444-12', '4444-12'),
-                                          ('400-10', '400-10'),
-                                        ],
-                                        (v) =>
-                                            setState(() => _apvProfile = v)),
-                                  ),
-                                ]),
-                                const SizedBox(height: 8),
-                                Row(children: [
-                                  Expanded(
-                                    child: _drop<String>(
-                                        l10n.mxfVideoCodec,
-                                        _mxfCodec,
-                                        [
-                                          (null, l10n.defaultOption),
-                                          ('dnxhr', 'DNxHR'),
-                                          ('proRes', 'ProRes'),
-                                          ('h264', 'H.264'),
-                                        ],
-                                        (v) =>
-                                            setState(() => _mxfCodec = v)),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: _drop<String>(
-                                        l10n.exrCompression,
-                                        _exrCompression,
-                                        [
-                                          (null, l10n.defaultOption),
-                                          ('none', 'None'),
-                                          ('rle', 'RLE'),
-                                          ('zips', 'ZIPS'),
-                                          ('zip', 'ZIP'),
-                                        ],
-                                        (v) => setState(
-                                            () => _exrCompression = v)),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: _drop<String>(
-                                        l10n.captionSidecar,
-                                        _captionSidecar,
-                                        [
-                                          (null, l10n.defaultOption),
-                                          ('srt', 'SRT'),
-                                          ('vtt', 'VTT'),
-                                        ],
-                                        (v) => setState(
-                                            () => _captionSidecar = v)),
-                                  ),
-                                ]),
-                                Wrap(spacing: 8, children: [
-                                  FilterChip(
-                                      label: Text(l10n.h264IntraOnly),
-                                      selected: _h264Intra,
-                                      onSelected: (v) =>
-                                          setState(() => _h264Intra = v)),
-                                  FilterChip(
-                                      label: Text(l10n.burnCaptions),
-                                      selected: _burnCaptions,
-                                      onSelected: (v) =>
-                                          setState(() => _burnCaptions = v)),
-                                  FilterChip(
-                                      label: Text(l10n.alphaChannel),
-                                      selected: _alpha,
-                                      onSelected: (v) =>
-                                          setState(() => _alpha = v)),
-                                ]),
-                                const SizedBox(height: 8),
-                                _field(l10n.extraParams, _extra),
-                              ],
-                            ),
-                          ]),
+                                      child: _field(l10n.rangeEnd, _rangeEnd)),
+                                ],
+                              ]),
+                              SwitchListTile(
+                                contentPadding: EdgeInsets.zero,
+                                title: Text(l10n.renderAudio),
+                                value: _audio,
+                                onChanged: (v) => setState(() => _audio = v),
+                              ),
+                              _field(l10n.preset, _preset),
+                              ExpansionTile(
+                                tilePadding: EdgeInsets.zero,
+                                title: Text(l10n.advancedOptions),
+                                children: [
+                                  Row(children: [
+                                    Expanded(
+                                        child: _field(l10n.quality, _quality)),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                        child:
+                                            _field(l10n.bitrateKbps, _bitrate)),
+                                    const SizedBox(width: 8),
+                                    Expanded(child: _field(l10n.crf, _crf)),
+                                  ]),
+                                  const SizedBox(height: 8),
+                                  Row(children: [
+                                    Expanded(
+                                      child: _drop<String>(
+                                          l10n.bitrateMode,
+                                          _bitrateMode,
+                                          [
+                                            (null, l10n.defaultOption),
+                                            ('cbr', 'CBR'),
+                                            ('vbr1Pass', 'VBR 1-pass'),
+                                            ('vbr2Pass', 'VBR 2-pass'),
+                                            ('crf', 'CRF'),
+                                          ],
+                                          (v) =>
+                                              setState(() => _bitrateMode = v)),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: _drop<String>(
+                                          l10n.audioCodec,
+                                          _audioCodec,
+                                          [
+                                            (null, l10n.defaultOption),
+                                            ('auto', 'Auto'),
+                                            ('aac', 'AAC'),
+                                            ('pcm', 'PCM'),
+                                            ('flac', 'FLAC'),
+                                          ],
+                                          (v) =>
+                                              setState(() => _audioCodec = v)),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                        child:
+                                            _field(l10n.flacLevel, _flacLevel)),
+                                  ]),
+                                  const SizedBox(height: 8),
+                                  Row(children: [
+                                    Expanded(
+                                      child: _drop<String>(
+                                          l10n.hardwareEncoding,
+                                          _hardware,
+                                          [
+                                            (null, l10n.defaultOption),
+                                            ('auto', 'Auto'),
+                                            ('off', 'Off'),
+                                          ],
+                                          (v) => setState(() => _hardware = v)),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                        child:
+                                            _field(l10n.renderScale, _scale)),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                        child: _field(
+                                            l10n.loudnessLufs, _loudness)),
+                                  ]),
+                                  const SizedBox(height: 8),
+                                  Row(children: [
+                                    Expanded(
+                                      child: _drop<String>(
+                                          l10n.h264Profile,
+                                          _h264Profile,
+                                          [
+                                            (null, l10n.defaultOption),
+                                            ('baseline', 'Baseline'),
+                                            ('main', 'Main'),
+                                            ('high', 'High'),
+                                            ('high10', 'High 10'),
+                                          ],
+                                          (v) =>
+                                              setState(() => _h264Profile = v)),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: _drop<String>(
+                                          l10n.proresProfile,
+                                          _proresProfile,
+                                          [
+                                            (null, l10n.defaultOption),
+                                            ('proxy', 'Proxy'),
+                                            ('lt', 'LT'),
+                                            ('standard', 'Standard'),
+                                            ('hq', 'HQ'),
+                                            ('4444', '4444'),
+                                            ('4444xq', '4444 XQ'),
+                                          ],
+                                          (v) => setState(
+                                              () => _proresProfile = v)),
+                                    ),
+                                  ]),
+                                  const SizedBox(height: 8),
+                                  Row(children: [
+                                    Expanded(
+                                      child: _drop<String>(
+                                          l10n.dnxProfile,
+                                          _dnxProfile,
+                                          [
+                                            (null, l10n.defaultOption),
+                                            ('lb', 'LB'),
+                                            ('sq', 'SQ'),
+                                            ('hq', 'HQ'),
+                                            ('hqx', 'HQX'),
+                                          ],
+                                          (v) =>
+                                              setState(() => _dnxProfile = v)),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: _drop<String>(
+                                          l10n.apvProfile,
+                                          _apvProfile,
+                                          [
+                                            (null, l10n.defaultOption),
+                                            ('422-10', '422-10'),
+                                            ('422-12', '422-12'),
+                                            ('444-10', '444-10'),
+                                            ('444-12', '444-12'),
+                                            ('4444-10', '4444-10'),
+                                            ('4444-12', '4444-12'),
+                                            ('400-10', '400-10'),
+                                          ],
+                                          (v) =>
+                                              setState(() => _apvProfile = v)),
+                                    ),
+                                  ]),
+                                  const SizedBox(height: 8),
+                                  Row(children: [
+                                    Expanded(
+                                      child: _drop<String>(
+                                          l10n.mxfVideoCodec,
+                                          _mxfCodec,
+                                          [
+                                            (null, l10n.defaultOption),
+                                            ('dnxhr', 'DNxHR'),
+                                            ('proRes', 'ProRes'),
+                                            ('h264', 'H.264'),
+                                          ],
+                                          (v) => setState(() => _mxfCodec = v)),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: _drop<String>(
+                                          l10n.exrCompression,
+                                          _exrCompression,
+                                          [
+                                            (null, l10n.defaultOption),
+                                            ('none', 'None'),
+                                            ('rle', 'RLE'),
+                                            ('zips', 'ZIPS'),
+                                            ('zip', 'ZIP'),
+                                          ],
+                                          (v) => setState(
+                                              () => _exrCompression = v)),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: _drop<String>(
+                                          l10n.captionSidecar,
+                                          _captionSidecar,
+                                          [
+                                            (null, l10n.defaultOption),
+                                            ('srt', 'SRT'),
+                                            ('vtt', 'VTT'),
+                                          ],
+                                          (v) => setState(
+                                              () => _captionSidecar = v)),
+                                    ),
+                                  ]),
+                                  Wrap(spacing: 8, children: [
+                                    FilterChip(
+                                        label: Text(l10n.h264IntraOnly),
+                                        selected: _h264Intra,
+                                        onSelected: (v) =>
+                                            setState(() => _h264Intra = v)),
+                                    FilterChip(
+                                        label: Text(l10n.burnCaptions),
+                                        selected: _burnCaptions,
+                                        onSelected: (v) =>
+                                            setState(() => _burnCaptions = v)),
+                                    FilterChip(
+                                        label: Text(l10n.alphaChannel),
+                                        selected: _alpha,
+                                        onSelected: (v) =>
+                                            setState(() => _alpha = v)),
+                                  ]),
+                                  const SizedBox(height: 8),
+                                  _field(l10n.extraParams, _extra),
+                                ],
+                              ),
+                            ]),
                       ),
       ),
       actions: [

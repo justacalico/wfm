@@ -210,8 +210,16 @@ void main() {
               {'id': 'r1', 'status': 'done', 'outputName': 'final'},
             ],
         'GET /api/projects/p1/files': (_) => [
-              {'name': 'final.mp4', 'path': 'Exports/final.mp4', 'type': 'file'},
-              {'name': 'other.txt', 'path': 'Exports/other.txt', 'type': 'file'},
+              {
+                'name': 'final.mp4',
+                'path': 'Exports/final.mp4',
+                'type': 'file'
+              },
+              {
+                'name': 'other.txt',
+                'path': 'Exports/other.txt',
+                'type': 'file'
+              },
             ],
       });
       await pump(t, RendersTab(project: p1));
@@ -269,8 +277,7 @@ void main() {
 
     Finder drop(String label) => find.ancestor(
         of: find.text(label),
-        matching:
-            find.byWidgetPredicate((w) => w is DropdownButtonFormField));
+        matching: find.byWidgetPredicate((w) => w is DropdownButtonFormField));
 
     Future<void> choose(WidgetTester t, String label, String option) async {
       final f = drop(label).first;
@@ -318,7 +325,8 @@ void main() {
       String? url;
       openExternalForTesting = (u) => url = u;
       await openDialog(t, extra: {
-        'POST /api/projects/p1/renders': (_) => {'id': 'r9', 'status': 'running'},
+        'POST /api/projects/p1/renders': (_) =>
+            {'id': 'r9', 'status': 'running'},
       });
       await choose(t, 'Render on', 'This device');
       await t.tap(find.text('Render'));
@@ -353,8 +361,7 @@ void main() {
               'project': false,
             },
       });
-      expect(
-          find.textContaining('FilmCraft'), findsWidgets);
+      expect(find.textContaining('FilmCraft'), findsWidgets);
       expect(t.widget<FilledButton>(find.byType(FilledButton).last).enabled,
           isFalse);
       await t.pumpWidget(const SizedBox());
@@ -420,7 +427,11 @@ void main() {
       await choose(t, 'MXF video codec', 'ProRes');
       await choose(t, 'EXR compression', 'ZIP');
       await choose(t, 'Caption sidecar', 'SRT');
-      for (final chip in ['H.264 intra-only', 'Burn captions', 'Alpha channel']) {
+      for (final chip in [
+        'H.264 intra-only',
+        'Burn captions',
+        'Alpha channel'
+      ]) {
         await t.ensureVisible(find.text(chip));
         await t.tap(find.text(chip));
         await t.pump();
