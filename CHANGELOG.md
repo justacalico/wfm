@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.4.2 - 2026-11-17
+#### Bug Fixes
+- 发布产物按名下载避免缓存工件干扰 - (5f7a895) - calico
+
+- - -
+
 ## v0.4.1 - 2026-11-17
 #### Bug Fixes
 - 镜像同步允许强制推送 - (faf8027) - calico
