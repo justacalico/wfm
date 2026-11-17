@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.5.4 - 2026-11-17
+#### Bug Fixes
+- FilmCraft 包装页在非安全上下文下生成 UUID 并可诊断加载错误 - (5abb5f4) - calico, *Devin*
+
+- - -
+
 ## v0.5.3 - 2026-11-17
 #### Bug Fixes
 - 窄屏管理页去掉重复标题仅保留标签栏 - (4c43506) - calico, *Devin*
