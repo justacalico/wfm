@@ -103,14 +103,22 @@ async fn security_headers(req: axum::extract::Request, next: Next) -> Response {
             HeaderValue::from_static("no-store"),
         );
     } else {
+        // FilmCraft's shipped index.html and the wfm.html wrapper boot from
+        // inline <script> blocks, so that route gets unsafe-inline.
+        let csp = if path.starts_with("/filmcraft/") {
+            "default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; \
+             worker-src 'self' blob:; media-src 'self' blob:; \
+             img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; \
+             font-src 'self' data:; connect-src 'self' blob:; frame-src 'self'"
+        } else {
+            "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; \
+             worker-src 'self' blob:; media-src 'self' blob:; \
+             img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; \
+             font-src 'self' data:; connect-src 'self'"
+        };
         h.insert(
             header::CONTENT_SECURITY_POLICY,
-            HeaderValue::from_static(
-                "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; \
-                 worker-src 'self' blob:; media-src 'self' blob:; \
-                 img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; \
-                 font-src 'self' data:; connect-src 'self'",
-            ),
+            HeaderValue::from_static(csp),
         );
         if path.contains("/main.dart.js") || path.contains("canvaskit") || path.contains(".wasm") {
             h.insert(

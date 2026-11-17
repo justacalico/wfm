@@ -100,6 +100,12 @@ async function boot() {
   $("proj-name").textContent = p.displayName || p.display_name || "";
   $("fc").src = "/filmcraft/dist/index.html?host=parent&fresh";
   setInterval(heartbeat, 20000);
+  setInterval(() => {
+    try {
+      const s = $("fc").contentDocument?.getElementById("status");
+      if (s && s.className === "err") overlay(s.textContent);
+    } catch (_) {}
+  }, 1500);
   refreshBin("");
 }
 
