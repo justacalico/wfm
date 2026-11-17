@@ -148,7 +148,7 @@ class AppLocalizationsGa extends AppLocalizations {
   }
 
   @override
-  String get openInFilmcraft => 'Oscail i Filmcraft';
+  String get openInFilmcraft => 'Oscail';
 
   @override
   String get renameProject => 'Athainmnigh tionscadal';

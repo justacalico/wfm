@@ -50,7 +50,7 @@
   "noProjects": "Проектов пока нет. Создайте первый.",
   "createdAgo": "Создан {when}",
   "@createdAgo": {"placeholders": {"when": {}}},
-  "openInFilmcraft": "Открыть в Filmcraft",
+  "openInFilmcraft": "Открыть",
   "renameProject": "Переименовать проект",
   "displayName": "Отображаемое имя",
   "deleteProject": "Удалить проект",

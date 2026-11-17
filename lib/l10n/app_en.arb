@@ -50,7 +50,7 @@
   "noProjects": "No projects yet. Create one to get started.",
   "createdAgo": "Created {when}",
   "@createdAgo": {"placeholders": {"when": {}}},
-  "openInFilmcraft": "Open in Filmcraft",
+  "openInFilmcraft": "Open",
   "renameProject": "Rename project",
   "displayName": "Display name",
   "deleteProject": "Delete project",

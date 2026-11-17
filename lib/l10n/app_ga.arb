@@ -50,7 +50,7 @@
   "noProjects": "Níl aon tionscadal ann fós. Cruthaigh ceann chun tosú.",
   "createdAgo": "Cruthaithe {when}",
   "@createdAgo": {"placeholders": {"when": {}}},
-  "openInFilmcraft": "Oscail i Filmcraft",
+  "openInFilmcraft": "Oscail",
   "renameProject": "Athainmnigh tionscadal",
   "displayName": "Ainm taispeána",
   "deleteProject": "Scrios tionscadal",

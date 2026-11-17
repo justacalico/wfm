@@ -35,7 +35,7 @@ void main() {
       expect(find.text('Short Film'), findsOneWidget);
       var opened = '';
       openExternalForTesting = (u) => opened = u;
-      await t.tap(find.text('Open in Filmcraft'));
+      await t.tap(find.text('Open'));
       expect(opened, contains('/filmcraft/wfm.html?project=p1'));
       await t.tap(find.text('Short Film'));
       await settle(t);
@@ -45,7 +45,7 @@ void main() {
     testWidgets('open in filmcraft error shows snack', (t) async {
       installApi();
       await pump(t, const ProjectsPage());
-      await t.tap(find.text('Open in Filmcraft'));
+      await t.tap(find.text('Open'));
       await settle(t);
       expect(find.byType(Notice), findsOneWidget);
     });
@@ -364,7 +364,7 @@ void main() {
       await settle(t);
       await t.tap(find.text('open'));
       await settle(t);
-      await t.tap(find.text('Open in Filmcraft'));
+      await t.tap(find.text('Open'));
       expect(opened, contains('project=p1'));
 
       await t.tap(find.descendant(
@@ -404,7 +404,7 @@ void main() {
         'DELETE *': (_) => http.Response('{"error":"nope"}', 500),
       });
       await pump(t, ProjectPage(project: p1));
-      await t.tap(find.text('Open in Filmcraft'));
+      await t.tap(find.text('Open'));
       await settle(t);
       expect(find.byType(Notice), findsOneWidget);
       await t.tap(find.descendant(

@@ -365,7 +365,7 @@ abstract class AppLocalizations {
   /// No description provided for @openInFilmcraft.
   ///
   /// In en, this message translates to:
-  /// **'Open in Filmcraft'**
+  /// **'Open'**
   String get openInFilmcraft;
 
   /// No description provided for @renameProject.

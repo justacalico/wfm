@@ -50,7 +50,7 @@
   "noProjects": "还没有项目，创建一个开始使用。",
   "createdAgo": "创建于 {when}",
   "@createdAgo": {"placeholders": {"when": {}}},
-  "openInFilmcraft": "在 Filmcraft 中打开",
+  "openInFilmcraft": "打开",
   "renameProject": "重命名项目",
   "displayName": "显示名称",
   "deleteProject": "删除项目",
