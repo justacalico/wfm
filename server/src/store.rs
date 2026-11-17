@@ -71,6 +71,11 @@ pub trait Db: Send + Sync {
     async fn session_user(&self, token_hash: &str, now: i64) -> DbResult<(String, String)>;
     async fn delete_session(&self, token_hash: &str) -> DbResult<()>;
     async fn delete_user_sessions(&self, user_id: &str) -> DbResult<()>;
+    async fn delete_user_sessions_except(
+        &self,
+        user_id: &str,
+        token_hash: &str,
+    ) -> DbResult<()>;
     async fn clean_sessions(&self, now: i64) -> DbResult<()>;
 
     // projects

@@ -67,6 +67,7 @@ fn bearer_token(parts: &Parts) -> Option<String> {
 pub struct Session {
     pub user: User,
     pub csrf: String,
+    pub token_hash: String,
 }
 
 pub fn err(status: StatusCode, msg: &str) -> Response {
@@ -131,9 +132,10 @@ impl FromRequestParts<Arc<AppState>> for Session {
                 None => return Err(err(StatusCode::UNAUTHORIZED, "not logged in")),
             },
         };
+        let th = model::token_hash(&token);
         let (uid, csrf) = state
             .db
-            .session_user(&model::token_hash(&token), AppState::now())
+            .session_user(&th, AppState::now())
             .await
             .map_err(|_| err(StatusCode::UNAUTHORIZED, "session expired"))?;
         let user = state
@@ -156,7 +158,11 @@ impl FromRequestParts<Arc<AppState>> for Session {
                 return Err(err(StatusCode::FORBIDDEN, "bad csrf token"));
             }
         }
-        Ok(Session { user, csrf })
+        Ok(Session {
+            user,
+            csrf,
+            token_hash: th,
+        })
     }
 }
 

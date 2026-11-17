@@ -318,6 +318,10 @@ async fn change_password(
     if let Err(e) = s.db.set_password(&session.user.id, &h).await {
         return db_resp(e);
     }
+    let _ = s
+        .db
+        .delete_user_sessions_except(&session.user.id, &session.token_hash)
+        .await;
     s.audit(
         "account",
         &session.user,
