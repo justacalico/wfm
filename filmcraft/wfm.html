@@ -52,7 +52,7 @@ const fcFail = (msg) => {
   box.appendChild(b);
 };
 setTimeout(() => fcFail("FilmCraft could not load in this browser."), 60000);
-addEventListener("error", () => fcFail("FilmCraft could not load in this browser."));
+addEventListener("error", (e) => fcFail("FilmCraft could not load in this browser." + ((e && e.message) ? " " + e.message : "")));
 </script>
 <script>
 "use strict";
@@ -60,7 +60,15 @@ const qs = new URLSearchParams(location.search);
 const projectId = qs.get("project");
 const renderId = qs.get("render");
 const API = "/api";
-const clientId = crypto.randomUUID();
+const clientId = (() => {
+  if (crypto.randomUUID) return crypto.randomUUID();
+  const b = new Uint8Array(16);
+  if (crypto.getRandomValues) crypto.getRandomValues(b);
+  else for (let i = 0; i < 16; i++) b[i] = (Math.random() * 256) | 0;
+  b[6] = b[6] & 0x0f | 0x40; b[8] = b[8] & 0x3f | 0x80;
+  const h = [...b].map(x => x.toString(16).padStart(2, "0")).join("");
+  return h.slice(0, 8) + "-" + h.slice(8, 12) + "-" + h.slice(12, 16) + "-" + h.slice(16, 20) + "-" + h.slice(20);
+})();
 let csrf = "", dirty = false, docSent = false, pending = 0, docName = "project.fcproj";
 const FMT_EXT = {
   h264: ".mp4", hevc: ".mp4", prores: ".mov", dnxhr: ".mov", apv: ".mp4",
