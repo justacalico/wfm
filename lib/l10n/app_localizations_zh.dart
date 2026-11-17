@@ -44,6 +44,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get refresh => '刷新';
 
   @override
+  String get uploadingFiles => '正在上传文件';
+
+  @override
   String get upload => '上传';
 
   @override

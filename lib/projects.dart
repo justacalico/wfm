@@ -428,6 +428,13 @@ IconData fileIcon(FileEntry e) {
   }
 }
 
+class _Upload {
+  final String name;
+  final int size;
+  int state = 0;
+  _Upload(this.name, this.size);
+}
+
 class FilesTab extends StatefulWidget {
   final Project project;
   const FilesTab({super.key, required this.project});
@@ -471,19 +478,83 @@ class _FilesTabState extends State<FilesTab> {
       if (mounted) snack(context, e);
       return;
     }
-    if (picked.isEmpty) return;
+    if (picked.isEmpty || !mounted) return;
     final folder = _path.isEmpty ? 'Raw/Other' : _path;
+    final ups = [for (final f in picked) _Upload(f.name, f.bytes.length)];
+    final tick = ValueNotifier(0);
+    final l10n = context.l10n;
     setState(() => _uploading = true);
-    try {
-      for (final f in picked) {
-        await Api.i.upload(widget.project.id, '$folder/${f.name}', f.bytes);
+    unawaited(showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => PopScope(
+        canPop: false,
+        child: ValueListenableBuilder<int>(
+          valueListenable: tick,
+          builder: (ctx, _, __) {
+            final done = ups.where((u) => u.state == 2).length;
+            return AlertDialog(
+              title: Text(l10n.uploadingFiles),
+              content: SizedBox(
+                width: 360,
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  Row(children: [
+                    Expanded(
+                        child: LinearProgressIndicator(
+                            value: done / ups.length)),
+                    const SizedBox(width: 12),
+                    Text('$done/${ups.length}'),
+                  ]),
+                  const SizedBox(height: 10),
+                  for (final u in ups)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 5),
+                      child: Row(children: [
+                        Expanded(
+                            child: Text(
+                                '${u.name}  ·  ${fmtBytes(u.size)}',
+                                overflow: TextOverflow.ellipsis)),
+                        const SizedBox(width: 10),
+                        switch (u.state) {
+                          2 => const Icon(Icons.check_circle_outline,
+                              size: 18),
+                          3 => const Icon(Icons.error_outline, size: 18),
+                          1 => const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2)),
+                          _ => const Icon(Icons.schedule, size: 16),
+                        },
+                      ]),
+                    ),
+                ]),
+              ),
+            );
+          },
+        ),
+      ),
+    ));
+    Object? error;
+    for (var i = 0; i < picked.length; i++) {
+      ups[i].state = 1;
+      tick.value++;
+      try {
+        await Api.i
+            .upload(widget.project.id, '$folder/${picked[i].name}', picked[i].bytes);
+        ups[i].state = 2;
+      } catch (e) {
+        ups[i].state = 3;
+        error = e;
+        break;
       }
-    } catch (e) {
-      if (mounted) snack(context, e);
-    } finally {
-      setState(() => _uploading = false);
-      _load();
+      tick.value++;
     }
+    if (mounted) Navigator.of(context, rootNavigator: true).pop();
+    tick.dispose();
+    setState(() => _uploading = false);
+    if (error != null && mounted) snack(context, error);
+    _load();
   }
 
   Future<void> _mkdir() async {

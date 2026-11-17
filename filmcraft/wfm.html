@@ -16,11 +16,25 @@
   #overlay p { color: #8d8d96; max-width: 420px; text-align: center; }
   #overlay button { background: #26262e; color: inherit; border: 1px solid #3a3a44; border-radius: 6px; padding: 6px 12px; cursor: pointer; font: inherit; }
   #toast { position: fixed; bottom: 16px; right: 16px; background: #26262e; color: #e6e6ea; border: 1px solid #3a3a44; border-radius: 8px; padding: 10px 14px; display: none; z-index: 20; max-width: 340px; font: 13px/1.4 system-ui, sans-serif; }
+  #upl { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: flex; align-items: center; justify-content: center; z-index: 30; font: 13px/1.4 system-ui, sans-serif; }
+  #upl[hidden] { display: none; }
+  #upl-card { background: #1c1c22; border: 1px solid #3a3a44; border-radius: 10px; padding: 16px 18px; width: 380px; max-width: 90vw; max-height: 70vh; overflow-y: auto; color: #e6e6ea; }
+  #upl-title { font-size: 15px; font-weight: 600; margin-bottom: 12px; }
+  .upl-row { margin-bottom: 10px; }
+  .upl-row:last-child { margin-bottom: 0; }
+  .upl-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-bottom: 4px; }
+  .upl-mid { display: flex; align-items: center; gap: 10px; }
+  .upl-bar { flex: 1; height: 6px; background: #26262e; border-radius: 3px; overflow: hidden; }
+  .upl-fill { height: 100%; width: 0; background: #7c6cf0; transition: width .15s; }
+  .upl-row.err .upl-fill { background: #e05c5c; }
+  .upl-row.done .upl-fill { background: #4caf7d; }
+  .upl-pct { min-width: 44px; text-align: right; color: #8d8d96; }
 </style>
 </head>
 <body>
 <div id="overlay"><h1>Filmcraft</h1><p id="overlay-msg">Loading…</p><div id="overlay-btns"></div></div>
 <iframe id="fc" title="FilmCraft" allow="fullscreen; clipboard-read; clipboard-write" allowfullscreen></iframe>
+<div id="upl" hidden><div id="upl-card"><div id="upl-title">Uploading…</div><div id="upl-list"></div></div></div>
 <div id="toast"></div>
 <script>
 "use strict";
@@ -165,21 +179,78 @@ async function syncBins(bytes) {
   } catch (_) {}
 }
 
+const uplRows = new Map();
+function uplRow(path) {
+  let row = uplRows.get(path);
+  if (!row) {
+    row = document.createElement("div");
+    row.className = "upl-row";
+    row.innerHTML = '<div class="upl-name"></div><div class="upl-mid"><div class="upl-bar"><div class="upl-fill"></div></div><div class="upl-pct"></div></div>';
+    row.querySelector(".upl-name").textContent = path;
+    $("upl-list").appendChild(row);
+    uplRows.set(path, row);
+  }
+  $("upl").hidden = false;
+  return row;
+}
+function uplSet(path, frac, cls, label) {
+  const row = uplRow(path);
+  row.className = "upl-row" + (cls ? " " + cls : "");
+  row.querySelector(".upl-fill").style.width = Math.round(frac * 100) + "%";
+  row.querySelector(".upl-pct").textContent = label || Math.round(frac * 100) + "%";
+}
+function uplRemove(path, delay) {
+  const row = uplRows.get(path);
+  uplRows.delete(path);
+  setTimeout(() => {
+    if (row) row.remove();
+    if (!uplRows.size) $("upl").hidden = true;
+  }, delay);
+}
+function uploadMedia(path, bytes) {
+  return new Promise((resolve, reject) => {
+    const x = new XMLHttpRequest();
+    x.open("PUT", API + "/projects/" + projectId + "/files?path=" + encodeURIComponent(path));
+    if (csrf) x.setRequestHeader("x-csrf-token", csrf);
+    x.upload.onprogress = (e) => { if (e.lengthComputable) uplSet(path, e.loaded / e.total); };
+    x.onload = () => resolve(x);
+    x.onerror = () => reject(new Error("network"));
+    x.send(bytes);
+  });
+}
+
 async function handleSave(d) {
   let path = d.name || "export.bin";
-  if (d.id && !d.id.includes("..") && !d.id.startsWith("/") && !d.id.includes("\\") && d.id.trim()) path = d.id;
+  const media = !!(d.id && !d.id.includes("..") && !d.id.startsWith("/") && !d.id.includes("\\") && d.id.trim());
+  if (media) path = d.id;
   else if (!path.startsWith("Raw/")) {
     path = path.toLowerCase().endsWith(".fcproj") ? "project.fcproj" : "Exports/" + path.replace(/^.*\//, "");
   }
   pending++;
   try {
-    const r = await api("/projects/" + projectId + "/files?path=" + encodeURIComponent(path), {
-      method: "PUT", body: d.bytes
-    });
-    if (!r.ok) toast("Save failed: " + (await r.text()));
-    else if (path === "project.fcproj") { dirty = false; syncBins(d.bytes); }
-    else toast("Saved " + path);
-  } catch (e) { toast("Save failed"); }
+    if (media) {
+      uplSet(path, 0);
+      const x = await uploadMedia(path, d.bytes);
+      if (x.status >= 400) {
+        uplSet(path, 1, "err", "Failed");
+        uplRemove(path, 4000);
+        toast("Save failed: " + x.responseText);
+      } else {
+        uplSet(path, 1, "done", "Done");
+        uplRemove(path, 800);
+      }
+    } else {
+      const r = await api("/projects/" + projectId + "/files?path=" + encodeURIComponent(path), {
+        method: "PUT", body: d.bytes
+      });
+      if (!r.ok) toast("Save failed: " + (await r.text()));
+      else if (path === "project.fcproj") { dirty = false; syncBins(d.bytes); }
+      else toast("Saved " + path);
+    }
+  } catch (e) {
+    if (media) { uplSet(path, 1, "err", "Failed"); uplRemove(path, 4000); }
+    toast("Save failed");
+  }
   pending--;
 }
 

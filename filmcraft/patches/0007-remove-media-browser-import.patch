@@ -1,0 +1,28 @@
+diff --git a/crates/engine/src/project_tools.rs b/crates/engine/src/project_tools.rs
+index 6c3dd2d..2121559 100644
+--- a/crates/engine/src/project_tools.rs
++++ b/crates/engine/src/project_tools.rs
+@@ -96,8 +96,8 @@ pub(crate) fn commands() -> Vec<CommandSpec> {
+         spec(
+             "file.importFromMediaBrowser",
+             "Import from Media Browser",
+-            &["File"],
+-            Some("Cmd+Alt+I"),
++            &[],
++            None,
+             r#"{"paths":[str]?,"imageSequence":bool?}"#,
+             always,
+             |s, p| {
+diff --git a/crates/engine/src/project_tools/tests.rs b/crates/engine/src/project_tools/tests.rs
+index ecbdc15..88c76ab 100644
+--- a/crates/engine/src/project_tools/tests.rs
++++ b/crates/engine/src/project_tools/tests.rs
+@@ -76,7 +76,7 @@ fn file_edit_clip_menu_order_and_shortcuts_match_premiere() {
+     );
+     for (id, label, sc) in [
+         ("file.close", "Close", Some("Cmd+W")),
+-        ("file.importFromMediaBrowser", "Import from Media Browser", Some("Cmd+Alt+I")),
++        ("file.importFromMediaBrowser", "Import from Media Browser", None),
+         ("file.mediaProperties", "Selection…", Some("Cmd+Shift+H")),
+         ("file.exportSelectionProject", "Selection as FilmCraft Project…", None),
+         ("file.exportAle", "Avid Log Exchange…", None),

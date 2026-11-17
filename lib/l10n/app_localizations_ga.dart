@@ -44,6 +44,9 @@ class AppLocalizationsGa extends AppLocalizations {
   String get refresh => 'Athnuaigh';
 
   @override
+  String get uploadingFiles => 'Comhaid á n-uaslódáil';
+
+  @override
   String get upload => 'Uaslódáil';
 
   @override

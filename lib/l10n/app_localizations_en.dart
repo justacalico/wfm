@@ -44,6 +44,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get refresh => 'Refresh';
 
   @override
+  String get uploadingFiles => 'Uploading files';
+
+  @override
   String get upload => 'Upload';
 
   @override

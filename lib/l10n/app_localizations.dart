@@ -170,6 +170,12 @@ abstract class AppLocalizations {
   /// **'Refresh'**
   String get refresh;
 
+  /// No description provided for @uploadingFiles.
+  ///
+  /// In en, this message translates to:
+  /// **'Uploading files'**
+  String get uploadingFiles;
+
   /// No description provided for @upload.
   ///
   /// In en, this message translates to:

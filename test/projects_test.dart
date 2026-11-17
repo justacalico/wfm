@@ -523,6 +523,7 @@ void main() {
       await pump(t, Scaffold(body: FilesTab(project: p1)));
       await t.tap(find.text('Upload'));
       await settle(t);
+      expect(find.text('Uploading files'), findsNothing);
       expect(uploads, 2);
     });
 
