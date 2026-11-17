@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.5.7 - 2026-11-17
+#### Bug Fixes
+- 修改密码后仅保留当前会话其余全部注销 - (0548997) - calico, *Devin*
+
+- - -
+
 ## v0.5.6 - 2026-11-17
 #### Bug Fixes
 - 定期清理登录节流表防止其无限增长 - (4cac605) - calico, *Devin*
