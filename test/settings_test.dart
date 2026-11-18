@@ -200,6 +200,28 @@ void main() {
     expect(find.textContaining('up to date'), findsOneWidget);
   });
 
+  testWidgets('license tile opens dialog and GitLab link', (t) async {
+    var opened = '';
+    openExternalForTesting = (u) => opened = u;
+    installApi(extra: {'GET *': (_) => []});
+    await t.binding.setSurfaceSize(const Size(1000, 900));
+    addTearDown(() => t.binding.setSurfaceSize(null));
+    await goSettings(t);
+    await t.tap(find.text('View on GitLab'));
+    await settle(t);
+    expect(opened, 'https://gitlab.com/HttpAnimations/wfm');
+    openExternalForTesting = null;
+    await t.tap(find.text('View on GitLab'));
+    await settle(t);
+    expect(find.byType(Notice), findsWidgets);
+    await t.tap(find.text('Licensed under AGPL-3.0'));
+    await settle(t);
+    expect(find.textContaining('GNU AFFERO'), findsOneWidget);
+    await t.tap(find.text('Done'));
+    await settle(t);
+    expect(find.textContaining('GNU AFFERO'), findsNothing);
+  });
+
   testWidgets('update available opens release', (t) async {
     var opened = '';
     openExternalForTesting = (u) => opened = u;

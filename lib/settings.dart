@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'api.dart';
 import 'main.dart';
@@ -229,6 +230,42 @@ class _SettingsPageState extends State<SettingsPage> {
                     child: CircularProgressIndicator(strokeWidth: 2))
                 : null),
         onTap: _update == UpdateResult.checking ? null : _checkUpdates,
+      ),
+      ListTile(
+        leading: const Icon(Icons.balance_outlined),
+        title: Text(l10n.licenseAgpl),
+        trailing: TextButton(
+          onPressed: () {
+            try {
+              openExternal('https://gitlab.com/HttpAnimations/wfm');
+            } catch (e) {
+              if (context.mounted) snack(context, e);
+            }
+          },
+          child: Text(l10n.viewOnGitlab),
+        ),
+        onTap: () async {
+          final text = await rootBundle.loadString('LICENSE');
+          if (!context.mounted) return;
+          showDialog<void>(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              title: Text(ctx.l10n.license),
+              content: SizedBox(
+                width: 600,
+                child: SingleChildScrollView(
+                  child: SelectableText(text),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  child: Text(ctx.l10n.done),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     ]);
   }

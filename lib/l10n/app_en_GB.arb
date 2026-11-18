@@ -1,4 +1,5 @@
-{ "@@locale": "en_GB",
+{
+  "@@locale": "en_GB",
   "deleteAccountBody": "Delete \"{name}\"? This cannot be undone.",
   "@deleteAccountBody": {
     "placeholders": {
@@ -13,5 +14,8 @@
   "pinProject": "Pin project",
   "unpinProject": "Unpin project",
   "listView": "List view",
-  "noAccounts": "No accounts"
+  "noAccounts": "No accounts",
+  "license": "Licence",
+  "licenseAgpl": "Licensed under AGPL-3.0",
+  "viewOnGitlab": "View on GitLab"
 }

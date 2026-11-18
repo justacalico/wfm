@@ -300,5 +300,8 @@
       "error": {}
     }
   },
-  "retry": "Повторить"
+  "retry": "Повторить",
+  "license": "",
+  "licenseAgpl": " AGPL-3.0",
+  "viewOnGitlab": "  GitLab"
 }

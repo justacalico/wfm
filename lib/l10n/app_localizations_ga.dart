@@ -609,4 +609,13 @@ class AppLocalizationsGa extends AppLocalizations {
 
   @override
   String get retry => 'Bain triail eile as';
+
+  @override
+  String get license => 'Ceadúnas';
+
+  @override
+  String get licenseAgpl => 'Faoi cheadúnas AGPL-3.0';
+
+  @override
+  String get viewOnGitlab => 'Féach ar GitLab';
 }
