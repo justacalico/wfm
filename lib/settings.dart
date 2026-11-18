@@ -22,6 +22,7 @@ class SettingsPage extends StatefulWidget {
 
 class _SettingsPageState extends State<SettingsPage> {
   String? _proxies;
+  final _proxiesCtl = TextEditingController();
   bool _savingProxies = false;
   UpdateResult _update = UpdateResult.idle;
   AppUpdate? _latest;
@@ -32,7 +33,12 @@ class _SettingsPageState extends State<SettingsPage> {
     super.initState();
     if (Api.i.user?.isOwner ?? false) {
       Api.i.serverSettings().then((v) {
-        if (mounted) setState(() => _proxies = v);
+        if (mounted) {
+          setState(() {
+            _proxies = v;
+            _proxiesCtl.text = v;
+          });
+        }
       }).catchError((_) {});
     }
     Api.i.serverVersion().then((v) {
@@ -40,7 +46,14 @@ class _SettingsPageState extends State<SettingsPage> {
     }).catchError((_) {});
   }
 
-  Future<void> _saveProxies(String value) async {
+  @override
+  void dispose() {
+    _proxiesCtl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _saveProxies() async {
+    final value = _proxiesCtl.text;
     setState(() => _savingProxies = true);
     try {
       await Api.i.saveSettings(value);
@@ -119,7 +132,6 @@ class _SettingsPageState extends State<SettingsPage> {
     final u = Api.i.user;
     if (u == null) return const SizedBox.shrink();
     final app = context.findAncestorStateOfType<WfmAppState>()!;
-    final proxies = TextEditingController(text: _proxies);
     final tight = MediaQuery.sizeOf(context).width < 720;
     return ListView(padding: const EdgeInsets.all(24), children: [
       if (!tight) ...[
@@ -200,9 +212,9 @@ class _SettingsPageState extends State<SettingsPage> {
             style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),
         TextField(
-          controller: proxies,
+          controller: _proxiesCtl,
           decoration: dec(l10n.trustedProxies, l10n.trustedProxiesHint),
-          onSubmitted: _saveProxies,
+          onSubmitted: (_) => _saveProxies(),
         ),
         const SizedBox(height: 4),
         Text(l10n.trustedProxiesHelp,
@@ -211,7 +223,7 @@ class _SettingsPageState extends State<SettingsPage> {
         Align(
           alignment: Alignment.centerLeft,
           child: FilledButton.tonal(
-            onPressed: _savingProxies ? null : () => _saveProxies(proxies.text),
+            onPressed: _savingProxies ? null : _saveProxies,
             child: Text(l10n.save),
           ),
         ),
