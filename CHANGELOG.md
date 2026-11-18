@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.6.1 - 2026-11-18
+#### Bug Fixes
+- (**theme**) 默认主题改为跟随系统 - (35a9ac0) - calico
+
+- - -
+
 ## v0.6.0 - 2026-11-18
 #### Features
 - (**shell**) show app icon in nav sidebar title - (b294d24) - calico
