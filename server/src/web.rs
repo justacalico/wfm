@@ -9,7 +9,8 @@ use axum::routing::get;
 use axum::{middleware, Router};
 use rust_embed::RustEmbed;
 
-use crate::auth::AppState;
+use crate::auth::{cookie_token, AppState};
+use crate::model;
 
 #[derive(RustEmbed)]
 #[folder = "web/"]
@@ -70,9 +71,21 @@ async fn app_asset(State(s): State<Arc<AppState>>, uri: Uri) -> Response {
     asset(s.cfg.web_dir.as_ref(), "app", path, "index.html").await
 }
 
-async fn filmcraft_asset(State(s): State<Arc<AppState>>, uri: Uri) -> Response {
-    let path = uri.path().trim_start_matches("/filmcraft");
-    asset(s.cfg.filmcraft_dir.as_ref(), "filmcraft", path, "index.html").await
+async fn filmcraft_asset(State(s): State<Arc<AppState>>, req: axum::extract::Request) -> Response {
+    let (parts, _) = req.into_parts();
+    let path = parts.uri.path().trim_start_matches("/filmcraft").to_string();
+    let ok = match cookie_token(&parts) {
+        Some(t) => {
+            s.db.session_user(&model::token_hash(&t), AppState::now())
+                .await
+                .is_ok()
+        }
+        None => false,
+    };
+    if !ok {
+        return Redirect::to("/app/").into_response();
+    }
+    asset(s.cfg.filmcraft_dir.as_ref(), "filmcraft", &path, "index.html").await
 }
 
 async fn root() -> Redirect {
@@ -172,4 +185,96 @@ pub fn cors_layer(state: &AppState) -> tower_http::cors::CorsLayer {
         ]))
         .allow_credentials(true)
         .max_age(std::time::Duration::from_secs(600))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::body::Body;
+    use axum::http::Request;
+    use std::collections::{HashMap, HashSet};
+    use std::sync::{Mutex, RwLock};
+
+    fn state(dir: &std::path::Path) -> Arc<AppState> {
+        Arc::new(AppState {
+            cfg: crate::config::Config {
+                addr: String::new(),
+                data_dir: dir.to_path_buf(),
+                web_dir: None,
+                filmcraft_dir: Some(dir.join("filmcraft")),
+                max_upload: 0,
+                secure_cookies: false,
+                cors_origins: vec![],
+                render_workers: 0,
+                filmcraft_cli: String::new(),
+                local_renders: false,
+                db_url: None,
+                session_ttl: 86400,
+                lock_ttl: 45,
+                worker: None,
+                media_kind: "local".into(),
+                media_path: None,
+                s3_endpoint: String::new(),
+                s3_region: String::new(),
+                s3_bucket: String::new(),
+                s3_access: String::new(),
+                s3_secret: String::new(),
+                s3_prefix: String::new(),
+                trusted_proxies: vec![],
+            },
+            db: futures::executor::block_on(crate::store::sqlite::connect(":memory:")).unwrap(),
+            blobs: Arc::new(crate::blobs::LocalBlobs::new(dir.join("blobs"))),
+            logins: Mutex::new(HashMap::new()),
+            cancels: Mutex::new(HashSet::new()),
+            inspect_cache: Mutex::new(HashMap::new()),
+            trusted: RwLock::new(vec![]),
+        })
+    }
+
+    #[tokio::test]
+    async fn filmcraft_routes_require_a_session() {
+        let dir = std::env::temp_dir().join(format!("wfm-web-{}", std::process::id()));
+        std::fs::create_dir_all(dir.join("filmcraft/dist")).unwrap();
+        std::fs::write(dir.join("filmcraft/dist/index.html"), "fc").unwrap();
+        let s = state(&dir);
+
+        let r = filmcraft_asset(
+            State(s.clone()),
+            Request::get("/filmcraft/dist/index.html")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await;
+        assert_eq!(r.status(), StatusCode::SEE_OTHER);
+        assert_eq!(r.headers()[header::LOCATION], "/app/");
+
+        let u = crate::model::User {
+            id: model::new_id(),
+            username: "t".into(),
+            display_name: "t".into(),
+            role: crate::model::Role::Owner,
+            role_name: "owner".into(),
+            student_id: String::new(),
+            note: String::new(),
+            disabled: false,
+            created_by: String::new(),
+            lineage: "/".into(),
+            created_at: AppState::now(),
+            last_login: 0,
+        };
+        s.db.create_user(&u, "h").await.unwrap();
+        s.db.create_session(&model::token_hash("tok"), &u.id, "csrf", AppState::now() + 60, "", "")
+            .await
+            .unwrap();
+        let r = filmcraft_asset(
+            State(s.clone()),
+            Request::get("/filmcraft/dist/index.html")
+                .header(header::COOKIE, "wfm_session=tok")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await;
+        assert_eq!(r.status(), StatusCode::OK);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 }
