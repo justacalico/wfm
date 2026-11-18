@@ -318,6 +318,9 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get noAccounts => '暂无账号。';
+
+  @override
   String get nothingRecorded => '暂无记录。';
 
   @override

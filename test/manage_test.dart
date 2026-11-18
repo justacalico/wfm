@@ -92,6 +92,13 @@ void main() {
       await settle(t);
     });
 
+    testWidgets('empty list shows placeholder and keeps FAB', (t) async {
+      installApi(extra: {'GET /api/accounts': (_) => []});
+      await pump(t, const AccountsTab());
+      expect(find.text('No accounts'), findsOneWidget);
+      expect(find.byType(FloatingActionButton), findsOneWidget);
+    });
+
     testWidgets('reset password and disable error snacks', (t) async {
       installApi(extra: {
         'POST *': (_) => http.Response('{"error":"denied"}', 403),

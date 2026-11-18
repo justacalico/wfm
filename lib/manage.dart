@@ -223,44 +223,48 @@ class _AccountsTabState extends State<AccountsTab> {
               label: Text(l10n.newAccount)),
       body: users == null
           ? const Center(child: CircularProgressIndicator())
-          : ListView.builder(
-              itemCount: users.length,
-              itemBuilder: (c, i) {
-                final u = users[i];
-                return ListTile(
-                  leading: CircleAvatar(
-                      child: Text(u.username.substring(0, 1).toUpperCase())),
-                  title: Text(
-                      '${u.name.isEmpty ? u.username : u.name}  ·  ${u.role}${u.disabled ? l10n.disabledSuffix : ""}'),
-                  subtitle: Text(l10n.userLine(
-                      '${u.username}${u.studentId.isNotEmpty ? " · ${u.studentId}" : ""}${u.note.isNotEmpty ? " · ${u.note}" : ""}',
-                      fmtAgo(l10n, u.lastLogin))),
-                  trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-                    IconButton(
-                        icon: const Icon(Icons.edit_outlined),
-                        tooltip: l10n.editAccount,
-                        onPressed: () => _edit(u)),
-                    IconButton(
-                        icon: const Icon(Icons.key),
-                        tooltip: l10n.resetPassword,
-                        onPressed: () => _reset(u)),
-                    IconButton(
-                      icon: Icon(
-                          u.disabled ? Icons.play_circle_outline : Icons.block),
-                      tooltip: u.disabled ? l10n.enable : l10n.disable,
-                      onPressed: () async {
-                        try {
-                          await Api.i.setDisabled(u.id, !u.disabled);
-                          _load();
-                        } catch (e) {
-                          if (context.mounted) snack(context, e);
-                        }
-                      },
-                    ),
-                  ]),
-                );
-              },
-            ),
+          : users.isEmpty
+              ? Center(child: Text(l10n.noAccounts))
+              : ListView.builder(
+                  itemCount: users.length,
+                  itemBuilder: (c, i) {
+                    final u = users[i];
+                    return ListTile(
+                      leading: CircleAvatar(
+                          child:
+                              Text(u.username.substring(0, 1).toUpperCase())),
+                      title: Text(
+                          '${u.name.isEmpty ? u.username : u.name}  ·  ${u.role}${u.disabled ? l10n.disabledSuffix : ""}'),
+                      subtitle: Text(l10n.userLine(
+                          '${u.username}${u.studentId.isNotEmpty ? " · ${u.studentId}" : ""}${u.note.isNotEmpty ? " · ${u.note}" : ""}',
+                          fmtAgo(l10n, u.lastLogin))),
+                      trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                        IconButton(
+                            icon: const Icon(Icons.edit_outlined),
+                            tooltip: l10n.editAccount,
+                            onPressed: () => _edit(u)),
+                        IconButton(
+                            icon: const Icon(Icons.key),
+                            tooltip: l10n.resetPassword,
+                            onPressed: () => _reset(u)),
+                        IconButton(
+                          icon: Icon(u.disabled
+                              ? Icons.play_circle_outline
+                              : Icons.block),
+                          tooltip: u.disabled ? l10n.enable : l10n.disable,
+                          onPressed: () async {
+                            try {
+                              await Api.i.setDisabled(u.id, !u.disabled);
+                              _load();
+                            } catch (e) {
+                              if (context.mounted) snack(context, e);
+                            }
+                          },
+                        ),
+                      ]),
+                    );
+                  },
+                ),
     );
   }
 }

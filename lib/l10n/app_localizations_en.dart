@@ -318,6 +318,9 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get noAccounts => 'No accounts';
+
+  @override
   String get nothingRecorded => 'Nothing recorded yet.';
 
   @override
@@ -579,4 +582,7 @@ class AppLocalizationsEn extends AppLocalizations {
 /// The translations for English, as used in the United Kingdom (`en_GB`).
 class AppLocalizationsEnGb extends AppLocalizationsEn {
   AppLocalizationsEnGb() : super('en_GB');
+
+  @override
+  String get noAccounts => 'No accounts';
 }

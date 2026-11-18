@@ -319,6 +319,9 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
+  String get noAccounts => 'Аккаунтов пока нет.';
+
+  @override
   String get nothingRecorded => 'Записей пока нет.';
 
   @override

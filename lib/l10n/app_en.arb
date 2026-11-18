@@ -158,6 +158,7 @@
       "when": {}
     }
   },
+  "noAccounts": "No accounts",
   "nothingRecorded": "Nothing recorded yet.",
   "newNode": "New node",
   "nodeName": "Node name",
