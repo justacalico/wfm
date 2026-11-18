@@ -51,7 +51,7 @@ void main() {
     await t.tap(find.text('简体中文').last);
     await t.pump();
     final prefs = await SharedPreferences.getInstance();
-    expect(prefs.getString('locale'), 'zh_');
+    expect(prefs.getString('locale'), 'zh');
     await t.pumpWidget(const SizedBox());
   });
 
@@ -88,7 +88,7 @@ void main() {
     final appState = t.state<app.WfmAppState>(find.byType(app.WfmApp));
     expect(appState.appTheme, app.AppTheme.dark);
     final prefs = await SharedPreferences.getInstance();
-    expect(prefs.getString('locale'), 'zh_');
+    expect(prefs.getString('locale'), 'zh');
     await t.pumpWidget(const SizedBox());
   });
 
