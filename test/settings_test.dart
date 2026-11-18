@@ -31,8 +31,10 @@ void main() {
     await goSettings(t);
     expect(find.textContaining('ada'), findsWidgets);
     expect(find.byType(DropdownButtonFormField<Locale?>), findsOneWidget);
-    expect(find.text('OLED'), findsOneWidget);
-    await t.tap(find.text('Dark'));
+    expect(find.byType(DropdownButtonFormField<AppTheme>), findsOneWidget);
+    await t.tap(find.byType(DropdownButtonFormField<AppTheme>));
+    await settle(t);
+    await t.tap(find.text('Dark').last);
     await settle(t);
     final p = await SharedPreferences.getInstance();
     expect(p.getInt('theme'), AppTheme.dark.index);
@@ -49,7 +51,7 @@ void main() {
     await settle(t);
     await t.tap(find.widgetWithText(ListTile, 'Settings').last);
     await settle(t);
-    expect(find.byType(SegmentedButton<AppTheme>), findsNothing);
+    expect(find.byType(DropdownButtonFormField<AppTheme>), findsNothing);
     expect(find.byType(PopupMenuButton<AppTheme>), findsOneWidget);
     expect(find.text('Change password'), findsOneWidget);
     await t.tap(find.byType(PopupMenuButton<AppTheme>));
@@ -84,7 +86,9 @@ void main() {
     await t.enterText(find.byType(TextField).last, '192.168.1.1, 10.0.0.0/8');
     // Switching theme rebuilds the page; a build()-scoped controller
     // would wipe the unsaved text here.
-    await t.tap(find.text('Dark'));
+    await t.tap(find.byType(DropdownButtonFormField<AppTheme>));
+    await settle(t);
+    await t.tap(find.text('Dark').last);
     await settle(t);
     expect(t.widget<TextField>(find.byType(TextField).last).controller!.text,
         '192.168.1.1, 10.0.0.0/8');

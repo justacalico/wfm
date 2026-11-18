@@ -274,7 +274,9 @@ void main() {
     installApi(extra: {'GET *': (_) => []});
     await pumpWfm(t);
     await tapNav(t, 'Settings');
-    await t.tap(find.text('OLED'));
+    await t.tap(find.byType(DropdownButtonFormField<AppTheme>));
+    await settle(t);
+    await t.tap(find.text('OLED').last);
     await settle(t);
     final p = await SharedPreferences.getInstance();
     expect(p.getInt('theme'), AppTheme.oled.index);

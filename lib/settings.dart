@@ -181,29 +181,27 @@ class _SettingsPageState extends State<SettingsPage> {
             },
           ),
           const SizedBox(height: 16),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: tight
-                ? themeMenu(app, l10n)
-                : SegmentedButton<AppTheme>(
-                    segments: [
-                      ButtonSegment(
-                          value: AppTheme.system,
-                          label: Text(l10n.themeSystem)),
-                      ButtonSegment(
-                          value: AppTheme.light, label: Text(l10n.themeLight)),
-                      ButtonSegment(
-                          value: AppTheme.dark, label: Text(l10n.themeDark)),
-                      ButtonSegment(
-                          value: AppTheme.oled, label: Text(l10n.themeOled)),
-                    ],
-                    selected: {app.appTheme},
-                    onSelectionChanged: (s) {
-                      app.setTheme(s.first);
-                      FocusManager.instance.primaryFocus?.unfocus();
-                    },
-                  ),
-          ),
+          if (tight)
+            Align(alignment: Alignment.centerLeft, child: themeMenu(app, l10n))
+          else
+            DropdownButtonFormField<AppTheme>(
+              isExpanded: true,
+              initialValue: app.appTheme,
+              decoration: dec(l10n.theme),
+              items: [
+                for (final (t, label) in [
+                  (AppTheme.system, l10n.themeSystem),
+                  (AppTheme.light, l10n.themeLight),
+                  (AppTheme.dark, l10n.themeDark),
+                  (AppTheme.oled, l10n.themeOled),
+                ])
+                  DropdownMenuItem(value: t, child: Text(label)),
+              ],
+              onChanged: (v) {
+                if (v != null) app.setTheme(v);
+                FocusManager.instance.primaryFocus?.unfocus();
+              },
+            ),
         ]),
       ),
       if (u.isOwner && _proxies != null) ...[
