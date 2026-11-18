@@ -2,6 +2,13 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.7.0 - 2026-11-18
+#### Features
+- (**projects**) 卡片添加渲染按钮 - (2183a67) - calico
+- (**projects**) 卡片按可用宽度自适应排列 - (b8d8733) - calico
+
+- - -
+
 ## v0.6.4 - 2026-11-18
 #### Bug Fixes
 - (**projects**) 打开按钮移到卡片右下角 - (6297ff4) - calico
