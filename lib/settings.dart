@@ -115,9 +115,8 @@ class _SettingsPageState extends State<SettingsPage> {
       ListTile(
         leading: const Icon(Icons.person_outline),
         title: Text(u.name.isEmpty ? u.username : u.name),
-        subtitle: Text(l10n.userLine(
-            '${u.username}${u.studentId.isNotEmpty ? '  ·  ${u.studentId}' : ''}  ·  ${u.role}',
-            fmtAgo(l10n, u.lastLogin))),
+        subtitle: Text(
+            '@${u.username}${u.studentId.isNotEmpty ? '  ·  ${u.studentId}' : ''}  ·  ${u.role}'),
         trailing: tight
             ? null
             : TextButton.icon(
