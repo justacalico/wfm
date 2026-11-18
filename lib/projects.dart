@@ -481,7 +481,7 @@ class _FilesTabState extends State<FilesTab> {
     }
     if (picked.isEmpty || !mounted) return;
     final folder = _path.isEmpty ? 'Raw/Other' : _path;
-    final ups = [for (final f in picked) _Upload(f.name, f.bytes.length)];
+    final ups = [for (final f in picked) _Upload(f.name, f.size)];
     final tick = ValueNotifier(0);
     final l10n = context.l10n;
     setState(() => _uploading = true);
@@ -538,8 +538,8 @@ class _FilesTabState extends State<FilesTab> {
       ups[i].state = 1;
       tick.value++;
       try {
-        await Api.i.upload(
-            widget.project.id, '$folder/${picked[i].name}', picked[i].bytes);
+        await uploadPicked(
+            Api.i, widget.project.id, '$folder/${picked[i].name}', picked[i]);
         ups[i].state = 2;
       } catch (e) {
         ups[i].state = 3;

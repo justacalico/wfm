@@ -296,20 +296,20 @@ impl Blobs for S3Blobs {
     }
 
     async fn get_range(&self, key: &str, start: u64, end: u64) -> Result<(u64, u64, ByteStream), String> {
-        let resp = self
-            .bucket
-            .get_object_range(self.key(key), start, Some(end))
-            .await
-            .map_err(s3_err)?;
-        let hdrs = resp.headers();
-        let total = hdrs
-            .get("content-range")
-            .or_else(|| hdrs.get("Content-Range"))
-            .and_then(|cr| cr.split('/').last())
-            .and_then(|v| v.parse::<u64>().ok())
-            .unwrap_or(0);
-        let bytes = resp.into_bytes();
-        let stream = futures::stream::once(async move { Ok(bytes) });
+        let total = self.head(key).await?;
+        // Bridge get_object_range_to_writer into a byte stream so large
+        // ranges are not buffered in memory.
+        let (mut w, r) = tokio::io::duplex(256 * 1024);
+        let (bucket, key) = (self.bucket.clone(), self.key(key));
+        tokio::spawn(async move {
+            if let Err(e) = bucket
+                .get_object_range_to_writer(&key, start, Some(end), &mut w)
+                .await
+            {
+                tracing::warn!("s3 range stream {key}: {e}");
+            }
+        });
+        let stream = tokio_util::io::ReaderStream::new(r);
         Ok((total, end, Box::pin(stream)))
     }
 

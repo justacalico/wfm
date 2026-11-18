@@ -1,6 +1,8 @@
 use std::time::Duration;
 
+use futures::StreamExt;
 use serde::Deserialize;
+use tokio::io::AsyncWriteExt;
 
 use crate::config::WorkerCfg;
 use crate::files;
@@ -88,8 +90,14 @@ async fn pull_file(
     if !resp.status().is_success() {
         return Err(format!("download {rel}: http {}", resp.status()));
     }
-    let bytes = resp.bytes().await.map_err(|e| e.to_string())?;
-    std::fs::write(dest, &bytes).map_err(|e| e.to_string())
+    // Stream to disk: media files can be several GB.
+    let mut f = tokio::fs::File::create(dest).await.map_err(|e| e.to_string())?;
+    let mut body = resp.bytes_stream();
+    while let Some(chunk) = body.next().await {
+        let chunk = chunk.map_err(|e| e.to_string())?;
+        f.write_all(&chunk).await.map_err(|e| e.to_string())?;
+    }
+    f.flush().await.map_err(|e| e.to_string())
 }
 
 async fn run_job(client: &reqwest::Client, cfg: &WorkerCfg, job: &Job) -> Result<(), String> {
@@ -182,7 +190,12 @@ async fn run_job(client: &reqwest::Client, cfg: &WorkerCfg, job: &Job) -> Result
             .map(|n| n.to_string_lossy().into_owned())
             .unwrap_or_default();
         let name = if multi { base } else { format!("{out_name}{ext}") };
-        let bytes = std::fs::read(f).map_err(|e| e.to_string())?;
+        // Stream the export from disk instead of buffering it in memory.
+        let len = tokio::fs::metadata(f)
+            .await
+            .map_err(|e| e.to_string())?
+            .len();
+        let file = tokio::fs::File::open(f).await.map_err(|e| e.to_string())?;
         let resp = client
             .post(format!(
                 "{}/api/worker/jobs/{}/complete",
@@ -190,7 +203,8 @@ async fn run_job(client: &reqwest::Client, cfg: &WorkerCfg, job: &Job) -> Result
             ))
             .bearer_auth(&cfg.token)
             .query(&[("path", name), ("done", (i == last_idx).to_string())])
-            .body(bytes)
+            .header(reqwest::header::CONTENT_LENGTH, len)
+            .body(reqwest::Body::from(file))
             .send()
             .await
             .map_err(|e| e.to_string())?;
