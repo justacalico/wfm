@@ -523,11 +523,21 @@ class _FilesTabState extends State<FilesTab> {
   List<FileEntry>? _items;
   String _err = '';
   bool _uploading = false;
+  int _view = 0;
 
   @override
   void initState() {
     super.initState();
+    SharedPreferences.getInstance().then((p) {
+      final v = p.getInt('filesView');
+      if (v != null && mounted) setState(() => _view = v);
+    });
     _load();
+  }
+
+  void _setView(int v) {
+    setState(() => _view = v);
+    SharedPreferences.getInstance().then((p) => p.setInt('filesView', v));
   }
 
   Future<void> _load() async {
@@ -699,6 +709,10 @@ class _FilesTabState extends State<FilesTab> {
                     height: 16,
                     child: CircularProgressIndicator(strokeWidth: 2))),
           IconButton(
+              icon: Icon(_view == 0 ? Icons.grid_view : Icons.view_list),
+              tooltip: _view == 0 ? l10n.gridView : l10n.listView,
+              onPressed: () => _setView(_view == 0 ? 1 : 0)),
+          IconButton(
               icon: const Icon(Icons.create_new_folder_outlined),
               tooltip: l10n.newFolder,
               onPressed: _mkdir),
@@ -721,52 +735,83 @@ class _FilesTabState extends State<FilesTab> {
                 ? const Center(child: CircularProgressIndicator())
                 : _items!.isEmpty
                     ? Center(child: Text(l10n.emptyFolder))
-                    : ListView.builder(
-                        itemCount: _items!.length,
-                        itemBuilder: (c, i) {
-                          final e = _items![i];
-                          return ListTile(
-                            leading: Icon(fileIcon(e)),
-                            title: Text(e.name),
-                            subtitle: e.isDir
-                                ? null
-                                : Text(
-                                    '${fmtBytes(e.size)}  ·  ${fmtAgo(l10n, e.modified)}'),
-                            onTap: e.isDir ? () => _go(e.path) : null,
-                            trailing: PopupMenuButton<String>(
-                              onSelected: (v) {
-                                switch (v) {
-                                  case 'download':
-                                    try {
-                                      openExternal(Api.i.downloadUrl(
-                                          widget.project.id, e.path,
-                                          dl: true));
-                                    } catch (err) {
-                                      if (c.mounted) snack(c, err);
-                                    }
-                                  case 'rename':
-                                    _rename(e);
-                                  case 'delete':
-                                    _delete(e);
-                                }
-                              },
-                              itemBuilder: (_) => [
-                                if (!e.isDir)
-                                  PopupMenuItem(
-                                      value: 'download',
-                                      child: Text(l10n.download)),
-                                PopupMenuItem(
-                                    value: 'rename', child: Text(l10n.rename)),
-                                PopupMenuItem(
-                                    value: 'delete', child: Text(l10n.delete)),
-                              ],
-                            ),
-                          );
-                        },
-                      ),
+                    : _view == 1
+                        ? GridView.extent(
+                            maxCrossAxisExtent: 220,
+                            childAspectRatio: 1.5,
+                            mainAxisSpacing: 8,
+                            crossAxisSpacing: 8,
+                            padding: const EdgeInsets.all(12),
+                            children: [
+                              for (final e in _items!) _cell(context, l10n, e)
+                            ],
+                          )
+                        : ListView.builder(
+                            itemCount: _items!.length,
+                            itemBuilder: (c, i) => _tile(c, l10n, _items![i]),
+                          ),
       ),
     ]);
   }
+
+  Widget _menu(BuildContext c, AppLocalizations l10n, FileEntry e) =>
+      PopupMenuButton<String>(
+        onSelected: (v) {
+          switch (v) {
+            case 'download':
+              try {
+                openExternal(
+                    Api.i.downloadUrl(widget.project.id, e.path, dl: true));
+              } catch (err) {
+                if (c.mounted) snack(c, err);
+              }
+            case 'rename':
+              _rename(e);
+            case 'delete':
+              _delete(e);
+          }
+        },
+        itemBuilder: (_) => [
+          if (!e.isDir)
+            PopupMenuItem(value: 'download', child: Text(l10n.download)),
+          PopupMenuItem(value: 'rename', child: Text(l10n.rename)),
+          PopupMenuItem(value: 'delete', child: Text(l10n.delete)),
+        ],
+      );
+
+  Widget _tile(BuildContext c, AppLocalizations l10n, FileEntry e) => ListTile(
+        leading: Icon(fileIcon(e)),
+        title: Text(e.name),
+        subtitle: e.isDir
+            ? null
+            : Text('${fmtBytes(e.size)}  ·  ${fmtAgo(l10n, e.modified)}'),
+        onTap: e.isDir ? () => _go(e.path) : null,
+        trailing: _menu(c, l10n, e),
+      );
+
+  Widget _cell(BuildContext c, AppLocalizations l10n, FileEntry e) => Card(
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: e.isDir ? () => _go(e.path) : null,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 4, 4, 10),
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                Icon(fileIcon(e)),
+                const Spacer(),
+                _menu(c, l10n, e),
+              ]),
+              const Spacer(),
+              Text(e.name, overflow: TextOverflow.ellipsis),
+              if (!e.isDir)
+                Text('${fmtBytes(e.size)}  ·  ${fmtAgo(l10n, e.modified)}',
+                    style: Theme.of(c).textTheme.bodySmall,
+                    overflow: TextOverflow.ellipsis),
+            ]),
+          ),
+        ),
+      );
 }
 
 class RendersTab extends StatefulWidget {
