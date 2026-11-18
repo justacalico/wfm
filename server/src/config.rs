@@ -103,7 +103,7 @@ impl Config {
             s3_region: env("WFM_S3_REGION", "us-east-1"),
             s3_bucket: env("WFM_S3_BUCKET", "wfm"),
             s3_access: env("WFM_S3_ACCESS_KEY", "rustfsadmin"),
-            s3_secret: env("WFM_S3_SECRET_KEY", "rustfsadmin"),
+            s3_secret: env("WFM_S3_SECRET_KEY", "rustfsadminsecret"),
             s3_prefix: env("WFM_S3_PREFIX", ""),
             trusted_proxies: crate::auth::parse_nets(&env("WFM_TRUSTED_PROXIES", ""))
                 .unwrap_or_default(),

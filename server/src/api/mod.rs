@@ -1236,15 +1236,19 @@ async fn serve_blob(s: &Arc<AppState>, key: &str, name: &str, headers: &HeaderMa
 }
 
 fn parse_range(v: &str, size: u64) -> Option<(u64, u64)> {
+    if size == 0 {
+        return None;
+    }
     let v = v.strip_prefix("bytes=")?;
     let (a, b) = v.split_once('-')?;
+    let last = size - 1;
     let (start, end) = if a.is_empty() {
         let n: u64 = b.parse().ok()?;
-        (size.saturating_sub(n), size - 1)
+        (size.saturating_sub(n), last)
     } else {
         let s: u64 = a.parse().ok()?;
-        let e = if b.is_empty() { size - 1 } else { b.parse().ok()? };
-        (s, e.min(size - 1))
+        let e = if b.is_empty() { last } else { b.parse().ok()? };
+        (s, e.min(last))
     };
     if start > end {
         return None;
@@ -1265,6 +1269,9 @@ mod tests {
         assert_eq!(parse_range("bytes=2000-3000", 1000), None);
         assert_eq!(parse_range("garbage", 1000), None);
         assert_eq!(parse_range("bytes=50-20", 1000), None);
+        assert_eq!(parse_range("bytes=-100", 0), None);
+        assert_eq!(parse_range("bytes=0-", 0), None);
+        assert_eq!(parse_range("bytes=0-0", 0), None);
     }
 }
 
