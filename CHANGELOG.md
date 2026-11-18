@@ -2,6 +2,13 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.5.9 - 2026-11-18
+#### Bug Fixes
+- 原子化初始化防止并发请求创建两个所有者账户 - (c1886cd) - calico, *Devin*
+- 定期清理残留的临时与暂存目录防止磁盘泄漏 - (1bc3cba) - calico, *Devin*
+
+- - -
+
 ## v0.5.8 - 2026-11-17
 #### Bug Fixes
 - 容器内以非 root 运行并添加健康检查 - (51a78fa) - calico, *Devin*
