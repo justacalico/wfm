@@ -1,0 +1,219 @@
+diff --git a/crates/engine/src/project_tools.rs b/crates/engine/src/project_tools.rs
+index 67b898d..f6612f6 100644
+--- a/crates/engine/src/project_tools.rs
++++ b/crates/engine/src/project_tools.rs
+@@ -154,7 +154,7 @@ pub(crate) fn commands() -> Vec<CommandSpec> {
+         spec(
+             "file.projectSettings.scratchDisks",
+             "Scratch Disks…",
+-            &["File", "Project Settings"],
++            &[],
+             None,
+             r#"{"captured":path|null?,"videoPreviews":path|null?,"audioPreviews":path|null?,"autoSave":path|null?}"#,
+             always,
+@@ -221,10 +221,6 @@ pub(crate) fn apply_layout(v: &mut Vec<CommandSpec>) {
+         c.run = new.run;
+         c.params = new.params;
+     }
+-    // Project Settings ▸ Ingest Settings…
+-    if let Some(c) = v.iter_mut().find(|c| c.id == "project.ingestSettings") {
+-        c.menu = &["File", "Project Settings"];
+-    }
+     let layout: Vec<(At, Vec<&'static str>)> = vec![
+         (At::After("file.newBinFromSelection"), vec!["file.newSearchBin"]),
+         (At::Before("file.closeProject"), vec!["file.close"]),
+@@ -236,8 +232,6 @@ pub(crate) fn apply_layout(v: &mut Vec<CommandSpec>) {
+                 "file.mediaPropertiesFile",
+                 "file.mediaProperties",
+                 "file.projectSettings.general",
+-                "file.projectSettings.scratchDisks",
+-                "project.ingestSettings",
+             ],
+         ),
+         (At::After("edit.deselectAll"), vec!["edit.find", "edit.findNext"]),
+diff --git a/crates/engine/src/project_tools/tests.rs b/crates/engine/src/project_tools/tests.rs
+index a54b45e..e09e334 100644
+--- a/crates/engine/src/project_tools/tests.rs
++++ b/crates/engine/src/project_tools/tests.rs
+@@ -53,7 +53,7 @@ fn file_edit_clip_menu_order_and_shortcuts_match_premiere() {
+     );
+     assert_order(&menu_ids(&["File", "Export"]), &["file.exportEdl", "file.exportSelectionProject", "file.exportAle", "file.exportOtio", "file.exportFcp7Xml"]);
+     assert_eq!(menu_ids(&["File", "Get Media File Properties for"]), vec!["file.mediaPropertiesFile", "file.mediaProperties"]);
+-    assert_eq!(menu_ids(&["File", "Project Settings"]), vec!["file.projectSettings.general", "file.projectSettings.scratchDisks", "project.ingestSettings"]);
++    assert_eq!(menu_ids(&["File", "Project Settings"]), vec!["file.projectSettings.general"]);
+     assert_order(&menu_ids(&["Edit"]), &["edit.deselectAll", "edit.find", "edit.findNext", "edit.consolidateDuplicates", "edit.editOriginal"]);
+     let clip: Vec<&str> = crate::commands::command_specs().iter().filter(|c| c.menu.first() == Some(&"Clip")).map(|c| c.id).collect();
+     assert_order(
+diff --git a/crates/ui-egui/src/panels/menu_dialogs.rs b/crates/ui-egui/src/panels/menu_dialogs.rs
+index 4f8e0c3..9c84781 100644
+--- a/crates/ui-egui/src/panels/menu_dialogs.rs
++++ b/crates/ui-egui/src/panels/menu_dialogs.rs
+@@ -13,8 +13,7 @@
+ //!
+ //! Automation ids (`<p>` = the dialog prefix, `<key>` = a parameter): `<p>.ok`, `<p>.cancel` and
+ //! `<p>.<key>` for each control; radio buttons `<p>.<key>.<value>`; Find rows
+-//! `find.row.<n>.column|operator|text`; Project Settings tabs `projectSettings.tab.<general|scratchDisks|ingest>`,
+-//! scratch rows `projectSettings.scratch.<key>` / `.browse` / `.same`.
++//! `find.row.<n>.column|operator|text`.
+ 
+ use crate::widgets::CenteredDialog as _;
+ use egui::{Align2, RichText};
+@@ -302,7 +301,7 @@ pub fn route(app: &mut FilmcraftApp, ctx: &egui::Context, id: &str, params: &Val
+ }
+ 
+ /// Initial parameters (and display info) of a dialog.
+-fn defaults(app: &mut FilmcraftApp, cmd: &str, id: &str, bin: Option<Option<u64>>) -> Result<(Value, Value), String> {
++fn defaults(app: &mut FilmcraftApp, cmd: &str, _id: &str, bin: Option<Option<u64>>) -> Result<(Value, Value), String> {
+     let shown_bin = bin.unwrap_or_else(|| crate::panels::project::shown_bin(app));
+     let s = &mut app.session;
+     Ok(match cmd {
+@@ -326,25 +325,13 @@ fn defaults(app: &mut FilmcraftApp, cmd: &str, id: &str, bin: Option<Option<u64>
+             (json!({"name": "", "column": "All", "operator": "contains", "text": text}), Value::Null)
+         }
+         "project.settings" => {
+-            let tab = match id {
+-                "file.projectSettings.scratchDisks" => "scratchDisks",
+-                "project.ingestSettings" => "ingest",
+-                _ => "general",
+-            };
+-            let st = s.project.settings.clone();
+             let general = s.execute("file.projectSettings.general", json!({})).map_err(|e| e.to_string())?;
+-            let scratch = filmcraft_engine::project_tools::scratch_paths(s);
+-            let ingest = serde_json::to_value(&st.ingest).unwrap_or_default();
+-            let sc = &st.scratch;
+             (
+                 json!({
+-                    "tab": tab,
+                     "renderer": general["renderer"], "videoDisplay": general["videoDisplay"], "audioDisplay": general["audioDisplay"],
+                     "captureFormat": general["captureFormat"], "titleSafe": general["titleSafe"], "actionSafe": general["actionSafe"],
+-                    "captured": sc.captured, "videoPreviews": sc.video_previews, "audioPreviews": sc.audio_previews, "autoSave": sc.auto_save,
+-                    "ingest": ingest.clone(),
+                 }),
+-                json!({"scratch": scratch, "ingest": ingest, "project": s.project.name}),
++                json!({"project": s.project.name}),
+             )
+         }
+         "file.mediaProperties" => {
+@@ -507,7 +494,6 @@ pub fn show(app: &mut FilmcraftApp, ctx: &egui::Context) {
+     };
+     let mut elems: Elems = Vec::new();
+     let mut action: Option<&'static str> = None;
+-    let mut browse: Option<String> = None;
+     let info_only = matches!(d.command.as_str(), "file.mediaProperties" | "clip.sourceSettings" | "help.systemCompatibilityReport");
+     // the title is translated; the window keeps one id whatever the interface language
+     let id = egui::Id::unique(("menu-dialog", pre));
+@@ -574,72 +560,8 @@ pub fn show(app: &mut FilmcraftApp, ctx: &egui::Context) {
+             }
+             "project.settings" => {
+                 ui.label(tlf!("Project: {name}", name = d.info["project"].as_str().unwrap_or_default()));
+-                ui.horizontal(|ui| {
+-                    for (k, l) in [("general", tl!("General")), ("scratchDisks", tl!("Scratch Disks")), ("ingest", tl!("Ingest Settings"))] {
+-                        let r = ui.selectable_label(p["tab"].as_str() == Some(k), l);
+-                        push(&mut elems, format!("projectSettings.tab.{k}"), &r, l);
+-                        if r.clicked() {
+-                            p["tab"] = json!(k);
+-                        }
+-                    }
+-                });
+                 ui.separator();
+-                match p["tab"].as_str().unwrap_or("general") {
+-                    "scratchDisks" => {
+-                        for (k, l) in [
+-                            ("captured", tl!("Captured and Generated:")),
+-                            ("videoPreviews", tl!("Video Previews:")),
+-                            ("audioPreviews", tl!("Audio Previews:")),
+-                            ("autoSave", tl!("Project Auto Save:")),
+-                        ] {
+-                            ui.label(RichText::new(l).strong());
+-                            ui.horizontal(|ui| {
+-                                let mut v = p[k].as_str().unwrap_or_default().to_string();
+-                                let r = ui.add(egui::TextEdit::singleline(&mut v).hint_text(tl!("Same as Project")).desired_width(240.0));
+-                                push(&mut elems, format!("projectSettings.scratch.{k}"), &r, l);
+-                                if r.changed() {
+-                                    p[k] = if v.is_empty() { Value::Null } else { json!(v) };
+-                                }
+-                                let r = ui.button(tl!("Browse…"));
+-                                push(&mut elems, format!("projectSettings.scratch.{k}.browse"), &r, "Browse");
+-                                if r.clicked() {
+-                                    browse = Some(k.to_string());
+-                                }
+-                                let r = ui.button(tl!("Same as Project"));
+-                                push(&mut elems, format!("projectSettings.scratch.{k}.same"), &r, "Same as Project");
+-                                if r.clicked() {
+-                                    p[k] = Value::Null;
+-                                }
+-                            });
+-                            let path = d.info["scratch"][k]["path"].as_str().unwrap_or_default();
+-                            ui.label(RichText::new(tlf!("Path: {path}", path)).weak().small());
+-                        }
+-                    }
+-                    "ingest" => {
+-                        let mut ing = p["ingest"].clone();
+-                        let mut on = ing["enabled"].as_bool().unwrap_or(false);
+-                        let r = ui.checkbox(&mut on, tl!("Ingest"));
+-                        push(&mut elems, "projectSettings.ingest.enabled", &r, "Ingest");
+-                        ing["enabled"] = json!(on);
+-                        let actions = vec![
+-                            ("copy".to_string(), tl!("Copy").to_string()),
+-                            ("transcode".to_string(), tl!("Transcode").to_string()),
+-                            ("createProxies".to_string(), tl!("Create Proxies").to_string()),
+-                            ("copyAndCreateProxies".to_string(), tl!("Copy and Create Proxies").to_string()),
+-                        ];
+-                        combo(ui, &mut elems, "projectSettings.ingest.action", tl!("Action:"), &mut ing["action"], &actions);
+-                        ui.horizontal(|ui| {
+-                            ui.label(tl!("Destination:"));
+-                            let mut v = ing["destination"].as_str().unwrap_or_default().to_string();
+-                            let r = ui.add(egui::TextEdit::singleline(&mut v).hint_text(tl!("Next to the media")).desired_width(220.0));
+-                            push(&mut elems, "projectSettings.ingest.destination", &r, "Destination");
+-                            if r.changed() {
+-                                ing["destination"] = if v.is_empty() { Value::Null } else { json!(v) };
+-                            }
+-                        });
+-                        p["ingest"] = ing;
+-                    }
+-                    _ => {
++                {
+                         ui.label(RichText::new(tl!("Video Rendering and Playback")).strong());
+                         let rs = vec![
+                             (filmcraft_engine::project_tools::RENDERER_GPU.to_string(), filmcraft_engine::project_tools::RENDERER_GPU.to_string()),
+@@ -674,7 +596,6 @@ pub fn show(app: &mut FilmcraftApp, ctx: &egui::Context) {
+                                 }
+                             });
+                         }
+-                    }
+                 }
+             }
+             "file.mediaProperties" => {
+@@ -880,17 +801,6 @@ pub fn show(app: &mut FilmcraftApp, ctx: &egui::Context) {
+     for (id, r, l) in elems {
+         app.auto.add(&id, r, &l);
+     }
+-    if let Some(k) = browse {
+-        // into the dialog's parameters, if the same dialog is still open when the folder comes back
+-        let command = d.command.clone();
+-        app.pick_ui(FileDialog::Folder { at: None }, move |app, paths| {
+-            if let (Some(dir), Some(d)) = (paths.into_iter().next(), app.ui.extras.dialog.as_mut())
+-                && d.command == command
+-            {
+-                d.params[k.as_str()] = json!(dir);
+-            }
+-        });
+-    }
+     if crate::widgets::escape_closes(ctx) {
+         action = Some("cancel");
+     }
+@@ -932,14 +842,6 @@ fn run(app: &mut FilmcraftApp, d: &ClipDialogDraft) -> Result<Option<String>, St
+                     "captureFormat": p["captureFormat"], "titleSafe": p["titleSafe"], "actionSafe": p["actionSafe"]}),
+             )
+             .map_err(|e| e.to_string())?;
+-            s.execute(
+-                "file.projectSettings.scratchDisks",
+-                json!({"captured": p["captured"], "videoPreviews": p["videoPreviews"], "audioPreviews": p["audioPreviews"], "autoSave": p["autoSave"]}),
+-            )
+-            .map_err(|e| e.to_string())?;
+-            if p["ingest"] != d.info["ingest"] {
+-                s.execute("project.ingestSettings", p["ingest"].clone()).map_err(|e| e.to_string())?;
+-            }
+             Ok(None)
+         }
+         "file.saveAsTemplate" => {
