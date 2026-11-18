@@ -8,6 +8,9 @@ import 'main.dart';
 import 'platform.dart';
 import 'util.dart';
 
+String? _theme(BuildContext c) =>
+    c.findAncestorStateOfType<WfmAppState>()?.appTheme.name;
+
 class ProjectsPage extends StatefulWidget {
   const ProjectsPage({super.key});
   @override
@@ -195,7 +198,7 @@ class _ProjectsPageState extends State<ProjectsPage> {
         TextButton.icon(
           onPressed: () {
             try {
-              openExternal(Api.i.projectUrl(p.id));
+              openExternal(Api.i.projectUrl(p.id, theme: _theme(c)));
             } catch (e) {
               if (c.mounted) snack(c, e);
             }
@@ -518,7 +521,7 @@ class _ProjectPageState extends State<ProjectPage> {
           FilledButton.tonalIcon(
             onPressed: () {
               try {
-                openExternal(Api.i.projectUrl(_p.id));
+                openExternal(Api.i.projectUrl(_p.id, theme: _theme(context)));
               } catch (e) {
                 if (context.mounted) snack(context, e);
               }
@@ -974,10 +977,11 @@ class _RendersTabState extends State<RendersTab> {
   }
 
   Future<void> _retry(RenderJob j) async {
+    final theme = _theme(context);
     try {
       final next = await Api.i.retryRender(j.id);
       if (next.mode == 'device') {
-        openExternal(Api.i.renderUrl(widget.project.id, next.id));
+        openExternal(Api.i.renderUrl(widget.project.id, next.id, theme: theme));
       }
       _load();
     } catch (e) {
@@ -1265,6 +1269,7 @@ class _RenderDialogState extends State<RenderDialog> {
     final params = _params();
     if (params == null) return;
     setState(() => _busy = true);
+    final theme = _theme(context);
     try {
       final job = await Api.i.createRender(widget.project.id, {
         'mode': _mode,
@@ -1273,7 +1278,7 @@ class _RenderDialogState extends State<RenderDialog> {
         'params': params,
       });
       if (_mode == 'device') {
-        openExternal(Api.i.renderUrl(widget.project.id, job.id));
+        openExternal(Api.i.renderUrl(widget.project.id, job.id, theme: theme));
       }
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {

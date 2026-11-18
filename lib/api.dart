@@ -315,10 +315,11 @@ class Api {
   Future<void> deleteFile(String pid, String path) =>
       del('/projects/$pid/files', {'path': path});
 
-  String projectUrl(String pid) => '/filmcraft/wfm.html?project=$pid';
+  String projectUrl(String pid, {String? theme}) =>
+      '/filmcraft/wfm.html?project=$pid${theme == null ? '' : '&theme=$theme'}';
 
-  String renderUrl(String pid, String rid) =>
-      '/filmcraft/wfm.html?project=$pid&render=$rid';
+  String renderUrl(String pid, String rid, {String? theme}) =>
+      '/filmcraft/wfm.html?project=$pid&render=$rid${theme == null ? '' : '&theme=$theme'}';
 
   Future<RenderInfo> renderInfo(String pid) async =>
       RenderInfo.fromJson(await get('/projects/$pid/render-info'));
