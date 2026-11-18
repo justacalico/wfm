@@ -192,6 +192,31 @@ impl Db for PgDb {
         .map_err(map_err)
     }
 
+    async fn create_owner(&self, u: &User, pass_hash: &str) -> DbResult<bool> {
+        sqlx::query(
+            "INSERT INTO users(id,username,display_name,pass_hash,role,student_id,note,disabled,created_by,lineage,created_at,last_login)
+             SELECT $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12
+             WHERE NOT EXISTS(SELECT 1 FROM users WHERE role=$13)",
+        )
+        .bind(&u.id)
+        .bind(&u.username)
+        .bind(&u.display_name)
+        .bind(pass_hash)
+        .bind(u.role as i32)
+        .bind(&u.student_id)
+        .bind(&u.note)
+        .bind(u.disabled as i32)
+        .bind(&u.created_by)
+        .bind(&u.lineage)
+        .bind(u.created_at)
+        .bind(u.last_login)
+        .bind(Role::Owner as i32)
+        .execute(&self.pool)
+        .await
+        .map(|r| r.rows_affected() > 0)
+        .map_err(map_err)
+    }
+
     async fn set_password(&self, id: &str, pass_hash: &str) -> DbResult<()> {
         sqlx::query("UPDATE users SET pass_hash=$1 WHERE id=$2")
             .bind(pass_hash)

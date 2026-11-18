@@ -164,8 +164,15 @@ async fn setup_owner(
         created_at: AppState::now(),
         last_login: 0,
     };
-    if let Err(e) = s.db.create_user(&u, &hash).await {
-        return db_resp(e);
+    match s.db.create_owner(&u, &hash).await {
+        Ok(true) => {}
+        Ok(false) => return err(StatusCode::CONFLICT, "setup already done"),
+        Err(e) => {
+            if s.db.owner_count().await.unwrap_or(0) > 0 {
+                return err(StatusCode::CONFLICT, "setup already done");
+            }
+            return db_resp(e);
+        }
     }
     if let (Some(list), Some(nets)) = (proxies, nets) {
         if let Err(e) = s.db.setting_set("trusted_proxies", list).await {
