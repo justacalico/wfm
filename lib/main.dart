@@ -17,6 +17,7 @@ extension L10n on BuildContext {
 enum AppTheme { system, light, dark, oled }
 
 const appLocales = [
+  Locale('en'),
   Locale('en', 'GB'),
   Locale('zh'),
   Locale('ru'),
@@ -62,8 +63,8 @@ class WfmAppState extends State<WfmApp> {
         final code = p.getString('locale');
         if (code != null && code.isNotEmpty) {
           final parts = code.split('_');
-          localeCtl.value =
-              Locale(parts[0], parts.length > 1 ? parts[1] : null);
+          localeCtl.value = Locale(parts[0],
+              parts.length > 1 && parts[1].isNotEmpty ? parts[1] : null);
         }
       });
     });
@@ -106,7 +107,11 @@ class WfmAppState extends State<WfmApp> {
     setState(() => localeCtl.value = l);
     SharedPreferences.getInstance().then((p) => l == null
         ? p.remove('locale')
-        : p.setString('locale', '${l.languageCode}_${l.countryCode ?? ''}'));
+        : p.setString(
+            'locale',
+            l.countryCode == null
+                ? l.languageCode
+                : '${l.languageCode}_${l.countryCode}'));
   }
 }
 

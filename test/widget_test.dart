@@ -284,7 +284,7 @@ void main() {
     await settle(t);
     await t.tap(find.text('Gaeilge').last);
     await settle(t);
-    expect(p.getString('locale'), 'ga_');
+    expect(p.getString('locale'), 'ga');
     expect(find.textContaining('Socruithe'), findsWidgets);
   });
 
@@ -295,6 +295,16 @@ void main() {
     final app = t.state<WfmAppState>(find.byType(WfmApp));
     expect(app.appTheme, AppTheme.oled);
     expect(app.appLocale?.languageCode, 'zh');
+  });
+
+  testWidgets('country-coded locale serializes with underscore', (t) async {
+    installApi(extra: {'GET *': (_) => []});
+    await pumpWfm(t);
+    t
+        .state<WfmAppState>(find.byType(WfmApp))
+        .setLocale(const Locale('en', 'GB'));
+    final p = await SharedPreferences.getInstance();
+    expect(p.getString('locale'), 'en_GB');
   });
 
   testWidgets('no saved theme defaults to system', (t) async {

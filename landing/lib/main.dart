@@ -16,6 +16,7 @@ extension L10n on BuildContext {
 enum LandingTheme { system, light, dark, oled }
 
 const landingLocales = [
+  Locale('en'),
   Locale('en', 'GB'),
   Locale('zh'),
   Locale('ru'),
@@ -24,6 +25,7 @@ const landingLocales = [
 
 final landingLangs = <Locale?, String>{
   null: '',
+  const Locale('en'): 'English',
   const Locale('en', 'GB'): 'Traditional English',
   const Locale('zh'): '简体中文',
   const Locale('ru'): 'Русский',
@@ -60,7 +62,8 @@ class LandingAppState extends State<LandingApp> {
         final code = p.getString('locale');
         if (code != null && code.isNotEmpty) {
           final parts = code.split('_');
-          _locale = Locale(parts[0], parts.length > 1 ? parts[1] : null);
+          _locale = Locale(parts[0],
+              parts.length > 1 && parts[1].isNotEmpty ? parts[1] : null);
         }
       });
     });
@@ -75,7 +78,11 @@ class LandingAppState extends State<LandingApp> {
     setState(() => _locale = l);
     SharedPreferences.getInstance().then((p) => l == null
         ? p.remove('locale')
-        : p.setString('locale', '${l.languageCode}_${l.countryCode ?? ''}'));
+        : p.setString(
+            'locale',
+            l.countryCode == null
+                ? l.languageCode
+                : '${l.languageCode}_${l.countryCode}'));
   }
 
   @override

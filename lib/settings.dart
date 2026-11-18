@@ -8,6 +8,7 @@ import 'version_check.dart';
 
 final langNames = <Locale?, String>{
   null: '',
+  Locale('en'): 'English',
   Locale('en', 'GB'): 'Traditional English',
   Locale('zh'): '简体中文',
   Locale('ru'): 'Русский',
