@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.9.0 - 2026-11-18
+#### Features
+- (**files**) 文件页增加列表/网格视图切换 - (991b140) - calico
+
+- - -
+
 ## v0.8.0 - 2026-11-18
 #### Features
 - (**projects**) 项目页增加列表/网格视图切换 - (0f286f2) - calico
