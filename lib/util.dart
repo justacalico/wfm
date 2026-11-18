@@ -43,28 +43,3 @@ String extOf(String name) {
   final i = name.lastIndexOf('.');
   return i < 0 ? '' : name.substring(i + 1).toLowerCase();
 }
-
-bool isMedia(String name) => const {
-      'mp4',
-      'mov',
-      'mkv',
-      'webm',
-      'avi',
-      'm4v',
-      'mpg',
-      'mpeg',
-      'mp3',
-      'wav',
-      'aac',
-      'flac',
-      'ogg',
-      'm4a',
-      'png',
-      'jpg',
-      'jpeg',
-      'gif',
-      'webp',
-      'bmp',
-      'tif',
-      'tiff',
-    }.contains(extOf(name));

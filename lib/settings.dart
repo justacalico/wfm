@@ -88,45 +88,11 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _changePassword() async {
-    final l10n = context.l10n;
-    final cur = TextEditingController(), next = TextEditingController();
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, ss) => AlertDialog(
-          title: Text(l10n.changePassword),
-          content: SizedBox(
-            width: 320,
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              TextField(
-                  controller: cur,
-                  obscureText: true,
-                  decoration: dec(l10n.currentPassword),
-                  onChanged: (_) => ss(() {})),
-              const SizedBox(height: 8),
-              TextField(
-                  controller: next,
-                  obscureText: true,
-                  decoration: dec(l10n.newPassword),
-                  onChanged: (_) => ss(() {})),
-            ]),
-          ),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: Text(l10n.cancel)),
-            FilledButton(
-                onPressed: cur.text.isNotEmpty && validPassword(next.text)
-                    ? () => Navigator.pop(ctx, true)
-                    : null,
-                child: Text(l10n.save)),
-          ],
-        ),
-      ),
-    );
-    if (ok != true || !mounted) return;
+    final r = await showDialog<(String, String)>(
+        context: context, builder: (_) => const _PasswordDialog());
+    if (r == null || !mounted) return;
     try {
-      await Api.i.changePassword(cur.text, next.text);
+      await Api.i.changePassword(r.$1, r.$2);
       if (mounted) snack(context, context.l10n.passwordChanged, good: true);
     } catch (e) {
       if (mounted) snack(context, e);
@@ -269,3 +235,53 @@ class _SettingsPageState extends State<SettingsPage> {
 }
 
 enum UpdateResult { idle, checking, upToDate, available, failed }
+
+class _PasswordDialog extends StatefulWidget {
+  const _PasswordDialog();
+  @override
+  State<_PasswordDialog> createState() => _PasswordDialogState();
+}
+
+class _PasswordDialogState extends State<_PasswordDialog> {
+  final _cur = TextEditingController(), _next = TextEditingController();
+
+  @override
+  void dispose() {
+    _cur.dispose();
+    _next.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    return AlertDialog(
+      title: Text(l10n.changePassword),
+      content: SizedBox(
+        width: 320,
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          TextField(
+              controller: _cur,
+              obscureText: true,
+              decoration: dec(l10n.currentPassword),
+              onChanged: (_) => setState(() {})),
+          const SizedBox(height: 8),
+          TextField(
+              controller: _next,
+              obscureText: true,
+              decoration: dec(l10n.newPassword),
+              onChanged: (_) => setState(() {})),
+        ]),
+      ),
+      actions: [
+        TextButton(
+            onPressed: () => Navigator.pop(context), child: Text(l10n.cancel)),
+        FilledButton(
+            onPressed: _cur.text.isNotEmpty && validPassword(_next.text)
+                ? () => Navigator.pop(context, (_cur.text, _next.text))
+                : null,
+            child: Text(l10n.save)),
+      ],
+    );
+  }
+}
