@@ -78,6 +78,18 @@ void main() {
     expect(find.byType(Notice), findsOneWidget);
   });
 
+  testWidgets('proxies edits survive a rebuild', (t) async {
+    installApi(extra: {'GET *': (_) => []});
+    await goSettings(t);
+    await t.enterText(find.byType(TextField).last, '192.168.1.1, 10.0.0.0/8');
+    // Switching theme rebuilds the page; a build()-scoped controller
+    // would wipe the unsaved text here.
+    await t.tap(find.text('Dark'));
+    await settle(t);
+    expect(t.widget<TextField>(find.byType(TextField).last).controller!.text,
+        '192.168.1.1, 10.0.0.0/8');
+  });
+
   testWidgets('save proxies error and submit via keyboard', (t) async {
     installApi(extra: {
       'PUT /api/settings': (_) => http.Response('{"error":"bad list"}', 400),
