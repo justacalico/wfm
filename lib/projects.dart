@@ -124,9 +124,9 @@ class _ProjectsPageState extends State<ProjectsPage> {
     }
   }
 
-  Widget _card(BuildContext c, AppLocalizations l10n, Project p, bool tight) {
+  Widget _card(BuildContext c, AppLocalizations l10n, Project p, double w) {
     return SizedBox(
-      width: tight ? double.infinity : 290,
+      width: w,
       child: Card(
         clipBehavior: Clip.antiAlias,
         child: InkWell(
@@ -187,6 +187,16 @@ class _ProjectsPageState extends State<ProjectsPage> {
         ),
       ),
     );
+  }
+
+  Widget _cards(List<Project> ps, AppLocalizations l10n, bool tight) {
+    return LayoutBuilder(builder: (c, cons) {
+      final cols = tight ? 1 : (cons.maxWidth / 300).floor();
+      final w = (cons.maxWidth - 12 * (cols - 1)) / cols;
+      return Wrap(spacing: 12, runSpacing: 12, children: [
+        for (final p in ps) _card(c, l10n, p, w),
+      ]);
+    });
   }
 
   @override
@@ -262,10 +272,7 @@ class _ProjectsPageState extends State<ProjectsPage> {
               else ...[
                 for (final g in _groups) ...[
                   _groupHeader(l10n, g),
-                  Wrap(spacing: 12, runSpacing: 12, children: [
-                    for (final p in byGroup[g.id] ?? <Project>[])
-                      _card(context, l10n, p, tight),
-                  ]),
+                  _cards(byGroup[g.id] ?? <Project>[], l10n, tight),
                 ],
                 if (_groups.isNotEmpty)
                   Padding(
@@ -273,9 +280,7 @@ class _ProjectsPageState extends State<ProjectsPage> {
                     child: Text(l10n.ungrouped,
                         style: Theme.of(context).textTheme.titleSmall),
                   ),
-                Wrap(spacing: 12, runSpacing: 12, children: [
-                  for (final p in ungrouped) _card(context, l10n, p, tight),
-                ]),
+                _cards(ungrouped, l10n, tight),
               ],
             ]),
     );
