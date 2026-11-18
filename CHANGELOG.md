@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.7.1 - 2026-11-18
+#### Bug Fixes
+- (**l10n**) 补上英语语言选项并修正语言偏好存储 - (2971406) - calico
+
+- - -
+
 ## v0.7.0 - 2026-11-18
 #### Features
 - (**projects**) 卡片添加渲染按钮 - (2183a67) - calico
