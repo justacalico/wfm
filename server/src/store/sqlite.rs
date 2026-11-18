@@ -122,7 +122,7 @@ fn map_user(r: &rusqlite::Row<'_>) -> rusqlite::Result<User> {
 const USER_COLS: &str =
     "id,username,display_name,pass_hash,role,student_id,note,disabled,created_by,lineage,created_at,last_login";
 
-const PROJECT_COLS: &str = "id,owner_id,name,display_name,dir,group_id,tags,created_at,last_activity";
+const PROJECT_COLS: &str = "id,owner_id,name,display_name,dir,group_id,tags,created_at,last_activity,pinned";
 
 fn map_project(r: &rusqlite::Row<'_>) -> rusqlite::Result<Project> {
     Ok(Project {
@@ -135,6 +135,7 @@ fn map_project(r: &rusqlite::Row<'_>) -> rusqlite::Result<Project> {
         tags: tags_split(&r.get::<_, String>(6)?),
         created_at: r.get(7)?,
         last_activity: r.get(8)?,
+        pinned: r.get::<_, i64>(9)? != 0,
     })
 }
 
@@ -433,8 +434,8 @@ impl Db for SqliteDb {
         let p = p.clone();
         self.q(move |c| {
                 c.execute(
-                    "INSERT INTO projects(id,owner_id,name,display_name,dir,group_id,tags,created_at,last_activity) VALUES(?,?,?,?,?,?,?,?,?)",
-                    params![p.id, p.owner_id, p.name, p.display_name, p.dir, p.group_id, tags_csv(&p.tags), p.created_at, p.last_activity],
+                    "INSERT INTO projects(id,owner_id,name,display_name,dir,group_id,tags,created_at,last_activity,pinned) VALUES(?,?,?,?,?,?,?,?,?,?)",
+                    params![p.id, p.owner_id, p.name, p.display_name, p.dir, p.group_id, tags_csv(&p.tags), p.created_at, p.last_activity, p.pinned],
                 )
             })
             .await
@@ -498,6 +499,19 @@ impl Db for SqliteDb {
             c.execute(
                 "UPDATE projects SET last_activity=? WHERE id=? AND last_activity<?",
                 params![ts, id, ts - 300],
+            )
+        })
+        .await
+        .map(|_| ())
+        .map_err(dberr)
+    }
+
+    async fn set_project_pinned(&self, id: &str, pinned: bool) -> DbResult<()> {
+        let id = id.to_string();
+        self.q(move |c| {
+            c.execute(
+                "UPDATE projects SET pinned=? WHERE id=?",
+                params![pinned as i64, id],
             )
         })
         .await
@@ -1110,6 +1124,7 @@ mod tests {
             tags: vec![],
             created_at: 1,
             last_activity: 1,
+            pinned: false,
         })
         .await
         .unwrap();
@@ -1117,5 +1132,9 @@ mod tests {
         assert_eq!(db.project_by_id("p").await.unwrap().last_activity, 1);
         db.touch_project("p", 400).await.unwrap();
         assert_eq!(db.project_by_id("p").await.unwrap().last_activity, 400);
+        db.set_project_pinned("p", true).await.unwrap();
+        assert!(db.project_by_id("p").await.unwrap().pinned);
+        db.set_project_pinned("p", false).await.unwrap();
+        assert!(!db.project_by_id("p").await.unwrap().pinned);
     }
 }

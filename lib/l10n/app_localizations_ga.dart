@@ -334,6 +334,12 @@ class AppLocalizationsGa extends AppLocalizations {
   String get sortActivity => 'Gníomhaíocht dheireanach';
 
   @override
+  String get pinProject => 'Greamaigh tionscadal';
+
+  @override
+  String get unpinProject => 'Díghreamaigh tionscadal';
+
+  @override
   String get listView => 'Amharc liosta';
 
   @override

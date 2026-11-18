@@ -98,6 +98,7 @@ pub struct Project {
     pub created_at: i64,
     #[serde(rename = "lastActivity")]
     pub last_activity: i64,
+    pub pinned: bool,
 }
 
 #[derive(Clone, Serialize)]

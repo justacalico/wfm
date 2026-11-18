@@ -698,6 +698,18 @@ abstract class AppLocalizations {
   /// **'Last activity'**
   String get sortActivity;
 
+  /// No description provided for @pinProject.
+  ///
+  /// In en, this message translates to:
+  /// **'Pin project'**
+  String get pinProject;
+
+  /// No description provided for @unpinProject.
+  ///
+  /// In en, this message translates to:
+  /// **'Unpin project'**
+  String get unpinProject;
+
   /// No description provided for @listView.
   ///
   /// In en, this message translates to:

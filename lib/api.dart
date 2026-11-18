@@ -55,6 +55,7 @@ class Project {
   final String id, name, displayName, groupId;
   final List<String> tags;
   final int createdAt, lastActivity;
+  final bool pinned;
   Project.fromJson(Map<String, dynamic> j)
       : id = j['id'] ?? '',
         name = j['name'] ?? '',
@@ -62,7 +63,8 @@ class Project {
         groupId = j['groupId'] ?? '',
         tags = [for (final t in (j['tags'] ?? []) as List) '$t'],
         createdAt = j['createdAt'] ?? 0,
-        lastActivity = j['lastActivity'] ?? j['createdAt'] ?? 0;
+        lastActivity = j['lastActivity'] ?? j['createdAt'] ?? 0,
+        pinned = j['pinned'] ?? false;
 }
 
 class ProjectGroup {
@@ -268,11 +270,15 @@ class Api {
       }));
 
   Future<void> updateProject(String id,
-          {String? displayName, String? groupId, List<String>? tags}) =>
+          {String? displayName,
+          String? groupId,
+          List<String>? tags,
+          bool? pinned}) =>
       patch('/projects/$id', {
         if (displayName != null) 'displayName': displayName,
         if (groupId != null) 'groupId': groupId,
         if (tags != null) 'tags': tags,
+        if (pinned != null) 'pinned': pinned,
       });
 
   Future<List<ProjectGroup>> groups() async => [

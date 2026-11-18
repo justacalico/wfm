@@ -154,14 +154,30 @@ class _ProjectsPageState extends State<ProjectsPage> {
     }
   }
 
+  Future<void> _togglePin(Project p) async {
+    try {
+      await Api.i.updateProject(p.id, pinned: !p.pinned);
+      _load();
+    } catch (e) {
+      if (mounted) snack(context, e);
+    }
+  }
+
   Widget _menu(AppLocalizations l10n, Project p) => SizedBox(
         width: 28,
         height: 28,
         child: PopupMenuButton<String>(
           iconSize: 18,
           padding: EdgeInsets.zero,
-          onSelected: (v) => v == 'tags' ? _editTags(p) : _moveToGroup(p),
+          onSelected: (v) => switch (v) {
+            'pin' => _togglePin(p),
+            'tags' => _editTags(p),
+            _ => _moveToGroup(p),
+          },
           itemBuilder: (_) => [
+            PopupMenuItem(
+                value: 'pin',
+                child: Text(p.pinned ? l10n.unpinProject : l10n.pinProject)),
             PopupMenuItem(value: 'tags', child: Text(l10n.editTags)),
             PopupMenuItem(value: 'group', child: Text(l10n.moveToGroup)),
           ],
@@ -294,12 +310,15 @@ class _ProjectsPageState extends State<ProjectsPage> {
                 p.name.toLowerCase().contains(q) ||
                 p.displayName.toLowerCase().contains(q)))
           p,
-    ]..sort((a, b) => switch (_sort) {
+    ]..sort((a, b) {
+        if (a.pinned != b.pinned) return a.pinned ? -1 : 1;
+        return switch (_sort) {
           1 => b.createdAt.compareTo(a.createdAt),
           2 => b.lastActivity.compareTo(a.lastActivity),
           _ =>
             a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase()),
-        });
+        };
+      });
     final allTags = {
       for (final p in items ?? <Project>[]) ...p.tags,
     }.toList()

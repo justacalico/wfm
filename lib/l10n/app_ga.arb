@@ -163,6 +163,8 @@
   "sortProjects": "Sórtáil tionscadail",
   "sortCreated": "Dáta cruthaithe",
   "sortActivity": "Gníomhaíocht dheireanach",
+  "pinProject": "Greamaigh tionscadal",
+  "unpinProject": "Díghreamaigh tionscadal",
   "listView": "Amharc liosta",
   "noAccounts": "Níl aon chuntas ann fós.",
   "nothingRecorded": "Níl aon taifead ann fós.",

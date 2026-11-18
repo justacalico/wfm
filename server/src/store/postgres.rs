@@ -94,6 +94,7 @@ fn row_project(r: sqlx::postgres::PgRow) -> Project {
         tags: tags_split(&r.get::<String, _>("tags")),
         created_at: r.get("created_at"),
         last_activity: r.get("last_activity"),
+        pinned: r.get::<i32, _>("pinned") != 0,
     }
 }
 
@@ -377,7 +378,7 @@ impl Db for PgDb {
 
     async fn create_project(&self, p: &Project) -> DbResult<()> {
         sqlx::query(
-            "INSERT INTO projects(id,owner_id,name,display_name,dir,group_id,tags,created_at,last_activity) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)",
+            "INSERT INTO projects(id,owner_id,name,display_name,dir,group_id,tags,created_at,last_activity,pinned) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)",
         )
         .bind(&p.id)
         .bind(&p.owner_id)
@@ -388,6 +389,7 @@ impl Db for PgDb {
         .bind(tags_csv(&p.tags))
         .bind(p.created_at)
         .bind(p.last_activity)
+        .bind(p.pinned as i64)
         .execute(&self.pool)
         .await
         .map(|_| ())
@@ -435,6 +437,16 @@ impl Db for PgDb {
             .bind(ts)
             .bind(id)
             .bind(ts - 300)
+            .execute(&self.pool)
+            .await
+            .map(|_| ())
+            .map_err(map_err)
+    }
+
+    async fn set_project_pinned(&self, id: &str, pinned: bool) -> DbResult<()> {
+        sqlx::query("UPDATE projects SET pinned=$1 WHERE id=$2")
+            .bind(pinned as i64)
+            .bind(id)
             .execute(&self.pool)
             .await
             .map(|_| ())
