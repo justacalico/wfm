@@ -829,13 +829,21 @@ impl Db for SqliteDb {
         let (n, th) = (n.clone(), token_hash.to_string());
         self.q(move |c| {
                 c.execute(
-                    "INSERT INTO render_nodes(id,name,token_hash,disabled,created_at,last_seen) VALUES(?,?,?,0,?,0)",
-                    params![n.id, n.name, th, n.created_at],
+                    "INSERT INTO render_nodes(id,name,token_hash,disabled,created_at,last_seen)
+                     SELECT ?,?,?,0,?,0 WHERE NOT EXISTS(
+                       SELECT 1 FROM render_nodes WHERE name=? COLLATE NOCASE)",
+                    params![n.id, n.name, th, n.created_at, n.name],
                 )
             })
             .await
-            .map(|_| ())
             .map_err(dberr)
+            .and_then(|rows| {
+                if rows == 0 {
+                    Err(DbError::Conflict)
+                } else {
+                    Ok(())
+                }
+            })
     }
 
     async fn node_by_token(&self, token_hash: &str) -> DbResult<RenderNode> {
@@ -1053,5 +1061,25 @@ mod tests {
         db.job_finish("j", "", "canceled", "", 100).await.unwrap();
         assert_eq!(db.job_by_id("j").await.unwrap().status, "canceled");
         assert!(!db.job_claim("j", "w1", 200).await.unwrap());
+    }
+
+    fn node(name: &str) -> crate::model::RenderNode {
+        crate::model::RenderNode {
+            id: crate::model::new_id(),
+            name: name.into(),
+            disabled: false,
+            created_at: 1,
+            last_seen: 0,
+        }
+    }
+
+    #[tokio::test]
+    async fn node_names_are_unique_case_insensitive() {
+        let db = connect(":memory:").await.unwrap();
+        db.node_create(&node("Farm-1"), "h1").await.unwrap();
+        let dup = db.node_create(&node("farm-1"), "h2").await;
+        assert!(matches!(dup, Err(DbError::Conflict)));
+        db.node_create(&node("farm-2"), "h3").await.unwrap();
+        assert_eq!(db.node_list().await.unwrap().len(), 2);
     }
 }
