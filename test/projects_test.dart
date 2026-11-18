@@ -42,6 +42,14 @@ void main() {
       expect(find.byType(ProjectPage), findsOneWidget);
     });
 
+    testWidgets('card render button opens the render dialog', (t) async {
+      installApi();
+      await pump(t, const ProjectsPage());
+      await t.tap(find.text('Render'));
+      await settle(t);
+      expect(find.byType(RenderDialog), findsOneWidget);
+    });
+
     testWidgets('open in filmcraft error shows snack', (t) async {
       installApi();
       await pump(t, const ProjectsPage());
