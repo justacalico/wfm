@@ -319,6 +319,12 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
+  String get gridView => 'Сетка';
+
+  @override
+  String get listView => 'Список';
+
+  @override
   String get noAccounts => 'Аккаунтов пока нет.';
 
   @override

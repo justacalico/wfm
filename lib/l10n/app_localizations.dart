@@ -668,6 +668,18 @@ abstract class AppLocalizations {
   /// **'@{username}  ·  last login {when}'**
   String userLine(Object username, Object when);
 
+  /// No description provided for @gridView.
+  ///
+  /// In en, this message translates to:
+  /// **'Grid view'**
+  String get gridView;
+
+  /// No description provided for @listView.
+  ///
+  /// In en, this message translates to:
+  /// **'List view'**
+  String get listView;
+
   /// No description provided for @noAccounts.
   ///
   /// In en, this message translates to:

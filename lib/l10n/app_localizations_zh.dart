@@ -318,6 +318,12 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get gridView => '网格视图';
+
+  @override
+  String get listView => '列表视图';
+
+  @override
   String get noAccounts => '暂无账号。';
 
   @override

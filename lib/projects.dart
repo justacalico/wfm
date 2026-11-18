@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'api.dart';
 import 'l10n/app_localizations.dart';
 import 'main.dart';
@@ -18,11 +19,21 @@ class _ProjectsPageState extends State<ProjectsPage> {
   List<ProjectGroup> _groups = [];
   String _err = '';
   String? _tagFilter;
+  int _view = 0;
 
   @override
   void initState() {
     super.initState();
     _load();
+    SharedPreferences.getInstance().then((p) {
+      final v = p.getInt('projectsView');
+      if (v != null && mounted) setState(() => _view = v);
+    });
+  }
+
+  void _setView(int v) {
+    setState(() => _view = v);
+    SharedPreferences.getInstance().then((p) => p.setInt('projectsView', v));
   }
 
   Future<void> _load() async {
@@ -124,6 +135,41 @@ class _ProjectsPageState extends State<ProjectsPage> {
     }
   }
 
+  Widget _menu(AppLocalizations l10n, Project p) => SizedBox(
+        width: 28,
+        height: 28,
+        child: PopupMenuButton<String>(
+          iconSize: 18,
+          padding: EdgeInsets.zero,
+          onSelected: (v) => v == 'tags' ? _editTags(p) : _moveToGroup(p),
+          itemBuilder: (_) => [
+            PopupMenuItem(value: 'tags', child: Text(l10n.editTags)),
+            PopupMenuItem(value: 'group', child: Text(l10n.moveToGroup)),
+          ],
+        ),
+      );
+
+  Widget _actions(BuildContext c, AppLocalizations l10n, Project p) =>
+      Row(mainAxisSize: MainAxisSize.min, children: [
+        TextButton.icon(
+          onPressed: () =>
+              showDialog(context: c, builder: (_) => RenderDialog(project: p)),
+          icon: const Icon(Icons.movie_creation_outlined, size: 16),
+          label: Text(l10n.render),
+        ),
+        TextButton.icon(
+          onPressed: () {
+            try {
+              openExternal(Api.i.projectUrl(p.id));
+            } catch (e) {
+              if (c.mounted) snack(c, e);
+            }
+          },
+          icon: const Icon(Icons.open_in_new, size: 16),
+          label: Text(l10n.openInFilmcraft),
+        ),
+      ]);
+
   Widget _card(BuildContext c, AppLocalizations l10n, Project p, double w) {
     return SizedBox(
       width: w,
@@ -143,21 +189,7 @@ class _ProjectsPageState extends State<ProjectsPage> {
                           fontWeight: FontWeight.bold, fontSize: 16),
                       overflow: TextOverflow.ellipsis),
                 ),
-                SizedBox(
-                  width: 28,
-                  height: 28,
-                  child: PopupMenuButton<String>(
-                    iconSize: 18,
-                    padding: EdgeInsets.zero,
-                    onSelected: (v) =>
-                        v == 'tags' ? _editTags(p) : _moveToGroup(p),
-                    itemBuilder: (_) => [
-                      PopupMenuItem(value: 'tags', child: Text(l10n.editTags)),
-                      PopupMenuItem(
-                          value: 'group', child: Text(l10n.moveToGroup)),
-                    ],
-                  ),
-                ),
+                _menu(l10n, p),
               ]),
               Text(l10n.createdAgo(fmtAgo(l10n, p.createdAt)),
                   style: Theme.of(c).textTheme.bodySmall),
@@ -169,27 +201,8 @@ class _ProjectsPageState extends State<ProjectsPage> {
                   ]),
                 ),
               Align(
-                alignment: Alignment.centerRight,
-                child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  TextButton.icon(
-                    onPressed: () => showDialog(
-                        context: c, builder: (_) => RenderDialog(project: p)),
-                    icon: const Icon(Icons.movie_creation_outlined, size: 16),
-                    label: Text(l10n.render),
-                  ),
-                  TextButton.icon(
-                    onPressed: () {
-                      try {
-                        openExternal(Api.i.projectUrl(p.id));
-                      } catch (e) {
-                        if (c.mounted) snack(c, e);
-                      }
-                    },
-                    icon: const Icon(Icons.open_in_new, size: 16),
-                    label: Text(l10n.openInFilmcraft),
-                  ),
-                ]),
-              ),
+                  alignment: Alignment.centerRight,
+                  child: _actions(c, l10n, p)),
             ]),
           ),
         ),
@@ -197,7 +210,48 @@ class _ProjectsPageState extends State<ProjectsPage> {
     );
   }
 
+  Widget _row(BuildContext c, AppLocalizations l10n, Project p) {
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => Navigator.of(c)
+            .push(MaterialPageRoute(builder: (_) => ProjectPage(project: p))),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Row(children: [
+            Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(p.displayName,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 16),
+                        overflow: TextOverflow.ellipsis),
+                    Text(l10n.createdAgo(fmtAgo(l10n, p.createdAt)),
+                        style: Theme.of(c).textTheme.bodySmall),
+                    if (p.tags.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Wrap(spacing: 6, runSpacing: 6, children: [
+                          for (final t in p.tags) tagChip(context, t),
+                        ]),
+                      ),
+                  ]),
+            ),
+            _menu(l10n, p),
+            _actions(c, l10n, p),
+          ]),
+        ),
+      ),
+    );
+  }
+
   Widget _cards(List<Project> ps, AppLocalizations l10n, bool tight) {
+    if (_view == 1) {
+      return Column(children: [
+        for (final p in ps) _row(context, l10n, p),
+      ]);
+    }
     return LayoutBuilder(builder: (c, cons) {
       final cols = tight ? 1 : (cons.maxWidth / 300).floor();
       final w = (cons.maxWidth - 12 * (cols - 1)) / cols;
@@ -264,6 +318,11 @@ class _ProjectsPageState extends State<ProjectsPage> {
                   onPressed: _newGroup,
                   icon: const Icon(Icons.create_new_folder_outlined, size: 18),
                   label: Text(l10n.newGroup),
+                ),
+                IconButton(
+                  icon: Icon(_view == 0 ? Icons.view_list : Icons.grid_view),
+                  tooltip: _view == 0 ? l10n.listView : l10n.gridView,
+                  onPressed: () => _setView(_view == 0 ? 1 : 0),
                 ),
               ]),
               const SizedBox(height: 8),

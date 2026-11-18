@@ -158,6 +158,8 @@
       "when": {}
     }
   },
+  "gridView": "Grid view",
+  "listView": "List view",
   "noAccounts": "No accounts",
   "nothingRecorded": "Nothing recorded yet.",
   "newNode": "New node",
