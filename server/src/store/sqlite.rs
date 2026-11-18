@@ -234,6 +234,23 @@ impl Db for SqliteDb {
             .map_err(dberr)
     }
 
+    async fn create_owner(&self, u: &User, pass_hash: &str) -> DbResult<bool> {
+        let (u, h) = (u.clone(), pass_hash.to_string());
+        self.q(move |c| {
+                c.execute(
+                    &format!("INSERT INTO users({USER_COLS}) SELECT ?,?,?,?,?,?,?,?,?,?,?,? WHERE NOT EXISTS(SELECT 1 FROM users WHERE role=?)"),
+                    params![
+                        u.id, u.username, u.display_name, h, u.role as i64, u.student_id,
+                        u.note, u.disabled as i64, u.created_by, u.lineage, u.created_at,
+                        u.last_login, Role::Owner as i64
+                    ],
+                )
+            })
+            .await
+            .map(|n| n > 0)
+            .map_err(dberr)
+    }
+
     async fn set_password(&self, id: &str, pass_hash: &str) -> DbResult<()> {
         let (id, h) = (id.to_string(), pass_hash.to_string());
         self.q(move |c| {
@@ -941,5 +958,33 @@ impl Db for SqliteDb {
         .await
         .map(|_| ())
         .map_err(dberr)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::model::User;
+
+    #[tokio::test]
+    async fn create_owner_only_succeeds_once() {
+        let db = connect(":memory:").await.unwrap();
+        let u = |id: &str| User {
+            id: id.into(),
+            username: format!("u{id}"),
+            display_name: "n".into(),
+            role: Role::Owner,
+            role_name: "owner".into(),
+            student_id: String::new(),
+            note: String::new(),
+            disabled: false,
+            created_by: String::new(),
+            lineage: "/".into(),
+            created_at: 1,
+            last_login: 0,
+        };
+        assert!(db.create_owner(&u("a"), "h").await.unwrap());
+        assert!(!db.create_owner(&u("b"), "h").await.unwrap());
+        assert_eq!(db.owner_count().await.unwrap(), 1);
     }
 }

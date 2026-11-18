@@ -51,6 +51,7 @@ pub trait Db: Send + Sync {
     async fn user_by_id(&self, id: &str) -> DbResult<User>;
     async fn user_by_name(&self, name: &str) -> DbResult<(User, String)>;
     async fn create_user(&self, u: &User, pass_hash: &str) -> DbResult<()>;
+    async fn create_owner(&self, u: &User, pass_hash: &str) -> DbResult<bool>;
     async fn set_password(&self, id: &str, pass_hash: &str) -> DbResult<()>;
     async fn update_user(&self, u: &User) -> DbResult<()>;
     async fn set_user_disabled(&self, id: &str, disabled: bool) -> DbResult<()>;
