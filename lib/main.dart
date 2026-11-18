@@ -601,11 +601,11 @@ class ShellState extends State<Shell> {
     return Column(children: [
       Padding(
         padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
-        child: Align(
-          alignment: Alignment.centerLeft,
-          child: Text(l10n.appTitle,
-              style: Theme.of(context).textTheme.titleLarge),
-        ),
+        child: Row(children: [
+          Image.asset('assets/icon.png', width: 36, height: 36),
+          const SizedBox(width: 12),
+          Text(l10n.appTitle, style: Theme.of(context).textTheme.titleLarge),
+        ]),
       ),
       Expanded(
         child: ListView(
