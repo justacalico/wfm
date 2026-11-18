@@ -158,6 +158,8 @@
       "when": {}
     }
   },
+  "gridView": "Amharc eangaí",
+  "listView": "Amharc liosta",
   "noAccounts": "Níl aon chuntas ann fós.",
   "nothingRecorded": "Níl aon taifead ann fós.",
   "newNode": "Nód nua",

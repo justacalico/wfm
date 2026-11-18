@@ -158,6 +158,8 @@
       "when": {}
     }
   },
+  "gridView": "Сетка",
+  "listView": "Список",
   "noAccounts": "Аккаунтов пока нет.",
   "nothingRecorded": "Записей пока нет.",
   "newNode": "Новый узел",

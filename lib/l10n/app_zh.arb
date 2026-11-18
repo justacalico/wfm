@@ -158,6 +158,8 @@
       "when": {}
     }
   },
+  "gridView": "网格视图",
+  "listView": "列表视图",
   "noAccounts": "暂无账号。",
   "nothingRecorded": "暂无记录。",
   "newNode": "新建节点",

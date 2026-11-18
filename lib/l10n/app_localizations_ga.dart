@@ -319,6 +319,12 @@ class AppLocalizationsGa extends AppLocalizations {
   }
 
   @override
+  String get gridView => 'Amharc eangaí';
+
+  @override
+  String get listView => 'Amharc liosta';
+
+  @override
   String get noAccounts => 'Níl aon chuntas ann fós.';
 
   @override

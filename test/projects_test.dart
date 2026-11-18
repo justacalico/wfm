@@ -42,6 +42,37 @@ void main() {
       expect(find.byType(ProjectPage), findsOneWidget);
     });
 
+    testWidgets('list view toggle persists and restores', (t) async {
+      installApi(extra: {
+        'GET /api/projects': (_) => [
+              {
+                'id': 'p1',
+                'name': 'p1',
+                'displayName': 'Alpha',
+                'tags': ['doc'],
+                'createdAt': 1
+              }
+            ],
+      });
+      await pump(t, const ProjectsPage());
+      await t.tap(find.byIcon(Icons.view_list));
+      await settle(t);
+      expect(find.byIcon(Icons.grid_view), findsOneWidget);
+      expect(find.text('doc'), findsWidgets);
+      var opened = '';
+      openExternalForTesting = (u) => opened = u;
+      await t.tap(find.text('Open'));
+      expect(opened, contains('/filmcraft/wfm.html?project=p1'));
+      final p = await SharedPreferences.getInstance();
+      expect(p.getInt('projectsView'), 1);
+      await t.tap(find.text('Alpha'));
+      await settle(t);
+      expect(find.byType(ProjectPage), findsOneWidget);
+      await t.pumpWidget(const SizedBox());
+      await pump(t, const ProjectsPage());
+      expect(find.byIcon(Icons.grid_view), findsOneWidget);
+    });
+
     testWidgets('card render button opens the render dialog', (t) async {
       installApi();
       await pump(t, const ProjectsPage());
