@@ -1,0 +1,38 @@
+diff --git a/crates/engine/src/project_tools.rs b/crates/engine/src/project_tools.rs
+index 2121559..67b898d 100644
+--- a/crates/engine/src/project_tools.rs
++++ b/crates/engine/src/project_tools.rs
+@@ -90,7 +90,7 @@ pub(crate) fn commands() -> Vec<CommandSpec> {
+         spec("file.closeAllOtherProjects", "Close All Other Projects", &["File"], None, "{}", only_one_project, |_, _| {
+             Err(EngineError::Other("only one project is open".into()))
+         }),
+-        spec("file.saveAsTemplate", "Save as Template…", &["File"], None, r#"{"name":str?,"path":str?}"#, always, save_as_template),
++        spec("file.saveAsTemplate", "Save as Template…", &[], None, r#"{"name":str?,"path":str?}"#, always, save_as_template),
+         query("file.templates", "List Project Templates", &[], None, "{}", always, list_templates),
+         spec("file.newProjectFromTemplate", "New Project from Template", &[], None, r#"{"template":name|path,"name":str?}"#, always, new_from_template),
+         spec(
+@@ -229,7 +229,6 @@ pub(crate) fn apply_layout(v: &mut Vec<CommandSpec>) {
+         (At::After("file.newBinFromSelection"), vec!["file.newSearchBin"]),
+         (At::Before("file.closeProject"), vec!["file.close"]),
+         (At::After("file.closeProject"), vec!["file.closeAllProjects", "file.closeAllOtherProjects"]),
+-        (At::After("file.saveCopy"), vec!["file.saveAsTemplate"]),
+         (At::After("file.exportEdl"), vec!["file.exportSelectionProject", "file.exportAle", "file.exportOtio", "file.exportFcp7Xml", "file.exportFcpxml"]),
+         (
+             At::Before("file.projectManager"),
+diff --git a/crates/engine/src/project_tools/tests.rs b/crates/engine/src/project_tools/tests.rs
+index 88c76ab..a54b45e 100644
+--- a/crates/engine/src/project_tools/tests.rs
++++ b/crates/engine/src/project_tools/tests.rs
+@@ -44,12 +44,9 @@ fn file_edit_clip_menu_order_and_shortcuts_match_premiere() {
+             "file.closeAllProjects",
+             "file.closeAllOtherProjects",
+             "file.save",
+-            "file.saveCopy",
+-            "file.saveAsTemplate",
+             "file.saveAll",
+             "file.revert",
+             "media.makeOffline",
+-            "file.importFromMediaBrowser",
+             "file.import",
+             "file.projectManager",
+         ],
