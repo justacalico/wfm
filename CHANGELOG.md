@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.5.11 - 2026-11-18
+#### Bug Fixes
+- 限制渲染节点仅能操作自己认领的任务 - (737fe43) - calico
+
+- - -
+
 ## v0.5.10 - 2026-11-18
 #### Bug Fixes
 - 未知角色值映射为学生而非所有者防止提权 - (88f7fae) - calico, *Devin*
