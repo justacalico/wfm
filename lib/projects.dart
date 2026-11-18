@@ -170,17 +170,25 @@ class _ProjectsPageState extends State<ProjectsPage> {
                 ),
               Align(
                 alignment: Alignment.centerRight,
-                child: TextButton.icon(
-                  onPressed: () {
-                    try {
-                      openExternal(Api.i.projectUrl(p.id));
-                    } catch (e) {
-                      if (c.mounted) snack(c, e);
-                    }
-                  },
-                  icon: const Icon(Icons.open_in_new, size: 16),
-                  label: Text(l10n.openInFilmcraft),
-                ),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  TextButton.icon(
+                    onPressed: () => showDialog(
+                        context: c, builder: (_) => RenderDialog(project: p)),
+                    icon: const Icon(Icons.movie_creation_outlined, size: 16),
+                    label: Text(l10n.render),
+                  ),
+                  TextButton.icon(
+                    onPressed: () {
+                      try {
+                        openExternal(Api.i.projectUrl(p.id));
+                      } catch (e) {
+                        if (c.mounted) snack(c, e);
+                      }
+                    },
+                    icon: const Icon(Icons.open_in_new, size: 16),
+                    label: Text(l10n.openInFilmcraft),
+                  ),
+                ]),
               ),
             ]),
           ),
