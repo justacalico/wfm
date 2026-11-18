@@ -143,6 +143,7 @@ function heartbeat() {
 }
 
 window.addEventListener("message", async (ev) => {
+  if (ev.source !== $("fc").contentWindow || ev.origin !== location.origin) return;
   const d = ev.data || {};
   if (d.type === "filmcraft:ready") {
     fcReady = true;
@@ -159,7 +160,7 @@ window.addEventListener("message", async (ev) => {
 });
 
 function send(name, bytes) {
-  $("fc").contentWindow.postMessage({ type: "filmcraft:open", name, bytes }, "*", [bytes instanceof ArrayBuffer ? bytes : bytes.buffer]);
+  $("fc").contentWindow.postMessage({ type: "filmcraft:open", name, bytes }, location.origin, [bytes instanceof ArrayBuffer ? bytes : bytes.buffer]);
 }
 
 async function listFiles(path) {

@@ -1,0 +1,17 @@
+diff --git a/apps/filmcraft-web/src/lib.rs b/apps/filmcraft-web/src/lib.rs
+index 9c1767d..a8280bc 100644
+--- a/apps/filmcraft-web/src/lib.rs
++++ b/apps/filmcraft-web/src/lib.rs
+@@ -150,8 +150,12 @@ pub async fn start(canvas_id: String) -> Result<(), JsValue> {
+     // opts a page in instead: it runs FilmCraft in its own document and talks over DOM
+     // `CustomEvent`s on the canvas. In host mode the host sends the document to edit, so no demo
+     // project opens and nothing from an earlier visit is recovered.
++    // WFM ships no standalone editor: the app only starts inside a host.
+     let host = host::Bridge::connect(&canvas);
+     let in_host_mode = host.is_some();
++    if !in_host_mode {
++        return Err("FilmCraft opens inside WFM".into());
++    }
+ 
+     let isolated = js_sys::Reflect::get(&js_sys::global(), &"crossOriginIsolated".into()).ok().and_then(|v| v.as_bool()).unwrap_or(false);
+     // Frame rendering runs cooperatively on this thread. wasm threads need a cross-origin
