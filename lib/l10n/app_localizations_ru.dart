@@ -607,4 +607,13 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get retry => 'Повторить';
+
+  @override
+  String get license => '';
+
+  @override
+  String get licenseAgpl => ' AGPL-3.0';
+
+  @override
+  String get viewOnGitlab => '  GitLab';
 }

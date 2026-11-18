@@ -27,6 +27,7 @@ flutter:
   generate: true
   assets:
     - assets/icon.png
+    - LICENSE
   fonts:
     - family: Noto Sans
       fonts:

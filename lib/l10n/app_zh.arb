@@ -300,5 +300,8 @@
       "error": {}
     }
   },
-  "retry": "重试"
+  "retry": "重试",
+  "license": "许可证",
+  "licenseAgpl": "基于 AGPL-3.0 许可",
+  "viewOnGitlab": "在 GitLab 上查看"
 }

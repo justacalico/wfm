@@ -1195,6 +1195,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Retry'**
   String get retry;
+
+  /// No description provided for @license.
+  ///
+  /// In en, this message translates to:
+  /// **'License'**
+  String get license;
+
+  /// No description provided for @licenseAgpl.
+  ///
+  /// In en, this message translates to:
+  /// **'Licensed under AGPL-3.0'**
+  String get licenseAgpl;
+
+  /// No description provided for @viewOnGitlab.
+  ///
+  /// In en, this message translates to:
+  /// **'View on GitLab'**
+  String get viewOnGitlab;
 }
 
 class _AppLocalizationsDelegate

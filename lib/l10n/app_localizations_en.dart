@@ -606,6 +606,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get retry => 'Retry';
+
+  @override
+  String get license => 'License';
+
+  @override
+  String get licenseAgpl => 'Licensed under AGPL-3.0';
+
+  @override
+  String get viewOnGitlab => 'View on GitLab';
 }
 
 /// The translations for English, as used in the United Kingdom (`en_GB`).
@@ -643,4 +652,13 @@ class AppLocalizationsEnGb extends AppLocalizationsEn {
 
   @override
   String get noAccounts => 'No accounts';
+
+  @override
+  String get license => 'Licence';
+
+  @override
+  String get licenseAgpl => 'Licensed under AGPL-3.0';
+
+  @override
+  String get viewOnGitlab => 'View on GitLab';
 }

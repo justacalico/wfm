@@ -300,5 +300,8 @@
       "error": {}
     }
   },
-  "retry": "Bain triail eile as"
+  "retry": "Bain triail eile as",
+  "license": "Ceadúnas",
+  "licenseAgpl": "Faoi cheadúnas AGPL-3.0",
+  "viewOnGitlab": "Féach ar GitLab"
 }

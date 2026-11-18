@@ -603,4 +603,13 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get retry => '重试';
+
+  @override
+  String get license => '许可证';
+
+  @override
+  String get licenseAgpl => '基于 AGPL-3.0 许可';
+
+  @override
+  String get viewOnGitlab => '在 GitLab 上查看';
 }
