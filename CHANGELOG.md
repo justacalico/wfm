@@ -2,6 +2,14 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.8.0 - 2026-11-18
+#### Features
+- (**projects**) 项目页增加列表/网格视图切换 - (0f286f2) - calico
+#### Bug Fixes
+- (**accounts**) 对话框提交前做本地校验 - (cfbd5b9) - calico
+
+- - -
+
 ## v0.7.1 - 2026-11-18
 #### Bug Fixes
 - (**l10n**) 补上英语语言选项并修正语言偏好存储 - (2971406) - calico
