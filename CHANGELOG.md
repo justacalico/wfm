@@ -2,6 +2,13 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.12.0 - 2026-11-18
+#### Features
+- (**projects**) 支持置顶项目 - (dd17a85) - calico
+- 支持删除账号 - (fa1f943) - calico
+
+- - -
+
 ## v0.11.0 - 2026-11-18
 #### Features
 - (**projects**) 记录项目最近访问时间 - (8b500b2) - calico
