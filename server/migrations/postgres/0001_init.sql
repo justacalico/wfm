@@ -1,6 +1,6 @@
 CREATE TABLE users(
   id TEXT PRIMARY KEY,
-  username TEXT NOT NULL UNIQUE COLLATE NOCASE,
+  username TEXT NOT NULL,
   display_name TEXT NOT NULL,
   pass_hash TEXT NOT NULL,
   role INTEGER NOT NULL,
@@ -12,6 +12,8 @@ CREATE TABLE users(
   created_at BIGINT NOT NULL,
   last_login BIGINT NOT NULL DEFAULT 0
 );
+-- sqlite's COLLATE NOCASE equivalent: case-insensitive uniqueness.
+CREATE UNIQUE INDEX users_username_ci ON users(lower(username));
 
 CREATE TABLE sessions(
   token_hash TEXT PRIMARY KEY,
