@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.5.12 - 2026-11-18
+#### Bug Fixes
+- 补齐审计日志缺失的目录创建渲染取消与节点管理记录 - (24fb7ae) - calico
+
+- - -
+
 ## v0.5.11 - 2026-11-18
 #### Bug Fixes
 - 限制渲染节点仅能操作自己认领的任务 - (737fe43) - calico
