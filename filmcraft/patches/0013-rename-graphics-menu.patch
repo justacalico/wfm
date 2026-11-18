@@ -2,7 +2,7 @@ diff --git a/ROADMAP.md b/ROADMAP.md
 index 8448e62..71f0ce8 100644
 --- a/ROADMAP.md
 +++ b/ROADMAP.md
-@@ -151,7 +151,7 @@ Ranked; detail and "done when" in [docs/roadmap.md](docs/roadmap.md) and [docs/g
+@@ -151,7 +151,7 @@
  
  - **2026-10-02 (later):** all 93 video effects (+Legacy/Obsolete bins), all 53 audio effects with Parametric/Graphic EQ, Multiband Compressor and Dynamics editor windows, all 84 video transitions (+21 Legacy), Settings dialog (16 categories, most wired), remaining menu items (Scene Edit Detection, Find, Normalize Mix Track, Simplify Sequence, Automate to Sequence, search bins, templates, Project Settings with scratch disks, ALE and selection-as-project export, system report); project schema v11. 1258 tests.
  
@@ -15,7 +15,7 @@ diff --git a/crates/engine/src/graphic_templates.rs b/crates/engine/src/graphic_
 index 5f127dd..ccb5d55 100644
 --- a/crates/engine/src/graphic_templates.rs
 +++ b/crates/engine/src/graphic_templates.rs
-@@ -43,7 +43,7 @@ fn query(id: &'static str, label: &'static str, params: &'static str, run: Run)
+@@ -43,7 +43,7 @@
      CommandSpec { id, label, menu: &[], shortcut: None, params, enabled: always, run, journal: false, named: crate::commands::NamedKeys::NONE }
  }
  
@@ -28,7 +28,7 @@ diff --git a/crates/engine/src/graphics.rs b/crates/engine/src/graphics.rs
 index bf2b130..9b8c8da 100644
 --- a/crates/engine/src/graphics.rs
 +++ b/crates/engine/src/graphics.rs
-@@ -800,13 +800,13 @@ const ALIGN_PARAMS: &str = r#"{"clip":id?,"layers":[n]? (default: the selected l
+@@ -800,13 +800,13 @@
  
  macro_rules! align_cmd {
      ($id:literal, $label:literal, $menu:expr, $how:literal, $mode:expr, $en:expr) => {
@@ -44,7 +44,7 @@ index bf2b130..9b8c8da 100644
      };
  }
  
-@@ -825,13 +825,13 @@ fn menu_commands() -> Vec<CommandSpec> {
+@@ -825,13 +825,13 @@
      const F: &str = "Align to Video Frame";
      const G: &str = "Align to Video Frame as Group";
      const S: &str = "Align to Selection";
@@ -61,7 +61,7 @@ index bf2b130..9b8c8da 100644
              None,
              r#"{"text":str="New Text","position":[x,y]?,"clip":id?,"size":px=100,"seconds":f64=5,"time":ticks?}"#,
              has_seq,
-@@ -844,7 +844,7 @@ fn menu_commands() -> Vec<CommandSpec> {
+@@ -844,7 +844,7 @@
          spec(
              "graphics.newRectangle",
              "Rectangle",
@@ -70,7 +70,7 @@ index bf2b130..9b8c8da 100644
              Some("Cmd+Alt+R"),
              r#"{"position":[x,y]?,"size":[w,h]=[400,200],"clip":id?,"seconds":f64=5,"track":index?,"time":ticks?}"#,
              has_seq,
-@@ -853,7 +853,7 @@ fn menu_commands() -> Vec<CommandSpec> {
+@@ -853,7 +853,7 @@
          spec(
              "graphics.newEllipse",
              "Ellipse",
@@ -79,7 +79,7 @@ index bf2b130..9b8c8da 100644
              Some("Cmd+Alt+E"),
              r#"{"position":[x,y]?,"size":[w,h]=[400,200],"clip":id?,"seconds":f64=5,"track":index?,"time":ticks?}"#,
              has_seq,
-@@ -862,7 +862,7 @@ fn menu_commands() -> Vec<CommandSpec> {
+@@ -862,7 +862,7 @@
          spec(
              "graphics.newPolygon",
              "Polygon",
@@ -88,7 +88,7 @@ index bf2b130..9b8c8da 100644
              None,
              r#"{"position":[x,y]?,"size":[w,h]=[300,300],"sides":n=6,"clip":id?,"seconds":f64=5,"track":index?,"time":ticks?}"#,
              has_seq,
-@@ -891,7 +891,7 @@ fn menu_commands() -> Vec<CommandSpec> {
+@@ -891,7 +891,7 @@
          spec(
              "graphics.newFromFile",
              "From file…",
@@ -97,7 +97,7 @@ index bf2b130..9b8c8da 100644
              None,
              r#"{"path":str,"time":ticks?,"track":index?} (imports the image or video and places it above the clips at the playhead)"#,
              has_seq,
-@@ -953,7 +953,7 @@ fn menu_commands() -> Vec<CommandSpec> {
+@@ -953,7 +953,7 @@
          spec(
              "graphics.resetAllParameters",
              "Reset All Parameters",
@@ -106,7 +106,7 @@ index bf2b130..9b8c8da 100644
              None,
              r#"{"clip":id?,"layers":[n]? (default: the selected layers, else all)}"#,
              has_graphic,
-@@ -982,7 +982,7 @@ fn menu_commands() -> Vec<CommandSpec> {
+@@ -982,7 +982,7 @@
          spec(
              "graphics.resetDuration",
              "Reset Duration",
@@ -115,7 +115,7 @@ index bf2b130..9b8c8da 100644
              None,
              r#"{"clip":id?,"seconds":f64=5 (the default graphic duration; limited by the next clip on the track)}"#,
              has_graphic,
-@@ -1011,7 +1011,7 @@ pub fn commands() -> Vec<CommandSpec> {
+@@ -1011,7 +1011,7 @@
          spec(
              "graphics.newText",
              "Text",
@@ -128,7 +128,7 @@ diff --git a/crates/engine/src/graphics/tests.rs b/crates/engine/src/graphics/te
 index febd0ec..b25e4b6 100644
 --- a/crates/engine/src/graphics/tests.rs
 +++ b/crates/engine/src/graphics/tests.rs
-@@ -344,7 +344,7 @@ fn new_layer_menu_items_make_shapes_and_vertical_text() {
+@@ -344,7 +344,7 @@
      let b = quad_box(&mut s, v, 0);
      assert!(b[3] - b[1] > 2.5 * (b[2] - b[0]), "vertical text is tall: {b:?}");
      // the menu has the New Layer entries and no generic "Shape"
@@ -141,7 +141,7 @@ diff --git a/crates/project/src/graphic_design.rs b/crates/project/src/graphic_d
 index 19038d6..f7e98c3 100644
 --- a/crates/project/src/graphic_design.rs
 +++ b/crates/project/src/graphic_design.rs
-@@ -515,7 +515,7 @@ pub fn remap_time(m: &GraphicMeta, u: Tick, d: Tick) -> Tick {
+@@ -515,7 +515,7 @@
      m.design_in + Tick(local)
  }
  
@@ -154,7 +154,7 @@ diff --git a/crates/project/src/lib.rs b/crates/project/src/lib.rs
 index 29b7611..7a9f497 100644
 --- a/crates/project/src/lib.rs
 +++ b/crates/project/src/lib.rs
-@@ -108,7 +108,7 @@ pub struct Project {
+@@ -108,7 +108,7 @@
      /// Schema v11.
      #[serde(default, skip_serializing_if = "Vec::is_empty")]
      pub search_bins: Vec<SearchBin>,
@@ -167,12 +167,11 @@ diff --git a/crates/ui-egui/src/i18n/bs.tsv b/crates/ui-egui/src/i18n/bs.tsv
 index 8ac39bd..83e7735 100644
 --- a/crates/ui-egui/src/i18n/bs.tsv
 +++ b/crates/ui-egui/src/i18n/bs.tsv
-@@ -154,7 +154,7 @@
+@@ -154,7 +154,6 @@
  	Go to Previous Caption Segment	Idi na prethodni segment titla
  	Go to Previous Marker	Idi na prethodni marker
  	Go to Split	Idi na podjelu
 -	Graphics and Titles	Grafika i naslovi
-+	Graphics	Grafika i naslovi
  	Graphics…	Grafika…
  	Green	Zelena
  	Group	Grupiši
@@ -180,12 +179,11 @@ diff --git a/crates/ui-egui/src/i18n/cs.tsv b/crates/ui-egui/src/i18n/cs.tsv
 index ac3ac83..503eaa7 100644
 --- a/crates/ui-egui/src/i18n/cs.tsv
 +++ b/crates/ui-egui/src/i18n/cs.tsv
-@@ -160,7 +160,7 @@
+@@ -160,7 +160,6 @@
  	Go to Previous Caption Segment	Přejít na předchozí segment titulků
  	Go to Previous Marker	Přejít na předchozí značku
  	Go to Split	Přejít na rozdělený střih
 -	Graphics and Titles	Grafika a titulky
-+	Graphics	Grafika a titulky
  	Graphics…	Grafika…
  	Green	Zelená
  	Group	Seskupit
@@ -193,12 +191,11 @@ diff --git a/crates/ui-egui/src/i18n/de.tsv b/crates/ui-egui/src/i18n/de.tsv
 index 9abedd3..434825b 100644
 --- a/crates/ui-egui/src/i18n/de.tsv
 +++ b/crates/ui-egui/src/i18n/de.tsv
-@@ -179,7 +179,7 @@
+@@ -179,7 +179,6 @@
  	Go to Previous Caption Segment	Zum vorherigen Untertitelsegment gehen
  	Go to Previous Marker	Zum vorherigen Marker gehen
  	Go to Split	Zum Split-Punkt gehen
 -	Graphics and Titles	Grafiken und Titel
-+	Graphics	Grafiken und Titel
  	Graphics…	Grafiken…
  	Green	Grün
  	Group	Gruppieren
@@ -206,12 +203,11 @@ diff --git a/crates/ui-egui/src/i18n/es.tsv b/crates/ui-egui/src/i18n/es.tsv
 index cc1d0d8..f09edeb 100644
 --- a/crates/ui-egui/src/i18n/es.tsv
 +++ b/crates/ui-egui/src/i18n/es.tsv
-@@ -164,7 +164,7 @@
+@@ -164,7 +164,6 @@
  	Go to Previous Caption Segment	Ir al segmento de subtítulo anterior
  	Go to Previous Marker	Ir al marcador anterior
  	Go to Split	Ir a la división
 -	Graphics and Titles	Gráficos y títulos
-+	Graphics	Gráficos y títulos
  	Graphics…	Gráficos…
  	Green	Verde
  	Group	Agrupar
@@ -219,12 +215,11 @@ diff --git a/crates/ui-egui/src/i18n/fr.tsv b/crates/ui-egui/src/i18n/fr.tsv
 index 9993751..a517953 100644
 --- a/crates/ui-egui/src/i18n/fr.tsv
 +++ b/crates/ui-egui/src/i18n/fr.tsv
-@@ -166,7 +166,7 @@
+@@ -166,7 +166,6 @@
  	Go to Previous Caption Segment	Atteindre le segment de sous-titre précédent
  	Go to Previous Marker	Atteindre le marqueur précédent
  	Go to Split	Atteindre la division
 -	Graphics and Titles	Graphiques et titres
-+	Graphics	Graphiques et titres
  	Graphics…	Graphiques…
  	Green	Vert
  	Group	Grouper
@@ -232,12 +227,11 @@ diff --git a/crates/ui-egui/src/i18n/id.tsv b/crates/ui-egui/src/i18n/id.tsv
 index c9e48ef..ed3cf96 100644
 --- a/crates/ui-egui/src/i18n/id.tsv
 +++ b/crates/ui-egui/src/i18n/id.tsv
-@@ -171,7 +171,7 @@
+@@ -171,7 +171,6 @@
  	Go to Previous Caption Segment	Ke Segmen Takarir Sebelumnya
  	Go to Previous Marker	Ke Penanda Sebelumnya
  	Go to Split	Ke Split
 -	Graphics and Titles	Grafis dan Judul
-+	Graphics	Grafis dan Judul
  	Graphics…	Grafis…
  	Green	Hijau
  	Group	Grupkan
@@ -245,12 +239,11 @@ diff --git a/crates/ui-egui/src/i18n/it.tsv b/crates/ui-egui/src/i18n/it.tsv
 index 614e660..1b5191d 100644
 --- a/crates/ui-egui/src/i18n/it.tsv
 +++ b/crates/ui-egui/src/i18n/it.tsv
-@@ -164,7 +164,7 @@
+@@ -164,7 +164,6 @@
  	Go to Previous Caption Segment	Vai al segmento di sottotitolo precedente
  	Go to Previous Marker	Vai al marcatore precedente
  	Go to Split	Vai al taglio
 -	Graphics and Titles	Grafica e titoli
-+	Graphics	Grafica e titoli
  	Graphics…	Grafica…
  	Green	Verde
  	Group	Raggruppa
@@ -258,12 +251,11 @@ diff --git a/crates/ui-egui/src/i18n/ja.tsv b/crates/ui-egui/src/i18n/ja.tsv
 index c4850e5..09e1eb8 100644
 --- a/crates/ui-egui/src/i18n/ja.tsv
 +++ b/crates/ui-egui/src/i18n/ja.tsv
-@@ -171,7 +171,7 @@
+@@ -171,7 +171,6 @@
  	Go to Previous Caption Segment	前のキャプションセグメントへ移動
  	Go to Previous Marker	前のマーカーへ移動
  	Go to Split	スプリットへ移動
 -	Graphics and Titles	グラフィックスとタイトル
-+	Graphics	グラフィックスとタイトル
  	Graphics…	グラフィックス…
  	Green	グリーン
  	Group	グループ
@@ -271,12 +263,11 @@ diff --git a/crates/ui-egui/src/i18n/ko.tsv b/crates/ui-egui/src/i18n/ko.tsv
 index e6b923a..c3b10dd 100644
 --- a/crates/ui-egui/src/i18n/ko.tsv
 +++ b/crates/ui-egui/src/i18n/ko.tsv
-@@ -1357,7 +1357,7 @@
+@@ -1357,7 +1357,6 @@
  	Graphic Equalizer (20 Bands)	그래픽 이퀄라이저(20밴드)
  	Graphic Equalizer (30 Bands)	그래픽 이퀄라이저(30밴드)
  	Graphics	그래픽
 -	Graphics and Titles	그래픽 및 제목
-+	Graphics	그래픽 및 제목
  	Graphics problem: switched to software compositing	그래픽 문제: 소프트웨어 합성으로 전환됨
  	Graphics text search arrives with M10.1–M10.2	그래픽 텍스트 검색은 M10.1–M10.2에서 제공
  	Graphics…	그래픽…
@@ -284,12 +275,11 @@ diff --git a/crates/ui-egui/src/i18n/pl.tsv b/crates/ui-egui/src/i18n/pl.tsv
 index f7c6f1a..a1b4a40 100644
 --- a/crates/ui-egui/src/i18n/pl.tsv
 +++ b/crates/ui-egui/src/i18n/pl.tsv
-@@ -158,7 +158,7 @@
+@@ -158,7 +158,6 @@
  	Go to Previous Caption Segment	Przejdź do poprzedniego segmentu napisów
  	Go to Previous Marker	Przejdź do poprzedniego znacznika
  	Go to Split	Przejdź do podziału
 -	Graphics and Titles	Grafika i tytuły
-+	Graphics	Grafika i tytuły
  	Graphics…	Grafika…
  	Green	Zielony
  	Group	Grupuj
@@ -297,12 +287,11 @@ diff --git a/crates/ui-egui/src/i18n/pt-br.tsv b/crates/ui-egui/src/i18n/pt-br.t
 index d8aa88a..1e37bae 100644
 --- a/crates/ui-egui/src/i18n/pt-br.tsv
 +++ b/crates/ui-egui/src/i18n/pt-br.tsv
-@@ -168,7 +168,7 @@
+@@ -168,7 +168,6 @@
  	Go to Previous Caption Segment	Ir para o segmento de legenda anterior
  	Go to Previous Marker	Ir para o marcador anterior
  	Go to Split	Ir para a divisão
 -	Graphics and Titles	Gráficos e títulos
-+	Graphics	Gráficos e títulos
  	Graphics…	Gráficos…
  	Green	Verde
  	Group	Agrupar
@@ -310,12 +299,11 @@ diff --git a/crates/ui-egui/src/i18n/ru.tsv b/crates/ui-egui/src/i18n/ru.tsv
 index fa82537..c02532e 100644
 --- a/crates/ui-egui/src/i18n/ru.tsv
 +++ b/crates/ui-egui/src/i18n/ru.tsv
-@@ -149,7 +149,7 @@
+@@ -149,7 +149,6 @@
  	Go to Previous Caption Segment	Перейти к предыдущему сегменту субтитров
  	Go to Previous Marker	Перейти к предыдущему маркеру
  	Go to Split	Перейти к точке разделения
 -	Graphics and Titles	Графика и титры
-+	Graphics	Графика и титры
  	Graphics…	Графика…
  	Green	Зелёный
  	Group	Сгруппировать
@@ -323,12 +311,11 @@ diff --git a/crates/ui-egui/src/i18n/sv.tsv b/crates/ui-egui/src/i18n/sv.tsv
 index 6fcec1b..590d558 100644
 --- a/crates/ui-egui/src/i18n/sv.tsv
 +++ b/crates/ui-egui/src/i18n/sv.tsv
-@@ -161,7 +161,7 @@
+@@ -161,7 +161,6 @@
  	Go to Previous Caption Segment	Gå till föregående undertextsegment
  	Go to Previous Marker	Gå till föregående markör
  	Go to Split	Gå till delat snitt
 -	Graphics and Titles	Grafik och titlar
-+	Graphics	Grafik och titlar
  	Graphics…	Grafik…
  	Green	Grön
  	Group	Gruppera
@@ -336,12 +323,11 @@ diff --git a/crates/ui-egui/src/i18n/tr.tsv b/crates/ui-egui/src/i18n/tr.tsv
 index c61ce16..459fbd1 100644
 --- a/crates/ui-egui/src/i18n/tr.tsv
 +++ b/crates/ui-egui/src/i18n/tr.tsv
-@@ -158,7 +158,7 @@
+@@ -158,7 +158,6 @@
  	Go to Previous Caption Segment	Önceki Altyazı Segmentine Git
  	Go to Previous Marker	Önceki İşaretçiye Git
  	Go to Split	Bölünmeye Git
 -	Graphics and Titles	Grafikler ve Başlıklar
-+	Graphics	Grafikler ve Başlıklar
  	Graphics…	Grafikler…
  	Green	Yeşil
  	Group	Grupla
@@ -354,7 +340,7 @@ index 8eb115b..3642c21 100644
  	Go to Previous Marker	Перейти до попереднього маркера
  	Go to Split	Перейти до розділеної позначки
 -	Graphics and Titles	Графіка й титри
-+	Graphics	Графіка й титри
++	Graphics	Графіка
  	Graphics…	Графіка…
  	Green	Зелений
  	Group	Згрупувати
@@ -367,7 +353,7 @@ index a6067ba..1ee4f00 100644
  	Go to Previous Marker	转到上一个标记
  	Go to Split	转到拆分点
 -	Graphics and Titles	图形与字幕
-+	Graphics	图形与字幕
++	Graphics	Графіка
  	Graphics…	图形…
  	Green	绿
  	Group	编组
@@ -375,7 +361,7 @@ diff --git a/crates/ui-egui/src/menus.rs b/crates/ui-egui/src/menus.rs
 index 5a37aac..95e6a9f 100644
 --- a/crates/ui-egui/src/menus.rs
 +++ b/crates/ui-egui/src/menus.rs
-@@ -905,7 +905,7 @@ pub struct MenuItem {
+@@ -905,7 +905,7 @@
      pub checked: Option<bool>,
  }
  
@@ -388,7 +374,7 @@ diff --git a/crates/ui-egui/tests/it/view_ui.rs b/crates/ui-egui/tests/it/view_u
 index cf78a16..6fbd29e 100644
 --- a/crates/ui-egui/tests/it/view_ui.rs
 +++ b/crates/ui-egui/tests/it/view_ui.rs
-@@ -168,7 +168,7 @@ fn view_menu_resolutions_and_display_modes() {
+@@ -168,7 +168,7 @@
      assert_eq!(item("view.display.composite")["checked"], true);
      assert_eq!(item("view.magnification.1600")["label"], "1600%");
      assert_eq!(item("view.clearGuides")["enabled"], false, "no guides yet");
@@ -401,7 +387,7 @@ diff --git a/docs/graphics.md b/docs/graphics.md
 index 24225f1..8597069 100644
 --- a/docs/graphics.md
 +++ b/docs/graphics.md
-@@ -100,7 +100,7 @@ Timecode and Clip Name effects also draw with the text engine.
+@@ -100,7 +100,7 @@
  
  | Command | Menu / shortcut | Params |
  |---|---|---|
@@ -410,7 +396,7 @@ index 24225f1..8597069 100644
  | `graphics.newVerticalText` | New Layer ▸ Vertical Text | as `graphics.newText`; characters stack top to bottom, paragraphs are columns right to left |
  | `graphics.newRectangle`, `graphics.newEllipse`, `graphics.newPolygon` | New Layer ▸ Rectangle (⌥⌘R), Ellipse (⌥⌘E), Polygon | `position` (the shape's centre), `size`, `clip`, `seconds` (5), `track`, `time`; polygon `sides` (6) |
  | `graphics.newFromFile` | New Layer ▸ From file… | `path` — imports the image or video and places it above the clips at the playhead (a separate clip; graphics have no media layers yet) |
-@@ -245,9 +245,9 @@ engine at runtime.
+@@ -245,9 +245,9 @@
  |---|---|---|
  | `graphics.template.list` | (query) | `query`, `category`, `source` (builtin / user) |
  | `graphics.template.apply` | Browse tab: drag or double-click | `template` (id, name or `.fcgt` path), `values` {control: value}, `time`, `track` |
@@ -422,7 +408,7 @@ index 24225f1..8597069 100644
  | `graphics.template.remove` | Browse tab | `template` (user templates) |
  | `graphics.template.set` / `graphics.template.controls` | Essential Graphics ▸ Edit | `clip`, `control`, `value` / `values` |
  | `graphics.template.thumbnail` | (query) | `template`, `width`, `path` (PNG) |
-@@ -274,9 +274,9 @@ panel state and the Type-tool selection.
+@@ -274,9 +274,9 @@
  
  | Command | Menu | Params |
  |---|---|---|
