@@ -1,0 +1,437 @@
+diff --git a/ROADMAP.md b/ROADMAP.md
+index 8448e62..71f0ce8 100644
+--- a/ROADMAP.md
++++ b/ROADMAP.md
+@@ -151,7 +151,7 @@ Ranked; detail and "done when" in [docs/roadmap.md](docs/roadmap.md) and [docs/g
+ 
+ - **2026-10-02 (later):** all 93 video effects (+Legacy/Obsolete bins), all 53 audio effects with Parametric/Graphic EQ, Multiband Compressor and Dynamics editor windows, all 84 video transitions (+21 Legacy), Settings dialog (16 categories, most wired), remaining menu items (Scene Edit Detection, Find, Normalize Mix Track, Simplify Sequence, Automate to Sequence, search bins, templates, Project Settings with scratch disks, ALE and selection-as-project export, system report); project schema v11. 1258 tests.
+ 
+-- **2026-10-02:** Premiere menu long tail: Sequence/Markers (gaps, split edits, through edits, subsequence, Delete Tracks, range/chapter markers, ripple sequence markers), Clip/Edit/File (Paste/Remove Attributes, subclips, Frame Hold Options, Time Interpolation with frame blending, Audio Channels, Breakout to Mono, Extract Audio, Replace With Clip, Remove Unused, Consolidate Duplicates), View/monitors (paused resolution, alpha/RGB display modes, comparison view, magnification, rulers, guides + templates, snapping), Graphics and Titles (vertical text, shape layers, align/distribute/arrange). Transcripts and text-based editing (Text panel, optional local Whisper). AV1 tile/frame/post-filter threading. Agent-friendly CLI (`exec`, `inspect`, `describe`, `import`, `export`, `run -`, `--save`, `--bridge`). Project schema v10.
++- **2026-10-02:** Premiere menu long tail: Sequence/Markers (gaps, split edits, through edits, subsequence, Delete Tracks, range/chapter markers, ripple sequence markers), Clip/Edit/File (Paste/Remove Attributes, subclips, Frame Hold Options, Time Interpolation with frame blending, Audio Channels, Breakout to Mono, Extract Audio, Replace With Clip, Remove Unused, Consolidate Duplicates), View/monitors (paused resolution, alpha/RGB display modes, comparison view, magnification, rulers, guides + templates, snapping), Graphics (vertical text, shape layers, align/distribute/arrange). Transcripts and text-based editing (Text panel, optional local Whisper). AV1 tile/frame/post-filter threading. Agent-friendly CLI (`exec`, `inspect`, `describe`, `import`, `export`, `run -`, `--save`, `--bridge`). Project schema v10.
+ 
+ - **2026-10-01 (night):** new README hero (Apollo 11 documentary edit, NASA public domain); agents never steal keyboard focus; masks + tracking, adjustment layers, effect presets; multicam + audio sync; DNxHD/DNxHR decode/encode; AV1 decoder bit-exact against libdav1d (all stages, film grain, superres, SVC).
+ 
+diff --git a/crates/engine/src/graphic_templates.rs b/crates/engine/src/graphic_templates.rs
+index 5f127dd..ccb5d55 100644
+--- a/crates/engine/src/graphic_templates.rs
++++ b/crates/engine/src/graphic_templates.rs
+@@ -43,7 +43,7 @@ fn query(id: &'static str, label: &'static str, params: &'static str, run: Run)
+     CommandSpec { id, label, menu: &[], shortcut: None, params, enabled: always, run, journal: false, named: crate::commands::NamedKeys::NONE }
+ }
+ 
+-const G: &[&str] = &["Graphics and Titles"];
++const G: &[&str] = &["Graphics"];
+ const MAX_THUMBNAIL_DIMENSION: u32 = 1920;
+ 
+ fn has_graphic(s: &Session) -> std::result::Result<(), String> {
+diff --git a/crates/engine/src/graphics.rs b/crates/engine/src/graphics.rs
+index bf2b130..9b8c8da 100644
+--- a/crates/engine/src/graphics.rs
++++ b/crates/engine/src/graphics.rs
+@@ -800,13 +800,13 @@ const ALIGN_PARAMS: &str = r#"{"clip":id?,"layers":[n]? (default: the selected l
+ 
+ macro_rules! align_cmd {
+     ($id:literal, $label:literal, $menu:expr, $how:literal, $mode:expr, $en:expr) => {
+-        spec($id, $label, &["Graphics and Titles", $menu], None, ALIGN_PARAMS, $en, |s, p| align_layers(s, p, $how, $mode))
++        spec($id, $label, &["Graphics", $menu], None, ALIGN_PARAMS, $en, |s, p| align_layers(s, p, $how, $mode))
+     };
+ }
+ 
+ macro_rules! arrange_cmd {
+     ($id:literal, $label:literal, $sc:literal, $to:literal) => {
+-        spec($id, $label, &["Graphics and Titles", "Arrange"], Some($sc), r#"{"clip":id?,"layer":n?}"#, has_graphic, |s, p| arrange_layer(s, p, json!($to)))
++        spec($id, $label, &["Graphics", "Arrange"], Some($sc), r#"{"clip":id?,"layer":n?}"#, has_graphic, |s, p| arrange_layer(s, p, json!($to)))
+     };
+ }
+ 
+@@ -825,13 +825,13 @@ fn menu_commands() -> Vec<CommandSpec> {
+     const F: &str = "Align to Video Frame";
+     const G: &str = "Align to Video Frame as Group";
+     const S: &str = "Align to Selection";
+-    const D: &[&str] = &["Graphics and Titles", "Distribute"];
+-    const SEL: &[&str] = &["Graphics and Titles", "Select"];
++    const D: &[&str] = &["Graphics", "Distribute"];
++    const SEL: &[&str] = &["Graphics", "Select"];
+     vec![
+         spec(
+             "graphics.newVerticalText",
+             "Vertical Text",
+-            &["Graphics and Titles", "New Layer"],
++            &["Graphics", "New Layer"],
+             None,
+             r#"{"text":str="New Text","position":[x,y]?,"clip":id?,"size":px=100,"seconds":f64=5,"time":ticks?}"#,
+             has_seq,
+@@ -844,7 +844,7 @@ fn menu_commands() -> Vec<CommandSpec> {
+         spec(
+             "graphics.newRectangle",
+             "Rectangle",
+-            &["Graphics and Titles", "New Layer"],
++            &["Graphics", "New Layer"],
+             Some("Cmd+Alt+R"),
+             r#"{"position":[x,y]?,"size":[w,h]=[400,200],"clip":id?,"seconds":f64=5,"track":index?,"time":ticks?}"#,
+             has_seq,
+@@ -853,7 +853,7 @@ fn menu_commands() -> Vec<CommandSpec> {
+         spec(
+             "graphics.newEllipse",
+             "Ellipse",
+-            &["Graphics and Titles", "New Layer"],
++            &["Graphics", "New Layer"],
+             Some("Cmd+Alt+E"),
+             r#"{"position":[x,y]?,"size":[w,h]=[400,200],"clip":id?,"seconds":f64=5,"track":index?,"time":ticks?}"#,
+             has_seq,
+@@ -862,7 +862,7 @@ fn menu_commands() -> Vec<CommandSpec> {
+         spec(
+             "graphics.newPolygon",
+             "Polygon",
+-            &["Graphics and Titles", "New Layer"],
++            &["Graphics", "New Layer"],
+             None,
+             r#"{"position":[x,y]?,"size":[w,h]=[300,300],"sides":n=6,"clip":id?,"seconds":f64=5,"track":index?,"time":ticks?}"#,
+             has_seq,
+@@ -891,7 +891,7 @@ fn menu_commands() -> Vec<CommandSpec> {
+         spec(
+             "graphics.newFromFile",
+             "From file…",
+-            &["Graphics and Titles", "New Layer"],
++            &["Graphics", "New Layer"],
+             None,
+             r#"{"path":str,"time":ticks?,"track":index?} (imports the image or video and places it above the clips at the playhead)"#,
+             has_seq,
+@@ -953,7 +953,7 @@ fn menu_commands() -> Vec<CommandSpec> {
+         spec(
+             "graphics.resetAllParameters",
+             "Reset All Parameters",
+-            &["Graphics and Titles"],
++            &["Graphics"],
+             None,
+             r#"{"clip":id?,"layers":[n]? (default: the selected layers, else all)}"#,
+             has_graphic,
+@@ -982,7 +982,7 @@ fn menu_commands() -> Vec<CommandSpec> {
+         spec(
+             "graphics.resetDuration",
+             "Reset Duration",
+-            &["Graphics and Titles"],
++            &["Graphics"],
+             None,
+             r#"{"clip":id?,"seconds":f64=5 (the default graphic duration; limited by the next clip on the track)}"#,
+             has_graphic,
+@@ -1011,7 +1011,7 @@ pub fn commands() -> Vec<CommandSpec> {
+         spec(
+             "graphics.newText",
+             "Text",
+-            &["Graphics and Titles", "New Layer"],
++            &["Graphics", "New Layer"],
+             Some("Cmd+T"),
+             r#"{"text":str="New Text","position":[x,y]? (point text: its alignment point on the first baseline; with `box`: the box's top-left corner),"box":[w,h]? (paragraph text wrapped in a box this size),"clip":id?,"newClip":bool?,"vertical":bool=false,"size":px=100,"font":str?,"fontStyle":str?,"seconds":f64=5,"track":index?,"time":ticks?}"#,
+             has_seq,
+diff --git a/crates/engine/src/graphics/tests.rs b/crates/engine/src/graphics/tests.rs
+index febd0ec..b25e4b6 100644
+--- a/crates/engine/src/graphics/tests.rs
++++ b/crates/engine/src/graphics/tests.rs
+@@ -344,7 +344,7 @@ fn new_layer_menu_items_make_shapes_and_vertical_text() {
+     let b = quad_box(&mut s, v, 0);
+     assert!(b[3] - b[1] > 2.5 * (b[2] - b[0]), "vertical text is tall: {b:?}");
+     // the menu has the New Layer entries and no generic "Shape"
+-    let ids: Vec<&str> = crate::command_specs().iter().filter(|c| c.menu == ["Graphics and Titles", "New Layer"]).map(|c| c.id).collect();
++    let ids: Vec<&str> = crate::command_specs().iter().filter(|c| c.menu == ["Graphics", "New Layer"]).map(|c| c.id).collect();
+     assert_eq!(
+         ids,
+         ["graphics.newText", "graphics.newVerticalText", "graphics.newRectangle", "graphics.newEllipse", "graphics.newPolygon", "graphics.newFromFile"]
+diff --git a/crates/project/src/graphic_design.rs b/crates/project/src/graphic_design.rs
+index 19038d6..f7e98c3 100644
+--- a/crates/project/src/graphic_design.rs
++++ b/crates/project/src/graphic_design.rs
+@@ -515,7 +515,7 @@ pub fn remap_time(m: &GraphicMeta, u: Tick, d: Tick) -> Tick {
+     m.design_in + Tick(local)
+ }
+ 
+-/// A source graphic (Graphics and Titles ▸ Upgrade to Source Graphic): the layers and settings
++/// A source graphic (Graphics ▸ Upgrade to Source Graphic): the layers and settings
+ /// shared by every clip of one project item. Editing one instance updates the others.
+ #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+ #[serde(default)]
+diff --git a/crates/project/src/lib.rs b/crates/project/src/lib.rs
+index 29b7611..7a9f497 100644
+--- a/crates/project/src/lib.rs
++++ b/crates/project/src/lib.rs
+@@ -108,7 +108,7 @@ pub struct Project {
+     /// Schema v11.
+     #[serde(default, skip_serializing_if = "Vec::is_empty")]
+     pub search_bins: Vec<SearchBin>,
+-    /// Source graphics (Graphics and Titles ▸ Upgrade to Source Graphic): shared layers by
++    /// Source graphics (Graphics ▸ Upgrade to Source Graphic): shared layers by
+     /// project item. Schema v12.
+     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+     pub source_graphics: BTreeMap<ItemId, SourceGraphic>,
+diff --git a/crates/ui-egui/src/i18n/bs.tsv b/crates/ui-egui/src/i18n/bs.tsv
+index 8ac39bd..83e7735 100644
+--- a/crates/ui-egui/src/i18n/bs.tsv
++++ b/crates/ui-egui/src/i18n/bs.tsv
+@@ -154,7 +154,7 @@
+ 	Go to Previous Caption Segment	Idi na prethodni segment titla
+ 	Go to Previous Marker	Idi na prethodni marker
+ 	Go to Split	Idi na podjelu
+-	Graphics and Titles	Grafika i naslovi
++	Graphics	Grafika i naslovi
+ 	Graphics…	Grafika…
+ 	Green	Zelena
+ 	Group	Grupiši
+diff --git a/crates/ui-egui/src/i18n/cs.tsv b/crates/ui-egui/src/i18n/cs.tsv
+index ac3ac83..503eaa7 100644
+--- a/crates/ui-egui/src/i18n/cs.tsv
++++ b/crates/ui-egui/src/i18n/cs.tsv
+@@ -160,7 +160,7 @@
+ 	Go to Previous Caption Segment	Přejít na předchozí segment titulků
+ 	Go to Previous Marker	Přejít na předchozí značku
+ 	Go to Split	Přejít na rozdělený střih
+-	Graphics and Titles	Grafika a titulky
++	Graphics	Grafika a titulky
+ 	Graphics…	Grafika…
+ 	Green	Zelená
+ 	Group	Seskupit
+diff --git a/crates/ui-egui/src/i18n/de.tsv b/crates/ui-egui/src/i18n/de.tsv
+index 9abedd3..434825b 100644
+--- a/crates/ui-egui/src/i18n/de.tsv
++++ b/crates/ui-egui/src/i18n/de.tsv
+@@ -179,7 +179,7 @@
+ 	Go to Previous Caption Segment	Zum vorherigen Untertitelsegment gehen
+ 	Go to Previous Marker	Zum vorherigen Marker gehen
+ 	Go to Split	Zum Split-Punkt gehen
+-	Graphics and Titles	Grafiken und Titel
++	Graphics	Grafiken und Titel
+ 	Graphics…	Grafiken…
+ 	Green	Grün
+ 	Group	Gruppieren
+diff --git a/crates/ui-egui/src/i18n/es.tsv b/crates/ui-egui/src/i18n/es.tsv
+index cc1d0d8..f09edeb 100644
+--- a/crates/ui-egui/src/i18n/es.tsv
++++ b/crates/ui-egui/src/i18n/es.tsv
+@@ -164,7 +164,7 @@
+ 	Go to Previous Caption Segment	Ir al segmento de subtítulo anterior
+ 	Go to Previous Marker	Ir al marcador anterior
+ 	Go to Split	Ir a la división
+-	Graphics and Titles	Gráficos y títulos
++	Graphics	Gráficos y títulos
+ 	Graphics…	Gráficos…
+ 	Green	Verde
+ 	Group	Agrupar
+diff --git a/crates/ui-egui/src/i18n/fr.tsv b/crates/ui-egui/src/i18n/fr.tsv
+index 9993751..a517953 100644
+--- a/crates/ui-egui/src/i18n/fr.tsv
++++ b/crates/ui-egui/src/i18n/fr.tsv
+@@ -166,7 +166,7 @@
+ 	Go to Previous Caption Segment	Atteindre le segment de sous-titre précédent
+ 	Go to Previous Marker	Atteindre le marqueur précédent
+ 	Go to Split	Atteindre la division
+-	Graphics and Titles	Graphiques et titres
++	Graphics	Graphiques et titres
+ 	Graphics…	Graphiques…
+ 	Green	Vert
+ 	Group	Grouper
+diff --git a/crates/ui-egui/src/i18n/id.tsv b/crates/ui-egui/src/i18n/id.tsv
+index c9e48ef..ed3cf96 100644
+--- a/crates/ui-egui/src/i18n/id.tsv
++++ b/crates/ui-egui/src/i18n/id.tsv
+@@ -171,7 +171,7 @@
+ 	Go to Previous Caption Segment	Ke Segmen Takarir Sebelumnya
+ 	Go to Previous Marker	Ke Penanda Sebelumnya
+ 	Go to Split	Ke Split
+-	Graphics and Titles	Grafis dan Judul
++	Graphics	Grafis dan Judul
+ 	Graphics…	Grafis…
+ 	Green	Hijau
+ 	Group	Grupkan
+diff --git a/crates/ui-egui/src/i18n/it.tsv b/crates/ui-egui/src/i18n/it.tsv
+index 614e660..1b5191d 100644
+--- a/crates/ui-egui/src/i18n/it.tsv
++++ b/crates/ui-egui/src/i18n/it.tsv
+@@ -164,7 +164,7 @@
+ 	Go to Previous Caption Segment	Vai al segmento di sottotitolo precedente
+ 	Go to Previous Marker	Vai al marcatore precedente
+ 	Go to Split	Vai al taglio
+-	Graphics and Titles	Grafica e titoli
++	Graphics	Grafica e titoli
+ 	Graphics…	Grafica…
+ 	Green	Verde
+ 	Group	Raggruppa
+diff --git a/crates/ui-egui/src/i18n/ja.tsv b/crates/ui-egui/src/i18n/ja.tsv
+index c4850e5..09e1eb8 100644
+--- a/crates/ui-egui/src/i18n/ja.tsv
++++ b/crates/ui-egui/src/i18n/ja.tsv
+@@ -171,7 +171,7 @@
+ 	Go to Previous Caption Segment	前のキャプションセグメントへ移動
+ 	Go to Previous Marker	前のマーカーへ移動
+ 	Go to Split	スプリットへ移動
+-	Graphics and Titles	グラフィックスとタイトル
++	Graphics	グラフィックスとタイトル
+ 	Graphics…	グラフィックス…
+ 	Green	グリーン
+ 	Group	グループ
+diff --git a/crates/ui-egui/src/i18n/ko.tsv b/crates/ui-egui/src/i18n/ko.tsv
+index e6b923a..c3b10dd 100644
+--- a/crates/ui-egui/src/i18n/ko.tsv
++++ b/crates/ui-egui/src/i18n/ko.tsv
+@@ -1357,7 +1357,7 @@
+ 	Graphic Equalizer (20 Bands)	그래픽 이퀄라이저(20밴드)
+ 	Graphic Equalizer (30 Bands)	그래픽 이퀄라이저(30밴드)
+ 	Graphics	그래픽
+-	Graphics and Titles	그래픽 및 제목
++	Graphics	그래픽 및 제목
+ 	Graphics problem: switched to software compositing	그래픽 문제: 소프트웨어 합성으로 전환됨
+ 	Graphics text search arrives with M10.1–M10.2	그래픽 텍스트 검색은 M10.1–M10.2에서 제공
+ 	Graphics…	그래픽…
+diff --git a/crates/ui-egui/src/i18n/pl.tsv b/crates/ui-egui/src/i18n/pl.tsv
+index f7c6f1a..a1b4a40 100644
+--- a/crates/ui-egui/src/i18n/pl.tsv
++++ b/crates/ui-egui/src/i18n/pl.tsv
+@@ -158,7 +158,7 @@
+ 	Go to Previous Caption Segment	Przejdź do poprzedniego segmentu napisów
+ 	Go to Previous Marker	Przejdź do poprzedniego znacznika
+ 	Go to Split	Przejdź do podziału
+-	Graphics and Titles	Grafika i tytuły
++	Graphics	Grafika i tytuły
+ 	Graphics…	Grafika…
+ 	Green	Zielony
+ 	Group	Grupuj
+diff --git a/crates/ui-egui/src/i18n/pt-br.tsv b/crates/ui-egui/src/i18n/pt-br.tsv
+index d8aa88a..1e37bae 100644
+--- a/crates/ui-egui/src/i18n/pt-br.tsv
++++ b/crates/ui-egui/src/i18n/pt-br.tsv
+@@ -168,7 +168,7 @@
+ 	Go to Previous Caption Segment	Ir para o segmento de legenda anterior
+ 	Go to Previous Marker	Ir para o marcador anterior
+ 	Go to Split	Ir para a divisão
+-	Graphics and Titles	Gráficos e títulos
++	Graphics	Gráficos e títulos
+ 	Graphics…	Gráficos…
+ 	Green	Verde
+ 	Group	Agrupar
+diff --git a/crates/ui-egui/src/i18n/ru.tsv b/crates/ui-egui/src/i18n/ru.tsv
+index fa82537..c02532e 100644
+--- a/crates/ui-egui/src/i18n/ru.tsv
++++ b/crates/ui-egui/src/i18n/ru.tsv
+@@ -149,7 +149,7 @@
+ 	Go to Previous Caption Segment	Перейти к предыдущему сегменту субтитров
+ 	Go to Previous Marker	Перейти к предыдущему маркеру
+ 	Go to Split	Перейти к точке разделения
+-	Graphics and Titles	Графика и титры
++	Graphics	Графика и титры
+ 	Graphics…	Графика…
+ 	Green	Зелёный
+ 	Group	Сгруппировать
+diff --git a/crates/ui-egui/src/i18n/sv.tsv b/crates/ui-egui/src/i18n/sv.tsv
+index 6fcec1b..590d558 100644
+--- a/crates/ui-egui/src/i18n/sv.tsv
++++ b/crates/ui-egui/src/i18n/sv.tsv
+@@ -161,7 +161,7 @@
+ 	Go to Previous Caption Segment	Gå till föregående undertextsegment
+ 	Go to Previous Marker	Gå till föregående markör
+ 	Go to Split	Gå till delat snitt
+-	Graphics and Titles	Grafik och titlar
++	Graphics	Grafik och titlar
+ 	Graphics…	Grafik…
+ 	Green	Grön
+ 	Group	Gruppera
+diff --git a/crates/ui-egui/src/i18n/tr.tsv b/crates/ui-egui/src/i18n/tr.tsv
+index c61ce16..459fbd1 100644
+--- a/crates/ui-egui/src/i18n/tr.tsv
++++ b/crates/ui-egui/src/i18n/tr.tsv
+@@ -158,7 +158,7 @@
+ 	Go to Previous Caption Segment	Önceki Altyazı Segmentine Git
+ 	Go to Previous Marker	Önceki İşaretçiye Git
+ 	Go to Split	Bölünmeye Git
+-	Graphics and Titles	Grafikler ve Başlıklar
++	Graphics	Grafikler ve Başlıklar
+ 	Graphics…	Grafikler…
+ 	Green	Yeşil
+ 	Group	Grupla
+diff --git a/crates/ui-egui/src/i18n/uk.tsv b/crates/ui-egui/src/i18n/uk.tsv
+index 8eb115b..3642c21 100644
+--- a/crates/ui-egui/src/i18n/uk.tsv
++++ b/crates/ui-egui/src/i18n/uk.tsv
+@@ -153,7 +153,7 @@
+ 	Go to Previous Caption Segment	Перейти до попереднього сегмента субтитрів
+ 	Go to Previous Marker	Перейти до попереднього маркера
+ 	Go to Split	Перейти до розділеної позначки
+-	Graphics and Titles	Графіка й титри
++	Graphics	Графіка й титри
+ 	Graphics…	Графіка…
+ 	Green	Зелений
+ 	Group	Згрупувати
+diff --git a/crates/ui-egui/src/i18n/zh-cn.tsv b/crates/ui-egui/src/i18n/zh-cn.tsv
+index a6067ba..1ee4f00 100644
+--- a/crates/ui-egui/src/i18n/zh-cn.tsv
++++ b/crates/ui-egui/src/i18n/zh-cn.tsv
+@@ -159,7 +159,7 @@
+ 	Go to Previous Caption Segment	转到上一段字幕
+ 	Go to Previous Marker	转到上一个标记
+ 	Go to Split	转到拆分点
+-	Graphics and Titles	图形与字幕
++	Graphics	图形与字幕
+ 	Graphics…	图形…
+ 	Green	绿
+ 	Group	编组
+diff --git a/crates/ui-egui/src/menus.rs b/crates/ui-egui/src/menus.rs
+index 5a37aac..95e6a9f 100644
+--- a/crates/ui-egui/src/menus.rs
++++ b/crates/ui-egui/src/menus.rs
+@@ -905,7 +905,7 @@ pub struct MenuItem {
+     pub checked: Option<bool>,
+ }
+ 
+-pub const MENUS: [&str; 9] = ["File", "Edit", "Clip", "Sequence", "Markers", "Graphics and Titles", "View", "Window", "Help"];
++pub const MENUS: [&str; 9] = ["File", "Edit", "Clip", "Sequence", "Markers", "Graphics", "View", "Window", "Help"];
+ 
+ /// Labels only the native macOS app menu shows, with no command in the menu tree behind them: the
+ /// Settings submenu and the predefined Hide, Hide Others and Quit items. They are translated through
+diff --git a/crates/ui-egui/tests/it/view_ui.rs b/crates/ui-egui/tests/it/view_ui.rs
+index cf78a16..6fbd29e 100644
+--- a/crates/ui-egui/tests/it/view_ui.rs
++++ b/crates/ui-egui/tests/it/view_ui.rs
+@@ -168,7 +168,7 @@ fn view_menu_resolutions_and_display_modes() {
+     assert_eq!(item("view.display.composite")["checked"], true);
+     assert_eq!(item("view.magnification.1600")["label"], "1600%");
+     assert_eq!(item("view.clearGuides")["enabled"], false, "no guides yet");
+-    assert_eq!(item("graphics.alignFrame.left")["path"], json!(["Graphics and Titles", "Align to Video Frame"]));
++    assert_eq!(item("graphics.alignFrame.left")["path"], json!(["Graphics", "Align to Video Frame"]));
+ 
+     d.menu("view.playbackRes.sixteenth");
+     d.menu("view.pausedRes.quarter");
+diff --git a/docs/graphics.md b/docs/graphics.md
+index 24225f1..8597069 100644
+--- a/docs/graphics.md
++++ b/docs/graphics.md
+@@ -100,7 +100,7 @@ Timecode and Clip Name effects also draw with the text engine.
+ 
+ | Command | Menu / shortcut | Params |
+ |---|---|---|
+-| `graphics.newText` | Graphics and Titles ▸ New Layer ▸ Text (⌘T) | `text`, `position`, `box` (`[w, h]`: paragraph text in a box, `position` is its top-left corner), `clip` (add to this graphic), `vertical`, `size`, `font`, `fontStyle`, `seconds` (5), `track`, `time` |
++| `graphics.newText` | Graphics ▸ New Layer ▸ Text (⌘T) | `text`, `position`, `box` (`[w, h]`: paragraph text in a box, `position` is its top-left corner), `clip` (add to this graphic), `vertical`, `size`, `font`, `fontStyle`, `seconds` (5), `track`, `time` |
+ | `graphics.newVerticalText` | New Layer ▸ Vertical Text | as `graphics.newText`; characters stack top to bottom, paragraphs are columns right to left |
+ | `graphics.newRectangle`, `graphics.newEllipse`, `graphics.newPolygon` | New Layer ▸ Rectangle (⌥⌘R), Ellipse (⌥⌘E), Polygon | `position` (the shape's centre), `size`, `clip`, `seconds` (5), `track`, `time`; polygon `sides` (6) |
+ | `graphics.newFromFile` | New Layer ▸ From file… | `path` — imports the image or video and places it above the clips at the playhead (a separate clip; graphics have no media layers yet) |
+@@ -245,9 +245,9 @@ engine at runtime.
+ |---|---|---|
+ | `graphics.template.list` | (query) | `query`, `category`, `source` (builtin / user) |
+ | `graphics.template.apply` | Browse tab: drag or double-click | `template` (id, name or `.fcgt` path), `values` {control: value}, `time`, `track` |
+-| `graphics.template.export` | Graphics and Titles ▸ Export As Motion Graphics Template… | `clip`, `name`, `category`, `description`, `controls` [{`layer`, `param`, `name`, `kind`, `min`, `max`}], `path` (default: the user folder), `embedFonts` |
++| `graphics.template.export` | Graphics ▸ Export As Motion Graphics Template… | `clip`, `name`, `category`, `description`, `controls` [{`layer`, `param`, `name`, `kind`, `min`, `max`}], `path` (default: the user folder), `embedFonts` |
+ | `file.exportGraphicsTemplate` | File ▸ Export ▸ Motion Graphics Template… | as above |
+-| `graphics.template.install` | Graphics and Titles ▸ Install Motion Graphics Template… | `path` (a `.fcgt`) |
++| `graphics.template.install` | Graphics ▸ Install Motion Graphics Template… | `path` (a `.fcgt`) |
+ | `graphics.template.remove` | Browse tab | `template` (user templates) |
+ | `graphics.template.set` / `graphics.template.controls` | Essential Graphics ▸ Edit | `clip`, `control`, `value` / `values` |
+ | `graphics.template.thumbnail` | (query) | `template`, `width`, `path` (PNG) |
+@@ -274,9 +274,9 @@ panel state and the Type-tool selection.
+ 
+ | Command | Menu | Params |
+ |---|---|---|
+-| `graphics.upgradeCaption` | Graphics and Titles ▸ Upgrade Caption to Graphic | `captions` (default: the selection, else the one under the playhead): each caption becomes a graphic clip on a video track with the track style (font and font style, size, colour, background, outline, alignment, position); `<i>`/`<b>`/`<u>` become character styles; one undo step |
+-| `graphics.upgradeToSourceGraphic` | Graphics and Titles ▸ Upgrade to Source Graphic | `clip`: the graphic gets its own project item (shown in the Project panel); every clip of that item shares its layers — editing one updates the others in the same undo step (`project.source_graphics`) |
+-| `file.replaceFonts` | Graphics and Titles ▸ Replace Fonts in Projects… | `from` (family or {family, style}), `to`, `toStyle`: graphic layers, character styles, source graphics and caption tracks |
++| `graphics.upgradeCaption` | Graphics ▸ Upgrade Caption to Graphic | `captions` (default: the selection, else the one under the playhead): each caption becomes a graphic clip on a video track with the track style (font and font style, size, colour, background, outline, alignment, position); `<i>`/`<b>`/`<u>` become character styles; one undo step |
++| `graphics.upgradeToSourceGraphic` | Graphics ▸ Upgrade to Source Graphic | `clip`: the graphic gets its own project item (shown in the Project panel); every clip of that item shares its layers — editing one updates the others in the same undo step (`project.source_graphics`) |
++| `file.replaceFonts` | Graphics ▸ Replace Fonts in Projects… | `from` (family or {family, style}), `to`, `toStyle`: graphic layers, character styles, source graphics and caption tracks |
+ | `graphics.fonts.used` | (query) | fonts in use with counts and whether they are missing |
+ 
+ ## Gradient fills
