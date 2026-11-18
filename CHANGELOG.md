@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.5.16 - 2026-11-18
+#### Bug Fixes
+- stream large file transfers instead of buffering in memory - (d7dd534) - Devin
+
+- - -
+
 ## v0.5.15 - 2026-11-18
 #### Bug Fixes
 - server config and api polish nits - (c4382fd) - Devin
