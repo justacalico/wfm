@@ -85,8 +85,22 @@ async fn main() {
         .cfg
         .addr
         .parse()
-        .or_else(|_| format!("0.0.0.0{}", state.cfg.addr).parse())
-        .unwrap_or_else(|_| SocketAddr::from(([0, 0, 0, 0], 8080)));
+        .ok()
+        .or_else(|| {
+            // Bare "8080" or ":8080" means all interfaces on that port.
+            state
+                .cfg
+                .addr
+                .trim_start_matches(':')
+                .parse::<u16>()
+                .ok()
+                .map(|p| SocketAddr::from(([0, 0, 0, 0], p)))
+        })
+        .or_else(|| format!("0.0.0.0{}", state.cfg.addr).parse().ok())
+        .unwrap_or_else(|| {
+            tracing::warn!(addr = %state.cfg.addr, "cannot parse listen addr, using 0.0.0.0:8080");
+            SocketAddr::from(([0, 0, 0, 0], 8080))
+        });
     let listener = match tokio::net::TcpListener::bind(addr).await {
         Ok(l) => l,
         Err(e) => {

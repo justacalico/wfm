@@ -15,7 +15,6 @@ pub struct Config {
     pub db_url: Option<String>,
     pub session_ttl: i64,
     pub lock_ttl: i64,
-    pub public_url: String,
     pub worker: Option<WorkerCfg>,
     pub media_kind: String,
     pub media_path: Option<PathBuf>,
@@ -96,7 +95,6 @@ impl Config {
             db_url: std::env::var("WFM_DB").ok().filter(|s| !s.is_empty()),
             session_ttl: env_int("WFM_SESSION_DAYS", 7) * 86400,
             lock_ttl: env_int("WFM_LOCK_TTL", 45),
-            public_url: env("WFM_PUBLIC_URL", ""),
             media_kind: env("WFM_MEDIA", "local"),
             media_path: std::env::var("WFM_MEDIA_PATH").ok().map(PathBuf::from),
             s3_endpoint: env("WFM_S3_ENDPOINT", "http://localhost:9000"),
@@ -152,14 +150,50 @@ impl Config {
                     c.session_ttl = next(&mut i)?.parse::<i64>().map_err(|e| e.to_string())? * 86400
                 }
                 "--lock-ttl" => c.lock_ttl = next(&mut i)?.parse::<i64>().map_err(|e| e.to_string())?,
-                "--public-url" => c.public_url = next(&mut i)?,
                 "--trusted-proxies" => {
                     c.trusted_proxies = crate::auth::parse_nets(&next(&mut i)?)?
                 }
                 "--worker" => {
                     let server = next(&mut i)?;
-                    let token = next(&mut i)?;
-                    let name = next(&mut i).unwrap_or_else(|_| "node".into());
+                    // Trailing positionals stop at the next flag: with
+                    // WFM_WORKER_TOKEN set they are [NAME], otherwise
+                    // [TOKEN] [NAME].
+                    let mut extra: Vec<String> = Vec::new();
+                    while let Some(a) = args.get(i + 1) {
+                        if a.starts_with("--") {
+                            break;
+                        }
+                        i += 1;
+                        extra.push(a.clone());
+                    }
+                    let env_token = std::env::var("WFM_WORKER_TOKEN")
+                        .ok()
+                        .filter(|t| !t.is_empty());
+                    let (token, name) = match (env_token, extra.as_slice()) {
+                        (Some(t), []) => (t, "node".into()),
+                        (Some(t), [n]) => (t, n.clone()),
+                        (Some(_), _) => {
+                            return Err("--worker: too many arguments".into());
+                        }
+                        (None, []) => {
+                            return Err(
+                                "--worker: missing token (arg or WFM_WORKER_TOKEN)".into()
+                            );
+                        }
+                        (None, [t]) | (None, [t, _]) => {
+                            eprintln!(
+                                "wfm: warning: worker token on argv is visible in ps; \
+                                 prefer WFM_WORKER_TOKEN"
+                            );
+                            (
+                                t.clone(),
+                                extra.get(1).cloned().unwrap_or_else(|| "node".into()),
+                            )
+                        }
+                        (None, _) => {
+                            return Err("--worker: too many arguments".into());
+                        }
+                    };
                     c.worker = Some(WorkerCfg {
                         server,
                         token,
@@ -184,11 +218,12 @@ impl Config {
                          --no-local-renders     disable local render processing\n\
                          --db URL               database url: sqlite (default) or postgres://\n\
                          --trusted-proxies LIST honor X-Forwarded-For from these proxies\n\
-                         --worker URL TOKEN [NAME]  run as a remote render node\n\
+                         --worker URL [TOKEN] [NAME]  run as a remote render node\n\
+                                                    (token via WFM_WORKER_TOKEN preferred)\n\
                          Env: WFM_ADDR WFM_DATA WFM_DB WFM_WEB_DIR WFM_FILMCRAFT_DIR \
                          WFM_MAX_UPLOAD_MB WFM_SECURE_COOKIES WFM_CORS_ORIGINS \
                          WFM_RENDER_WORKERS WFM_FILMCRAFT_CLI WFM_LOCAL_RENDERS \
-                         WFM_SESSION_DAYS WFM_LOCK_TTL WFM_PUBLIC_URL \
+                         WFM_SESSION_DAYS WFM_LOCK_TTL WFM_WORKER_TOKEN \
                          WFM_TRUSTED_PROXIES"
                     );
                     std::process::exit(0);

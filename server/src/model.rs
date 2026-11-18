@@ -112,7 +112,14 @@ pub struct ProjectGroup {
 pub fn norm_tags(tags: &[String]) -> Vec<String> {
     let mut out: Vec<String> = Vec::new();
     for t in tags {
-        let t: String = t.trim().to_lowercase().chars().take(32).collect();
+        // Commas would silently split one tag into two via tags_csv.
+        let t: String = t
+            .trim()
+            .to_lowercase()
+            .replace(',', "")
+            .chars()
+            .take(32)
+            .collect();
         if !t.is_empty() && !out.contains(&t) {
             out.push(t);
         }

@@ -22,7 +22,7 @@ fn mime(path: &str) -> String {
 /// Serve one asset: override dir first, then the embedded copy.
 async fn asset(dir: Option<&PathBuf>, prefix: &str, path: &str, spa_fallback: &str) -> Response {
     let clean = path.trim_start_matches('/');
-    if clean.contains("..") {
+    if clean.split('/').any(|seg| seg == "..") {
         return (StatusCode::BAD_REQUEST, "bad path").into_response();
     }
     if let Some(d) = dir {

@@ -71,22 +71,22 @@ impl Blobs for LocalBlobs {
     async fn put(&self, key: &str, _len: u64, reader: &mut (dyn AsyncRead + Send + Unpin)) -> Result<(), String> {
         let p = self.path(key)?;
         if let Some(parent) = p.parent() {
-            std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+            tokio::fs::create_dir_all(parent).await.map_err(|e| e.to_string())?;
         }
         let tmp = p.with_extension(format!("wfm-up-{}", &crate::model::new_id()[..8]));
         let mut f = tokio::fs::File::create(&tmp).await.map_err(|e| e.to_string())?;
         let res = tokio::io::copy(reader, &mut f).await;
         drop(f);
         if let Err(e) = res {
-            let _ = std::fs::remove_file(&tmp);
+            let _ = tokio::fs::remove_file(&tmp).await;
             return Err(e.to_string());
         }
-        std::fs::rename(&tmp, &p).map_err(|e| e.to_string())
+        tokio::fs::rename(&tmp, &p).await.map_err(|e| e.to_string())
     }
 
     async fn get(&self, key: &str) -> Result<(u64, ByteStream), String> {
         let p = self.path(key)?;
-        let meta = std::fs::metadata(&p).map_err(|_| "not found".to_string())?;
+        let meta = tokio::fs::metadata(&p).await.map_err(|_| "not found".to_string())?;
         let f = tokio::fs::File::open(&p).await.map_err(|e| e.to_string())?;
         let len = meta.len();
         Ok((len, file_stream(f, 0, len).await?))
@@ -94,7 +94,7 @@ impl Blobs for LocalBlobs {
 
     async fn get_range(&self, key: &str, start: u64, end: u64) -> Result<(u64, u64, ByteStream), String> {
         let p = self.path(key)?;
-        let meta = std::fs::metadata(&p).map_err(|_| "not found".to_string())?;
+        let meta = tokio::fs::metadata(&p).await.map_err(|_| "not found".to_string())?;
         let size = meta.len();
         let end = end.min(size.saturating_sub(1));
         if start > end || size == 0 {
@@ -106,7 +106,8 @@ impl Blobs for LocalBlobs {
 
     async fn head(&self, key: &str) -> Result<u64, String> {
         let p = self.path(key)?;
-        std::fs::metadata(&p)
+        tokio::fs::metadata(&p)
+            .await
             .map(|m| m.len())
             .map_err(|_| "not found".to_string())
     }
@@ -119,14 +120,14 @@ impl Blobs for LocalBlobs {
         };
         let mut folders = Vec::new();
         let mut objects = Vec::new();
-        if dir.is_dir() {
-            for e in std::fs::read_dir(&dir).map_err(|e| e.to_string())? {
-                let e = e.map_err(|e| e.to_string())?;
+        if tokio::fs::metadata(&dir).await.map(|m| m.is_dir()).unwrap_or(false) {
+            let mut entries = tokio::fs::read_dir(&dir).await.map_err(|e| e.to_string())?;
+            while let Some(e) = entries.next_entry().await.map_err(|e| e.to_string())? {
                 let name = e.file_name().to_string_lossy().to_string();
                 if name.starts_with('.') {
                     continue;
                 }
-                let meta = e.metadata().map_err(|e| e.to_string())?;
+                let meta = e.metadata().await.map_err(|e| e.to_string())?;
                 if meta.is_symlink() {
                     continue;
                 }
@@ -154,19 +155,19 @@ impl Blobs for LocalBlobs {
 
     async fn delete(&self, key: &str) -> Result<(), String> {
         let p = self.path(key)?;
-        if p.is_dir() {
-            std::fs::remove_dir_all(&p).map_err(|e| e.to_string())
-        } else if p.exists() {
-            std::fs::remove_file(&p).map_err(|e| e.to_string())
-        } else {
-            Err("not found".into())
+        match tokio::fs::metadata(&p).await {
+            Ok(m) if m.is_dir() => {
+                tokio::fs::remove_dir_all(&p).await.map_err(|e| e.to_string())
+            }
+            Ok(_) => tokio::fs::remove_file(&p).await.map_err(|e| e.to_string()),
+            Err(_) => Err("not found".into()),
         }
     }
 
     async fn delete_prefix(&self, prefix: &str) -> Result<(), String> {
         let p = self.path(prefix)?;
-        if p.is_dir() {
-            std::fs::remove_dir_all(&p).map_err(|e| e.to_string())?;
+        if tokio::fs::metadata(&p).await.map(|m| m.is_dir()).unwrap_or(false) {
+            tokio::fs::remove_dir_all(&p).await.map_err(|e| e.to_string())?;
         }
         Ok(())
     }
@@ -174,21 +175,21 @@ impl Blobs for LocalBlobs {
     async fn rename(&self, from: &str, to: &str) -> Result<(), String> {
         let src = self.path(from)?;
         let dst = self.path(to)?;
-        if !src.exists() {
+        if tokio::fs::metadata(&src).await.is_err() {
             return Err("not found".into());
         }
-        if dst.exists() {
+        if tokio::fs::metadata(&dst).await.is_ok() {
             return Err("exists".into());
         }
         if let Some(p) = dst.parent() {
-            std::fs::create_dir_all(p).map_err(|e| e.to_string())?;
+            tokio::fs::create_dir_all(p).await.map_err(|e| e.to_string())?;
         }
-        std::fs::rename(&src, &dst).map_err(|e| e.to_string())
+        tokio::fs::rename(&src, &dst).await.map_err(|e| e.to_string())
     }
 
     async fn mkdir(&self, key_prefix: &str) -> Result<(), String> {
         let p = self.path(key_prefix)?;
-        std::fs::create_dir_all(p).map_err(|e| e.to_string())
+        tokio::fs::create_dir_all(p).await.map_err(|e| e.to_string())
     }
 }
 
