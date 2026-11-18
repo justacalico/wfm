@@ -1873,7 +1873,7 @@ async fn worker_job_guard(
         .job_by_id(id)
         .await
         .map_err(|_| err(StatusCode::NOT_FOUND, "no such job"))?;
-    if job.worker != node.node.name && job.status == "running" {
+    if job.worker != node.node.name {
         return Err(err(StatusCode::FORBIDDEN, "not your job"));
     }
     Ok(job)
@@ -1952,15 +1952,17 @@ async fn worker_complete(
     } else {
         q.path
     };
+    let key = match files::export_key(&name) {
+        Ok(k) => k,
+        Err(e) => return fs_resp(e),
+    };
     let (tmp, len) = match spool_body(&s, body, s.cfg.max_upload).await {
         Ok(v) => v,
         Err(r) => return r,
     };
     let put = async {
         let mut f = tokio::fs::File::open(&tmp).await.map_err(|e| e.to_string())?;
-        s.blobs
-            .put(&blob_key(&project.dir, &format!("Exports/{name}")), len, &mut f)
-            .await
+        s.blobs.put(&blob_key(&project.dir, &key), len, &mut f).await
     }
     .await;
     let _ = std::fs::remove_file(&tmp);

@@ -95,6 +95,16 @@ pub fn clean_rel_key(rel: &str) -> Result<String, FsError> {
     Ok(rel.to_string_lossy().replace('\\', "/"))
 }
 
+/// Object key for a finished render upload. Confines `name` under Exports/ so
+/// a node-supplied path cannot escape the prefix on any blob backend.
+pub fn export_key(name: &str) -> Result<String, FsError> {
+    let key = clean_rel_key(&format!("Exports/{name}"))?;
+    if !key.starts_with("Exports/") {
+        return Err(FsError::BadPath);
+    }
+    Ok(key)
+}
+
 #[derive(Serialize)]
 pub struct FileEntry {
     pub name: String,
@@ -135,6 +145,19 @@ mod tests {
         assert!(clean_rel_key(STATE_FILE).is_ok());
         assert!(clean_rel_key(PROJECT_FILE).is_ok());
         assert!(clean_rel_key("stray.txt").is_err());
+    }
+
+    #[test]
+    fn export_key_confines_to_exports() {
+        assert_eq!(export_key("cut.mp4").unwrap(), "Exports/cut.mp4");
+        assert_eq!(export_key("part 01.mp4").unwrap(), "Exports/part 01.mp4");
+        assert!(export_key("../x").is_err());
+        assert!(export_key("../../state").is_err());
+        assert!(export_key("..\\..\\x").is_err());
+        assert!(export_key(".hidden.mp4").is_err());
+        assert!(export_key("").is_err());
+        // Leading slashes normalize under Exports/, never above it.
+        assert_eq!(export_key("/etc/passwd").unwrap(), "Exports/etc/passwd");
     }
 
 }
