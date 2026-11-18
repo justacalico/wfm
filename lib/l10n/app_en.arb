@@ -278,5 +278,12 @@
   "captionSidecar": "Caption sidecar",
   "extraParams": "Extra export params (JSON)",
   "invalidJson": "Invalid JSON",
-  "defaultOption": "Default"
+  "defaultOption": "Default",
+  "serverUnreachable": "Can't reach the server: {error}",
+  "@serverUnreachable": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "retry": "Retry"
 }

@@ -567,4 +567,12 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get defaultOption => 'По умолчанию';
+
+  @override
+  String serverUnreachable(Object error) {
+    return 'Не удаётся связаться с сервером: $error';
+  }
+
+  @override
+  String get retry => 'Повторить';
 }

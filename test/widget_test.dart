@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wfm/api.dart';
+import 'package:wfm/l10n/app_localizations.dart';
 import 'package:wfm/main.dart';
 import 'package:wfm/manage.dart';
 import 'package:wfm/platform.dart';
@@ -110,12 +112,73 @@ void main() {
     expect(find.textContaining('bad'), findsWidgets);
   });
 
-  testWidgets('gate falls back to login on error', (t) async {
+  testWidgets('gate shows error and retry when server is down', (t) async {
+    var down = true;
     Api.i = Api(FakeClient({
-      'GET /api/setup': (_) => http.Response('x', 500),
+      'GET /api/setup': (_) =>
+          down ? http.Response('x', 500) : {'needsSetup': false},
+      'GET /api/me': (_) => http.Response('{"error":"auth"}', 401),
     }));
     await pumpWfm(t);
+    expect(find.byType(GateError), findsOneWidget);
+    expect(find.byType(LoginPage), findsNothing);
+    down = false;
+    await t.tap(find.byType(FilledButton));
+    await settle(t);
     expect(find.byType(LoginPage), findsOneWidget);
+  });
+
+  testWidgets('gate shows error when me fails non-auth', (t) async {
+    Api.i = Api(FakeClient({
+      'GET /api/setup': (_) => {'needsSetup': false},
+      'GET /api/me': (_) => http.Response('{"error":"boom"}', 500),
+    }));
+    await pumpWfm(t);
+    expect(find.byType(GateError), findsOneWidget);
+    expect(find.byType(LoginPage), findsNothing);
+  });
+
+  testWidgets('mid-session 401 returns to login', (t) async {
+    var expired = false;
+    Api.i = Api(FakeClient({
+      'GET /api/setup': (_) => {'needsSetup': false},
+      'GET /api/me': (_) => expired
+          ? http.Response('{"error":"auth"}', 401)
+          : {'csrf': 'c', 'user': userJson},
+      'GET /api/roles': (_) => {
+            'creatable': ['student'],
+            'canManage': true,
+            'canAudit': true
+          },
+      'GET /api/version': (_) => http.Response('{"error":"x"}', 401),
+      'GET *': (_) => [],
+    }));
+    await pumpWfm(t);
+    expect(find.byType(Shell), findsOneWidget);
+    expired = true;
+    await Api.i.get('/version').catchError((_) => null);
+    await settle(t);
+    expect(Api.i.user, isNull);
+    expect(find.byType(LoginPage), findsOneWidget);
+  });
+
+  testWidgets('pages do not crash on a null user', (t) async {
+    installApi(extra: {'GET *': (_) => []});
+    Api.i.user = null;
+    Future<void> bare(Widget w) => t.pumpWidget(MaterialApp(
+          localizationsDelegates: const [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: appLocales,
+          home: w,
+        ));
+    await bare(const Shell());
+    await bare(const HomePage());
+    await bare(const SettingsPage());
+    await settle(t);
   });
 
   testWidgets('session resume goes straight to shell', (t) async {

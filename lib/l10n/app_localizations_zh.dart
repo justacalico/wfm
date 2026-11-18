@@ -563,4 +563,12 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get defaultOption => '默认';
+
+  @override
+  String serverUnreachable(Object error) {
+    return '无法连接服务器:$error';
+  }
+
+  @override
+  String get retry => '重试';
 }

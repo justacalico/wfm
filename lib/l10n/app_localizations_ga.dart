@@ -569,4 +569,12 @@ class AppLocalizationsGa extends AppLocalizations {
 
   @override
   String get defaultOption => 'Réamhshocrú';
+
+  @override
+  String serverUnreachable(Object error) {
+    return 'Ní féidir teagmháil a dhéanamh leis an bhfreastalaí: $error';
+  }
+
+  @override
+  String get retry => 'Bain triail eile as';
 }
