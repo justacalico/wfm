@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.6.2 - 2026-11-18
+#### Bug Fixes
+- (**theme**) 主题选择器改为下拉框 - (49ba226) - calico
+
+- - -
+
 ## v0.6.1 - 2026-11-18
 #### Bug Fixes
 - (**theme**) 默认主题改为跟随系统 - (35a9ac0) - calico
