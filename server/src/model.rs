@@ -1,7 +1,7 @@
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Role {
     Student = 1,
     Mod = 2,
@@ -23,11 +23,11 @@ impl Role {
 
     pub fn from_i64(v: i64) -> Role {
         match v {
-            1 => Role::Student,
             2 => Role::Mod,
             3 => Role::Teacher,
             4 => Role::Admin,
-            _ => Role::Owner,
+            5 => Role::Owner,
+            _ => Role::Student,
         }
     }
 
@@ -281,6 +281,18 @@ pub fn lineage_has(lineage: &str, id: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn role_from_i64_fails_closed() {
+        assert_eq!(Role::from_i64(1), Role::Student);
+        assert_eq!(Role::from_i64(2), Role::Mod);
+        assert_eq!(Role::from_i64(3), Role::Teacher);
+        assert_eq!(Role::from_i64(4), Role::Admin);
+        assert_eq!(Role::from_i64(5), Role::Owner);
+        for v in [0, 6, 99, -1] {
+            assert_eq!(Role::from_i64(v), Role::Student);
+        }
+    }
 
     fn user(id: &str, role: Role, created_by: &str, lineage: &str) -> User {
         User {
