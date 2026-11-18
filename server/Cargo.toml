@@ -1,6 +1,6 @@
 [package]
 name = "wfm"
-version = "0.5.7"
+version = "0.5.8"
 edition = "2021"
 description = "Web Film Manager - self-hosted media project manager with on-device and server rendering"
 license = "AGPL-3.0-only"
