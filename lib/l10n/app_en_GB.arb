@@ -1,4 +1,10 @@
 { "@@locale": "en_GB",
+  "deleteAccountBody": "Delete \"{name}\"? This cannot be undone.",
+  "@deleteAccountBody": {
+    "placeholders": {
+      "name": {}
+    }
+  },
   "gridView": "Grid view",
   "searchProjects": "Search projects",
   "sortProjects": "Sort projects",

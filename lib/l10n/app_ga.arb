@@ -63,6 +63,12 @@
   "renameProject": "Athainmnigh tionscadal",
   "displayName": "Ainm taispeána",
   "deleteProject": "Scrios tionscadal",
+  "deleteAccountBody": "Scrios \"{name}\"? Ní féidir é seo a chealú.",
+  "@deleteAccountBody": {
+    "placeholders": {
+      "name": {}
+    }
+  },
   "deleteProjectBody": "Scrios \"{name}\" agus a mheáin go léir? Ní féidir é seo a chealú.",
   "@deleteProjectBody": {
     "placeholders": {

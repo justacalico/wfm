@@ -296,6 +296,18 @@ impl Db for SqliteDb {
             .map_err(dberr)
     }
 
+    async fn delete_user(&self, id: &str) -> DbResult<()> {
+        let id = id.to_string();
+        self.q(move |c| {
+                let tx = c.transaction()?;
+                tx.execute("DELETE FROM sessions WHERE user_id=?", [&id])?;
+                tx.execute("DELETE FROM users WHERE id=?", [&id])?;
+                tx.commit()
+            })
+            .await
+            .map_err(dberr)
+    }
+
     async fn touch_login(&self, id: &str, ts: i64) -> DbResult<()> {
         let id = id.to_string();
         self.q(move |c| {
@@ -1136,5 +1148,30 @@ mod tests {
         assert!(db.project_by_id("p").await.unwrap().pinned);
         db.set_project_pinned("p", false).await.unwrap();
         assert!(!db.project_by_id("p").await.unwrap().pinned);
+    }
+
+    #[tokio::test]
+    async fn delete_user_drops_sessions() {
+        let db = connect(":memory:").await.unwrap();
+        let u = User {
+            id: "u".into(),
+            username: "u".into(),
+            display_name: "n".into(),
+            role: Role::Student,
+            role_name: "student".into(),
+            student_id: String::new(),
+            note: String::new(),
+            disabled: false,
+            created_by: String::new(),
+            lineage: "/".into(),
+            created_at: 1,
+            last_login: 0,
+        };
+        db.create_user(&u, "h").await.unwrap();
+        db.create_session("t", "u", "c", 9, "", "").await.unwrap();
+        assert!(db.session_user("t", 1).await.is_ok());
+        db.delete_user("u").await.unwrap();
+        assert!(db.user_by_id("u").await.is_err());
+        assert!(db.session_user("t", 1).await.is_err());
     }
 }

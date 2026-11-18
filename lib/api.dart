@@ -291,6 +291,8 @@ class Api {
   Future<void> renameGroup(String id, String name) =>
       patch('/groups/$id', {'name': name});
 
+  Future<void> deleteAccount(String id) => del('/accounts/$id');
+
   Future<void> deleteGroup(String id) => del('/groups/$id');
 
   Future<void> deleteProject(String id) => del('/projects/$id');

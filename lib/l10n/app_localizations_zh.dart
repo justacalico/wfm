@@ -162,6 +162,11 @@ class AppLocalizationsZh extends AppLocalizations {
   String get deleteProject => '删除项目';
 
   @override
+  String deleteAccountBody(Object name) {
+    return '删除“$name”？此操作无法撤销。';
+  }
+
+  @override
   String deleteProjectBody(Object name) {
     return '删除“$name”及其所有媒体？此操作无法撤销。';
   }

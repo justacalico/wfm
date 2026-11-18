@@ -163,6 +163,11 @@ class AppLocalizationsGa extends AppLocalizations {
   String get deleteProject => 'Scrios tionscadal';
 
   @override
+  String deleteAccountBody(Object name) {
+    return 'Scrios \"$name\"? Ní féidir é seo a chealú.';
+  }
+
+  @override
   String deleteProjectBody(Object name) {
     return 'Scrios \"$name\" agus a mheáin go léir? Ní féidir é seo a chealú.';
   }
