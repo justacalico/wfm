@@ -283,7 +283,7 @@ class _ProjectsPageState extends State<ProjectsPage> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    if (_err.isNotEmpty) return Center(child: Text(_err));
+    if (_err.isNotEmpty) return errorView(context, _err, _load);
     final items = _items;
     final tight = MediaQuery.sizeOf(context).width < 720;
     final q = _query.text.trim().toLowerCase();
@@ -548,12 +548,32 @@ class _ProjectPageState extends State<ProjectPage> {
 IconData fileIcon(FileEntry e) {
   if (e.isDir) return Icons.folder_outlined;
   switch (extOf(e.name)) {
-    case 'mp4' || 'mov' || 'mkv' || 'webm' || 'avi' || 'm4v':
+    case 'mp4' ||
+          'mov' ||
+          'mkv' ||
+          'webm' ||
+          'avi' ||
+          'm4v' ||
+          'mts' ||
+          'm2ts' ||
+          'mxf':
       return Icons.movie_outlined;
-    case 'mp3' || 'wav' || 'aac' || 'flac' || 'ogg' || 'm4a':
+    case 'mp3' || 'wav' || 'aac' || 'flac' || 'ogg' || 'oga' || 'm4a' || 'opus':
       return Icons.audio_file_outlined;
-    case 'png' || 'jpg' || 'jpeg' || 'gif' || 'webp' || 'bmp':
+    case 'png' ||
+          'jpg' ||
+          'jpeg' ||
+          'gif' ||
+          'webp' ||
+          'bmp' ||
+          'tif' ||
+          'tiff' ||
+          'dng' ||
+          'exr' ||
+          'hdr':
       return Icons.image_outlined;
+    case 'srt' || 'vtt':
+      return Icons.subtitles_outlined;
     default:
       return Icons.insert_drive_file_outlined;
   }
@@ -785,7 +805,7 @@ class _FilesTabState extends State<FilesTab> {
       const Divider(height: 1),
       Expanded(
         child: _err.isNotEmpty
-            ? Center(child: Text(_err))
+            ? errorView(context, _err, _load)
             : _items == null
                 ? const Center(child: CircularProgressIndicator())
                 : _items!.isEmpty
@@ -1069,6 +1089,26 @@ class _RenderDialogState extends State<RenderDialog> {
     }).catchError((e) {
       if (mounted) setState(() => _infoError = '$e');
     });
+  }
+
+  @override
+  void dispose() {
+    for (final c in [
+      _out,
+      _rangeStart,
+      _rangeEnd,
+      _preset,
+      _quality,
+      _bitrate,
+      _crf,
+      _flacLevel,
+      _scale,
+      _loudness,
+      _extra,
+    ]) {
+      c.dispose();
+    }
+    super.dispose();
   }
 
   Map<String, dynamic>? _params() {

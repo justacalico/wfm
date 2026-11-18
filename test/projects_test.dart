@@ -696,10 +696,18 @@ void main() {
       expect(find.text('lost'), findsOneWidget);
       expect(fileIcon(FileEntry.fromJson({'name': 'a.mp4'})),
           Icons.movie_outlined);
+      expect(fileIcon(FileEntry.fromJson({'name': 'a.mxf'})),
+          Icons.movie_outlined);
       expect(fileIcon(FileEntry.fromJson({'name': 'a.wav'})),
+          Icons.audio_file_outlined);
+      expect(fileIcon(FileEntry.fromJson({'name': 'a.opus'})),
           Icons.audio_file_outlined);
       expect(fileIcon(FileEntry.fromJson({'name': 'a.jpg'})),
           Icons.image_outlined);
+      expect(fileIcon(FileEntry.fromJson({'name': 'a.exr'})),
+          Icons.image_outlined);
+      expect(fileIcon(FileEntry.fromJson({'name': 'a.srt'})),
+          Icons.subtitles_outlined);
       expect(fileIcon(FileEntry.fromJson({'name': 'a.txt'})),
           Icons.insert_drive_file_outlined);
       expect(fileIcon(FileEntry.fromJson({'name': 'a', 'type': 'dir'})),

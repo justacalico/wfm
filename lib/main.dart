@@ -119,6 +119,7 @@ InputDecoration dec(String label, [String? hint]) => InputDecoration(
     labelText: label, hintText: hint, border: const OutlineInputBorder());
 
 final _toasts = <OverlayEntry>[];
+final _toastGen = ValueNotifier(0);
 
 void snack(BuildContext context, Object e, {bool good = false}) {
   if (!context.mounted) return;
@@ -126,17 +127,28 @@ void snack(BuildContext context, Object e, {bool good = false}) {
   void dismiss() {
     if (entry.mounted) entry.remove();
     _toasts.remove(entry);
+    _toastGen.value++;
   }
 
   _toasts.removeWhere((t) => !t.mounted);
   entry = OverlayEntry(
-      builder: (_) => Positioned(
-          top: 12 + _toasts.length * 64,
-          left: 12,
-          child: Notice('$e', good: good, onClose: dismiss)));
+      builder: (_) => ValueListenableBuilder<int>(
+          valueListenable: _toastGen,
+          builder: (_, __, ___) => Positioned(
+              top: 12 + _toasts.indexOf(entry) * 64,
+              left: 12,
+              child: Notice('$e', good: good, onClose: dismiss))));
   _toasts.add(entry);
   Overlay.of(context).insert(entry);
 }
+
+Widget errorView(BuildContext context, Object err, VoidCallback onRetry) =>
+    Center(
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Text('$err'),
+        TextButton(onPressed: onRetry, child: Text(context.l10n.retry)),
+      ]),
+    );
 
 class Notice extends StatefulWidget {
   final String message;
@@ -319,36 +331,54 @@ class AuthPickers extends StatelessWidget {
 }
 
 Future<String?> promptText(BuildContext context, String title, String label,
-    [String initial = '', bool Function(String)? valid]) {
-  final c = TextEditingController(text: initial);
-  return showDialog<String>(
-    context: context,
-    builder: (ctx) => StatefulBuilder(
-      builder: (ctx, ss) => AlertDialog(
-        title: Text(title),
-        content: TextField(
-            controller: c,
-            decoration: dec(label),
-            autofocus: true,
-            onChanged: (_) => ss(() {}),
-            onSubmitted: (v) {
-              if (valid == null || valid(v.trim())) {
-                Navigator.pop(ctx, v.trim());
-              }
-            }),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text(ctx.l10n.cancel)),
-          FilledButton(
-              onPressed: valid == null || valid(c.text.trim())
-                  ? () => Navigator.pop(ctx, c.text.trim())
-                  : null,
-              child: Text(ctx.l10n.ok)),
-        ],
-      ),
-    ),
-  );
+        [String initial = '', bool Function(String)? valid]) =>
+    showDialog<String>(
+        context: context,
+        builder: (_) => _PromptDialog(title, label, initial, valid));
+
+class _PromptDialog extends StatefulWidget {
+  final String title, label, initial;
+  final bool Function(String)? valid;
+  const _PromptDialog(this.title, this.label, this.initial, this.valid);
+  @override
+  State<_PromptDialog> createState() => _PromptDialogState();
+}
+
+class _PromptDialogState extends State<_PromptDialog> {
+  late final _c = TextEditingController(text: widget.initial);
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(widget.title),
+      content: TextField(
+          controller: _c,
+          decoration: dec(widget.label),
+          autofocus: true,
+          onChanged: (_) => setState(() {}),
+          onSubmitted: (v) {
+            if (widget.valid == null || widget.valid!(v.trim())) {
+              Navigator.pop(context, v.trim());
+            }
+          }),
+      actions: [
+        TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(context.l10n.cancel)),
+        FilledButton(
+            onPressed: widget.valid == null || widget.valid!(_c.text.trim())
+                ? () => Navigator.pop(context, _c.text.trim())
+                : null,
+            child: Text(context.l10n.ok)),
+      ],
+    );
+  }
 }
 
 Future<bool> confirm(BuildContext context, String title, String body) async =>
@@ -447,6 +477,14 @@ class _SetupPageState extends State<SetupPage> {
       _name = TextEditingController();
   bool _busy = false;
 
+  @override
+  void dispose() {
+    _user.dispose();
+    _pass.dispose();
+    _name.dispose();
+    super.dispose();
+  }
+
   Future<void> _go() async {
     setState(() => _busy = true);
     try {
@@ -516,6 +554,13 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final _user = TextEditingController(), _pass = TextEditingController();
   bool _busy = false;
+
+  @override
+  void dispose() {
+    _user.dispose();
+    _pass.dispose();
+    super.dispose();
+  }
 
   Future<void> _go() async {
     setState(() => _busy = true);

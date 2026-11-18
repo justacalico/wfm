@@ -55,84 +55,11 @@ class _AccountsTabState extends State<AccountsTab> {
   }
 
   Future<void> _create() async {
-    final l10n = context.l10n;
-    final name = TextEditingController(),
-        user = TextEditingController(),
-        pass = TextEditingController(),
-        sid = TextEditingController(),
-        note = TextEditingController();
-    String role = Api.i.caps.creatable.contains('student')
-        ? 'student'
-        : Api.i.caps.creatable.first;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, ss) => AlertDialog(
-          scrollable: true,
-          title: Text(l10n.newAccount),
-          content: SizedBox(
-            width: 340,
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              TextField(
-                  controller: name,
-                  decoration: dec(l10n.name),
-                  onChanged: (_) => ss(() {})),
-              const SizedBox(height: 8),
-              TextField(
-                  controller: user,
-                  decoration: dec(l10n.username),
-                  onChanged: (_) => ss(() {})),
-              const SizedBox(height: 8),
-              TextField(
-                  controller: pass,
-                  obscureText: true,
-                  decoration: dec(l10n.password),
-                  onChanged: (_) => ss(() {})),
-              const SizedBox(height: 8),
-              DropdownButtonFormField<String>(
-                initialValue: role,
-                decoration: dec(l10n.role),
-                items: [
-                  for (final r in Api.i.caps.creatable)
-                    DropdownMenuItem(value: r, child: Text(r))
-                ],
-                onChanged: (v) => ss(() => role = v!),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                  controller: sid, decoration: dec(l10n.studentIdOptional)),
-              const SizedBox(height: 8),
-              TextField(
-                  controller: note,
-                  maxLength: 20,
-                  decoration: dec(l10n.noteOptional)),
-            ]),
-          ),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: Text(l10n.cancel)),
-            FilledButton(
-                onPressed: validDisplayName(name.text) &&
-                        validUsername(user.text.trim()) &&
-                        validPassword(pass.text)
-                    ? () => Navigator.pop(ctx, true)
-                    : null,
-                child: Text(l10n.create)),
-          ],
-        ),
-      ),
-    );
-    if (ok != true || !mounted) return;
+    final fields = await showDialog<Map<String, String>>(
+        context: context, builder: (_) => const _AccountDialog());
+    if (fields == null || !mounted) return;
     try {
-      await Api.i.createAccount({
-        'username': user.text.trim(),
-        'password': pass.text,
-        'name': name.text.trim(),
-        'role': role,
-        'studentId': sid.text.trim(),
-        'note': note.text.trim(),
-      });
+      await Api.i.createAccount(fields);
       _load();
     } catch (e) {
       if (mounted) snack(context, e);
@@ -140,77 +67,11 @@ class _AccountsTabState extends State<AccountsTab> {
   }
 
   Future<void> _edit(User u) async {
-    final l10n = context.l10n;
-    final name = TextEditingController(text: u.name),
-        user = TextEditingController(text: u.username),
-        sid = TextEditingController(text: u.studentId),
-        note = TextEditingController(text: u.note);
-    final roles = [...Api.i.caps.creatable];
-    if (!roles.contains(u.role)) roles.add(u.role);
-    String role = u.role;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, ss) => AlertDialog(
-          scrollable: true,
-          title: Text(l10n.editAccount),
-          content: SizedBox(
-            width: 340,
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              TextField(
-                  controller: name,
-                  decoration: dec(l10n.name),
-                  onChanged: (_) => ss(() {})),
-              const SizedBox(height: 8),
-              TextField(
-                  controller: user,
-                  decoration: dec(l10n.username),
-                  onChanged: (_) => ss(() {})),
-              const SizedBox(height: 8),
-              if (roles.length > 1) ...[
-                DropdownButtonFormField<String>(
-                  initialValue: role,
-                  decoration: dec(l10n.role),
-                  items: [
-                    for (final r in roles)
-                      DropdownMenuItem(value: r, child: Text(r))
-                  ],
-                  onChanged: (v) => ss(() => role = v!),
-                ),
-                const SizedBox(height: 8),
-              ],
-              TextField(
-                  controller: sid, decoration: dec(l10n.studentIdOptional)),
-              const SizedBox(height: 8),
-              TextField(
-                  controller: note,
-                  maxLength: 20,
-                  decoration: dec(l10n.noteOptional)),
-            ]),
-          ),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: Text(l10n.cancel)),
-            FilledButton(
-                onPressed: validDisplayName(name.text) &&
-                        validUsername(user.text.trim())
-                    ? () => Navigator.pop(ctx, true)
-                    : null,
-                child: Text(l10n.save)),
-          ],
-        ),
-      ),
-    );
-    if (ok != true || !mounted) return;
+    final fields = await showDialog<Map<String, String>>(
+        context: context, builder: (_) => _AccountDialog(existing: u));
+    if (fields == null || !mounted) return;
     try {
-      await Api.i.updateAccount(u.id, {
-        'username': user.text.trim(),
-        'name': name.text.trim(),
-        'role': role,
-        'studentId': sid.text.trim(),
-        'note': note.text.trim(),
-      });
+      await Api.i.updateAccount(u.id, fields);
       _load();
     } catch (e) {
       if (mounted) snack(context, e);
@@ -236,7 +97,7 @@ class _AccountsTabState extends State<AccountsTab> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    if (_err.isNotEmpty) return Center(child: Text(_err));
+    if (_err.isNotEmpty) return errorView(context, _err, _load);
     final users = _users;
     return Scaffold(
       floatingActionButton: Api.i.caps.creatable.isEmpty
@@ -289,6 +150,111 @@ class _AccountsTabState extends State<AccountsTab> {
                     );
                   },
                 ),
+    );
+  }
+}
+
+class _AccountDialog extends StatefulWidget {
+  final User? existing;
+  const _AccountDialog({this.existing});
+  @override
+  State<_AccountDialog> createState() => _AccountDialogState();
+}
+
+class _AccountDialogState extends State<_AccountDialog> {
+  late final _name = TextEditingController(text: widget.existing?.name ?? '');
+  late final _user =
+      TextEditingController(text: widget.existing?.username ?? '');
+  late final _sid =
+      TextEditingController(text: widget.existing?.studentId ?? '');
+  late final _note = TextEditingController(text: widget.existing?.note ?? '');
+  final _pass = TextEditingController();
+  late String _role = widget.existing?.role ??
+      (Api.i.caps.creatable.contains('student')
+          ? 'student'
+          : Api.i.caps.creatable.first);
+  late final List<String> _roles = [
+    ...Api.i.caps.creatable,
+    if (widget.existing != null &&
+        !Api.i.caps.creatable.contains(widget.existing!.role))
+      widget.existing!.role,
+  ];
+
+  @override
+  void dispose() {
+    for (final c in [_name, _user, _sid, _note, _pass]) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final editing = widget.existing != null;
+    final valid = validDisplayName(_name.text) &&
+        validUsername(_user.text.trim()) &&
+        (editing || validPassword(_pass.text));
+    return AlertDialog(
+      scrollable: true,
+      title: Text(editing ? l10n.editAccount : l10n.newAccount),
+      content: SizedBox(
+        width: 340,
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          TextField(
+              controller: _name,
+              decoration: dec(l10n.name),
+              onChanged: (_) => setState(() {})),
+          const SizedBox(height: 8),
+          TextField(
+              controller: _user,
+              decoration: dec(l10n.username),
+              onChanged: (_) => setState(() {})),
+          if (!editing) ...[
+            const SizedBox(height: 8),
+            TextField(
+                controller: _pass,
+                obscureText: true,
+                decoration: dec(l10n.password),
+                onChanged: (_) => setState(() {})),
+          ],
+          if (!editing || _roles.length > 1) ...[
+            const SizedBox(height: 8),
+            DropdownButtonFormField<String>(
+              initialValue: _role,
+              decoration: dec(l10n.role),
+              items: [
+                for (final r in _roles)
+                  DropdownMenuItem(value: r, child: Text(r))
+              ],
+              onChanged: (v) => setState(() => _role = v!),
+            ),
+          ],
+          const SizedBox(height: 8),
+          TextField(controller: _sid, decoration: dec(l10n.studentIdOptional)),
+          const SizedBox(height: 8),
+          TextField(
+              controller: _note,
+              maxLength: 20,
+              decoration: dec(l10n.noteOptional)),
+        ]),
+      ),
+      actions: [
+        TextButton(
+            onPressed: () => Navigator.pop(context), child: Text(l10n.cancel)),
+        FilledButton(
+            onPressed: valid
+                ? () => Navigator.pop(context, {
+                      'username': _user.text.trim(),
+                      'name': _name.text.trim(),
+                      'role': _role,
+                      'studentId': _sid.text.trim(),
+                      'note': _note.text.trim(),
+                      if (!editing) 'password': _pass.text,
+                    })
+                : null,
+            child: Text(editing ? l10n.save : l10n.create)),
+      ],
     );
   }
 }
@@ -350,7 +316,7 @@ class _AuditTabState extends State<AuditTab> {
       const Divider(height: 1),
       Expanded(
         child: _err.isNotEmpty
-            ? Center(child: Text(_err))
+            ? errorView(context, _err, _load)
             : items == null
                 ? const Center(child: CircularProgressIndicator())
                 : items.isEmpty
@@ -437,7 +403,7 @@ class _NodesTabState extends State<NodesTab> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    if (_err.isNotEmpty) return Center(child: Text(_err));
+    if (_err.isNotEmpty) return errorView(context, _err, _load);
     final nodes = _nodes;
     return Scaffold(
       floatingActionButton: FloatingActionButton.extended(

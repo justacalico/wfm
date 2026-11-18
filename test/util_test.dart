@@ -34,15 +34,10 @@ void main() {
     expect(fmtAgo(l10n, now - 86400 * 40), isNot(l10n.daysAgo(40)));
   });
 
-  test('extOf/isMedia', () {
+  test('extOf', () {
     expect(extOf('a.mp4'), 'mp4');
     expect(extOf('A.MP4'), 'mp4');
     expect(extOf('nodot'), '');
-    expect(isMedia('x.mp4'), isTrue);
-    expect(isMedia('x.wav'), isTrue);
-    expect(isMedia('x.png'), isTrue);
-    expect(isMedia('x.txt'), isFalse);
-    expect(isMedia('nodot'), isFalse);
   });
 
   test('platform_io hooks and throws', () async {
