@@ -159,6 +159,10 @@
     }
   },
   "gridView": "网格视图",
+  "searchProjects": "搜索项目",
+  "sortProjects": "项目排序",
+  "sortCreated": "创建时间",
+  "sortActivity": "最近活动",
   "listView": "列表视图",
   "noAccounts": "暂无账号。",
   "nothingRecorded": "暂无记录。",

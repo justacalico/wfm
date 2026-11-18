@@ -322,6 +322,18 @@ class AppLocalizationsGa extends AppLocalizations {
   String get gridView => 'Amharc eangaí';
 
   @override
+  String get searchProjects => 'Cuardaigh tionscadail';
+
+  @override
+  String get sortProjects => 'Sórtáil tionscadail';
+
+  @override
+  String get sortCreated => 'Dáta cruthaithe';
+
+  @override
+  String get sortActivity => 'Gníomhaíocht dheireanach';
+
+  @override
   String get listView => 'Amharc liosta';
 
   @override

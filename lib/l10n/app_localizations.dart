@@ -674,6 +674,30 @@ abstract class AppLocalizations {
   /// **'Grid view'**
   String get gridView;
 
+  /// No description provided for @searchProjects.
+  ///
+  /// In en, this message translates to:
+  /// **'Search projects'**
+  String get searchProjects;
+
+  /// No description provided for @sortProjects.
+  ///
+  /// In en, this message translates to:
+  /// **'Sort projects'**
+  String get sortProjects;
+
+  /// No description provided for @sortCreated.
+  ///
+  /// In en, this message translates to:
+  /// **'Created date'**
+  String get sortCreated;
+
+  /// No description provided for @sortActivity.
+  ///
+  /// In en, this message translates to:
+  /// **'Last activity'**
+  String get sortActivity;
+
   /// No description provided for @listView.
   ///
   /// In en, this message translates to:

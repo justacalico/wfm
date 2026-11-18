@@ -54,14 +54,15 @@ class Caps {
 class Project {
   final String id, name, displayName, groupId;
   final List<String> tags;
-  final int createdAt;
+  final int createdAt, lastActivity;
   Project.fromJson(Map<String, dynamic> j)
       : id = j['id'] ?? '',
         name = j['name'] ?? '',
         displayName = j['displayName'] ?? j['name'] ?? '',
         groupId = j['groupId'] ?? '',
         tags = [for (final t in (j['tags'] ?? []) as List) '$t'],
-        createdAt = j['createdAt'] ?? 0;
+        createdAt = j['createdAt'] ?? 0,
+        lastActivity = j['lastActivity'] ?? j['createdAt'] ?? 0;
 }
 
 class ProjectGroup {

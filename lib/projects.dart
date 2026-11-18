@@ -20,6 +20,8 @@ class _ProjectsPageState extends State<ProjectsPage> {
   String _err = '';
   String? _tagFilter;
   int _view = 0;
+  int _sort = 0;
+  final _query = TextEditingController();
 
   @override
   void initState() {
@@ -27,13 +29,30 @@ class _ProjectsPageState extends State<ProjectsPage> {
     _load();
     SharedPreferences.getInstance().then((p) {
       final v = p.getInt('projectsView');
-      if (v != null && mounted) setState(() => _view = v);
+      final s = p.getInt('projectsSort');
+      if (mounted) {
+        setState(() {
+          if (v != null) _view = v;
+          if (s != null) _sort = s;
+        });
+      }
     });
+  }
+
+  @override
+  void dispose() {
+    _query.dispose();
+    super.dispose();
   }
 
   void _setView(int v) {
     setState(() => _view = v);
     SharedPreferences.getInstance().then((p) => p.setInt('projectsView', v));
+  }
+
+  void _setSort(int v) {
+    setState(() => _sort = v);
+    SharedPreferences.getInstance().then((p) => p.setInt('projectsSort', v));
   }
 
   Future<void> _load() async {
@@ -267,10 +286,20 @@ class _ProjectsPageState extends State<ProjectsPage> {
     if (_err.isNotEmpty) return Center(child: Text(_err));
     final items = _items;
     final tight = MediaQuery.sizeOf(context).width < 720;
+    final q = _query.text.trim().toLowerCase();
     final filtered = [
       for (final p in items ?? <Project>[])
-        if (_tagFilter == null || p.tags.contains(_tagFilter)) p,
-    ];
+        if ((_tagFilter == null || p.tags.contains(_tagFilter)) &&
+            (q.isEmpty ||
+                p.name.toLowerCase().contains(q) ||
+                p.displayName.toLowerCase().contains(q)))
+          p,
+    ]..sort((a, b) => switch (_sort) {
+          1 => b.createdAt.compareTo(a.createdAt),
+          2 => b.lastActivity.compareTo(a.lastActivity),
+          _ =>
+            a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase()),
+        });
     final allTags = {
       for (final p in items ?? <Project>[]) ...p.tags,
     }.toList()
@@ -293,6 +322,37 @@ class _ProjectsPageState extends State<ProjectsPage> {
       body: items == null
           ? const Center(child: CircularProgressIndicator())
           : ListView(padding: const EdgeInsets.all(16), children: [
+              Row(children: [
+                Expanded(
+                  child: TextField(
+                    controller: _query,
+                    onChanged: (_) => setState(() {}),
+                    decoration: InputDecoration(
+                      hintText: l10n.searchProjects,
+                      prefixIcon: const Icon(Icons.search, size: 20),
+                      isDense: true,
+                      border: const OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+                PopupMenuButton<int>(
+                  icon: const Icon(Icons.sort),
+                  tooltip: l10n.sortProjects,
+                  initialValue: _sort,
+                  onSelected: _setSort,
+                  itemBuilder: (_) => [
+                    PopupMenuItem(value: 0, child: Text(l10n.name)),
+                    PopupMenuItem(value: 1, child: Text(l10n.sortCreated)),
+                    PopupMenuItem(value: 2, child: Text(l10n.sortActivity)),
+                  ],
+                ),
+                IconButton(
+                  icon: Icon(_view == 0 ? Icons.view_list : Icons.grid_view),
+                  tooltip: _view == 0 ? l10n.listView : l10n.gridView,
+                  onPressed: () => _setView(_view == 0 ? 1 : 0),
+                ),
+              ]),
+              const SizedBox(height: 8),
               Row(children: [
                 if (allTags.isNotEmpty)
                   Expanded(
@@ -318,11 +378,6 @@ class _ProjectsPageState extends State<ProjectsPage> {
                   onPressed: _newGroup,
                   icon: const Icon(Icons.create_new_folder_outlined, size: 18),
                   label: Text(l10n.newGroup),
-                ),
-                IconButton(
-                  icon: Icon(_view == 0 ? Icons.view_list : Icons.grid_view),
-                  tooltip: _view == 0 ? l10n.listView : l10n.gridView,
-                  onPressed: () => _setView(_view == 0 ? 1 : 0),
                 ),
               ]),
               const SizedBox(height: 8),

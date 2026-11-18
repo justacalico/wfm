@@ -159,6 +159,10 @@
     }
   },
   "gridView": "Сетка",
+  "searchProjects": "Поиск проектов",
+  "sortProjects": "Сортировка проектов",
+  "sortCreated": "Дата создания",
+  "sortActivity": "Последняя активность",
   "listView": "Список",
   "noAccounts": "Аккаунтов пока нет.",
   "nothingRecorded": "Записей пока нет.",
