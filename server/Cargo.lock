@@ -2673,7 +2673,7 @@ dependencies = [
 
 [[package]]
 name = "wfm"
-version = "0.5.16"
+version = "0.5.17"
 dependencies = [
  "argon2",
  "async-trait",
