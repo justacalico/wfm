@@ -2,6 +2,14 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.10.0 - 2026-11-18
+#### Features
+- (**projects**) 项目页支持搜索和排序 - (a87ae38) - calico
+#### Bug Fixes
+- (**ui**) 清理控制器泄漏、提示条位置与错误重试 - (383a0f3) - calico
+
+- - -
+
 ## v0.9.0 - 2026-11-18
 #### Features
 - (**files**) 文件页增加列表/网格视图切换 - (991b140) - calico
