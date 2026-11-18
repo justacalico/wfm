@@ -1104,7 +1104,11 @@ async fn mkdir(
     };
     match files::clean_rel_key(&req.path) {
         Ok(k) => match s.blobs.mkdir(&blob_key(&p.dir, &k)).await {
-            Ok(()) => Json(json!({"ok": true})).into_response(),
+            Ok(()) => {
+                s.audit("project", &session.user, "mkdir", &p.display_name, &k, "")
+                    .await;
+                Json(json!({"ok": true})).into_response()
+            }
             Err(e) => err(StatusCode::INTERNAL_SERVER_ERROR, &e),
         },
         Err(e) => fs_resp(e),
@@ -1707,7 +1711,7 @@ async fn cancel_render(
         Ok(j) => j,
         Err(_) => return err(StatusCode::NOT_FOUND, "no such render"),
     };
-    let _p = match owned_project(&s, &session, &job.project_id).await {
+    let p = match owned_project(&s, &session, &job.project_id).await {
         Ok(p) => p,
         Err(r) => return r,
     };
@@ -1720,6 +1724,15 @@ async fn cancel_render(
         .job_finish(&id, "canceled", "", AppState::now())
         .await;
     let _ = s.db.lock_release(&job.project_id, "render", &job.id).await;
+    s.audit(
+        "project",
+        &session.user,
+        "render_canceled",
+        &p.display_name,
+        &job.output_name,
+        "",
+    )
+    .await;
     Json(json!({"ok": true})).into_response()
 }
 
@@ -1829,8 +1842,20 @@ async fn update_node(
     if session.user.role < Role::Admin {
         return err(StatusCode::FORBIDDEN, "admin only");
     }
+    let name = node_name(&s, &id).await;
     match s.db.node_set_disabled(&id, req.disabled).await {
-        Ok(()) => Json(json!({"ok": true})).into_response(),
+        Ok(()) => {
+            s.audit(
+                "account",
+                &session.user,
+                "update_node",
+                &name,
+                &format!("disabled={}", req.disabled),
+                "",
+            )
+            .await;
+            Json(json!({"ok": true})).into_response()
+        }
         Err(e) => db_resp(e),
     }
 }
@@ -1843,10 +1868,24 @@ async fn delete_node(
     if session.user.role < Role::Admin {
         return err(StatusCode::FORBIDDEN, "admin only");
     }
+    let name = node_name(&s, &id).await;
     match s.db.node_delete(&id).await {
-        Ok(()) => Json(json!({"ok": true})).into_response(),
+        Ok(()) => {
+            s.audit("account", &session.user, "delete_node", &name, "", "")
+                .await;
+            Json(json!({"ok": true})).into_response()
+        }
         Err(e) => db_resp(e),
     }
+}
+
+/// Best-effort node name for audit entries; falls back to the id.
+async fn node_name(s: &Arc<AppState>, id: &str) -> String {
+    s.db.node_list()
+        .await
+        .ok()
+        .and_then(|ns| ns.into_iter().find(|n| n.id == id).map(|n| n.name))
+        .unwrap_or_else(|| id.to_string())
 }
 
 // ---------- worker (remote render nodes) ----------
