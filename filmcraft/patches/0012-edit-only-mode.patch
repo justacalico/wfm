@@ -1,0 +1,309 @@
+diff --git a/crates/ui-egui/src/app/frame.rs b/crates/ui-egui/src/app/frame.rs
+index e1a7428..d81f66b 100644
+--- a/crates/ui-egui/src/app/frame.rs
++++ b/crates/ui-egui/src/app/frame.rs
+@@ -68,7 +68,7 @@ impl FilmcraftApp {
+         let body = egui::Rect::from_min_max(egui::pos2(full.min.x + 1.0, header.max.y + 1.0), egui::pos2(full.max.x - 1.0, full.max.y - status_h - 2.0));
+         match self.ui.mode {
+             state::Mode::Edit => self.dock_area(ui, body),
+-            state::Mode::Import => panels::import_mode::show(self, ui, body),
++            state::Mode::Import => self.dock_area(ui, body),
+             state::Mode::Export => panels::export_mode::show(self, ui, body),
+         }
+         // the Timeline has had its chance to place a file drop this frame; anything left stays a bin import
+diff --git a/crates/ui-egui/src/control.rs b/crates/ui-egui/src/control.rs
+index c234f6f..36a615c 100644
+--- a/crates/ui-egui/src/control.rs
++++ b/crates/ui-egui/src/control.rs
+@@ -142,7 +142,6 @@ fn handle_ui_set(app: &mut FilmcraftApp, ctx: &egui::Context, p: &Value) -> Outc
+     }
+     if let Some(m) = s("mode") {
+         app.ui.mode = match m.to_ascii_lowercase().as_str() {
+-            "import" => Mode::Import,
+             "export" => Mode::Export,
+             _ => Mode::Edit,
+         };
+diff --git a/crates/ui-egui/src/header.rs b/crates/ui-egui/src/header.rs
+index 66ee8b5..1752238 100644
+--- a/crates/ui-egui/src/header.rs
++++ b/crates/ui-egui/src/header.rs
+@@ -1,4 +1,4 @@
+-//! The header bar (Premiere 26 layout, 38 pt): Home and Import / Edit / Export on the left, the
++//! The header bar (Premiere 26 layout, 38 pt): Home and Edit on the left, the
+ //! document title centred, the workspace name and quick actions on the right. On macOS the menus
+ //! live in the native menu bar (set up by the app); elsewhere a compact in-window menu bar follows
+ //! the mode tabs.
+@@ -39,11 +39,11 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
+     }
+     icons::paint(&p, home.shrink(5.0), Icon::Home, if hresp.hovered() { t.text } else { t.text_dim });
+     if hresp.clicked() {
+-        app.ui.mode = Mode::Import;
++        app.ui.mode = Mode::Edit;
+     }
+     x = home.max.x + 16.0;
+     // Mode tabs (14 pt; active = primary text with a 2 pt underline under the label)
+-    for (m, label, shown) in [(Mode::Import, "Import", tl!("Import")), (Mode::Edit, "Edit", tl!("Edit"))] {
++    for (m, label, shown) in [(Mode::Edit, "Edit", tl!("Edit"))] {
+         let active = app.ui.mode == m;
+         let galley = p.layout_no_wrap(shown.to_string(), Tokens::ui(14.0), if active { t.tab_text_active } else { t.tab_text });
+         let r = Rect::from_min_size(pos2(x - 6.0, rect.min.y + 6.0), vec2(galley.size().x + 12.0, rect.height() - 12.0));
+diff --git a/crates/ui-egui/src/links.rs b/crates/ui-egui/src/links.rs
+index 3c1cf22..38fbfcf 100644
+--- a/crates/ui-egui/src/links.rs
++++ b/crates/ui-egui/src/links.rs
+@@ -139,8 +139,8 @@ mod tests {
+             assert_eq!(r["url"], url, "{id}");
+             assert_eq!(opened.borrow().last().map(String::as_str), Some(url), "{id}");
+         }
+-        open(&mut app, &ctx, DISCORD);
+-        assert_eq!(opened.borrow().last().map(String::as_str), Some(DISCORD));
++        open(&mut app, &ctx, GITHUB);
++        assert_eq!(opened.borrow().last().map(String::as_str), Some(GITHUB));
+         assert_eq!(opened.borrow().len(), ALL.len() + 1);
+ 
+         // A failing opener falls back to `ctx.open_url` instead of losing the click.
+diff --git a/crates/ui-egui/src/menus.rs b/crates/ui-egui/src/menus.rs
+index 717e016..5a37aac 100644
+--- a/crates/ui-egui/src/menus.rs
++++ b/crates/ui-egui/src/menus.rs
+@@ -144,7 +144,6 @@ pub const UI_COMMANDS: &[UiCommand] = &[
+     uic!("tool.zoom", "Zoom Tool", [], Some("Z")),
+     uic!("tool.type", "Type Tool", [], Some("T")),
+     uic!("tool.verticalType", "Vertical Type Tool", [], None),
+-    uic!("mode.import", "Import", [], None),
+     uic!("mode.edit", "Edit", [], None),
+     uic!("mode.export", "Export", [], None),
+     uic!("app.about", "About FilmCraft", ["Help"], None),
+@@ -486,10 +485,6 @@ pub fn invoke_command(app: &mut FilmcraftApp, ctx: &egui::Context, id: &str, mut
+             let zoom = app.reset_ui_zoom(ctx);
+             return Ok(json!({"zoom": zoom}));
+         }
+-        "mode.import" => {
+-            app.ui.mode = Mode::Import;
+-            return Ok(Value::Null);
+-        }
+         "mode.edit" => {
+             app.ui.mode = Mode::Edit;
+             return Ok(Value::Null);
+diff --git a/crates/ui-egui/src/panels.rs b/crates/ui-egui/src/panels.rs
+index 9502b4b..9366330 100644
+--- a/crates/ui-egui/src/panels.rs
++++ b/crates/ui-egui/src/panels.rs
+@@ -16,7 +16,6 @@ pub mod file_dialogs;
+ pub mod frame_export;
+ pub mod graphics;
+ pub mod graphics_templates;
+-pub mod import_mode;
+ pub mod interchange_export;
+ pub mod keyboard;
+ pub mod lumetri;
+diff --git a/crates/ui-egui/src/panels/import_mode.rs b/crates/ui-egui/src/panels/import_mode.rs
+deleted file mode 100644
+index 47c781d..0000000
+--- a/crates/ui-egui/src/panels/import_mode.rs
++++ /dev/null
+@@ -1,43 +0,0 @@
+-//! Import mode (header "Import", also Home): large browser cards for importing media.
+-
+-use egui::{Align2, Color32, Rect, Sense, vec2};
+-use serde_json::json;
+-
+-use crate::FilmcraftApp;
+-use crate::theme::Tokens;
+-
+-pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
+-    let t = app.tokens;
+-    ui.painter().rect_filled(rect, t.radius, t.panel_bg);
+-    ui.painter().text(rect.min + vec2(24.0, 30.0), Align2::LEFT_CENTER, tl!("Import"), Tokens::semibold(22.0), t.text);
+-    ui.painter().text(
+-        rect.min + vec2(24.0, 58.0),
+-        Align2::LEFT_CENTER,
+-        tl!("Add media to your project. Drop files or folders anywhere in the window, or choose a source below."),
+-        Tokens::ui(13.0),
+-        t.text_dim,
+-    );
+-    let ctx = ui.ctx().clone();
+-    let cards = [
+-        (tl!("Bars and Tone"), "file.newBarsAndTone", tl!("SMPTE HD bars with 1 kHz reference tone")),
+-    ];
+-    let cw = 260.0;
+-    for (i, (title, cmd, sub)) in cards.iter().enumerate() {
+-        let r = Rect::from_min_size(rect.min + vec2(24.0 + i as f32 * (cw + 16.0), 90.0), vec2(cw, 150.0));
+-        let resp = ui.interact(r, egui::Id::unique(("imp", *cmd)), Sense::click());
+-        app.auto.add(&format!("import.{cmd}"), r, title);
+-        ui.painter().rect_filled(r, 8.0, if resp.hovered() { t.hover } else { t.tl_header_bg });
+-        ui.painter().text(r.min + vec2(16.0, 110.0), Align2::LEFT_CENTER, *title, Tokens::semibold(14.0), t.text);
+-        ui.painter().text(r.min + vec2(16.0, 132.0), Align2::LEFT_CENTER, *sub, Tokens::ui(11.5), t.text_dim);
+-        crate::icons::paint(
+-            ui.painter(),
+-            Rect::from_min_size(r.min + vec2(16.0, 18.0), vec2(56.0, 56.0)),
+-            [crate::icons::Icon::Grid][i],
+-            Color32::from_rgb(140, 150, 255),
+-        );
+-        if resp.clicked() {
+-            let _ = crate::menus::invoke(app, &ctx, cmd, json!({}));
+-            app.ui.mode = crate::state::Mode::Edit;
+-        }
+-    }
+-}
+diff --git a/crates/ui-egui/tests/it/graphics_handles_ui.rs b/crates/ui-egui/tests/it/graphics_handles_ui.rs
+index 8726032..6fee766 100644
+--- a/crates/ui-egui/tests/it/graphics_handles_ui.rs
++++ b/crates/ui-egui/tests/it/graphics_handles_ui.rs
+@@ -1222,7 +1222,7 @@ fn ime_reset_hidden_logic_or_missing_geometry_rearms_the_same_model_caret_once()
+                 assert!(output.platform_output.ime.is_none());
+             }
+         } else {
+-            d.harness.state_mut().ui.mode = filmcraft_ui_egui::state::Mode::Import;
++            d.harness.state_mut().ui.mode = filmcraft_ui_egui::state::Mode::Export;
+             d.frames(3);
+             assert!(d.ime().is_none());
+             d.harness.state_mut().ui.mode = filmcraft_ui_egui::state::Mode::Edit;
+diff --git a/crates/ui-egui/tests/it/links_ui.rs b/crates/ui-egui/tests/it/links_ui.rs
+index 6d05a30..0c0c2a3 100644
+--- a/crates/ui-egui/tests/it/links_ui.rs
++++ b/crates/ui-egui/tests/it/links_ui.rs
+@@ -1,5 +1,4 @@
+-//! Headless UI test of the community links: Help menu commands, the header Discord button, the
+-//! About dialog and the Home (Import) screen.
++//! Headless UI test of the project links: the link commands and the About dialog.
+ //!
+ //! Set `FILMCRAFT_UI_SNAPSHOT_DIR=<dir>` to also render the window offscreen with wgpu and write
+ //! `links-*.png` there; without it no GPU is needed.
+@@ -78,38 +77,23 @@ impl Driver {
+ }
+ 
+ #[test]
+-fn community_links_everywhere() {
++fn project_links_reachable() {
+     let mut d = Driver::demo();
+-    // Help menu: every link is a command that reports the URL it opened.
++    // The link commands still report the URL they opened.
+     for (id, _, url) in links::ALL {
+         let r = d.ok("engine.execute", json!({"command": id, "params": {}}));
+         assert_eq!(r["url"], json!(url), "{id}");
+     }
+-    let menu = d.ok("ui.menu.list", json!({}));
+-    let text = menu.to_string();
+-    for (id, label, _) in links::ALL {
+-        assert!(text.contains(id) && text.contains(label), "Help menu lists {id}");
+-    }
+-    // Header: the Discord button is always there.
+-    assert_eq!(d.ids("header.discord"), vec!["header.discord".to_string()]);
+     d.snapshot("header");
+-    // About dialog: Discord first, then website, app page, GitHub, issues.
++    // About dialog: GitHub and issues.
+     d.ok("engine.execute", json!({"command": "app.about", "params": {}}));
+     d.frames(3);
+     let about = d.ids("about.");
+-    for id in ["about.discord", "about.website", "about.appPage", "about.github", "about.reportIssue"] {
++    for id in ["about.github", "about.reportIssue"] {
+         assert!(about.iter().any(|a| a == id), "{id} in {about:?}");
+     }
+     d.snapshot("about");
+     d.ok("ui.key", json!({"key": "Escape"}));
+     d.frames(3);
+     assert!(d.ids("about.").is_empty(), "Escape closes About");
+-    // Home screen (Import mode): community links.
+-    d.ok("engine.execute", json!({"command": "mode.import", "params": {}}));
+-    d.frames(3);
+-    let home = d.ids("import.link.");
+-    for id in ["import.link.discord", "import.link.website", "import.link.appPage", "import.link.github"] {
+-        assert!(home.iter().any(|a| a == id), "{id} in {home:?}");
+-    }
+-    d.snapshot("home");
+ }
+diff --git a/crates/ui-egui/tests/it/menus_ui.rs b/crates/ui-egui/tests/it/menus_ui.rs
+index eafdb0e..30a516e 100644
+--- a/crates/ui-egui/tests/it/menus_ui.rs
++++ b/crates/ui-egui/tests/it/menus_ui.rs
+@@ -353,7 +353,7 @@ fn reveal_in_finder_opens_an_imported_clip() {
+ /// A project saved for the first time is listed at the top of Home's Recent list and of File ▸
+ /// Open Recent, both of which reopen it; Clear Recent Files empties the list (#1461).
+ #[test]
+-fn saved_projects_are_listed_in_home_and_open_recent() {
++fn saved_projects_are_listed_in_open_recent() {
+     let dir = std::env::temp_dir().join(format!("fc-ui-recent-{}", std::process::id()));
+     std::fs::create_dir_all(&dir).unwrap();
+     let a = dir.join("first cut.fcproj").to_string_lossy().to_string();
+@@ -371,14 +371,7 @@ fn saved_projects_are_listed_in_home_and_open_recent() {
+     d.menu("file.openRecent.1");
+     assert_eq!(d.app().session.path.as_deref(), Some(a.as_str()));
+     assert_eq!(d.app().session.prefs.general.recent_projects, [a.clone(), b.clone()]);
+-    // Home lists them too, newest first, and a click opens one
+-    d.click("header.home");
+-    let rows = d.ok("ui.elements", json!({"prefix": "import.recent."}));
+-    let rows: Vec<&str> = rows.as_array().unwrap().iter().map(|e| e["label"].as_str().unwrap()).collect();
+-    assert_eq!(rows, ["first cut.fcproj", "second cut.fcproj"]);
+-    d.click("import.recent.1");
+-    assert_eq!(d.app().session.path.as_deref(), Some(b.as_str()));
+-    // Clear Recent Files empties both lists
++    // Clear Recent Files empties the list
+     d.menu("file.clearRecent");
+     assert!(d.app().session.prefs.general.recent_projects.is_empty());
+     let menus = d.ok("ui.menu.list", json!({}));
+diff --git a/crates/ui-egui/tests/it/open_project_prompt_ui.rs b/crates/ui-egui/tests/it/open_project_prompt_ui.rs
+index 0e8ee5d..3131b01 100644
+--- a/crates/ui-egui/tests/it/open_project_prompt_ui.rs
++++ b/crates/ui-egui/tests/it/open_project_prompt_ui.rs
+@@ -111,10 +111,6 @@ impl Driver {
+         self.menu("file.open")
+     }
+ 
+-    /// Where `path` is in the recent projects (File ▸ Open Recent, Home's Recent list).
+-    fn recent(&mut self, path: &str) -> usize {
+-        self.app().session.prefs.general.recent_projects.iter().position(|p| p == path).unwrap()
+-    }
+ }
+ 
+ /// A folder for one test holding the demo project saved as `current.fcproj` and `other.fcproj`.
+@@ -203,22 +199,19 @@ fn close_project_and_quit_failed_save_keep_the_prompt() {
+ }
+ 
+ #[test]
+-fn home_recent_with_unsaved_changes_asks_first() {
++fn open_with_unsaved_changes_asks_first() {
+     let mut d = Driver::new();
+-    let (dir, current, other) = projects(&mut d, "homeRecent");
++    let (dir, current, other) = projects(&mut d, "openDirty");
+     let first = d.app().session.active_sequence().unwrap().video_tracks[0].items[0].clone();
+     let clip = d.edit();
+-    d.click("header.home");
+-    let i = d.recent(&other);
+-    d.click(&format!("import.recent.{i}"));
++    d.open_project(&other);
+     assert_eq!(d.path(), Some(current.clone()), "nothing opens before an answer");
+-    assert_eq!(d.app().ui.mode, Mode::Import, "Home stays while it asks");
+-    // Cancel: Home stays, with this project and its changes
++    // Cancel: nothing opens, this project and its changes stay
+     d.click("openProject.cancel");
+     assert!(d.app().ui.clip_dialog.is_none());
+-    assert_eq!((d.path(), d.app().ui.mode), (Some(current.clone()), Mode::Import));
++    assert_eq!(d.path(), Some(current.clone()));
+     assert!(d.app().session.is_dirty());
+-    d.click(&format!("import.recent.{i}"));
++    d.menu("file.open");
+     assert!(d.has("openProject.dontSave"));
+     d.click("openProject.dontSave");
+     assert!(d.app().ui.clip_dialog.is_none());
+@@ -232,17 +225,14 @@ fn home_recent_with_unsaved_changes_asks_first() {
+ }
+ 
+ #[test]
+-fn home_recent_save_on_a_never_saved_project_switches_to_edit_once_it_opens() {
++fn open_save_on_a_never_saved_project_switches_to_edit_once_it_opens() {
+     let mut d = Driver::new();
+-    let (dir, _, other) = projects(&mut d, "homeNeverSaved");
++    let (dir, _, other) = projects(&mut d, "neverSaved");
+     d.app().session.path = None;
+     d.edit();
+     let saved = dir.join("saved.fcproj").to_string_lossy().into_owned();
+     d.app().hooks.pick_save = Some(Box::new(move |_| Some(saved.clone())));
+-    d.click("header.home");
+-    let i = d.recent(&other);
+-    d.click(&format!("import.recent.{i}"));
+-    assert_eq!(d.app().ui.mode, Mode::Import);
++    d.open_project(&other);
+     d.click("openProject.save");
+     assert!(d.app().ui.clip_dialog.is_none());
+     assert_eq!(d.path(), Some(other));
