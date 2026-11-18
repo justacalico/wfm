@@ -1,0 +1,323 @@
+diff --git a/crates/engine/src/commands.rs b/crates/engine/src/commands.rs
+index cd67abf..a1b19b4 100644
+--- a/crates/engine/src/commands.rs
++++ b/crates/engine/src/commands.rs
+@@ -1990,7 +1990,7 @@ fn build() -> Vec<CommandSpec> {
+             let path = str_p(p, "path").ok_or_else(|| bad("file.saveCopy", "need `path`"))?.to_string();
+             write_project(s, &path, false)
+         }),
+-        cmd!("file.revert", "Revert", ["File"], None, "{}", has_saved_path, |s, _| {
++        cmd!("file.revert", "Revert", [], None, "{}", has_saved_path, |s, _| {
+             let path = s.path.clone().ok_or_else(|| bad("file.revert", "project was never saved"))?;
+             let keep = s.state.active_sequence;
+             let r = open_project(s, &path)?;
+@@ -2000,7 +2000,7 @@ fn build() -> Vec<CommandSpec> {
+             }
+             Ok(r)
+         }),
+-        cmd!("file.open", "Open Project…", ["File"], Some("Cmd+O"), r#"{"path":str}"#, always, |s, p| {
++        cmd!("file.open", "Open Project…", [], None, r#"{"path":str}"#, always, |s, p| {
+             let path = str_p(p, "path").ok_or_else(|| bad("file.open", "need `path`"))?.to_string();
+             open_project(s, &path)
+         }),
+diff --git a/crates/engine/src/project_tools.rs b/crates/engine/src/project_tools.rs
+index f6612f6..600e45a 100644
+--- a/crates/engine/src/project_tools.rs
++++ b/crates/engine/src/project_tools.rs
+@@ -247,7 +247,6 @@ pub(crate) fn apply_layout(v: &mut Vec<CommandSpec>) {
+         (At::After("sequence.makeSubsequence"), vec!["sequence.transcribe", "sequence.simplify"]),
+         (At::After("captions.showAll"), vec!["captions.showActiveOnly"]),
+         (At::After("markers.addChapter"), vec!["markers.addFlashCue"]),
+-        (At::Before("file.close"), vec!["file.open"]),
+         (At::After("media.makeOffline"), vec!["file.importFromMediaBrowser", "file.import", "file.importImageSequence"]),
+     ];
+     for (at, ids) in layout {
+diff --git a/crates/engine/src/project_tools/tests.rs b/crates/engine/src/project_tools/tests.rs
+index e09e334..f19b329 100644
+--- a/crates/engine/src/project_tools/tests.rs
++++ b/crates/engine/src/project_tools/tests.rs
+@@ -38,14 +38,12 @@ fn file_edit_clip_menu_order_and_shortcuts_match_premiere() {
+     assert_order(
+         &menu_ids(&["File"]),
+         &[
+-            "file.open",
+             "file.close",
+             "file.closeProject",
+             "file.closeAllProjects",
+             "file.closeAllOtherProjects",
+             "file.save",
+             "file.saveAll",
+-            "file.revert",
+             "media.makeOffline",
+             "file.import",
+             "file.projectManager",
+diff --git a/crates/ui-egui/src/app/commands.rs b/crates/ui-egui/src/app/commands.rs
+index 22b17e7..250f6c1 100644
+--- a/crates/ui-egui/src/app/commands.rs
++++ b/crates/ui-egui/src/app/commands.rs
+@@ -78,7 +78,7 @@ mod native_menu_tests {
+         let last = |sent: &Rc<RefCell<Vec<Vec<menus::MenuItem>>>>, id: &str| sent.borrow().last().and_then(|items| enabled(items, id));
+         assert_eq!(last(&sent, "edit.undo"), Some(false), "nothing to undo in an empty project");
+         assert_eq!(last(&sent, "edit.redo"), Some(false), "nothing to redo in an empty project");
+-        assert_eq!(last(&sent, "file.newProject"), Some(true));
++        assert_eq!(last(&sent, "file.saveAll"), Some(true));
+ 
+         app.sync_native_menu(&ctx);
+         assert_eq!(sent.borrow().len(), 1, "an unchanged menu is not sent again");
+diff --git a/crates/ui-egui/src/i18n/tests.rs b/crates/ui-egui/src/i18n/tests.rs
+index cc3fde8..2abc8b0 100644
+--- a/crates/ui-egui/src/i18n/tests.rs
++++ b/crates/ui-egui/src/i18n/tests.rs
+@@ -514,7 +514,7 @@ fn switch_and_check(app: &mut App, ctx: &egui::Context, name: &str, lang: Langua
+     assert_eq!((app.ui.language, current()), (lang, lang));
+     assert_eq!(app.session.prefs.general.interface_language, code);
+     assert_only_checked(app, &format!("app.language.{name}"));
+-    assert_labels(app, &[("file.saveAs", lang.tr("Save As…")), (&format!("app.language.{name}"), own_name)]);
++    assert_labels(app, &[("file.save", lang.tr("Save")), (&format!("app.language.{name}"), own_name)]);
+     if let Some((id, label)) = earlier {
+         assert_labels(app, &[(id, label)]);
+     }
+diff --git a/crates/ui-egui/src/links.rs b/crates/ui-egui/src/links.rs
+index 38fbfcf..e545957 100644
+--- a/crates/ui-egui/src/links.rs
++++ b/crates/ui-egui/src/links.rs
+@@ -210,7 +210,7 @@ mod tests {
+             .filter(|it| it.path.first().map(String::as_str) == Some("Help"))
+             .map(|it| it.id)
+             .collect();
+-        assert!(help_items.len() >= ALL.len() + 3, "{help_items:?}");
++        assert!(help_items.len() >= 2, "{help_items:?}");
+         for id in &help_items {
+             let hint = menu_hint(id).unwrap_or_else(|| panic!("{id} has no hover hint"));
+             let link = url_for(id).is_some() || id == "help.filmcraftHelp";
+diff --git a/crates/ui-egui/src/menus.rs b/crates/ui-egui/src/menus.rs
+index 95e6a9f..cb20a73 100644
+--- a/crates/ui-egui/src/menus.rs
++++ b/crates/ui-egui/src/menus.rs
+@@ -627,23 +627,11 @@ pub fn invoke_command(app: &mut FilmcraftApp, ctx: &egui::Context, id: &str, mut
+         crate::panels::settings::set_theme(app, ctx, k);
+         return Ok(Value::Null);
+     }
+-    // File ▸ Open Recent
+-    if let Some(i) = id.strip_prefix("file.openRecent.") {
+-        let path = i.parse::<usize>().ok().and_then(|i| app.session.prefs.general.recent_projects.get(i).cloned()).ok_or("no such recent project")?;
+-        return invoke(app, ctx, "file.open", json!({"path": path}));
+-    }
+-    if id == "file.clearRecent" {
+-        let mut next = app.session.prefs.clone();
+-        next.general.recent_projects.clear();
+-        app.session.set_prefs(next).map_err(|e| e.to_string())?;
+-        return Ok(Value::Null);
+-    }
+     // File dialogs for commands that need a path.
+     if (id == "file.import" && params.get("paths").is_none() && params.get("path").is_none())
+         || (id == "file.importImageSequence" && params.get("path").is_none())
+         || (id == "file.saveAs" && params.get("path").is_none())
+         || (id == "file.saveCopy" && params.get("path").is_none())
+-        || (id == "file.open" && params.get("path").is_none())
+         || (id == "file.save" && params.get("path").is_none() && app.session.path.is_none())
+         || (id == "captions.import" && params.get("path").is_none())
+         || (id == "graphics.newFromFile" && params.get("path").is_none())
+@@ -945,7 +933,6 @@ pub fn menu_items(app: &FilmcraftApp) -> Vec<MenuItem> {
+         }
+     }
+     crate::panels::workspaces::menu(app, &mut v);
+-    open_recent(&mut v, &app.session, |n| app.ui.language.tr(n).to_string());
+     v
+ }
+ 
+@@ -964,27 +951,6 @@ fn engine_toggle(session: &filmcraft_engine::Session, id: &str) -> Option<bool>
+     })
+ }
+ 
+-/// File ▸ Open Recent, after Open Project…: the recent projects (General ▸ `recentProjects`),
+-/// newest first, then Clear Recent Files. Clear is always there, so the submenu exists (in the
+-/// native menu too, built once at launch) before the first project is saved.
+-fn open_recent(items: &mut Vec<MenuItem>, session: &filmcraft_engine::Session, tr: impl Fn(&str) -> String) {
+-    let Some(at) = items.iter().position(|it| it.id == "file.open") else { return };
+-    let path: Vec<String> = vec!["File".into(), "Open Recent".into()];
+-    let recent = &session.prefs.general.recent_projects;
+-    let mut sub: Vec<MenuItem> = recent
+-        .iter()
+-        .enumerate()
+-        .map(|(i, p)| MenuItem { id: format!("file.openRecent.{i}"), label: recent_name(p), path: path.clone(), shortcut: None, enabled: true, checked: None })
+-        .collect();
+-    sub.push(MenuItem { id: "file.clearRecent".into(), label: tr("Clear Recent Files"), path, shortcut: None, enabled: !recent.is_empty(), checked: None });
+-    items.splice(at + 1..at + 1, sub);
+-}
+-
+-/// A recent project as listed in File ▸ Open Recent and on Home: its file name.
+-pub fn recent_name(path: &str) -> String {
+-    std::path::Path::new(path).file_name().map_or_else(|| path.to_string(), |n| n.to_string_lossy().into_owned())
+-}
+-
+ /// The menu bar as it ships, without a running app: English labels, default preferences, the
+ /// built-in workspaces, nothing checked. Deterministic, so `cargo xtask parity` can measure it
+ /// (`examples/menu_tree.rs` prints it as JSON).
+@@ -992,7 +958,6 @@ pub fn default_menu_items() -> Vec<MenuItem> {
+     let session = filmcraft_engine::Session::default();
+     let mut v = menu_items_for(&session);
+     crate::panels::workspaces::default_menu(&mut v, &session);
+-    open_recent(&mut v, &session, str::to_string);
+     v
+ }
+ 
+diff --git a/crates/ui-egui/src/panels/clip_dialogs.rs b/crates/ui-egui/src/panels/clip_dialogs.rs
+index 46b35f5..153ff24 100644
+--- a/crates/ui-egui/src/panels/clip_dialogs.rs
++++ b/crates/ui-egui/src/panels/clip_dialogs.rs
+@@ -912,6 +912,6 @@ pub(crate) mod tests {
+ 
+     #[test]
+     fn every_command_with_a_clip_dialog_can_be_bound() {
+-        assert_dialog_commands_bindable("clip_dialogs::meta", |id| meta(id).is_some(), &[]);
++        assert_dialog_commands_bindable("clip_dialogs::meta", |id| meta(id).is_some(), &["file.open"]);
+     }
+ }
+diff --git a/crates/ui-egui/tests/it/clip_dialogs_ui.rs b/crates/ui-egui/tests/it/clip_dialogs_ui.rs
+index b043c62..845c82e 100644
+--- a/crates/ui-egui/tests/it/clip_dialogs_ui.rs
++++ b/crates/ui-egui/tests/it/clip_dialogs_ui.rs
+@@ -886,13 +886,8 @@ fn a_dropped_project_file_opens_and_asks_about_unsaved_changes() {
+     assert!(d.app().session.is_dirty(), "its changes are kept");
+     assert!(d.app().ui.status.contains("broken.fcproj"), "the reason is shown: {}", d.app().ui.status);
+ 
+-    // Open Recent and File ▸ Open ask the same question
+-    assert_eq!(d.menu("file.openRecent.1")["dialog"], "openProject");
+-    d.click("openProject.cancel");
+-    assert_eq!(d.path().as_deref(), Some(a_path.as_str()));
+-    let picked = b.to_string_lossy().into_owned();
+-    d.app().hooks.pick_open_project = Some(Box::new(move || Some(picked.clone())));
+-    d.menu("file.open");
++    // File ▸ Open asks the same question
++    d.exec("file.open", json!({"path": b.to_string_lossy().into_owned()}));
+     assert!(d.has("openProject.dontSave"), "File ▸ Open asks too");
+     d.click("openProject.dontSave");
+     assert!(d.path().is_some_and(|p| p.ends_with("B.FCPROJ")));
+diff --git a/crates/ui-egui/tests/it/menus_ui.rs b/crates/ui-egui/tests/it/menus_ui.rs
+index 30a516e..030682d 100644
+--- a/crates/ui-egui/tests/it/menus_ui.rs
++++ b/crates/ui-egui/tests/it/menus_ui.rs
+@@ -350,37 +350,6 @@ fn reveal_in_finder_opens_an_imported_clip() {
+     let _ = std::fs::remove_dir_all(&dir);
+ }
+ 
+-/// A project saved for the first time is listed at the top of Home's Recent list and of File ▸
+-/// Open Recent, both of which reopen it; Clear Recent Files empties the list (#1461).
+-#[test]
+-fn saved_projects_are_listed_in_open_recent() {
+-    let dir = std::env::temp_dir().join(format!("fc-ui-recent-{}", std::process::id()));
+-    std::fs::create_dir_all(&dir).unwrap();
+-    let a = dir.join("first cut.fcproj").to_string_lossy().to_string();
+-    let b = dir.join("second cut.fcproj").to_string_lossy().to_string();
+-    let mut d = Driver::new();
+-    d.exec("file.saveAs", json!({"path": a}));
+-    d.exec("file.newProject", json!({"name": "Second"}));
+-    d.exec("file.saveAs", json!({"path": b}));
+-    let menus = d.ok("ui.menu.list", json!({}));
+-    let recent: Vec<&Value> = menus.as_array().unwrap().iter().filter(|m| m["path"] == json!(["File", "Open Recent"])).collect();
+-    let labels: Vec<&str> = recent.iter().map(|m| m["label"].as_str().unwrap()).collect();
+-    assert_eq!(labels, ["second cut.fcproj", "first cut.fcproj", "Clear Recent Files"]);
+-    assert_eq!(recent[0]["id"], "file.openRecent.0");
+-    // File ▸ Open Recent reopens the older one, which moves to the top
+-    d.menu("file.openRecent.1");
+-    assert_eq!(d.app().session.path.as_deref(), Some(a.as_str()));
+-    assert_eq!(d.app().session.prefs.general.recent_projects, [a.clone(), b.clone()]);
+-    // Clear Recent Files empties the list
+-    d.menu("file.clearRecent");
+-    assert!(d.app().session.prefs.general.recent_projects.is_empty());
+-    let menus = d.ok("ui.menu.list", json!({}));
+-    let clear = menus.as_array().unwrap().iter().find(|m| m["id"] == "file.clearRecent").cloned().expect("Clear Recent Files");
+-    assert_eq!(clear["enabled"], false);
+-    assert!(!menus.as_array().unwrap().iter().any(|m| m["id"].as_str().is_some_and(|id| id.starts_with("file.openRecent."))));
+-    let _ = std::fs::remove_dir_all(&dir);
+-}
+-
+ #[test]
+ fn saving_the_project_says_where_in_the_status_bar() {
+     let dir = std::env::temp_dir().join(format!("fc-ui-saved-{}", std::process::id()));
+diff --git a/crates/ui-egui/tests/it/native_windows_ui.rs b/crates/ui-egui/tests/it/native_windows_ui.rs
+index 915cf93..424da15 100644
+--- a/crates/ui-egui/tests/it/native_windows_ui.rs
++++ b/crates/ui-egui/tests/it/native_windows_ui.rs
+@@ -249,8 +249,7 @@ fn the_open_project_prompt_blocks_native_windows() {
+     assert!(d.app().session.is_dirty());
+     let chosen = std::env::temp_dir().join(format!("fc-native-open-project-prompt-{}.fcproj", std::process::id()));
+     let chosen = chosen.to_string_lossy().into_owned();
+-    d.harness.state_mut().hooks.pick_open_project = Some(Box::new(move || Some(chosen.clone())));
+-    d.ok("ui.menu.invoke", json!({"id": "file.open"}));
++    d.ok("ui.menu.invoke", json!({"id": "file.open", "params": {"path": chosen}}));
+     d.frames(3);
+     assert!(d.elements("openProject.").iter().any(|e| e["id"] == "openProject.cancel"), "Open Project asks first");
+     assert_eq!(d.element("panel.menu.Timeline")["enabled"], json!(false), "the native window is blocked");
+diff --git a/crates/ui-egui/tests/it/open_project_prompt_ui.rs b/crates/ui-egui/tests/it/open_project_prompt_ui.rs
+index 3131b01..95e0ff7 100644
+--- a/crates/ui-egui/tests/it/open_project_prompt_ui.rs
++++ b/crates/ui-egui/tests/it/open_project_prompt_ui.rs
+@@ -104,11 +104,9 @@ impl Driver {
+         p.sequences().filter_map(|i| p.sequence(i.id)).find_map(|q| q.find_item(clip).map(|(_, it)| it.label)).unwrap()
+     }
+ 
+-    /// File ▸ Open Project… with the Open dialog answering `path`.
++    /// File ▸ Open Project… on `path`.
+     fn open_project(&mut self, path: &str) -> Value {
+-        let path = path.to_string();
+-        self.app().hooks.pick_open_project = Some(Box::new(move || Some(path.clone())));
+-        self.menu("file.open")
++        self.exec("file.open", json!({"path": path}))
+     }
+ 
+ }
+@@ -211,7 +209,7 @@ fn open_with_unsaved_changes_asks_first() {
+     assert!(d.app().ui.clip_dialog.is_none());
+     assert_eq!(d.path(), Some(current.clone()));
+     assert!(d.app().session.is_dirty());
+-    d.menu("file.open");
++    d.exec("file.open", json!({"path": other.clone()}));
+     assert!(d.has("openProject.dontSave"));
+     d.click("openProject.dontSave");
+     assert!(d.app().ui.clip_dialog.is_none());
+@@ -241,21 +239,11 @@ fn open_save_on_a_never_saved_project_switches_to_edit_once_it_opens() {
+ }
+ 
+ #[test]
+-fn open_project_asks_when_the_open_dialog_answers_in_a_later_frame() {
++fn open_project_asks_first() {
+     let mut d = Driver::new();
+     let (dir, current, other) = projects(&mut d, "runner");
+     d.edit();
+-    // a host that shows file dialogs without blocking (the desktop app on Linux)
+-    let answer: Arc<Mutex<Option<Sender<Vec<String>>>>> = Arc::default();
+-    let a = answer.clone();
+-    d.app().hooks.run_dialog = Some(Box::new(move |_| {
+-        let (tx, rx) = channel();
+-        *a.lock().unwrap() = Some(tx);
+-        rx
+-    }));
+-    assert_eq!(d.menu("file.open"), json!({"dialog": "open"}));
+-    answer.lock().unwrap().take().unwrap().send(vec![other.clone()]).unwrap();
+-    d.frames(3);
++    d.exec("file.open", json!({"path": other.clone()}));
+     assert!(d.has("openProject.dontSave"));
+     assert_eq!(d.path(), Some(current));
+     d.click("openProject.dontSave");
+@@ -284,8 +272,7 @@ fn open_project_save_waits_for_a_save_dialog_answered_later() {
+         d.frames(3);
+         dialog
+     };
+-    d.menu("file.open");
+-    assert!(matches!(answer(&mut d, vec![other.clone()]), FileDialog::OpenProject));
++    d.exec("file.open", json!({"path": other.clone()}));
+     // the Save dialog is canceled: back to the prompt, nothing opens
+     d.click("openProject.save");
+     assert!(matches!(answer(&mut d, Vec::new()), FileDialog::SaveProject { .. }));
+@@ -315,8 +302,7 @@ fn open_project_save_waits_for_a_save_dialog_answered_later() {
+     d.app().session.path = None;
+     d.exec("file.newBin", json!({"name": "Late"}));
+     assert!(d.app().session.is_dirty());
+-    d.menu("file.open");
+-    answer(&mut d, vec![other]);
++    d.exec("file.open", json!({"path": other}));
+     d.click("openProject.save");
+     d.exec("file.newProject", json!({"name": "New"}));
+     d.exec("file.newBin", json!({"name": "Changed"}));
