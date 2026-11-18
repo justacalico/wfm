@@ -893,16 +893,16 @@ impl Db for SqliteDb {
                 )
             })
             .await
-            .map(|_| ())
             .map_err(dberr)
+            .and_then(|rows| if rows == 0 { Err(DbError::NotFound) } else { Ok(()) })
     }
 
     async fn node_delete(&self, id: &str) -> DbResult<()> {
         let id = id.to_string();
         self.q(move |c| c.execute("DELETE FROM render_nodes WHERE id=?", [id]))
             .await
-            .map(|_| ())
             .map_err(dberr)
+            .and_then(|rows| if rows == 0 { Err(DbError::NotFound) } else { Ok(()) })
     }
 
     async fn audit(

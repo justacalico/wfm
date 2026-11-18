@@ -111,8 +111,11 @@ bucket contents.
 Create a node under Manage > Render nodes, then on the worker machine:
 
 ```sh
-wfm --worker http://<wfm-host>:8080 <token> <name>
+WFM_WORKER_TOKEN=<token> wfm --worker http://<wfm-host>:8080 <name>
 ```
+
+(Passing the token positionally still works — `wfm --worker <url> <token> <name>` —
+but puts it in `ps` output and shell history.)
 
 The node polls for jobs, downloads inputs, runs ffmpeg, and uploads the export.
 

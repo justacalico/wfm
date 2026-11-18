@@ -791,8 +791,14 @@ impl Db for PgDb {
             .bind(id)
             .execute(&self.pool)
             .await
-            .map(|_| ())
             .map_err(map_err)
+            .and_then(|r| {
+                if r.rows_affected() == 0 {
+                    Err(DbError::NotFound)
+                } else {
+                    Ok(())
+                }
+            })
     }
 
     async fn node_delete(&self, id: &str) -> DbResult<()> {
@@ -800,8 +806,14 @@ impl Db for PgDb {
             .bind(id)
             .execute(&self.pool)
             .await
-            .map(|_| ())
             .map_err(map_err)
+            .and_then(|r| {
+                if r.rows_affected() == 0 {
+                    Err(DbError::NotFound)
+                } else {
+                    Ok(())
+                }
+            })
     }
 
     async fn audit(

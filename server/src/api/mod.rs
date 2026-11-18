@@ -1035,7 +1035,7 @@ async fn upload_file(
             .await
     }
     .await;
-    let _ = std::fs::remove_file(&tmp);
+    let _ = tokio::fs::remove_file(&tmp).await;
     if let Err(e) = put {
         return err(StatusCode::INTERNAL_SERVER_ERROR, &e);
     }
@@ -1055,7 +1055,7 @@ async fn upload_file(
 /// and bytes written; the caller moves or deletes the file.
 async fn spool_body(s: &AppState, body: Body, max: u64) -> Result<(std::path::PathBuf, u64), Response> {
     let tmp = s.cfg.data_dir.join("tmp").join(format!("up-{}", model::new_id()));
-    let _ = std::fs::create_dir_all(tmp.parent().unwrap());
+    let _ = tokio::fs::create_dir_all(tmp.parent().unwrap()).await;
     let mut f = tokio::fs::File::create(&tmp).await.map_err(|e| fs_resp(e.into()))?;
     let mut stream = body.into_data_stream();
     let mut written: u64 = 0;
@@ -1163,7 +1163,8 @@ async fn delete_file(
             s.audit("project", &session.user, "delete_file", &p.display_name, &q.path, "").await;
             Json(json!({"ok": true})).into_response()
         }
-        Err(e) => err(StatusCode::NOT_FOUND, &e),
+        Err(e) if e == "not found" => err(StatusCode::NOT_FOUND, &e),
+        Err(e) => err(StatusCode::INTERNAL_SERVER_ERROR, &e),
     }
 }
 
@@ -1569,7 +1570,7 @@ async fn render_info(
         .data_dir
         .join("inspect")
         .join(model::new_id());
-    if std::fs::create_dir_all(&dir).is_err() {
+    if tokio::fs::create_dir_all(&dir).await.is_err() {
         return err(StatusCode::INTERNAL_SERVER_ERROR, "stage failed");
     }
     let fcproj = dir.join(files::PROJECT_FILE);
@@ -1584,7 +1585,7 @@ async fn render_info(
         Err(_) => false,
     };
     if !got {
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = tokio::fs::remove_dir_all(&dir).await;
         return Json(json!({"sequences": [], "serverRender": server_render, "project": false}))
             .into_response();
     }
@@ -1598,7 +1599,7 @@ async fn render_info(
         .await
     };
     let res = tokio::time::timeout(std::time::Duration::from_secs(30), inspect).await;
-    let _ = std::fs::remove_dir_all(&dir);
+    let _ = tokio::fs::remove_dir_all(&dir).await;
     let text = match res {
         Ok(Ok(v)) => v["content"]
             .as_array()
@@ -2053,7 +2054,7 @@ async fn worker_complete(
         s.blobs.put(&blob_key(&project.dir, &key), len, &mut f).await
     }
     .await;
-    let _ = std::fs::remove_file(&tmp);
+    let _ = tokio::fs::remove_file(&tmp).await;
     if let Err(e) = put {
         return err(StatusCode::INTERNAL_SERVER_ERROR, &e);
     }
