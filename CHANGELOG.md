@@ -2,6 +2,13 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.5.13 - 2026-11-18
+#### Bug Fixes
+- S3 后端时间戳、对象大小与 Range 边界及默认密钥修正 - (74d4ff1) - calico
+- 过期渲染任务不再重复发布输出并清理取消标记 - (b4029cd) - calico
+
+- - -
+
 ## v0.5.12 - 2026-11-18
 #### Bug Fixes
 - 补齐审计日志缺失的目录创建渲染取消与节点管理记录 - (24fb7ae) - calico
