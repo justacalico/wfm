@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.6.3 - 2026-11-18
+#### Bug Fixes
+- (**manage**) 账号列表为空时显示占位提示 - (b13e2cb) - calico
+
+- - -
+
 ## v0.6.2 - 2026-11-18
 #### Bug Fixes
 - (**theme**) 主题选择器改为下拉框 - (49ba226) - calico
