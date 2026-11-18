@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.5.14 - 2026-11-18
+#### Bug Fixes
+- 修复 Postgres 后端迁移与用户名大小写并纳入持续集成 - (efc7441) - calico
+
+- - -
+
 ## v0.5.13 - 2026-11-18
 #### Bug Fixes
 - S3 后端时间戳、对象大小与 Range 边界及默认密钥修正 - (74d4ff1) - calico
