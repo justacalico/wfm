@@ -80,7 +80,8 @@ The app is at `/app/`, the editor bridge at `/filmcraft/wfm.html?project=<id>`.
 
 Everything is a flag or env var (`wfm --help`):
 
-- `WFM_DB` - `sqlite:<path>` (default) or `postgres://...` (build with `--features postgres`)
+- `WFM_DB` - `sqlite:<path>` (default) or `postgres://...` (release builds and
+  the Docker image include postgres; source builds need `--features postgres`)
 - `WFM_MEDIA` - `s3` or `local`; S3 settings via `WFM_S3_*`. Any S3-compatible
   store works: RustFS, MinIO, AWS, Backblaze
 - `WFM_RENDER_WORKERS` / `WFM_LOCAL_RENDERS` - local ffmpeg workers

@@ -158,7 +158,7 @@ impl Db for PgDb {
     }
 
     async fn user_by_name(&self, name: &str) -> DbResult<(User, String)> {
-        sqlx::query("SELECT * FROM users WHERE username=$1")
+        sqlx::query("SELECT * FROM users WHERE lower(username)=lower($1)")
             .bind(name)
             .fetch_one(&self.pool)
             .await
@@ -867,5 +867,46 @@ impl Db for PgDb {
             .await
             .map(|_| ())
             .map_err(map_err)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Only runs when WFM_TEST_PG points at a real Postgres (CI service).
+    #[tokio::test]
+    async fn migrations_and_case_insensitive_users() {
+        let url = match std::env::var("WFM_TEST_PG") {
+            Ok(u) if !u.is_empty() => u,
+            _ => return,
+        };
+        let db = connect(&url).await.unwrap();
+        // Migrations are idempotent; a second connect must succeed.
+        connect(&url).await.unwrap();
+
+        let suffix = &crate::model::new_id()[..8];
+        let user = |name: &str| User {
+            id: crate::model::new_id(),
+            username: name.into(),
+            display_name: "n".into(),
+            role: Role::Student,
+            role_name: "student".into(),
+            student_id: String::new(),
+            note: String::new(),
+            disabled: false,
+            created_by: String::new(),
+            lineage: "/".into(),
+            created_at: 1,
+            last_login: 0,
+        };
+        let mixed = format!("Stu{suffix}");
+        let lower = mixed.to_lowercase();
+        db.create_user(&user(&mixed), "h").await.unwrap();
+        // Lookups are case-insensitive like sqlite COLLATE NOCASE.
+        let (found, _) = db.user_by_name(&lower).await.unwrap();
+        assert_eq!(found.username, mixed);
+        // So is uniqueness.
+        assert!(db.create_user(&user(&lower), "h").await.is_err());
     }
 }

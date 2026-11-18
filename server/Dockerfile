@@ -24,7 +24,7 @@ WORKDIR /src
 COPY server/ ./server/
 COPY --from=web /app/build/web ./server/web/app/
 WORKDIR /src/server
-RUN cargo build --release
+RUN cargo build --release --features postgres
 
 FROM debian:bookworm-slim
 RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates && rm -rf /var/lib/apt/lists/* \
