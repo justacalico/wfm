@@ -303,5 +303,12 @@
   "retry": "Повторить",
   "license": "",
   "licenseAgpl": " AGPL-3.0",
-  "viewOnGitlab": "  GitLab"
+  "viewOnGitlab": "  GitLab",
+  "loadMore": "Загрузить ещё",
+  "deleteRenderBody": "Удалить запись рендера «{name}»? Экспортированные файлы останутся в проекте.",
+  "@deleteRenderBody": {
+    "placeholders": {
+      "name": {}
+    }
+  }
 }

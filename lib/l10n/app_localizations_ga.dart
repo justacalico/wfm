@@ -618,4 +618,12 @@ class AppLocalizationsGa extends AppLocalizations {
 
   @override
   String get viewOnGitlab => 'Féach ar GitLab';
+
+  @override
+  String get loadMore => 'Lódáil níos mó';
+
+  @override
+  String deleteRenderBody(Object name) {
+    return 'Scrios taifead rindreála “$name”? Fanfaidh na comhaid easpórtáilte sa tionscadal.';
+  }
 }

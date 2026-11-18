@@ -325,8 +325,12 @@ class Api {
   String downloadUrl(String pid, String path, {bool dl = false}) =>
       '$_base/api/projects/$pid/download?path=${Uri.encodeComponent(path)}${dl ? '&dl=true' : ''}';
 
-  Future<List<RenderJob>> renders(String pid) async => [
-        for (final e in (await get('/projects/$pid/renders')) as List)
+  Future<List<RenderJob>> renders(String pid,
+          {int offset = 0, int limit = 50}) async =>
+      [
+        for (final e
+            in (await get('/projects/$pid/renders?offset=$offset&limit=$limit'))
+                as List)
           RenderJob.fromJson(e)
       ];
 
@@ -334,6 +338,11 @@ class Api {
       RenderJob.fromJson(await post('/projects/$pid/renders', spec));
 
   Future<void> cancelRender(String id) => post('/renders/$id/cancel', {});
+
+  Future<RenderJob> retryRender(String id) async =>
+      RenderJob.fromJson(await post('/renders/$id/retry', {}));
+
+  Future<void> deleteRender(String id) => del('/renders/$id');
 
   Future<List<User>> accounts() async =>
       [for (final e in (await get('/accounts')) as List) User.fromJson(e)];

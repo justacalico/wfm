@@ -303,5 +303,12 @@
   "retry": "Bain triail eile as",
   "license": "Ceadúnas",
   "licenseAgpl": "Faoi cheadúnas AGPL-3.0",
-  "viewOnGitlab": "Féach ar GitLab"
+  "viewOnGitlab": "Féach ar GitLab",
+  "loadMore": "Lódáil níos mó",
+  "deleteRenderBody": "Scrios taifead rindreála “{name}”? Fanfaidh na comhaid easpórtáilte sa tionscadal.",
+  "@deleteRenderBody": {
+    "placeholders": {
+      "name": {}
+    }
+  }
 }

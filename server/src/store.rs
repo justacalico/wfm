@@ -128,7 +128,8 @@ pub trait Db: Send + Sync {
     // render jobs
     async fn job_create(&self, j: &RenderJob) -> DbResult<()>;
     async fn job_by_id(&self, id: &str) -> DbResult<RenderJob>;
-    async fn jobs_by_project(&self, project_id: &str) -> DbResult<Vec<RenderJob>>;
+    async fn jobs_by_project(&self, project_id: &str, offset: i64, limit: i64) -> DbResult<Vec<RenderJob>>;
+    async fn job_delete(&self, id: &str) -> DbResult<()>;
     async fn job_next_queued(&self) -> DbResult<Option<RenderJob>>;
     async fn job_claim(&self, id: &str, worker: &str, lease_until: i64) -> DbResult<bool>;
     /// Returns false when the job is no longer `running` under `worker`, so a

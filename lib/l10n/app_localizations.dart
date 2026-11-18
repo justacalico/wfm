@@ -1213,6 +1213,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'View on GitLab'**
   String get viewOnGitlab;
+
+  /// No description provided for @loadMore.
+  ///
+  /// In en, this message translates to:
+  /// **'Load more'**
+  String get loadMore;
+
+  /// No description provided for @deleteRenderBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete the \"{name}\" render? Its exported files stay in the project.'**
+  String deleteRenderBody(Object name);
 }
 
 class _AppLocalizationsDelegate

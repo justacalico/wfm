@@ -758,16 +758,24 @@ impl Db for SqliteDb {
             .map_err(dberr)
     }
 
-    async fn jobs_by_project(&self, project_id: &str) -> DbResult<Vec<RenderJob>> {
+    async fn jobs_by_project(&self, project_id: &str, offset: i64, limit: i64) -> DbResult<Vec<RenderJob>> {
         let pid = project_id.to_string();
         self.q(move |c| {
                 let mut st = c.prepare(&format!(
-                    "SELECT {JOB_COLS} FROM render_jobs WHERE project_id=? ORDER BY created_at DESC LIMIT 50"
+                    "SELECT {JOB_COLS} FROM render_jobs WHERE project_id=? ORDER BY created_at DESC LIMIT ? OFFSET ?"
                 ))?;
-                let rows = st.query_map([pid], map_job)?;
+                let rows = st.query_map(params![pid, limit, offset], map_job)?;
                 rows.collect::<rusqlite::Result<Vec<_>>>()
             })
             .await
+            .map_err(dberr)
+    }
+
+    async fn job_delete(&self, id: &str) -> DbResult<()> {
+        let id = id.to_string();
+        self.q(move |c| c.execute("DELETE FROM render_jobs WHERE id=?", [id]))
+            .await
+            .map(|_| ())
             .map_err(dberr)
     }
 
@@ -1092,6 +1100,23 @@ mod tests {
         // Terminal jobs ignore late completions even from the claimant.
         db.job_finish("j", "w1", "failed", "oops", 500).await.unwrap();
         assert_eq!(db.job_by_id("j").await.unwrap().status, "done");
+    }
+
+    #[tokio::test]
+    async fn jobs_by_project_paginates_and_delete_removes() {
+        let db = connect(":memory:").await.unwrap();
+        for i in 0..3 {
+            let mut j = job(&format!("j{i}"));
+            j.status = "done".into();
+            j.created_at = i;
+            db.job_create(&j).await.unwrap();
+        }
+        let ids = |v: Vec<RenderJob>| v.iter().map(|j| j.id.clone()).collect::<Vec<_>>();
+        assert_eq!(ids(db.jobs_by_project("p", 0, 2).await.unwrap()), ["j2", "j1"]);
+        assert_eq!(ids(db.jobs_by_project("p", 2, 2).await.unwrap()), ["j0"]);
+        db.job_delete("j0").await.unwrap();
+        assert!(db.job_by_id("j0").await.is_err());
+        assert_eq!(db.jobs_by_project("p", 0, 50).await.unwrap().len(), 2);
     }
 
     #[tokio::test]

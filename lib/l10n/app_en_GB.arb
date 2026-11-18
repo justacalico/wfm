@@ -17,5 +17,12 @@
   "noAccounts": "No accounts",
   "license": "Licence",
   "licenseAgpl": "Licensed under AGPL-3.0",
-  "viewOnGitlab": "View on GitLab"
+  "viewOnGitlab": "View on GitLab",
+  "loadMore": "Load more",
+  "deleteRenderBody": "Delete the \"{name}\" render? Its exported files stay in the project.",
+  "@deleteRenderBody": {
+    "placeholders": {
+      "name": {}
+    }
+  }
 }
