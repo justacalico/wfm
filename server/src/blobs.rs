@@ -285,10 +285,13 @@ impl Blobs for S3Blobs {
             .get_object_stream(self.key(key))
             .await
             .map_err(s3_err)?;
+        // ResponseDataStream carries no headers; a HEAD is the only way to
+        // learn the object's size.
+        let len = self.head(key).await.unwrap_or(0);
         let stream = resp
             .bytes
             .map(|r| r.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string())));
-        Ok((0, Box::pin(stream)))
+        Ok((len, Box::pin(stream)))
     }
 
     async fn get_range(&self, key: &str, start: u64, end: u64) -> Result<(u64, u64, ByteStream), String> {
@@ -431,10 +434,54 @@ impl Blobs for S3Blobs {
     }
 }
 
+/// S3 `last_modified` is ISO8601 UTC (`2026-01-02T03:04:05.678Z`); pull the
+/// six leading numeric fields and convert with days-from-civil. Fractional
+/// seconds and offsets are ignored — S3 reports UTC.
 fn chrono_ts(s: &str) -> i64 {
-    // S3 last_modified is ISO8601; parsing loosely is fine for display.
-    let _ = s;
-    0
+    let mut n = [0i64; 6];
+    let mut i = 0;
+    for part in s.split(|c: char| !c.is_ascii_digit()) {
+        if i >= n.len() {
+            break;
+        }
+        if part.is_empty() {
+            continue;
+        }
+        match part.parse::<i64>() {
+            Ok(v) => {
+                n[i] = v;
+                i += 1;
+            }
+            Err(_) => return 0,
+        }
+    }
+    if i < n.len() {
+        return 0;
+    }
+    let (mut y, m, d) = (n[0], n[1], n[2]);
+    y -= if m <= 2 { 1 } else { 0 };
+    let era = if y >= 0 { y } else { y - 399 } / 400;
+    let yoe = y - era * 400;
+    let mp = (m + 9) % 12;
+    let doy = (153 * mp + 2) / 5 + d - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    (era * 146097 + doe - 719468) * 86400 + n[3] * 3600 + n[4] * 60 + n[5]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::chrono_ts;
+
+    #[test]
+    fn s3_timestamps_parse() {
+        assert_eq!(chrono_ts("1970-01-01T00:00:00.000Z"), 0);
+        assert_eq!(chrono_ts("2000-01-01T00:00:00Z"), 946684800);
+        assert_eq!(chrono_ts("2024-01-01T00:00:00.000Z"), 1704067200);
+        assert_eq!(chrono_ts("2026-11-18T01:02:03.456Z"), 1794963723);
+        assert_eq!(chrono_ts("2026-11-18T01:02:03+00:00"), 1794963723);
+        assert_eq!(chrono_ts("garbage"), 0);
+        assert_eq!(chrono_ts(""), 0);
+    }
 }
 
 pub async fn connect(cfg: &crate::config::Config) -> Result<Arc<dyn Blobs>, String> {
