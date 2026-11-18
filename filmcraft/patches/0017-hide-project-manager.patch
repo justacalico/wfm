@@ -1,0 +1,25 @@
+diff --git a/crates/engine/src/project_manager.rs b/crates/engine/src/project_manager.rs
+index 7efdac0..a0f8ca2 100644
+--- a/crates/engine/src/project_manager.rs
++++ b/crates/engine/src/project_manager.rs
+@@ -399,7 +399,7 @@ pub fn commands() -> Vec<CommandSpec> {
+     vec![CommandSpec {
+         id: "file.projectManager",
+         label: "Project Manager…",
+-        menu: &["File"],
++        menu: &[],
+         shortcut: None,
+         params: r#"{"destination":str,"mode":"collect|consolidate","sequences":[id]?,"excludeUnused":bool=true,"handles":frames=30,"preset":"prores_lt|prores_hq|h264|…","includeProxies":bool,"includePreviews":bool=false,"projectName":str?,"dryRun":bool=false,"overwrite":bool=false,"wait":bool=false}"#,
+         enabled: |s| if s.project.sequences().next().is_some() { Ok(()) } else { Err("the project has no sequences".into()) },
+diff --git a/crates/engine/src/project_tools/tests.rs b/crates/engine/src/project_tools/tests.rs
+index f19b329..9563f91 100644
+--- a/crates/engine/src/project_tools/tests.rs
++++ b/crates/engine/src/project_tools/tests.rs
+@@ -46,7 +46,6 @@ fn file_edit_clip_menu_order_and_shortcuts_match_premiere() {
+             "file.saveAll",
+             "media.makeOffline",
+             "file.import",
+-            "file.projectManager",
+         ],
+     );
+     assert_order(&menu_ids(&["File", "Export"]), &["file.exportEdl", "file.exportSelectionProject", "file.exportAle", "file.exportOtio", "file.exportFcp7Xml"]);
