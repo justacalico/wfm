@@ -815,8 +815,7 @@ void main() {
           deleted++;
           return {'ok': true};
         },
-        'DELETE /api/renders/r1': (_) =>
-            http.Response('{"error":"boom"}', 500),
+        'DELETE /api/renders/r1': (_) => http.Response('{"error":"boom"}', 500),
       });
       await pump(t, Scaffold(body: RendersTab(project: p1)));
       await t.tap(find.byIcon(Icons.refresh).at(1));
