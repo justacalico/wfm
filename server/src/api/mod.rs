@@ -4,7 +4,7 @@ use axum::body::Body;
 use axum::extract::{Path, Query, State};
 use axum::http::{header, HeaderMap, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
-use axum::routing::{get, patch, post};
+use axum::routing::{delete, get, patch, post};
 use axum::{Json, Router};
 use futures::StreamExt;
 use serde::Deserialize;
@@ -63,6 +63,8 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/projects/{id}/renders", get(list_renders).post(create_render))
         .route("/projects/{id}/render-info", get(render_info))
         .route("/renders/{id}/cancel", post(cancel_render))
+        .route("/renders/{id}/retry", post(retry_render))
+        .route("/renders/{id}", delete(delete_render))
         .route("/renders/{id}/progress", post(render_progress))
         .route("/renders/{id}/finish", post(render_finish))
         .route("/settings", get(get_settings).put(put_settings))
@@ -1432,16 +1434,25 @@ async fn lock_release(
 
 // ---------- renders ----------
 
+#[derive(Deserialize)]
+struct ListRendersQuery {
+    #[serde(default)]
+    offset: i64,
+    limit: Option<i64>,
+}
+
 async fn list_renders(
     State(s): State<Arc<AppState>>,
     session: Session,
     Path(id): Path<String>,
+    Query(q): Query<ListRendersQuery>,
 ) -> Response {
     let _p = match owned_project(&s, &session, &id).await {
         Ok(p) => p,
         Err(r) => return r,
     };
-    match s.db.jobs_by_project(&id).await {
+    let limit = q.limit.unwrap_or(50).clamp(1, 200);
+    match s.db.jobs_by_project(&id, q.offset.max(0), limit).await {
         Ok(v) => Json(json!(v)).into_response(),
         Err(e) => db_resp(e),
     }
@@ -1609,6 +1620,25 @@ async fn render_info(
         Err(r) => return r,
     };
     let server_render = server_render_capacity(&s).await;
+    let fc_key = format!("{}/{}", p.dir, files::PROJECT_FILE);
+    // The inspect is only as fresh as the fcproj blob; reuse it while the
+    // blob's mtime and size are unchanged.
+    let meta = s
+        .blobs
+        .list(&p.dir)
+        .await
+        .ok()
+        .and_then(|(_, objs)| objs.into_iter().find(|o| o.key == fc_key))
+        .map(|o| (o.modified, o.size));
+    if let Some((m, sz)) = meta {
+        if let Some((cm, cs, cached)) = s.inspect_cache.lock().unwrap().get(&fc_key) {
+            if *cm == m && *cs == sz {
+                let mut out = cached.clone();
+                out["serverRender"] = json!(server_render);
+                return Json(out).into_response();
+            }
+        }
+    }
     let dir = s
         .cfg
         .data_dir
@@ -1673,13 +1703,20 @@ async fn render_info(
     }
     let mut sequences = Vec::new();
     seqs(&info["root"], &mut sequences);
-    Json(json!({
+    let out = json!({
         "sequences": sequences,
         "activeSequence": info["activeSequence"],
         "serverRender": server_render,
         "project": true,
-    }))
-    .into_response()
+    });
+    if let Some((m, sz)) = meta {
+        let mut cache = s.inspect_cache.lock().unwrap();
+        if cache.len() >= 512 {
+            cache.clear();
+        }
+        cache.insert(fc_key, (m, sz, out.clone()));
+    }
+    Json(out).into_response()
 }
 
 /// A device-mode render posting its progress; the response tells the page
@@ -1796,6 +1833,134 @@ async fn cancel_render(
         "project",
         &session.user,
         "render_canceled",
+        &p.display_name,
+        &job.output_name,
+        "",
+    )
+    .await;
+    Json(json!({"ok": true})).into_response()
+}
+
+/// Resubmit a finished render with the same sequence, output and params. The
+/// media list is re-staged from the current project files.
+async fn retry_render(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Path(id): Path<String>,
+) -> Response {
+    let job = match s.db.job_by_id(&id).await {
+        Ok(j) => j,
+        Err(_) => return err(StatusCode::NOT_FOUND, "no such render"),
+    };
+    let p = match owned_project(&s, &session, &job.project_id).await {
+        Ok(p) => p,
+        Err(r) => return r,
+    };
+    if job.status == "queued" || job.status == "running" {
+        return err(StatusCode::CONFLICT, "render still active");
+    }
+    if job.mode == "server" && !server_render_capacity(&s).await {
+        return err(StatusCode::CONFLICT, "no server render capacity");
+    }
+    let spec: Value = match serde_json::from_str(&job.spec) {
+        Ok(v) => v,
+        Err(e) => return err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
+    };
+    let paths = match render::project_files(&s, &p.dir).await {
+        Ok(v) => v,
+        Err(e) => return err(StatusCode::INTERNAL_SERVER_ERROR, &e),
+    };
+    let spec = RenderSpec {
+        sequence: spec["sequence"].as_u64().unwrap_or(0),
+        output: job.output_name.clone(),
+        params: spec["params"].clone(),
+        media: render::stage_media(&paths),
+    };
+    let spec = match serde_json::to_string(&spec) {
+        Ok(s) => s,
+        Err(e) => return err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
+    };
+    let device = job.mode == "device";
+    let next = RenderJob {
+        id: model::new_id(),
+        project_id: job.project_id.clone(),
+        user_id: session.user.id.clone(),
+        status: if device { "running".into() } else { "queued".into() },
+        mode: job.mode.clone(),
+        spec,
+        output_name: job.output_name.clone(),
+        progress: 0.0,
+        error: String::new(),
+        worker: if device { "device".into() } else { String::new() },
+        attempts: 0,
+        created_at: AppState::now(),
+        finished_at: 0,
+    };
+    if let Err(e) = s.db.job_create(&next).await {
+        return match e {
+            DbError::Conflict => err(
+                StatusCode::CONFLICT,
+                "a render is already queued or running for this project",
+            ),
+            other => db_resp(other),
+        };
+    }
+    if device {
+        let _ = s
+            .db
+            .job_progress(&next.id, &next.worker, 0.0, AppState::now() + 90)
+            .await;
+    }
+    let _ = s
+        .db
+        .lock_acquire(
+            &job.project_id,
+            "render",
+            &next.id,
+            &session.user.username,
+            AppState::now() + 86_400,
+            AppState::now(),
+            false,
+        )
+        .await;
+    s.audit(
+        "project",
+        &session.user,
+        "render_queued",
+        &p.display_name,
+        &next.output_name,
+        "",
+    )
+    .await;
+    Json(json!(next)).into_response()
+}
+
+/// Delete a finished render's history row. Active renders must be canceled
+/// first; the exported files stay in the project.
+async fn delete_render(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Path(id): Path<String>,
+) -> Response {
+    let job = match s.db.job_by_id(&id).await {
+        Ok(j) => j,
+        Err(_) => return err(StatusCode::NOT_FOUND, "no such render"),
+    };
+    let p = match owned_project(&s, &session, &job.project_id).await {
+        Ok(p) => p,
+        Err(r) => return r,
+    };
+    if job.status == "queued" || job.status == "running" {
+        return err(StatusCode::CONFLICT, "render still active");
+    }
+    match s.db.job_delete(&id).await {
+        Ok(()) => {}
+        Err(e) => return db_resp(e),
+    }
+    s.audit(
+        "project",
+        &session.user,
+        "render_deleted",
         &p.display_name,
         &job.output_name,
         "",

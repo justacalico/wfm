@@ -795,6 +795,90 @@ void main() {
       await t.pumpWidget(const SizedBox());
     });
 
+    testWidgets('retry and delete a finished render', (t) async {
+      var retried = 0;
+      var deleted = 0;
+      var opened = '';
+      openExternalForTesting = (u) => opened = u;
+      installApi(extra: {
+        'POST /api/renders/r3/retry': (req) {
+          retried++;
+          return {'id': 'r4', 'status': 'queued', 'mode': 'server'};
+        },
+        'POST /api/renders/r1/retry': (req) {
+          retried++;
+          return {'id': 'r5', 'status': 'running', 'mode': 'device'};
+        },
+        'POST /api/renders/r4/retry': (_) =>
+            http.Response('{"error":"boom"}', 500),
+        'DELETE /api/renders/r3': (req) {
+          deleted++;
+          return {'ok': true};
+        },
+        'DELETE /api/renders/r1': (_) =>
+            http.Response('{"error":"boom"}', 500),
+      });
+      await pump(t, Scaffold(body: RendersTab(project: p1)));
+      await t.tap(find.byIcon(Icons.refresh).at(1));
+      await settle(t);
+      expect(retried, 1);
+      expect(opened, isEmpty);
+      await t.tap(find.byIcon(Icons.refresh).last);
+      await settle(t);
+      expect(find.byType(Notice), findsWidgets);
+      await t.tap(find.byIcon(Icons.refresh).first);
+      await settle(t);
+      expect(retried, 2);
+      expect(opened, contains('render=r5'));
+      await t.tap(find.byIcon(Icons.delete_outline).at(1));
+      await settle(t);
+      await t.tap(find.text('Cancel'));
+      await settle(t);
+      expect(deleted, 0);
+      await t.tap(find.byIcon(Icons.delete_outline).at(1));
+      await settle(t);
+      await t.tap(find.text('Confirm'));
+      await settle(t);
+      expect(deleted, 1);
+      await t.tap(find.byIcon(Icons.delete_outline).first);
+      await settle(t);
+      await t.tap(find.text('Confirm'));
+      await settle(t);
+      expect(find.byType(Notice), findsWidgets);
+      await t.pumpWidget(const SizedBox());
+    });
+
+    testWidgets('load more appends the next page', (t) async {
+      var fetches = 0;
+      installApi(extra: {
+        'GET /api/projects/p1/renders': (req) {
+          final off = int.parse(req.url.queryParameters['offset'] ?? '0');
+          if (off == 0) {
+            return [
+              for (var i = 0; i < 50; i++)
+                {'id': 'j$i', 'status': 'done', 'outputName': 'out$i'}
+            ];
+          }
+          if (++fetches == 1) {
+            return http.Response('{"error":"boom"}', 500);
+          }
+          return [
+            {'id': 'j50', 'status': 'done', 'outputName': 'out50'}
+          ];
+        },
+      });
+      await pump(t, Scaffold(body: RendersTab(project: p1)));
+      await t.scrollUntilVisible(find.text('Load more'), 300);
+      await t.tap(find.text('Load more'));
+      await settle(t);
+      expect(find.byType(Notice), findsWidgets);
+      await t.tap(find.text('Load more'));
+      await settle(t);
+      await t.scrollUntilVisible(find.text('out50'), 300);
+      expect(find.text('Load more'), findsNothing);
+      await t.pumpWidget(const SizedBox());
+    });
+
     testWidgets('empty renders state', (t) async {
       installApi(extra: {'GET /api/projects/p1/renders': (_) => []});
       await pump(t, Scaffold(body: RendersTab(project: p1)));

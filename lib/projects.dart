@@ -916,7 +916,9 @@ class RendersTab extends StatefulWidget {
 }
 
 class _RendersTabState extends State<RendersTab> {
+  static const _page = 50;
   List<RenderJob>? _jobs;
+  bool _more = false;
   Timer? _timer;
 
   @override
@@ -936,9 +938,30 @@ class _RendersTabState extends State<RendersTab> {
 
   Future<void> _load() async {
     try {
-      final j = await Api.i.renders(widget.project.id);
-      if (mounted) setState(() => _jobs = j);
+      final shown = _jobs?.length ?? _page;
+      final j = await Api.i
+          .renders(widget.project.id, limit: shown < _page ? _page : shown);
+      if (mounted) {
+        setState(() {
+          _jobs = j;
+          _more = j.length >= (shown < _page ? _page : shown);
+        });
+      }
     } catch (_) {}
+  }
+
+  Future<void> _loadMore() async {
+    try {
+      final j = await Api.i.renders(widget.project.id, offset: _jobs!.length);
+      if (mounted) {
+        setState(() {
+          _jobs = [...?_jobs, ...j];
+          _more = j.length >= _page;
+        });
+      }
+    } catch (e) {
+      if (mounted) snack(context, e);
+    }
   }
 
   Future<void> _cancel(RenderJob j) async {
@@ -950,13 +973,41 @@ class _RendersTabState extends State<RendersTab> {
     }
   }
 
+  Future<void> _retry(RenderJob j) async {
+    try {
+      final next = await Api.i.retryRender(j.id);
+      if (next.mode == 'device') {
+        openExternal(Api.i.renderUrl(widget.project.id, next.id));
+      }
+      _load();
+    } catch (e) {
+      if (mounted) snack(context, e);
+    }
+  }
+
+  Future<void> _delete(RenderJob j) async {
+    if (!await confirm(context, context.l10n.delete,
+        context.l10n.deleteRenderBody(j.outputName))) {
+      return;
+    }
+    try {
+      await Api.i.deleteRender(j.id);
+      _load();
+    } catch (e) {
+      if (mounted) snack(context, e);
+    }
+  }
+
   Future<void> _download(RenderJob j) async {
     try {
       final files = await Api.i.files(widget.project.id, 'Exports');
-      final f = files.where((e) =>
-          !e.isDir &&
-          (e.name == j.outputName || e.name.startsWith('${j.outputName}.')));
+      final f = files
+          .where((e) =>
+              !e.isDir &&
+              (e.name == j.outputName || e.name.startsWith('${j.outputName}.')))
+          .toList();
       if (f.isEmpty) throw StateError('not found');
+      f.sort((a, b) => b.size.compareTo(a.size));
       openExternal(Api.i
           .downloadUrl(widget.project.id, 'Exports/${f.first.name}', dl: true));
     } catch (e) {
@@ -984,8 +1035,16 @@ class _RendersTabState extends State<RendersTab> {
           : jobs.isEmpty
               ? Center(child: Text(l10n.noRenders))
               : ListView.builder(
-                  itemCount: jobs.length,
+                  itemCount: jobs.length + (_more ? 1 : 0),
                   itemBuilder: (c, i) {
+                    if (i >= jobs.length) {
+                      return Center(
+                        child: TextButton(
+                          onPressed: _loadMore,
+                          child: Text(l10n.loadMore),
+                        ),
+                      );
+                    }
                     final j = jobs[i];
                     return ListTile(
                       leading: Icon(switch (j.status) {
@@ -1028,6 +1087,16 @@ class _RendersTabState extends State<RendersTab> {
                               icon: const Icon(Icons.stop),
                               tooltip: l10n.cancel,
                               onPressed: () => _cancel(j)),
+                        if (!j.active) ...[
+                          IconButton(
+                              icon: const Icon(Icons.refresh),
+                              tooltip: l10n.retry,
+                              onPressed: () => _retry(j)),
+                          IconButton(
+                              icon: const Icon(Icons.delete_outline),
+                              tooltip: l10n.delete,
+                              onPressed: () => _delete(j)),
+                        ],
                       ]),
                     );
                   },

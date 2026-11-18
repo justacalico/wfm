@@ -612,4 +612,12 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get viewOnGitlab => '在 GitLab 上查看';
+
+  @override
+  String get loadMore => '加载更多';
+
+  @override
+  String deleteRenderBody(Object name) {
+    return '删除“$name”的渲染记录？导出的文件会保留在项目中。';
+  }
 }

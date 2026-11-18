@@ -616,4 +616,12 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get viewOnGitlab => '  GitLab';
+
+  @override
+  String get loadMore => 'Загрузить ещё';
+
+  @override
+  String deleteRenderBody(Object name) {
+    return 'Удалить запись рендера «$name»? Экспортированные файлы останутся в проекте.';
+  }
 }

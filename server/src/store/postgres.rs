@@ -675,15 +675,26 @@ impl Db for PgDb {
             .map_err(map_err)
     }
 
-    async fn jobs_by_project(&self, project_id: &str) -> DbResult<Vec<RenderJob>> {
+    async fn jobs_by_project(&self, project_id: &str, offset: i64, limit: i64) -> DbResult<Vec<RenderJob>> {
         sqlx::query(
-            "SELECT * FROM render_jobs WHERE project_id=$1 ORDER BY created_at DESC LIMIT 50",
+            "SELECT * FROM render_jobs WHERE project_id=$1 ORDER BY created_at DESC LIMIT $2 OFFSET $3",
         )
         .bind(project_id)
+        .bind(limit)
+        .bind(offset)
         .fetch_all(&self.pool)
         .await
         .map(|rows| rows.into_iter().map(row_job).collect())
         .map_err(map_err)
+    }
+
+    async fn job_delete(&self, id: &str) -> DbResult<()> {
+        sqlx::query("DELETE FROM render_jobs WHERE id=$1")
+            .bind(id)
+            .execute(&self.pool)
+            .await
+            .map(|_| ())
+            .map_err(map_err)
     }
 
     async fn job_next_queued(&self) -> DbResult<Option<RenderJob>> {

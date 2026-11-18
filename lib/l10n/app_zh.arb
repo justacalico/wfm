@@ -303,5 +303,12 @@
   "retry": "重试",
   "license": "许可证",
   "licenseAgpl": "基于 AGPL-3.0 许可",
-  "viewOnGitlab": "在 GitLab 上查看"
+  "viewOnGitlab": "在 GitLab 上查看",
+  "loadMore": "加载更多",
+  "deleteRenderBody": "删除“{name}”的渲染记录？导出的文件会保留在项目中。",
+  "@deleteRenderBody": {
+    "placeholders": {
+      "name": {}
+    }
+  }
 }

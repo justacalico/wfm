@@ -615,6 +615,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get viewOnGitlab => 'View on GitLab';
+
+  @override
+  String get loadMore => 'Load more';
+
+  @override
+  String deleteRenderBody(Object name) {
+    return 'Delete the \"$name\" render? Its exported files stay in the project.';
+  }
 }
 
 /// The translations for English, as used in the United Kingdom (`en_GB`).
@@ -661,4 +669,12 @@ class AppLocalizationsEnGb extends AppLocalizationsEn {
 
   @override
   String get viewOnGitlab => 'View on GitLab';
+
+  @override
+  String get loadMore => 'Load more';
+
+  @override
+  String deleteRenderBody(Object name) {
+    return 'Delete the \"$name\" render? Its exported files stay in the project.';
+  }
 }
