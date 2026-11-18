@@ -1507,7 +1507,7 @@ async fn create_render(
     if device {
         let _ = s
             .db
-            .job_progress(&job.id, 0.0, AppState::now() + 90)
+            .job_progress(&job.id, &job.worker, 0.0, AppState::now() + 90)
             .await;
     }
     let _ = s
@@ -1637,7 +1637,10 @@ async fn render_progress(
     let canceled = s.cancels.lock().unwrap().contains(&id);
     if !canceled {
         let p = req["progress"].as_f64().unwrap_or(0.0).clamp(0.0, 1.0);
-        let _ = s.db.job_progress(&id, p, AppState::now() + 90).await;
+        let _ = s
+            .db
+            .job_progress(&id, &job.worker, p, AppState::now() + 90)
+            .await;
     }
     Json(json!({"ok": true, "canceled": canceled})).into_response()
 }
@@ -1661,7 +1664,7 @@ async fn render_finish(
     let status = if e.is_empty() { "done" } else { "failed" };
     let _ = s
         .db
-        .job_finish(&id, status, &e, AppState::now())
+        .job_finish(&id, &job.worker, status, &e, AppState::now())
         .await;
     let _ = s
         .db
@@ -1718,10 +1721,12 @@ async fn cancel_render(
     if job.status != "queued" && job.status != "running" {
         return err(StatusCode::CONFLICT, "render already finished");
     }
-    s.cancels.lock().unwrap().insert(id.clone());
+    if job.status == "running" {
+        s.cancels.lock().unwrap().insert(id.clone());
+    }
     let _ = s
         .db
-        .job_finish(&id, "canceled", "", AppState::now())
+        .job_finish(&id, &job.worker, "canceled", "", AppState::now())
         .await;
     let _ = s.db.lock_release(&job.project_id, "render", &job.id).await;
     s.audit(
@@ -1934,6 +1939,9 @@ async fn worker_file(
         Ok(j) => j,
         Err(r) => return r,
     };
+    if job.status != "running" {
+        return err(StatusCode::CONFLICT, "job not running");
+    }
     let project = match s.db.project_by_id(&job.project_id).await {
         Ok(p) => p,
         Err(e) => return db_resp(e),
@@ -1956,17 +1964,23 @@ async fn worker_progress(
     Path(id): Path<String>,
     Json(req): Json<ProgressReq>,
 ) -> Response {
-    let _job = match worker_job_guard(&s, &node, &id).await {
+    let job = match worker_job_guard(&s, &node, &id).await {
         Ok(j) => j,
         Err(r) => return r,
     };
-    let canceled = s.cancels.lock().unwrap().contains(&id);
+    let canceled =
+        job.status == "canceled" || s.cancels.lock().unwrap().contains(&id);
     if canceled {
         return Json(json!({"ok": true, "canceled": true})).into_response();
     }
     let _ = s
         .db
-        .job_progress(&id, req.progress.clamp(0.0, 1.0), AppState::now() + 90)
+        .job_progress(
+            &id,
+            &job.worker,
+            req.progress.clamp(0.0, 1.0),
+            AppState::now() + 90,
+        )
         .await;
     Json(json!({"ok": true})).into_response()
 }
@@ -1982,6 +1996,9 @@ async fn worker_complete(
         Ok(j) => j,
         Err(r) => return r,
     };
+    if job.status != "running" {
+        return err(StatusCode::CONFLICT, "job not running");
+    }
     let project = match s.db.project_by_id(&job.project_id).await {
         Ok(p) => p,
         Err(e) => return db_resp(e),
@@ -2009,8 +2026,12 @@ async fn worker_complete(
         return err(StatusCode::INTERNAL_SERVER_ERROR, &e);
     }
     if q.done {
-        let _ = s.db.job_finish(&id, "done", "", AppState::now()).await;
+        let _ = s
+            .db
+            .job_finish(&id, &job.worker, "done", "", AppState::now())
+            .await;
         let _ = s.db.lock_release(&job.project_id, "render", &job.id).await;
+        s.cancels.lock().unwrap().remove(&id);
         if let Ok(u) = s.db.user_by_id(&job.user_id).await {
             s.audit("project", &u, "render_done", &project.display_name, &name, "")
                 .await;
@@ -2035,7 +2056,11 @@ async fn worker_fail(
         Err(r) => return r,
     };
     let msg: String = req.error.chars().take(500).collect();
-    let _ = s.db.job_finish(&id, "failed", &msg, AppState::now()).await;
+    let _ = s
+        .db
+        .job_finish(&id, &job.worker, "failed", &msg, AppState::now())
+        .await;
     let _ = s.db.lock_release(&job.project_id, "render", &job.id).await;
+    s.cancels.lock().unwrap().remove(&id);
     Json(json!({"ok": true})).into_response()
 }

@@ -669,27 +669,42 @@ impl Db for PgDb {
         .map_err(map_err)
     }
 
-    async fn job_progress(&self, id: &str, progress: f64, lease_until: i64) -> DbResult<()> {
+    async fn job_progress(
+        &self,
+        id: &str,
+        worker: &str,
+        progress: f64,
+        lease_until: i64,
+    ) -> DbResult<bool> {
         sqlx::query(
-            "UPDATE render_jobs SET progress=$1, lease_until=$2 WHERE id=$3 AND status='running'",
+            "UPDATE render_jobs SET progress=$1, lease_until=$2 WHERE id=$3 AND worker=$4 AND status='running'",
         )
         .bind(progress)
         .bind(lease_until)
         .bind(id)
+        .bind(worker)
         .execute(&self.pool)
         .await
-        .map(|_| ())
+        .map(|r| r.rows_affected() > 0)
         .map_err(map_err)
     }
 
-    async fn job_finish(&self, id: &str, status: &str, error: &str, finished_at: i64) -> DbResult<()> {
+    async fn job_finish(
+        &self,
+        id: &str,
+        worker: &str,
+        status: &str,
+        error: &str,
+        finished_at: i64,
+    ) -> DbResult<()> {
         sqlx::query(
-            "UPDATE render_jobs SET status=$1, error=$2, finished_at=$3, progress=CASE WHEN $1='done' THEN 1 ELSE progress END WHERE id=$4",
+            "UPDATE render_jobs SET status=$1, error=$2, finished_at=$3, progress=CASE WHEN $1='done' THEN 1 ELSE progress END WHERE id=$4 AND worker=$5 AND status IN ('queued','running')",
         )
         .bind(status)
         .bind(error)
         .bind(finished_at)
         .bind(id)
+        .bind(worker)
         .execute(&self.pool)
         .await
         .map(|_| ())

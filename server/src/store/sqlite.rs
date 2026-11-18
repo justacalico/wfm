@@ -757,25 +757,43 @@ impl Db for SqliteDb {
             .map_err(dberr)
     }
 
-    async fn job_progress(&self, id: &str, progress: f64, lease_until: i64) -> DbResult<()> {
-        let id = id.to_string();
+    async fn job_progress(
+        &self,
+        id: &str,
+        worker: &str,
+        progress: f64,
+        lease_until: i64,
+    ) -> DbResult<bool> {
+        let (id, w) = (id.to_string(), worker.to_string());
         self.q(move |c| {
                 c.execute(
-                    "UPDATE render_jobs SET progress=?, lease_until=? WHERE id=? AND status='running'",
-                    params![progress, lease_until, id],
+                    "UPDATE render_jobs SET progress=?, lease_until=? WHERE id=? AND worker=? AND status='running'",
+                    params![progress, lease_until, id, w],
                 )
             })
             .await
-            .map(|_| ())
+            .map(|n| n > 0)
             .map_err(dberr)
     }
 
-    async fn job_finish(&self, id: &str, status: &str, error: &str, finished_at: i64) -> DbResult<()> {
-        let (id, st, e) = (id.to_string(), status.to_string(), error.to_string());
+    async fn job_finish(
+        &self,
+        id: &str,
+        worker: &str,
+        status: &str,
+        error: &str,
+        finished_at: i64,
+    ) -> DbResult<()> {
+        let (id, w, st, e) = (
+            id.to_string(),
+            worker.to_string(),
+            status.to_string(),
+            error.to_string(),
+        );
         self.q(move |c| {
                 c.execute(
-                    "UPDATE render_jobs SET status=?, error=?, finished_at=?, progress=CASE WHEN ?='done' THEN 1 ELSE progress END WHERE id=?",
-                    params![st, e, finished_at, st, id],
+                    "UPDATE render_jobs SET status=?, error=?, finished_at=?, progress=CASE WHEN ?='done' THEN 1 ELSE progress END WHERE id=? AND worker=? AND status IN ('queued','running')",
+                    params![st, e, finished_at, st, id, w],
                 )
             })
             .await
@@ -986,5 +1004,54 @@ mod tests {
         assert!(db.create_owner(&u("a"), "h").await.unwrap());
         assert!(!db.create_owner(&u("b"), "h").await.unwrap());
         assert_eq!(db.owner_count().await.unwrap(), 1);
+    }
+
+    fn job(id: &str) -> RenderJob {
+        RenderJob {
+            id: id.into(),
+            project_id: "p".into(),
+            user_id: "u".into(),
+            status: "queued".into(),
+            mode: "server".into(),
+            spec: "{}".into(),
+            output_name: "out".into(),
+            progress: 0.0,
+            error: String::new(),
+            worker: String::new(),
+            attempts: 0,
+            created_at: 1,
+            finished_at: 0,
+        }
+    }
+
+    #[tokio::test]
+    async fn job_progress_and_finish_require_the_claiming_worker() {
+        let db = connect(":memory:").await.unwrap();
+        db.job_create(&job("j")).await.unwrap();
+        assert!(db.job_claim("j", "w1", 200).await.unwrap());
+
+        assert!(db.job_progress("j", "w1", 0.5, 300).await.unwrap());
+        // A foreign or stale worker can neither report nor finish.
+        assert!(!db.job_progress("j", "w2", 0.6, 300).await.unwrap());
+        db.job_finish("j", "w2", "failed", "oops", 400).await.unwrap();
+        let j = db.job_by_id("j").await.unwrap();
+        assert_eq!(j.status, "running");
+        assert_eq!(j.progress, 0.5);
+
+        db.job_finish("j", "w1", "done", "", 400).await.unwrap();
+        let j = db.job_by_id("j").await.unwrap();
+        assert_eq!(j.status, "done");
+        // Terminal jobs ignore late completions even from the claimant.
+        db.job_finish("j", "w1", "failed", "oops", 500).await.unwrap();
+        assert_eq!(db.job_by_id("j").await.unwrap().status, "done");
+    }
+
+    #[tokio::test]
+    async fn cancel_of_queued_job_still_lands() {
+        let db = connect(":memory:").await.unwrap();
+        db.job_create(&job("j")).await.unwrap();
+        db.job_finish("j", "", "canceled", "", 100).await.unwrap();
+        assert_eq!(db.job_by_id("j").await.unwrap().status, "canceled");
+        assert!(!db.job_claim("j", "w1", 200).await.unwrap());
     }
 }
