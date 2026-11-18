@@ -321,6 +321,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get gridView => '网格视图';
 
   @override
+  String get searchProjects => '搜索项目';
+
+  @override
+  String get sortProjects => '项目排序';
+
+  @override
+  String get sortCreated => '创建时间';
+
+  @override
+  String get sortActivity => '最近活动';
+
+  @override
   String get listView => '列表视图';
 
   @override

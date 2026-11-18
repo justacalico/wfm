@@ -159,6 +159,10 @@
     }
   },
   "gridView": "Amharc eangaí",
+  "searchProjects": "Cuardaigh tionscadail",
+  "sortProjects": "Sórtáil tionscadail",
+  "sortCreated": "Dáta cruthaithe",
+  "sortActivity": "Gníomhaíocht dheireanach",
   "listView": "Amharc liosta",
   "noAccounts": "Níl aon chuntas ann fós.",
   "nothingRecorded": "Níl aon taifead ann fós.",

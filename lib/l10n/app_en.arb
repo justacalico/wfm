@@ -159,6 +159,10 @@
     }
   },
   "gridView": "Grid view",
+  "searchProjects": "Search projects",
+  "sortProjects": "Sort projects",
+  "sortCreated": "Created date",
+  "sortActivity": "Last activity",
   "listView": "List view",
   "noAccounts": "No accounts",
   "nothingRecorded": "Nothing recorded yet.",

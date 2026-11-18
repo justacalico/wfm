@@ -73,6 +73,50 @@ void main() {
       expect(find.byIcon(Icons.grid_view), findsOneWidget);
     });
 
+    testWidgets('search and sort projects', (t) async {
+      installApi(extra: {
+        'GET /api/projects': (_) => [
+              {
+                'id': 'p1',
+                'name': 'alpha',
+                'displayName': 'Alpha',
+                'createdAt': 1,
+                'lastActivity': 2
+              },
+              {
+                'id': 'p2',
+                'name': 'beta',
+                'displayName': 'Beta',
+                'createdAt': 2,
+                'lastActivity': 1
+              },
+            ],
+      });
+      await pump(t, const ProjectsPage());
+      await t.enterText(find.byType(TextField).first, 'alp');
+      await settle(t);
+      expect(find.text('Alpha'), findsOneWidget);
+      expect(find.text('Beta'), findsNothing);
+      await t.enterText(find.byType(TextField).first, '');
+      await settle(t);
+      await t.tap(find.byIcon(Icons.sort));
+      await settle(t);
+      await t.tap(find.text('Created date'));
+      await settle(t);
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getInt('projectsSort'), 1);
+      expect(t.getTopLeft(find.text('Beta')).dx,
+          lessThan(t.getTopLeft(find.text('Alpha')).dx));
+      await t.tap(find.byIcon(Icons.sort));
+      await settle(t);
+      await t.tap(find.text('Last activity'));
+      await settle(t);
+      expect(t.getTopLeft(find.text('Alpha')).dx,
+          lessThan(t.getTopLeft(find.text('Beta')).dx));
+      await t.pumpWidget(const SizedBox());
+      await pump(t, const ProjectsPage());
+    });
+
     testWidgets('card render button opens the render dialog', (t) async {
       installApi();
       await pump(t, const ProjectsPage());

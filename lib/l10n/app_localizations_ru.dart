@@ -322,6 +322,18 @@ class AppLocalizationsRu extends AppLocalizations {
   String get gridView => 'Сетка';
 
   @override
+  String get searchProjects => 'Поиск проектов';
+
+  @override
+  String get sortProjects => 'Сортировка проектов';
+
+  @override
+  String get sortCreated => 'Дата создания';
+
+  @override
+  String get sortActivity => 'Последняя активность';
+
+  @override
   String get listView => 'Список';
 
   @override

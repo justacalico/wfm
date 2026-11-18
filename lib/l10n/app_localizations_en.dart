@@ -321,6 +321,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get gridView => 'Grid view';
 
   @override
+  String get searchProjects => 'Search projects';
+
+  @override
+  String get sortProjects => 'Sort projects';
+
+  @override
+  String get sortCreated => 'Created date';
+
+  @override
+  String get sortActivity => 'Last activity';
+
+  @override
   String get listView => 'List view';
 
   @override
@@ -591,6 +603,18 @@ class AppLocalizationsEnGb extends AppLocalizationsEn {
 
   @override
   String get gridView => 'Grid view';
+
+  @override
+  String get searchProjects => 'Search projects';
+
+  @override
+  String get sortProjects => 'Sort projects';
+
+  @override
+  String get sortCreated => 'Created date';
+
+  @override
+  String get sortActivity => 'Last activity';
 
   @override
   String get listView => 'List view';
