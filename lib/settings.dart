@@ -116,8 +116,9 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final u = Api.i.user;
+    if (u == null) return const SizedBox.shrink();
     final app = context.findAncestorStateOfType<WfmAppState>()!;
-    final u = Api.i.user!;
     final proxies = TextEditingController(text: _proxies);
     final tight = MediaQuery.sizeOf(context).width < 720;
     return ListView(padding: const EdgeInsets.all(24), children: [

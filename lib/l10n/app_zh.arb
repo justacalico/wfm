@@ -278,5 +278,12 @@
   "captionSidecar": "字幕旁挂文件",
   "extraParams": "额外导出参数（JSON）",
   "invalidJson": "JSON 无效",
-  "defaultOption": "默认"
+  "defaultOption": "默认",
+  "serverUnreachable": "无法连接服务器:{error}",
+  "@serverUnreachable": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "retry": "重试"
 }

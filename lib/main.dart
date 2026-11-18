@@ -41,6 +41,7 @@ class WfmApp extends StatefulWidget {
 class WfmAppState extends State<WfmApp> {
   final themeCtl = ValueNotifier<AppTheme>(AppTheme.light);
   final localeCtl = ValueNotifier<Locale?>(null);
+  final navKey = GlobalKey<NavigatorState>();
 
   AppTheme get appTheme => themeCtl.value;
   Locale? get appLocale => localeCtl.value;
@@ -48,6 +49,12 @@ class WfmAppState extends State<WfmApp> {
   @override
   void initState() {
     super.initState();
+    // A real sign-out (401 while logged in) returns to the gate from one
+    // place instead of letting every Api.i.user! unwrap crash mid-build.
+    Api.i.onSignedOut = () {
+      navKey.currentState?.pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const Gate()), (_) => false);
+    };
     SharedPreferences.getInstance().then((p) {
       setState(() {
         themeCtl.value =
@@ -68,6 +75,7 @@ class WfmAppState extends State<WfmApp> {
         ? _makeTheme(Brightness.dark, oled: true)
         : _makeTheme(Brightness.dark);
     return MaterialApp(
+      navigatorKey: navKey,
       title: 'WFM',
       theme: _makeTheme(Brightness.light),
       darkTheme: dark,
@@ -368,8 +376,8 @@ class _GateState extends State<Gate> {
       if (u == null) return const LoginPage();
       await Api.i.roles().catchError((_) => Api.i.caps);
       return const Shell();
-    } catch (_) {
-      return const LoginPage();
+    } catch (e) {
+      return GateError(e);
     }
   }
 
@@ -380,6 +388,36 @@ class _GateState extends State<Gate> {
             ? s.data!
             : const Scaffold(body: Center(child: CircularProgressIndicator())),
       );
+}
+
+/// Shown when the gate can't reach the server (or gets a non-auth error):
+/// a real error state with retry instead of a misleading login form.
+class GateError extends StatelessWidget {
+  final Object error;
+  const GateError(this.error, {super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    return Scaffold(
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            const Icon(Icons.cloud_off_outlined, size: 40),
+            const SizedBox(height: 12),
+            Text(l10n.serverUnreachable('$error'), textAlign: TextAlign.center),
+            const SizedBox(height: 12),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(builder: (_) => const Gate())),
+              child: Text(l10n.retry),
+            ),
+          ]),
+        ),
+      ),
+    );
+  }
 }
 
 class SetupPage extends StatefulWidget {
@@ -548,7 +586,8 @@ class ShellState extends State<Shell> {
       ];
 
   Widget _navColumn(AppLocalizations l10n, {VoidCallback? onTap}) {
-    final u = Api.i.user!;
+    final u = Api.i.user;
+    if (u == null) return const SizedBox.shrink();
     final items = _items(l10n, Api.i.caps.manage || Api.i.caps.audit);
     final initials = u.name.trim().isEmpty
         ? u.username.substring(0, 1).toUpperCase()
@@ -651,7 +690,8 @@ class HomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final u = Api.i.user!;
+    final u = Api.i.user;
+    if (u == null) return const SizedBox.shrink();
     final showManage = Api.i.caps.manage || Api.i.caps.audit;
     final cards = <(IconData, String, String, int)>[
       (Icons.movie_outlined, l10n.cardProjects, l10n.cardProjectsSub, 1),

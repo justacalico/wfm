@@ -151,6 +151,10 @@ class Api {
   User? user;
   Caps caps = Caps.none;
 
+  /// Called once per request that gets a 401, after [user] is cleared.
+  /// The app wires this to drop back to the gate/login screen.
+  void Function()? onSignedOut;
+
   Api([http.Client? client]) : _c = client ?? http.Client();
 
   static const _base = String.fromEnvironment('WFM_API');
@@ -167,7 +171,10 @@ class Api {
     final r = await send();
     final body = r.body.isEmpty ? null : jsonDecode(r.body);
     if (r.statusCode == 401) {
-      user = null;
+      if (user != null) {
+        user = null;
+        onSignedOut?.call();
+      }
       throw ApiException(401, 'auth');
     }
     if (r.statusCode >= 400) {
@@ -221,8 +228,9 @@ class Api {
     try {
       _session(await get('/me'));
       return user;
-    } on ApiException {
-      return user = null;
+    } on ApiException catch (e) {
+      if (e.status == 401) return user = null;
+      rethrow;
     }
   }
 

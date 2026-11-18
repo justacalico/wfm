@@ -566,6 +566,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get defaultOption => 'Default';
+
+  @override
+  String serverUnreachable(Object error) {
+    return 'Can\'t reach the server: $error';
+  }
+
+  @override
+  String get retry => 'Retry';
 }
 
 /// The translations for English, as used in the United Kingdom (`en_GB`).

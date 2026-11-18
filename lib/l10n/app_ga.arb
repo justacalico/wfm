@@ -278,5 +278,12 @@
   "captionSidecar": "Comhad fotheideal ar leith",
   "extraParams": "Paraiméadair bhreise easpórtála (JSON)",
   "invalidJson": "JSON neamhbhailí",
-  "defaultOption": "Réamhshocrú"
+  "defaultOption": "Réamhshocrú",
+  "serverUnreachable": "Ní féidir teagmháil a dhéanamh leis an bhfreastalaí: {error}",
+  "@serverUnreachable": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "retry": "Bain triail eile as"
 }

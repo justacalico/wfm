@@ -278,5 +278,12 @@
   "captionSidecar": "Файл субтитров",
   "extraParams": "Доп. параметры экспорта (JSON)",
   "invalidJson": "Неверный JSON",
-  "defaultOption": "По умолчанию"
+  "defaultOption": "По умолчанию",
+  "serverUnreachable": "Не удаётся связаться с сервером: {error}",
+  "@serverUnreachable": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "retry": "Повторить"
 }
