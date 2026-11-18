@@ -39,7 +39,7 @@ class WfmApp extends StatefulWidget {
 }
 
 class WfmAppState extends State<WfmApp> {
-  final themeCtl = ValueNotifier<AppTheme>(AppTheme.light);
+  final themeCtl = ValueNotifier<AppTheme>(AppTheme.system);
   final localeCtl = ValueNotifier<Locale?>(null);
   final navKey = GlobalKey<NavigatorState>();
 
@@ -58,7 +58,7 @@ class WfmAppState extends State<WfmApp> {
     SharedPreferences.getInstance().then((p) {
       setState(() {
         themeCtl.value =
-            AppTheme.values[p.getInt('theme') ?? AppTheme.light.index];
+            AppTheme.values[p.getInt('theme') ?? AppTheme.system.index];
         final code = p.getString('locale');
         if (code != null && code.isNotEmpty) {
           final parts = code.split('_');

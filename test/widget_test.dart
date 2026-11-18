@@ -294,4 +294,10 @@ void main() {
     expect(app.appTheme, AppTheme.oled);
     expect(app.appLocale?.languageCode, 'zh');
   });
+
+  testWidgets('no saved theme defaults to system', (t) async {
+    installApi(extra: {'GET *': (_) => []});
+    await pumpWfm(t);
+    expect(t.state<WfmAppState>(find.byType(WfmApp)).appTheme, AppTheme.system);
+  });
 }
