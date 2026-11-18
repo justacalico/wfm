@@ -722,6 +722,7 @@ async fn create_project(
         tags,
         created_at: AppState::now(),
         last_activity: AppState::now(),
+        pinned: false,
     };
     if let Err(e) = s.db.create_project(&p).await {
         let _ = s.blobs.delete_prefix(&p.dir).await;
@@ -767,6 +768,8 @@ struct UpdateProjectReq {
     group_id: Option<String>,
     #[serde(default)]
     tags: Option<Vec<String>>,
+    #[serde(default)]
+    pinned: Option<bool>,
 }
 
 async fn update_project(
@@ -810,6 +813,11 @@ async fn update_project(
         .await
     {
         return db_resp(e);
+    }
+    if let Some(pin) = req.pinned {
+        if let Err(e) = s.db.set_project_pinned(&id, pin).await {
+            return db_resp(e);
+        }
     }
     s.audit("project", &session.user, "update_project", &name, "", "")
         .await;

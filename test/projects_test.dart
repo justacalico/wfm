@@ -117,6 +117,48 @@ void main() {
       await pump(t, const ProjectsPage());
     });
 
+    testWidgets('pin project sorts first', (t) async {
+      final bodies = <String, String>{};
+      installApi(extra: {
+        'GET /api/projects': (_) => [
+              {
+                'id': 'p1',
+                'name': 'alpha',
+                'displayName': 'Alpha',
+                'createdAt': 1
+              },
+              {
+                'id': 'p2',
+                'name': 'beta',
+                'displayName': 'Beta',
+                'createdAt': 2,
+                'pinned': true
+              },
+            ],
+        'PATCH /api/projects/p1': (req) {
+          bodies['p1'] = req.body;
+          return http.Response('{"error":"nope"}', 500);
+        },
+        'PATCH /api/projects/p2': (req) {
+          bodies['p2'] = req.body;
+          return {'ok': true};
+        },
+      });
+      await pump(t, const ProjectsPage());
+      expect(t.getTopLeft(find.text('Beta')).dx,
+          lessThan(t.getTopLeft(find.text('Alpha')).dx));
+      await t.tap(find.byType(PopupMenuButton<String>).first);
+      await settle(t);
+      await t.tap(find.text('Unpin project'));
+      await settle(t);
+      expect(bodies['p2'], contains('"pinned":false'));
+      await t.tap(find.byType(PopupMenuButton<String>).last);
+      await settle(t);
+      await t.tap(find.text('Pin project'));
+      await settle(t);
+      expect(bodies['p1'], contains('"pinned":true'));
+    });
+
     testWidgets('card render button opens the render dialog', (t) async {
       installApi();
       await pump(t, const ProjectsPage());

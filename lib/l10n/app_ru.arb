@@ -163,6 +163,8 @@
   "sortProjects": "Сортировка проектов",
   "sortCreated": "Дата создания",
   "sortActivity": "Последняя активность",
+  "pinProject": "Закрепить проект",
+  "unpinProject": "Открепить проект",
   "listView": "Список",
   "noAccounts": "Аккаунтов пока нет.",
   "nothingRecorded": "Записей пока нет.",

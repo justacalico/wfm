@@ -333,6 +333,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get sortActivity => '最近活动';
 
   @override
+  String get pinProject => '置顶项目';
+
+  @override
+  String get unpinProject => '取消置顶';
+
+  @override
   String get listView => '列表视图';
 
   @override

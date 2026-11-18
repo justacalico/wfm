@@ -333,6 +333,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sortActivity => 'Last activity';
 
   @override
+  String get pinProject => 'Pin project';
+
+  @override
+  String get unpinProject => 'Unpin project';
+
+  @override
   String get listView => 'List view';
 
   @override
@@ -615,6 +621,12 @@ class AppLocalizationsEnGb extends AppLocalizationsEn {
 
   @override
   String get sortActivity => 'Last activity';
+
+  @override
+  String get pinProject => 'Pin project';
+
+  @override
+  String get unpinProject => 'Unpin project';
 
   @override
   String get listView => 'List view';

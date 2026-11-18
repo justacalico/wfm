@@ -334,6 +334,12 @@ class AppLocalizationsRu extends AppLocalizations {
   String get sortActivity => 'Последняя активность';
 
   @override
+  String get pinProject => 'Закрепить проект';
+
+  @override
+  String get unpinProject => 'Открепить проект';
+
+  @override
   String get listView => 'Список';
 
   @override

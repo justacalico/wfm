@@ -4,6 +4,8 @@
   "sortProjects": "Sort projects",
   "sortCreated": "Created date",
   "sortActivity": "Last activity",
+  "pinProject": "Pin project",
+  "unpinProject": "Unpin project",
   "listView": "List view",
   "noAccounts": "No accounts"
 }
