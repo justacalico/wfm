@@ -237,6 +237,8 @@ void main() {
     test('urls', () {
       final api = Api(client({}));
       expect(api.projectUrl('p1'), '/filmcraft/wfm.html?project=p1');
+      expect(api.projectUrl('p1', theme: 'dark'),
+          '/filmcraft/wfm.html?project=p1&theme=dark');
       expect(api.downloadUrl('p1', 'a b.mp4'),
           '/api/projects/p1/download?path=a%20b.mp4');
       expect(api.downloadUrl('p1', 'a.mp4', dl: true),
@@ -272,6 +274,8 @@ void main() {
       expect(info.project, isTrue);
       expect(api.renderUrl('p1', 'r9'),
           '/filmcraft/wfm.html?project=p1&render=r9');
+      expect(api.renderUrl('p1', 'r9', theme: 'oled'),
+          '/filmcraft/wfm.html?project=p1&render=r9&theme=oled');
     });
 
     test('accounts/audit/nodes', () async {

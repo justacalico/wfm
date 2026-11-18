@@ -59,6 +59,7 @@ addEventListener("error", (e) => fcFail("FilmCraft could not load in this browse
 const qs = new URLSearchParams(location.search);
 const projectId = qs.get("project");
 const renderId = qs.get("render");
+const theme = qs.get("theme") ? "&theme=" + encodeURIComponent(qs.get("theme")) : "";
 const API = "/api";
 const clientId = (() => {
   if (crypto.randomUUID) return crypto.randomUUID();
@@ -109,7 +110,7 @@ async function boot() {
     const title = p.displayName || p.display_name || "";
     document.title = "Rendering" + (title ? " " + title : "") + " - WFM";
     docName = cleanName(title) + ".fcproj";
-    $("fc").src = "/filmcraft/dist/index.html?host=parent&fresh";
+    $("fc").src = "/filmcraft/dist/index.html?host=parent&fresh" + theme;
     return;
   }
   const lock = await api("/projects/" + projectId + "/locks", {
@@ -132,7 +133,7 @@ async function boot() {
   const title = p.displayName || p.display_name || "";
   document.title = title ? title + " - WFM" : "Filmcraft - WFM";
   docName = cleanName(title) + ".fcproj";
-  $("fc").src = "/filmcraft/dist/index.html?host=parent&fresh";
+  $("fc").src = "/filmcraft/dist/index.html?host=parent&fresh" + theme;
   setInterval(heartbeat, 20000);
 }
 
