@@ -721,6 +721,7 @@ async fn create_project(
         group_id,
         tags,
         created_at: AppState::now(),
+        last_activity: AppState::now(),
     };
     if let Err(e) = s.db.create_project(&p).await {
         let _ = s.blobs.delete_prefix(&p.dir).await;
@@ -747,6 +748,7 @@ async fn owned_project(s: &Arc<AppState>, session: &Session, id: &str) -> Result
     if p.owner_id != session.user.id && session.user.role != Role::Owner {
         return Err(err(StatusCode::FORBIDDEN, "not your project"));
     }
+    let _ = s.db.touch_project(&p.id, AppState::now()).await;
     Ok(p)
 }
 

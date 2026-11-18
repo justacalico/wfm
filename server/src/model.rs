@@ -96,6 +96,8 @@ pub struct Project {
     pub tags: Vec<String>,
     #[serde(rename = "createdAt")]
     pub created_at: i64,
+    #[serde(rename = "lastActivity")]
+    pub last_activity: i64,
 }
 
 #[derive(Clone, Serialize)]
