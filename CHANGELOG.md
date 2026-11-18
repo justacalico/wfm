@@ -2,6 +2,13 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.5.15 - 2026-11-18
+#### Bug Fixes
+- server config and api polish nits - (c4382fd) - Devin
+- enforce unique render node names and reserve synthetic worker identities - (0932dbc) - Devin
+
+- - -
+
 ## v0.5.14 - 2026-11-18
 #### Bug Fixes
 - 修复 Postgres 后端迁移与用户名大小写并纳入持续集成 - (efc7441) - calico
