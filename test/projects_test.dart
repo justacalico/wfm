@@ -547,6 +547,30 @@ void main() {
       await settle(t);
     });
 
+    testWidgets('grid view toggle persists and restores', (t) async {
+      installApi();
+      await pump(t, Scaffold(body: FilesTab(project: p1)));
+      expect(find.byType(ListView), findsOneWidget);
+      await t.tap(find.byIcon(Icons.grid_view));
+      await settle(t);
+      expect(find.byType(GridView), findsOneWidget);
+      expect(find.text('clip.mp4'), findsOneWidget);
+      var opened = '';
+      openExternalForTesting = (u) => opened = u;
+      await t.tap(find.byType(PopupMenuButton<String>).last);
+      await settle(t);
+      await t.tap(find.text('Download'));
+      await settle(t);
+      expect(opened, contains('dl=true'));
+      await t.tap(find.text('Raw'));
+      await settle(t);
+      final p = await SharedPreferences.getInstance();
+      expect(p.getInt('filesView'), 1);
+      await t.pumpWidget(const SizedBox());
+      await pump(t, Scaffold(body: FilesTab(project: p1)));
+      expect(find.byType(GridView), findsOneWidget);
+    });
+
     testWidgets('upload picked files', (t) async {
       var uploads = 0;
       pickFilesForTesting = () async => [
