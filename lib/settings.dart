@@ -92,30 +92,36 @@ class _SettingsPageState extends State<SettingsPage> {
     final cur = TextEditingController(), next = TextEditingController();
     final ok = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l10n.changePassword),
-        content: SizedBox(
-          width: 320,
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            TextField(
-                controller: cur,
-                obscureText: true,
-                decoration: dec(l10n.currentPassword)),
-            const SizedBox(height: 8),
-            TextField(
-                controller: next,
-                obscureText: true,
-                decoration: dec(l10n.newPassword)),
-          ]),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, ss) => AlertDialog(
+          title: Text(l10n.changePassword),
+          content: SizedBox(
+            width: 320,
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              TextField(
+                  controller: cur,
+                  obscureText: true,
+                  decoration: dec(l10n.currentPassword),
+                  onChanged: (_) => ss(() {})),
+              const SizedBox(height: 8),
+              TextField(
+                  controller: next,
+                  obscureText: true,
+                  decoration: dec(l10n.newPassword),
+                  onChanged: (_) => ss(() {})),
+            ]),
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: Text(l10n.cancel)),
+            FilledButton(
+                onPressed: cur.text.isNotEmpty && validPassword(next.text)
+                    ? () => Navigator.pop(ctx, true)
+                    : null,
+                child: Text(l10n.save)),
+          ],
         ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(l10n.cancel)),
-          FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text(l10n.save)),
-        ],
       ),
     );
     if (ok != true || !mounted) return;

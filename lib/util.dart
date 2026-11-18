@@ -29,6 +29,16 @@ String fmtAgo(AppLocalizations l10n, int ts) {
   return fmtTime(l10n, ts);
 }
 
+bool validUsername(String s) =>
+    s.length >= 2 &&
+    s.length <= 32 &&
+    !s.contains('..') &&
+    RegExp(r'^[A-Za-z0-9._-]+$').hasMatch(s);
+
+bool validPassword(String s) => s.length >= 8 && s.length <= 256;
+
+bool validDisplayName(String s) => s.trim().isNotEmpty && s.trim().length <= 64;
+
 String extOf(String name) {
   final i = name.lastIndexOf('.');
   return i < 0 ? '' : name.substring(i + 1).toLowerCase();

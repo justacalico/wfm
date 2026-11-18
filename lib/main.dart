@@ -319,24 +319,34 @@ class AuthPickers extends StatelessWidget {
 }
 
 Future<String?> promptText(BuildContext context, String title, String label,
-    [String initial = '']) {
+    [String initial = '', bool Function(String)? valid]) {
   final c = TextEditingController(text: initial);
   return showDialog<String>(
     context: context,
-    builder: (ctx) => AlertDialog(
-      title: Text(title),
-      content: TextField(
-          controller: c,
-          decoration: dec(label),
-          autofocus: true,
-          onSubmitted: (v) => Navigator.pop(ctx, v.trim())),
-      actions: [
-        TextButton(
-            onPressed: () => Navigator.pop(ctx), child: Text(ctx.l10n.cancel)),
-        FilledButton(
-            onPressed: () => Navigator.pop(ctx, c.text.trim()),
-            child: Text(ctx.l10n.ok)),
-      ],
+    builder: (ctx) => StatefulBuilder(
+      builder: (ctx, ss) => AlertDialog(
+        title: Text(title),
+        content: TextField(
+            controller: c,
+            decoration: dec(label),
+            autofocus: true,
+            onChanged: (_) => ss(() {}),
+            onSubmitted: (v) {
+              if (valid == null || valid(v.trim())) {
+                Navigator.pop(ctx, v.trim());
+              }
+            }),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(ctx.l10n.cancel)),
+          FilledButton(
+              onPressed: valid == null || valid(c.text.trim())
+                  ? () => Navigator.pop(ctx, c.text.trim())
+                  : null,
+              child: Text(ctx.l10n.ok)),
+        ],
+      ),
     ),
   );
 }

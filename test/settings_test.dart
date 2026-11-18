@@ -142,17 +142,18 @@ void main() {
             .descendant(
                 of: find.byType(AlertDialog), matching: find.byType(TextField))
             .at(0),
-        'old');
+        'oldpass1');
     await t.enterText(
         find
             .descendant(
                 of: find.byType(AlertDialog), matching: find.byType(TextField))
             .at(1),
-        'new');
+        'newpass12');
+    await t.pump();
     await t.tap(find.descendant(
         of: find.byType(AlertDialog), matching: find.text('Save')));
     await settle(t);
-    expect(body, contains('"next":"new"'));
+    expect(body, contains('"next":"newpass12"'));
     expect(find.byType(Notice), findsOneWidget);
 
     await t.tap(find.byIcon(Icons.key));
@@ -169,8 +170,19 @@ void main() {
     await goSettings(t);
     await t.tap(find.byIcon(Icons.key));
     await settle(t);
-    await t.tap(find.descendant(
-        of: find.byType(AlertDialog), matching: find.text('Save')));
+    final save = find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.widgetWithText(FilledButton, 'Save'));
+    final field = find.descendant(
+        of: find.byType(AlertDialog), matching: find.byType(TextField));
+    expect(t.widget<FilledButton>(save).onPressed, isNull);
+    await t.enterText(field.at(0), 'oldpass1');
+    await t.enterText(field.at(1), 'short');
+    await settle(t);
+    expect(t.widget<FilledButton>(save).onPressed, isNull);
+    await t.enterText(field.at(1), 'newpass12');
+    await settle(t);
+    await t.tap(save);
     await settle(t);
     expect(find.byType(Notice), findsOneWidget);
   });

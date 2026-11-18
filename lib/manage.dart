@@ -73,14 +73,21 @@ class _AccountsTabState extends State<AccountsTab> {
           content: SizedBox(
             width: 340,
             child: Column(mainAxisSize: MainAxisSize.min, children: [
-              TextField(controller: name, decoration: dec(l10n.name)),
+              TextField(
+                  controller: name,
+                  decoration: dec(l10n.name),
+                  onChanged: (_) => ss(() {})),
               const SizedBox(height: 8),
-              TextField(controller: user, decoration: dec(l10n.username)),
+              TextField(
+                  controller: user,
+                  decoration: dec(l10n.username),
+                  onChanged: (_) => ss(() {})),
               const SizedBox(height: 8),
               TextField(
                   controller: pass,
                   obscureText: true,
-                  decoration: dec(l10n.password)),
+                  decoration: dec(l10n.password),
+                  onChanged: (_) => ss(() {})),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
                 initialValue: role,
@@ -106,7 +113,11 @@ class _AccountsTabState extends State<AccountsTab> {
                 onPressed: () => Navigator.pop(ctx, false),
                 child: Text(l10n.cancel)),
             FilledButton(
-                onPressed: () => Navigator.pop(ctx, true),
+                onPressed: validDisplayName(name.text) &&
+                        validUsername(user.text.trim()) &&
+                        validPassword(pass.text)
+                    ? () => Navigator.pop(ctx, true)
+                    : null,
                 child: Text(l10n.create)),
           ],
         ),
@@ -146,9 +157,15 @@ class _AccountsTabState extends State<AccountsTab> {
           content: SizedBox(
             width: 340,
             child: Column(mainAxisSize: MainAxisSize.min, children: [
-              TextField(controller: name, decoration: dec(l10n.name)),
+              TextField(
+                  controller: name,
+                  decoration: dec(l10n.name),
+                  onChanged: (_) => ss(() {})),
               const SizedBox(height: 8),
-              TextField(controller: user, decoration: dec(l10n.username)),
+              TextField(
+                  controller: user,
+                  decoration: dec(l10n.username),
+                  onChanged: (_) => ss(() {})),
               const SizedBox(height: 8),
               if (roles.length > 1) ...[
                 DropdownButtonFormField<String>(
@@ -176,7 +193,10 @@ class _AccountsTabState extends State<AccountsTab> {
                 onPressed: () => Navigator.pop(ctx, false),
                 child: Text(l10n.cancel)),
             FilledButton(
-                onPressed: () => Navigator.pop(ctx, true),
+                onPressed: validDisplayName(name.text) &&
+                        validUsername(user.text.trim())
+                    ? () => Navigator.pop(ctx, true)
+                    : null,
                 child: Text(l10n.save)),
           ],
         ),
@@ -198,8 +218,12 @@ class _AccountsTabState extends State<AccountsTab> {
   }
 
   Future<void> _reset(User u) async {
-    final pw = await promptText(context,
-        context.l10n.resetPasswordTitle(u.username), context.l10n.newPassword);
+    final pw = await promptText(
+        context,
+        context.l10n.resetPasswordTitle(u.username),
+        context.l10n.newPassword,
+        '',
+        validPassword);
     if (pw == null || pw.isEmpty || !mounted) return;
     try {
       await Api.i.resetPassword(u.id, pw);
