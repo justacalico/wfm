@@ -158,6 +158,7 @@
       "when": {}
     }
   },
+  "noAccounts": "暂无账号。",
   "nothingRecorded": "暂无记录。",
   "newNode": "新建节点",
   "nodeName": "节点名称",

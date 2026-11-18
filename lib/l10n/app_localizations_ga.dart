@@ -319,6 +319,9 @@ class AppLocalizationsGa extends AppLocalizations {
   }
 
   @override
+  String get noAccounts => 'Níl aon chuntas ann fós.';
+
+  @override
   String get nothingRecorded => 'Níl aon taifead ann fós.';
 
   @override

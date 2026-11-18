@@ -668,6 +668,12 @@ abstract class AppLocalizations {
   /// **'@{username}  ·  last login {when}'**
   String userLine(Object username, Object when);
 
+  /// No description provided for @noAccounts.
+  ///
+  /// In en, this message translates to:
+  /// **'No accounts'**
+  String get noAccounts;
+
   /// No description provided for @nothingRecorded.
   ///
   /// In en, this message translates to:
