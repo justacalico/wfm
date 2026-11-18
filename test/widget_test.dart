@@ -300,7 +300,8 @@ void main() {
   testWidgets('country-coded locale serializes with underscore', (t) async {
     installApi(extra: {'GET *': (_) => []});
     await pumpWfm(t);
-    t.state<WfmAppState>(find.byType(WfmApp))
+    t
+        .state<WfmAppState>(find.byType(WfmApp))
         .setLocale(const Locale('en', 'GB'));
     final p = await SharedPreferences.getInstance();
     expect(p.getString('locale'), 'en_GB');

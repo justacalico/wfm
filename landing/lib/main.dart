@@ -62,8 +62,8 @@ class LandingAppState extends State<LandingApp> {
         final code = p.getString('locale');
         if (code != null && code.isNotEmpty) {
           final parts = code.split('_');
-          _locale = Locale(
-              parts[0], parts.length > 1 && parts[1].isNotEmpty ? parts[1] : null);
+          _locale = Locale(parts[0],
+              parts.length > 1 && parts[1].isNotEmpty ? parts[1] : null);
         }
       });
     });
