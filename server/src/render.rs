@@ -13,6 +13,10 @@ use crate::files;
 use crate::model::{RenderJob, RenderSpec, RenderStageFile};
 
 const JOB_LEASE: i64 = 90;
+/// Give up on a command_run that produces no output for two lease periods;
+/// without progress the lease lapses and the job is requeued anyway, so a
+/// hung filmcraft-cli would only hold the worker slot forever.
+const STALL: Duration = Duration::from_secs(2 * JOB_LEASE as u64);
 const MCP_PROTOCOL: &str = "2024-11-05";
 
 /// Extensions wfm.html feeds to FilmCraft as project media; everything else
@@ -209,7 +213,10 @@ impl Mcp {
                     }))
                     .await;
             }
-            let msg = self.read_line().await?;
+            let msg = match tokio::time::timeout(STALL, self.read_line()).await {
+                Ok(m) => m?,
+                Err(_) => return Err("render stalled".into()),
+            };
             if msg.get("method").and_then(Value::as_str) == Some("notifications/progress") {
                 let p = &msg["params"];
                 if p.get("progressToken").and_then(Value::as_str) == Some(token.as_str()) {
@@ -264,6 +271,19 @@ pub fn spawn_janitor(state: Arc<AppState>) {
                     let _ = state.db.job_requeue_stale(now).await;
                     let _ = state.db.job_fail_stale(now).await;
                     crate::auth::login_prune(&state.logins);
+                    // Cancel flags only matter while a job runs; purge ids
+                    // whose job reached a terminal state (or vanished) so the
+                    // set cannot grow forever.
+                    let ids: Vec<String> =
+                        state.cancels.lock().unwrap().iter().cloned().collect();
+                    for id in ids {
+                        match state.db.job_by_id(&id).await {
+                            Ok(j) if j.status == "running" => {}
+                            _ => {
+                                state.cancels.lock().unwrap().remove(&id);
+                            }
+                        }
+                    }
                 }
                 _ = sweep.tick() => sweep_stale_dirs(&state.cfg.data_dir).await,
             }
@@ -342,7 +362,7 @@ async fn worker_loop(state: Arc<AppState>, idx: usize) {
             Ok(true) => {}
             _ => continue,
         }
-        run_job(&state, &job).await;
+        run_job(&state, &job, &worker_name).await;
     }
 }
 
@@ -444,19 +464,19 @@ pub async fn render_with_cli(
     Ok(produced)
 }
 
-async fn run_job(state: &Arc<AppState>, job: &RenderJob) {
+async fn run_job(state: &Arc<AppState>, job: &RenderJob, worker: &str) {
     let fail = |state: &Arc<AppState>, job: &RenderJob, e: String| {
-        let state = state.clone();
-        let job = job.clone();
+        let (state, job, w) = (state.clone(), job.clone(), worker.to_string());
         async move {
             let _ = state
                 .db
-                .job_finish(&job.id, "failed", &e, AppState::now())
+                .job_finish(&job.id, &w, "failed", &e, AppState::now())
                 .await;
             let _ = state
                 .db
                 .lock_release(&job.project_id, "render", &job.id)
                 .await;
+            state.cancels.lock().unwrap().remove(&job.id);
         }
     };
 
@@ -488,7 +508,13 @@ async fn run_job(state: &Arc<AppState>, job: &RenderJob) {
 
     let out_name = files::valid_project_name_or_err(&spec.output)
         .unwrap_or_else(|_| "export".into());
-    let (state2, jid) = (state.clone(), job.id.clone());
+    let alive = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true));
+    let (state2, jid, w2, alive2) = (
+        state.clone(),
+        job.id.clone(),
+        worker.to_string(),
+        alive.clone(),
+    );
     let mut last_report = std::time::Instant::now();
     let (state3, jid2) = (state.clone(), job.id.clone());
     let result = render_with_cli(
@@ -498,21 +524,40 @@ async fn run_job(state: &Arc<AppState>, job: &RenderJob) {
         move |p, _status| {
             if last_report.elapsed().as_secs() >= 2 {
                 last_report = std::time::Instant::now();
-                let (st, id) = (state2.clone(), jid.clone());
+                let (st, id, w, a) =
+                    (state2.clone(), jid.clone(), w2.clone(), alive2.clone());
                 tokio::spawn(async move {
-                    let _ = st
+                    // The update no-ops once the job is requeued or finished
+                    // under someone else, telling us to stop rendering.
+                    if let Ok(mine) = st
                         .db
-                        .job_progress(&id, p, AppState::now() + JOB_LEASE)
-                        .await;
+                        .job_progress(&id, &w, p, AppState::now() + JOB_LEASE)
+                        .await
+                    {
+                        a.store(mine, std::sync::atomic::Ordering::Relaxed);
+                    }
                 });
             }
         },
-        move || state3.cancels.lock().unwrap().contains(&jid2),
+        move || {
+            !alive.load(std::sync::atomic::Ordering::Relaxed)
+                || state3.cancels.lock().unwrap().contains(&jid2)
+        },
     )
     .await;
 
     match result {
         Ok(produced) => {
+            // The claim may have been requeued while rendering; a stale
+            // worker must not publish over the new run's output.
+            match state.db.job_by_id(&job.id).await {
+                Ok(j) if j.status == "running" && j.worker == worker => {}
+                _ => {
+                    let _ = std::fs::remove_dir_all(&stage);
+                    state.cancels.lock().unwrap().remove(&job.id);
+                    return;
+                }
+            }
             let mut uploaded = Vec::new();
             let multi = produced.len() > 1;
             let mut put_err = None;
@@ -550,12 +595,13 @@ async fn run_job(state: &Arc<AppState>, job: &RenderJob) {
             }
             let _ = state
                 .db
-                .job_finish(&job.id, "done", "", AppState::now())
+                .job_finish(&job.id, worker, "done", "", AppState::now())
                 .await;
             let _ = state
                 .db
                 .lock_release(&job.project_id, "render", &job.id)
                 .await;
+            state.cancels.lock().unwrap().remove(&job.id);
             if let Ok(u) = state.db.user_by_id(&job.user_id).await {
                 state
                     .audit(

@@ -128,8 +128,25 @@ pub trait Db: Send + Sync {
     async fn jobs_by_project(&self, project_id: &str) -> DbResult<Vec<RenderJob>>;
     async fn job_next_queued(&self) -> DbResult<Option<RenderJob>>;
     async fn job_claim(&self, id: &str, worker: &str, lease_until: i64) -> DbResult<bool>;
-    async fn job_progress(&self, id: &str, progress: f64, lease_until: i64) -> DbResult<()>;
-    async fn job_finish(&self, id: &str, status: &str, error: &str, finished_at: i64) -> DbResult<()>;
+    /// Returns false when the job is no longer `running` under `worker`, so a
+    /// stale claimant can tell its lease was lost.
+    async fn job_progress(
+        &self,
+        id: &str,
+        worker: &str,
+        progress: f64,
+        lease_until: i64,
+    ) -> DbResult<bool>;
+    /// Only applies while the job is still `queued`/`running` and claimed by
+    /// `worker`; a requeued or finished job ignores stale completions.
+    async fn job_finish(
+        &self,
+        id: &str,
+        worker: &str,
+        status: &str,
+        error: &str,
+        finished_at: i64,
+    ) -> DbResult<()>;
     async fn job_requeue_stale(&self, now: i64) -> DbResult<u64>;
     async fn job_fail_stale(&self, now: i64) -> DbResult<u64>;
 
