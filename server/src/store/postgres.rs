@@ -735,16 +735,25 @@ impl Db for PgDb {
 
     async fn node_create(&self, n: &RenderNode, token_hash: &str) -> DbResult<()> {
         sqlx::query(
-            "INSERT INTO render_nodes(id,name,token_hash,disabled,created_at,last_seen) VALUES($1,$2,$3,0,$4,0)",
+            "INSERT INTO render_nodes(id,name,token_hash,disabled,created_at,last_seen)
+             SELECT $1,$2,$3,0,$4,0 WHERE NOT EXISTS(
+               SELECT 1 FROM render_nodes WHERE lower(name)=lower($5))",
         )
         .bind(&n.id)
         .bind(&n.name)
         .bind(token_hash)
         .bind(n.created_at)
+        .bind(&n.name)
         .execute(&self.pool)
         .await
-        .map(|_| ())
         .map_err(map_err)
+        .and_then(|r| {
+            if r.rows_affected() == 0 {
+                Err(DbError::Conflict)
+            } else {
+                Ok(())
+            }
+        })
     }
 
     async fn node_by_token(&self, token_hash: &str) -> DbResult<RenderNode> {
@@ -908,5 +917,20 @@ mod tests {
         assert_eq!(found.username, mixed);
         // So is uniqueness.
         assert!(db.create_user(&user(&lower), "h").await.is_err());
+
+        // Render node names are unique case-insensitively.
+        let node = |name: &str| RenderNode {
+            id: crate::model::new_id(),
+            name: name.into(),
+            disabled: false,
+            created_at: 1,
+            last_seen: 0,
+        };
+        let nname = format!("Node{suffix}");
+        db.node_create(&node(&nname), "h1").await.unwrap();
+        let dup = db
+            .node_create(&node(&nname.to_lowercase()), "h2")
+            .await;
+        assert!(matches!(dup, Err(DbError::Conflict)));
     }
 }

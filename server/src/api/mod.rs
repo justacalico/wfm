@@ -1258,7 +1258,18 @@ fn parse_range(v: &str, size: u64) -> Option<(u64, u64)> {
 
 #[cfg(test)]
 mod tests {
-    use super::parse_range;
+    use super::{parse_range, reserved_worker_name};
+
+    #[test]
+    fn reserved_names() {
+        assert!(reserved_worker_name("device"));
+        assert!(reserved_worker_name("DEVICE"));
+        assert!(reserved_worker_name("local-0"));
+        assert!(reserved_worker_name("Local-9"));
+        assert!(!reserved_worker_name("render-node-1"));
+        assert!(!reserved_worker_name("localnode"));
+        assert!(!reserved_worker_name("device-2"));
+    }
 
     #[test]
     fn ranges() {
@@ -1812,6 +1823,14 @@ struct NodeReq {
     name: String,
 }
 
+/// Worker identities that are synthesized by the server itself ("device"
+/// jobs and the built-in "local-N" workers). A remote node taking one of
+/// these names could claim and finish those jobs, so they are reserved.
+fn reserved_worker_name(name: &str) -> bool {
+    let n = name.to_ascii_lowercase();
+    n == "device" || n.starts_with("local-")
+}
+
 async fn create_node(
     State(s): State<Arc<AppState>>,
     session: Session,
@@ -1824,6 +1843,9 @@ async fn create_node(
     if name.is_empty() {
         return err(StatusCode::BAD_REQUEST, "name required");
     }
+    if reserved_worker_name(&name) {
+        return err(StatusCode::BAD_REQUEST, "reserved worker name");
+    }
     let token = model::new_token();
     let node = model::RenderNode {
         id: model::new_id(),
@@ -1833,6 +1855,9 @@ async fn create_node(
         last_seen: 0,
     };
     if let Err(e) = s.db.node_create(&node, &model::token_hash(&token)).await {
+        if matches!(e, DbError::Conflict) {
+            return err(StatusCode::CONFLICT, "node name already in use");
+        }
         return db_resp(e);
     }
     s.audit("account", &session.user, "create_node", &name, "", "")
