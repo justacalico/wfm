@@ -82,7 +82,8 @@ void main() {
       expect(disables, 1);
       await t.tap(find.byIcon(Icons.key).first);
       await settle(t);
-      await t.enterText(find.byType(TextField).last, 'newpw');
+      await t.enterText(find.byType(TextField).last, 'newpassword1');
+      await t.pump();
       await t.tap(find.text('OK'));
       await settle(t);
       expect(find.byType(Notice), findsOneWidget);
@@ -106,8 +107,8 @@ void main() {
       await pump(t, const AccountsTab());
       await t.tap(find.byIcon(Icons.key).first);
       await settle(t);
-      await t.enterText(find.byType(TextField).last, 'x');
-      await t.tap(find.text('OK'));
+      await t.enterText(find.byType(TextField).last, 'x2345678');
+      await t.testTextInput.receiveAction(TextInputAction.done);
       await settle(t);
       expect(find.byType(Notice), findsOneWidget);
       await t.tap(find.byIcon(Icons.block).first);
@@ -128,7 +129,7 @@ void main() {
       await settle(t);
       await t.enterText(find.byType(TextField).at(0), 'Bob');
       await t.enterText(find.byType(TextField).at(1), 'bob2');
-      await t.enterText(find.byType(TextField).at(2), 'pw');
+      await t.enterText(find.byType(TextField).at(2), 'password1');
       await t.tap(find.byType(DropdownButtonFormField<String>));
       await settle(t);
       await t.tap(find.text('teacher').last);
@@ -153,9 +154,43 @@ void main() {
       expect(find.byType(AlertDialog), findsNothing);
       await t.tap(find.byType(FloatingActionButton));
       await settle(t);
+      await t.enterText(find.byType(TextField).at(0), 'Bob');
+      await t.enterText(find.byType(TextField).at(1), 'bob2');
+      await t.enterText(find.byType(TextField).at(2), 'password1');
+      await t.pump();
       await t.tap(find.text('Create'));
       await settle(t);
       expect(find.byType(Notice), findsOneWidget);
+    });
+
+    testWidgets('create blocks invalid input before submit', (t) async {
+      var posts = 0;
+      installApi(extra: {
+        'POST /api/accounts': (_) {
+          posts++;
+          return userJson;
+        }
+      });
+      await pump(t, const AccountsTab());
+      await t.tap(find.byType(FloatingActionButton));
+      await settle(t);
+      final create =
+          t.widget<FilledButton>(find.widgetWithText(FilledButton, 'Create'));
+      expect(create.onPressed, isNull);
+      await t.enterText(find.byType(TextField).at(0), 'Bob');
+      await t.enterText(find.byType(TextField).at(1), 'b');
+      await t.enterText(find.byType(TextField).at(2), 'password1');
+      await settle(t);
+      expect(
+          t
+              .widget<FilledButton>(find.widgetWithText(FilledButton, 'Create'))
+              .onPressed,
+          isNull);
+      await t.enterText(find.byType(TextField).at(1), 'bob2');
+      await t.pump();
+      await t.tap(find.text('Create'));
+      await settle(t);
+      expect(posts, 1);
     });
 
     testWidgets('edit account dialog', (t) async {
