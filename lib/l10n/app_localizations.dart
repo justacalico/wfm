@@ -392,6 +392,12 @@ abstract class AppLocalizations {
   /// **'Delete project'**
   String get deleteProject;
 
+  /// No description provided for @deleteAccountBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete \"{name}\"? This cannot be undone.'**
+  String deleteAccountBody(Object name);
+
   /// No description provided for @deleteProjectBody.
   ///
   /// In en, this message translates to:

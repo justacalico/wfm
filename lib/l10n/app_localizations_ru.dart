@@ -163,6 +163,11 @@ class AppLocalizationsRu extends AppLocalizations {
   String get deleteProject => 'Удалить проект';
 
   @override
+  String deleteAccountBody(Object name) {
+    return 'Удалить «$name»? Это действие нельзя отменить.';
+  }
+
+  @override
   String deleteProjectBody(Object name) {
     return 'Удалить «$name» со всеми медиафайлами? Это действие нельзя отменить.';
   }

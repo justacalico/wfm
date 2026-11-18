@@ -255,6 +255,21 @@ impl Db for PgDb {
             .map_err(map_err)
     }
 
+    async fn delete_user(&self, id: &str) -> DbResult<()> {
+        let mut tx = self.pool.begin().await.map_err(map_err)?;
+        sqlx::query("DELETE FROM sessions WHERE user_id=$1")
+            .bind(id)
+            .execute(&mut *tx)
+            .await
+            .map_err(map_err)?;
+        sqlx::query("DELETE FROM users WHERE id=$1")
+            .bind(id)
+            .execute(&mut *tx)
+            .await
+            .map_err(map_err)?;
+        tx.commit().await.map_err(map_err)
+    }
+
     async fn touch_login(&self, id: &str, ts: i64) -> DbResult<()> {
         sqlx::query("UPDATE users SET last_login=$1 WHERE id=$2")
             .bind(ts)

@@ -33,7 +33,10 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/me/password", post(change_password))
         .route("/roles", get(roles))
         .route("/accounts", get(list_accounts).post(create_account))
-        .route("/accounts/{id}", patch(update_account))
+        .route(
+            "/accounts/{id}",
+            patch(update_account).delete(delete_account),
+        )
         .route("/accounts/{id}/password", post(reset_password))
         .route("/accounts/{id}/status", post(set_status))
         .route("/audit", get(audit))
@@ -483,6 +486,37 @@ async fn reset_password(
         "account",
         &session.user,
         "reset_password",
+        &target.username,
+        "",
+        &target.lineage,
+    )
+    .await;
+    Json(json!({"ok": true})).into_response()
+}
+
+async fn delete_account(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Path(id): Path<String>,
+) -> Response {
+    let target = match require_manager(&s, &session, &id).await {
+        Ok(t) => t,
+        Err(r) => return r,
+    };
+    match s.db.projects_by_owner(&id).await {
+        Ok(ps) if !ps.is_empty() => {
+            return err(StatusCode::CONFLICT, "account still has projects");
+        }
+        Ok(_) => {}
+        Err(e) => return db_resp(e),
+    }
+    if let Err(e) = s.db.delete_user(&id).await {
+        return db_resp(e);
+    }
+    s.audit(
+        "account",
+        &session.user,
+        "delete",
         &target.username,
         "",
         &target.lineage,

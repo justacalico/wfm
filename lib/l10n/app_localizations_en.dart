@@ -162,6 +162,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get deleteProject => 'Delete project';
 
   @override
+  String deleteAccountBody(Object name) {
+    return 'Delete \"$name\"? This cannot be undone.';
+  }
+
+  @override
   String deleteProjectBody(Object name) {
     return 'Delete \"$name\" and all of its media? This cannot be undone.';
   }
@@ -606,6 +611,11 @@ class AppLocalizationsEn extends AppLocalizations {
 /// The translations for English, as used in the United Kingdom (`en_GB`).
 class AppLocalizationsEnGb extends AppLocalizationsEn {
   AppLocalizationsEnGb() : super('en_GB');
+
+  @override
+  String deleteAccountBody(Object name) {
+    return 'Delete \"$name\"? This cannot be undone.';
+  }
 
   @override
   String get gridView => 'Grid view';

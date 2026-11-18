@@ -63,6 +63,12 @@
   "renameProject": "Переименовать проект",
   "displayName": "Отображаемое имя",
   "deleteProject": "Удалить проект",
+  "deleteAccountBody": "Удалить «{name}»? Это действие нельзя отменить.",
+  "@deleteAccountBody": {
+    "placeholders": {
+      "name": {}
+    }
+  },
   "deleteProjectBody": "Удалить «{name}» со всеми медиафайлами? Это действие нельзя отменить.",
   "@deleteProjectBody": {
     "placeholders": {

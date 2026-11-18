@@ -63,6 +63,12 @@
   "renameProject": "Rename project",
   "displayName": "Display name",
   "deleteProject": "Delete project",
+  "deleteAccountBody": "Delete \"{name}\"? This cannot be undone.",
+  "@deleteAccountBody": {
+    "placeholders": {
+      "name": {}
+    }
+  },
   "deleteProjectBody": "Delete \"{name}\" and all of its media? This cannot be undone.",
   "@deleteProjectBody": {
     "placeholders": {

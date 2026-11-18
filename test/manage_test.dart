@@ -116,6 +116,34 @@ void main() {
       expect(find.byType(Notice), findsWidgets);
     });
 
+    testWidgets('delete account with confirm', (t) async {
+      var deleted = 0;
+      installApi(extra: {
+        'DELETE /api/accounts/u1': (req) {
+          deleted++;
+          return {'ok': true};
+        },
+        'DELETE /api/accounts/u2': (_) =>
+            http.Response('{"error":"has projects"}', 409),
+      });
+      await pump(t, const AccountsTab());
+      await t.tap(find.byIcon(Icons.delete_outline).first);
+      await settle(t);
+      await t.tap(find.text('Cancel'));
+      await settle(t);
+      expect(deleted, 0);
+      await t.tap(find.byIcon(Icons.delete_outline).first);
+      await settle(t);
+      await t.tap(find.text('Confirm'));
+      await settle(t);
+      expect(deleted, 1);
+      await t.tap(find.byIcon(Icons.delete_outline).last);
+      await settle(t);
+      await t.tap(find.text('Confirm'));
+      await settle(t);
+      expect(find.byType(Notice), findsWidgets);
+    });
+
     testWidgets('create account dialog', (t) async {
       String? body;
       installApi(extra: {

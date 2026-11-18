@@ -63,6 +63,12 @@
   "renameProject": "重命名项目",
   "displayName": "显示名称",
   "deleteProject": "删除项目",
+  "deleteAccountBody": "删除“{name}”？此操作无法撤销。",
+  "@deleteAccountBody": {
+    "placeholders": {
+      "name": {}
+    }
+  },
   "deleteProjectBody": "删除“{name}”及其所有媒体？此操作无法撤销。",
   "@deleteProjectBody": {
     "placeholders": {

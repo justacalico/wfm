@@ -94,6 +94,19 @@ class _AccountsTabState extends State<AccountsTab> {
     }
   }
 
+  Future<void> _delete(User u) async {
+    if (!await confirm(
+        context, context.l10n.delete, context.l10n.deleteAccountBody(u.name))) {
+      return;
+    }
+    try {
+      await Api.i.deleteAccount(u.id);
+      _load();
+    } catch (e) {
+      if (mounted) snack(context, e);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
@@ -146,6 +159,10 @@ class _AccountsTabState extends State<AccountsTab> {
                             }
                           },
                         ),
+                        IconButton(
+                            icon: const Icon(Icons.delete_outline),
+                            tooltip: l10n.delete,
+                            onPressed: () => _delete(u)),
                       ]),
                     );
                   },
