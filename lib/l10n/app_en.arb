@@ -61,6 +61,7 @@
   },
   "openInFilmcraft": "Open",
   "openScript": "Script",
+  "openBoards": "Storyboard",
   "renameProject": "Rename project",
   "displayName": "Display name",
   "deleteProject": "Delete project",

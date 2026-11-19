@@ -83,6 +83,10 @@ async fn scriptcraft_asset(
     .await
 }
 
+async fn deckcraft_asset(State(s): State<Arc<AppState>>, req: axum::extract::Request) -> Response {
+    craft_asset(s.clone(), s.cfg.deckcraft_dir.as_ref(), "deckcraft", req).await
+}
+
 async fn craft_asset(
     s: Arc<AppState>,
     dir: Option<&PathBuf>,
@@ -136,7 +140,10 @@ async fn security_headers(req: axum::extract::Request, next: Next) -> Response {
     } else {
         // The craft bundles' index.html and the wfm.html wrappers boot from
         // inline <script> blocks, so that route gets unsafe-inline.
-        let csp = if path.starts_with("/filmcraft/") || path.starts_with("/scriptcraft/") {
+        let csp = if ["/filmcraft/", "/scriptcraft/", "/deckcraft/"]
+            .iter()
+            .any(|p| path.starts_with(p))
+        {
             "default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; \
              worker-src 'self' blob:; media-src 'self' blob:; \
              img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; \
@@ -172,6 +179,8 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/filmcraft/{*path}", get(filmcraft_asset))
         .route("/scriptcraft/", get(scriptcraft_asset))
         .route("/scriptcraft/{*path}", get(scriptcraft_asset))
+        .route("/deckcraft/", get(deckcraft_asset))
+        .route("/deckcraft/{*path}", get(deckcraft_asset))
         .with_state(state.clone())
         .layer(tower_http::compression::CompressionLayer::new())
         .layer(middleware::from_fn(security_headers))
@@ -223,6 +232,7 @@ mod tests {
                 web_dir: None,
                 filmcraft_dir: Some(dir.join("filmcraft")),
                 scriptcraft_dir: Some(dir.join("scriptcraft")),
+                deckcraft_dir: Some(dir.join("deckcraft")),
                 max_upload: 0,
                 secure_cookies: false,
                 cors_origins: vec![],
@@ -324,6 +334,26 @@ mod tests {
         let r = scriptcraft_asset(
             State(s.clone()),
             Request::get("/scriptcraft/dist/index.html")
+                .header(header::COOKIE, "wfm_session=tok")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await;
+        assert_eq!(r.status(), StatusCode::OK);
+
+        std::fs::create_dir_all(dir.join("deckcraft/dist")).unwrap();
+        std::fs::write(dir.join("deckcraft/dist/index.html"), "dc").unwrap();
+        let r = deckcraft_asset(
+            State(s.clone()),
+            Request::get("/deckcraft/dist/index.html")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await;
+        assert_eq!(r.status(), StatusCode::SEE_OTHER);
+        let r = deckcraft_asset(
+            State(s.clone()),
+            Request::get("/deckcraft/dist/index.html")
                 .header(header::COOKIE, "wfm_session=tok")
                 .body(Body::empty())
                 .unwrap(),

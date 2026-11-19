@@ -203,9 +203,30 @@ jobs:
           name: scriptcraft-dist
           path: scriptcraft/dist
 
+  deckcraft:
+    name: Build DeckCraft bundle
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup wasm toolchain
+        run: |
+          rustup target add wasm32-unknown-unknown
+          mkdir -p /opt/trunk
+          curl -fsSL https://github.com/trunk-rs/trunk/releases/download/v0.21.14/trunk-x86_64-unknown-linux-gnu.tar.gz | tar -xz -C /opt/trunk
+          echo "/opt/trunk" >> "$GITHUB_PATH"
+
+      - name: Build patched bundle
+        run: bash scripts/build-deckcraft.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: deckcraft-dist
+          path: deckcraft/dist
+
   build:
     name: Build ${{ matrix.target }}
-    needs: [setup, verify, filmcraft, scriptcraft]
+    needs: [setup, verify, filmcraft, scriptcraft, deckcraft]
     if: ${{ needs.setup.outputs.build_all == 'true' }}
     strategy:
       fail-fast: false
@@ -267,6 +288,18 @@ jobs:
         with:
           name: scriptcraft-dist
           path: server/web/scriptcraft/dist
+
+      - name: Stage DeckCraft bundle
+        if: matrix.target != 'web'
+        run: |
+          mkdir -p server/web/deckcraft
+          cp deckcraft/wfm.html deckcraft/icon.svg deckcraft/VERSION server/web/deckcraft/
+
+      - uses: actions/download-artifact@v4
+        if: matrix.target != 'web'
+        with:
+          name: deckcraft-dist
+          path: server/web/deckcraft/dist
 
       - name: Build server binary
         if: matrix.target != 'web'

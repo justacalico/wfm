@@ -380,6 +380,12 @@ abstract class AppLocalizations {
   /// **'Script'**
   String get openScript;
 
+  /// No description provided for @openBoards.
+  ///
+  /// In en, this message translates to:
+  /// **'Storyboard'**
+  String get openBoards;
+
   /// No description provided for @renameProject.
   ///
   /// In en, this message translates to:

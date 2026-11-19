@@ -42,6 +42,9 @@ void main() {
       await t.tap(find.text('Script'));
       await settle(t);
       expect(opened, contains('/scriptcraft/wfm.html?project=p1'));
+      await t.tap(find.text('Storyboard'));
+      await settle(t);
+      expect(opened, contains('/deckcraft/wfm.html?project=p1'));
       await t.tap(find.text('Short Film'));
       await settle(t);
       expect(find.byType(ProjectPage), findsOneWidget);
@@ -368,6 +371,9 @@ void main() {
       await settle(t);
       expect(find.byType(Notice), findsOneWidget);
       await t.tap(find.text('Script'));
+      await settle(t);
+      expect(find.byType(Notice), findsWidgets);
+      await t.tap(find.text('Storyboard'));
       await settle(t);
       expect(find.byType(Notice), findsWidgets);
     });
@@ -861,6 +867,8 @@ void main() {
       await settle(t);
       await t.tap(find.byIcon(Icons.edit_note));
       expect(opened, contains('/scriptcraft/wfm.html?project=p1'));
+      await t.tap(find.byIcon(Icons.view_carousel_outlined));
+      expect(opened, contains('/deckcraft/wfm.html?project=p1'));
       await t.tap(find.text('Open'));
       expect(opened, contains('project=p1'));
 
@@ -902,9 +910,12 @@ void main() {
       });
       openEditorForTesting = (_) => throw 'no editor';
       await pump(t, ProjectPage(project: p1));
-      await t.tap(find.byIcon(Icons.edit_note));
+      await t.tap(find.byIcon(Icons.view_carousel_outlined));
       await settle(t);
       expect(find.byType(Notice), findsOneWidget);
+      await t.tap(find.byIcon(Icons.edit_note));
+      await settle(t);
+      expect(find.byType(Notice), findsWidgets);
       await t.tap(find.text('Open'));
       await settle(t);
       expect(find.byType(Notice), findsWidgets);

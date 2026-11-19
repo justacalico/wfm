@@ -615,6 +615,9 @@ class Api {
   String scriptUrl(String pid, {String? theme}) =>
       '$baseUrl/scriptcraft/wfm.html?project=$pid${theme == null ? '' : '&theme=$theme'}';
 
+  String deckUrl(String pid, {String? theme}) =>
+      '$baseUrl/deckcraft/wfm.html?project=$pid${theme == null ? '' : '&theme=$theme'}';
+
   String renderUrl(String pid, String rid, {String? theme}) =>
       '$baseUrl/filmcraft/wfm.html?project=$pid&render=$rid${theme == null ? '' : '&theme=$theme'}';
 

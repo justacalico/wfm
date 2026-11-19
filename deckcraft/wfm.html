@@ -1,0 +1,155 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Storyboard - WFM</title>
+<link rel="icon" href="icon.svg">
+<style>
+  html, body { margin: 0; height: 100%; background: #14161a; }
+  iframe { width: 100%; height: 100%; border: 0; display: block; }
+  #overlay { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 14px; background: #14161a; color: #ccc; font: 14px system-ui, sans-serif; z-index: 5; }
+  #overlay.hidden { display: none; }
+  #overlay button { padding: 6px 14px; margin: 0 4px; }
+  #toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: #333; color: #eee; padding: 8px 16px; border-radius: 4px; display: none; font: 13px system-ui, sans-serif; z-index: 6; }
+</style>
+</head>
+<body>
+<iframe id="dc" src="about:blank"></iframe>
+<div id="overlay"><div id="overlay-msg">Loading…</div><div id="overlay-btns"></div></div>
+<div id="toast"></div>
+<script>
+"use strict";
+const qs = new URLSearchParams(location.search);
+const projectId = qs.get("project");
+let docPath = qs.get("doc") || "Boards/boards.deckcraft";
+let docName = docPath.split("/").pop();
+const theme = qs.get("theme") ? "&theme=" + encodeURIComponent(qs.get("theme")) : "";
+const PRES = /\.(deckcraft|pptx|potx|ppsx)$/i;
+const API = "/api";
+const clientId = (() => {
+  if (crypto.randomUUID) return crypto.randomUUID();
+  const b = new Uint8Array(16);
+  crypto.getRandomValues(b);
+  b[6] = b[6] & 0x0f | 0x40; b[8] = b[8] & 0x3f | 0x80;
+  const h = [...b].map(x => x.toString(16).padStart(2, "0")).join("");
+  return h.slice(0, 8) + "-" + h.slice(8, 12) + "-" + h.slice(12, 16) + "-" + h.slice(16, 20) + "-" + h.slice(20);
+})();
+let csrf = "", dirty = false, docSent = false, pending = 0, lockLost = false;
+const $ = (id) => document.getElementById(id);
+const overlay = (msg, btns) => {
+  $("overlay").classList.remove("hidden");
+  $("overlay-msg").textContent = msg;
+  const box = $("overlay-btns"); box.innerHTML = "";
+  for (const [label, fn] of btns || []) {
+    const b = document.createElement("button"); b.textContent = label; b.onclick = fn; box.appendChild(b);
+  }
+};
+const hideOverlay = () => $("overlay").classList.add("hidden");
+const toast = (m) => { const t = $("toast"); t.textContent = m; t.style.display = "block"; clearTimeout(t._t); t._t = setTimeout(() => t.style.display = "none", 4000); };
+const fail = (m) => overlay(m, [["Close tab", () => window.close()]]);
+
+async function api(path, opt = {}) {
+  opt.headers = Object.assign({}, opt.headers, csrf && opt.method && opt.method !== "GET" ? { "x-csrf-token": csrf } : {});
+  const r = await fetch(API + path, opt);
+  if (r.status === 401) { location.href = "/app/"; throw new Error("auth"); }
+  return r;
+}
+
+async function boot() {
+  if (!projectId) return fail("No project specified.");
+  const me = await (await api("/me")).json().catch(() => null);
+  if (!me || !me.user) return overlay("Sign in first.", [["Open app", () => location.href = "/app/"]]);
+  csrf = me.csrf || "";
+  const lock = await api("/projects/" + projectId + "/locks", {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ kind: "docs", clientId })
+  });
+  const lr = await lock.json();
+  if (!lock.ok && !lr.lock) return fail("Could not open the storyboard.");
+  if (lr.lock && !lr.acquired) {
+    return overlay("This project's storyboard is already open in another tab or device.", [
+      ["Take over", async () => {
+        await api("/projects/" + projectId + "/locks", { method: "POST", headers: { "content-type": "application/json" },
+          body: JSON.stringify({ kind: "docs", clientId, force: true }) });
+        boot();
+      }],
+      ["Close tab", () => window.close()]
+    ]);
+  }
+  const p = await (await api("/projects/" + projectId)).json();
+  const title = p.displayName || p.display_name || "";
+  document.title = title ? title + " storyboard - WFM" : "DeckCraft - WFM";
+  const author = me.user.displayName || me.user.username || "";
+  $("dc").src = "/deckcraft/dist/index.html?host=parent" +
+    (author ? "&author=" + encodeURIComponent(author) : "") + theme;
+  setInterval(heartbeat, 20000);
+}
+
+function heartbeat() {
+  api("/projects/" + projectId + "/locks/heartbeat", { method: "POST",
+    headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "docs", clientId }) })
+    .then(r => { if (r.status === 409) loseLock(); })
+    .catch(() => {});
+}
+
+function loseLock() {
+  if (lockLost) return;
+  lockLost = true;
+  overlay("This storyboard was taken over in another tab or device. Changes here will no longer be saved.", [["Close tab", () => window.close()]]);
+}
+
+window.addEventListener("message", async (ev) => {
+  if (ev.source !== $("dc").contentWindow || ev.origin !== location.origin) return;
+  const d = ev.data || {};
+  if (d.type === "deckcraft:ready") {
+    hideOverlay();
+    if (!docSent) {
+      docSent = true;
+      sendDoc();
+    }
+  }
+  else if (d.type === "deckcraft:save") { handleSave(d); }
+  else if (d.type === "deckcraft:dirty") { dirty = !!d.dirty; }
+  else if (d.type === "deckcraft:failed") { fail("DeckCraft could not start: " + (d.error || "unknown error")); }
+});
+
+async function sendDoc() {
+  const r = await api("/projects/" + projectId + "/download?path=" + encodeURIComponent(docPath));
+  if (r.status === 404) return;
+  if (!r.ok) { toast("Could not load the storyboard (" + r.status + ")"); return; }
+  const bytes = await r.arrayBuffer();
+  $("dc").contentWindow.postMessage({ type: "deckcraft:open", name: docName, bytes }, location.origin, [bytes]);
+}
+
+async function handleSave(d) {
+  if (lockLost) return;
+  const name = (d.name || "export.bin").split("/").pop();
+  const path = PRES.test(name) ? "Boards/" + name : "Exports/" + name;
+  pending++;
+  try {
+    const r = await api("/projects/" + projectId + "/files?path=" + encodeURIComponent(path) + "&clientId=" + encodeURIComponent(clientId),
+      { method: "PUT", body: d.bytes });
+    if (!r.ok) toast("Save failed (" + r.status + ")");
+    else if (path === docPath) toast("Saved");
+    if (r.ok && d.saveAs && PRES.test(name)) { docPath = path; docName = name; }
+  } catch (e) {
+    toast("Save failed");
+  }
+  pending--;
+}
+
+function releaseLock() {
+  fetch(API + "/projects/" + projectId + "/locks/release?kind=docs&clientId=" + encodeURIComponent(clientId), {
+    method: "POST", keepalive: true,
+    headers: { "x-csrf-token": csrf, "content-type": "application/json" }
+  });
+}
+window.addEventListener("beforeunload", (e) => {
+  releaseLock();
+  if (dirty || pending > 0) { e.preventDefault(); e.returnValue = ""; }
+});
+window.addEventListener("pagehide", releaseLock);
+boot().catch((e) => { if (!e || e.message !== "auth") fail("Could not open the storyboard: " + ((e && e.message) || e)); });
+</script>
+</body>
+</html>

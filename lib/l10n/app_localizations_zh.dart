@@ -156,6 +156,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get openScript => '剧本';
 
   @override
+  String get openBoards => '故事板';
+
+  @override
   String get renameProject => '重命名项目';
 
   @override
