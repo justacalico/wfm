@@ -110,14 +110,6 @@
   "newRender": "New render",
   "render": "Render",
   "queuing": "Queuing…",
-  "renderStatusWorker": "{status} on {worker}  ·  {when}",
-  "@renderStatusWorker": {
-    "placeholders": {
-      "status": {},
-      "worker": {},
-      "when": {}
-    }
-  },
   "renderStatus": "{status}  ·  {when}",
   "@renderStatus": {
     "placeholders": {

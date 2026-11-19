@@ -110,14 +110,6 @@
   "newRender": "Новый рендер",
   "render": "Рендер",
   "queuing": "В очередь…",
-  "renderStatusWorker": "{status} на {worker}  ·  {when}",
-  "@renderStatusWorker": {
-    "placeholders": {
-      "status": {},
-      "worker": {},
-      "when": {}
-    }
-  },
   "renderStatus": "{status}  ·  {when}",
   "@renderStatus": {
     "placeholders": {

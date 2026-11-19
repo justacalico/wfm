@@ -554,12 +554,6 @@ abstract class AppLocalizations {
   /// **'Queuing…'**
   String get queuing;
 
-  /// No description provided for @renderStatusWorker.
-  ///
-  /// In en, this message translates to:
-  /// **'{status} on {worker}  ·  {when}'**
-  String renderStatusWorker(Object status, Object worker, Object when);
-
   /// No description provided for @renderStatus.
   ///
   /// In en, this message translates to:

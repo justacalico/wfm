@@ -110,14 +110,6 @@
   "newRender": "Rindreáil nua",
   "render": "Rindreáil",
   "queuing": "Á chur sa scuaine…",
-  "renderStatusWorker": "{status} ar {worker}  ·  {when}",
-  "@renderStatusWorker": {
-    "placeholders": {
-      "status": {},
-      "worker": {},
-      "when": {}
-    }
-  },
   "renderStatus": "{status}  ·  {when}",
   "@renderStatus": {
     "placeholders": {

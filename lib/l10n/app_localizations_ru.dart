@@ -252,11 +252,6 @@ class AppLocalizationsRu extends AppLocalizations {
   String get queuing => 'В очередь…';
 
   @override
-  String renderStatusWorker(Object status, Object worker, Object when) {
-    return '$status на $worker  ·  $when';
-  }
-
-  @override
   String renderStatus(Object status, Object when) {
     return '$status  ·  $when';
   }

@@ -251,11 +251,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get queuing => '正在排队…';
 
   @override
-  String renderStatusWorker(Object status, Object worker, Object when) {
-    return '$status，节点 $worker  ·  $when';
-  }
-
-  @override
   String renderStatus(Object status, Object when) {
     return '$status  ·  $when';
   }
