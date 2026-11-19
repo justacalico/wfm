@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.20.0 - 2026-11-19
+#### Features
+- give ScriptCraft and DeckCraft their own document lock kinds - (7f9eb16) - calico
+
+- - -
+
 ## v0.19.0 - 2026-11-19
 #### Features
 - in-app media preview modal for files - (078a0d4) - calico
