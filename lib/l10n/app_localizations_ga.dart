@@ -38,6 +38,12 @@ class AppLocalizationsGa extends AppLocalizations {
   String get download => 'Íoslódáil';
 
   @override
+  String get close => 'Dún';
+
+  @override
+  String get playInBrowser => 'Seinm sa bhrabhsálaí';
+
+  @override
   String get create => 'Cruthaigh';
 
   @override

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:js_interop';
 import 'dart:math' as math;
 import 'dart:typed_data';
+import 'dart:ui_web' as ui_web;
 import 'package:flutter/widgets.dart';
 import 'package:web/web.dart' as web;
 
@@ -186,6 +187,34 @@ void _checkStatus(Api api, web.XMLHttpRequest xhr) {
     } catch (_) {}
     throw ApiException(xhr.status, msg);
   }
+}
+
+Widget Function(String url, bool audio)? mediaPlayerForTesting;
+
+var _mediaSeq = 0;
+
+/// Inline media player for the preview modal: a native <video>/<audio>
+/// element, so the browser streams with Range requests and cookies.
+Widget mediaPlayer(String url,
+    {required bool audio, required String openLabel}) {
+  final t = mediaPlayerForTesting;
+  if (t != null) return t(url, audio);
+  final viewType = 'wfm-media-${_mediaSeq++}';
+  ui_web.platformViewRegistry.registerViewFactory(viewType, (int _) {
+    if (audio) {
+      return web.HTMLAudioElement()
+        ..src = url
+        ..controls = true
+        ..style.width = '100%';
+    }
+    return web.HTMLVideoElement()
+      ..src = url
+      ..controls = true
+      ..style.width = '100%'
+      ..style.height = '100%'
+      ..style.background = '#000';
+  });
+  return HtmlElementView(viewType: viewType);
 }
 
 Future<void> uploadAvatarPicked(Api api, PickedFile f) async {

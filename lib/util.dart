@@ -80,6 +80,19 @@ bool playableMedia(String name) => switch (extOf(name)) {
       _ => false,
     };
 
+bool audioMedia(String name) => switch (extOf(name)) {
+      'mp3' ||
+      'wav' ||
+      'aac' ||
+      'ogg' ||
+      'oga' ||
+      'm4a' ||
+      'opus' ||
+      'flac' =>
+        true,
+      _ => false,
+    };
+
 String extOf(String name) {
   final i = name.lastIndexOf('.');
   return i < 0 ? '' : name.substring(i + 1).toLowerCase();

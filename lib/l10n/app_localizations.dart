@@ -158,6 +158,18 @@ abstract class AppLocalizations {
   /// **'Download'**
   String get download;
 
+  /// No description provided for @close.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get close;
+
+  /// No description provided for @playInBrowser.
+  ///
+  /// In en, this message translates to:
+  /// **'Play in browser'**
+  String get playInBrowser;
+
   /// No description provided for @create.
   ///
   /// In en, this message translates to:

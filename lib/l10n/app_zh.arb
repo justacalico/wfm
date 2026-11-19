@@ -9,6 +9,8 @@
   "delete": "删除",
   "rename": "重命名",
   "download": "下载",
+  "close": "关闭",
+  "playInBrowser": "在浏览器中播放",
   "create": "创建",
   "refresh": "刷新",
   "uploadingFiles": "正在上传文件",

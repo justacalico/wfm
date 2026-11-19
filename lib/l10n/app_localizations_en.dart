@@ -38,6 +38,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get download => 'Download';
 
   @override
+  String get close => 'Close';
+
+  @override
+  String get playInBrowser => 'Play in browser';
+
+  @override
   String get create => 'Create';
 
   @override

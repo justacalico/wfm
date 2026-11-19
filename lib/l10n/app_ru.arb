@@ -9,6 +9,8 @@
   "delete": "Удалить",
   "rename": "Переименовать",
   "download": "Скачать",
+  "close": "Закрыть",
+  "playInBrowser": "Открыть в браузере",
   "create": "Создать",
   "refresh": "Обновить",
   "uploadingFiles": "Загрузка файлов",

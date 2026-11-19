@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -22,6 +23,7 @@ void main() {
     openExternalForTesting = null;
     openEditorForTesting = null;
     pickFilesForTesting = null;
+    mediaPlayerForTesting = null;
   });
 
   Future<void> pump(WidgetTester t, Widget w) async {
@@ -1321,7 +1323,8 @@ void main() {
       expect(find.byType(Notice), findsWidgets);
     });
 
-    testWidgets('image preview dialog and video opens inline', (t) async {
+    testWidgets('media preview modal: image, video, download, close',
+        (t) async {
       var opened = '';
       openExternalForTesting = (u) => opened = u;
       installApi(extra: {
@@ -1346,22 +1349,59 @@ void main() {
       await t.tap(find.text('pic.png'));
       await settle(t);
       expect(find.byType(Dialog), findsOneWidget);
-      await t.tap(find.byType(InkWell).last);
+      expect(find.text('pic.png'), findsNWidgets(2));
+      await t.tap(find.byTooltip('Close'));
       await settle(t);
       expect(find.byType(Dialog), findsNothing);
       await t.tap(find.text('clip.mp4'));
       await settle(t);
+      expect(find.byType(Dialog), findsOneWidget);
+      await t.tap(find.text('Play in browser'));
+      await settle(t);
       expect(opened, contains('download?path=clip.mp4'));
       expect(opened, isNot(contains('dl=true')));
+      await t.tap(find.byTooltip('Download'));
+      await settle(t);
+      expect(opened, contains('dl=true'));
       openExternalForTesting = (_) => throw 'no browser';
-      await t.tap(find.text('clip.mp4'));
+      await t.tap(find.byTooltip('Download'));
       await settle(t);
       expect(find.byType(Notice), findsOneWidget);
+      await t.tap(find.byTooltip('Close'));
+      await settle(t);
+      expect(find.byType(Dialog), findsNothing);
       await t.tap(find.byIcon(Icons.grid_view));
       await settle(t);
       await t.tap(find.text('pic.png'));
       await settle(t);
       expect(find.byType(Dialog), findsOneWidget);
+      await t.sendKeyEvent(LogicalKeyboardKey.escape);
+      await settle(t);
+      expect(find.byType(Dialog), findsNothing);
+    });
+
+    testWidgets('media preview uses an injected player', (t) async {
+      var madeAudio = false;
+      mediaPlayerForTesting = (url, audio) {
+        if (audio) madeAudio = true;
+        return const Text('player');
+      };
+      installApi(extra: {
+        'GET /api/projects/p1/files': (_) => [
+              {
+                'name': 'song.mp3',
+                'path': 'song.mp3',
+                'type': 'file',
+                'size': 512,
+                'modified': 0
+              },
+            ],
+      });
+      await pump(t, Scaffold(body: FilesTab(project: p1)));
+      await t.tap(find.text('song.mp3'));
+      await settle(t);
+      expect(find.text('player'), findsOneWidget);
+      expect(madeAudio, isTrue);
     });
 
     testWidgets('grid view toggle persists and restores', (t) async {
