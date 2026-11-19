@@ -112,6 +112,28 @@ pub trait Db: Send + Sync {
     async fn touch_project(&self, id: &str, ts: i64) -> DbResult<()>;
     async fn set_project_pinned(&self, id: &str, pinned: bool) -> DbResult<()>;
     async fn set_project_template(&self, id: &str, template: bool) -> DbResult<()>;
+    async fn set_project_status(
+        &self,
+        id: &str,
+        status: &str,
+        submitted_at: i64,
+        reviewed_by: &str,
+    ) -> DbResult<()>;
+
+    // comments
+    async fn comment_add(
+        &self,
+        id: &str,
+        project: &str,
+        user: &str,
+        body: &str,
+        ts: i64,
+    ) -> DbResult<()>;
+    async fn comments_for(&self, project: &str) -> DbResult<Vec<CommentView>>;
+    async fn comment_by_id(&self, id: &str) -> DbResult<CommentView>;
+    async fn comment_edit(&self, id: &str, body: &str, ts: i64) -> DbResult<bool>;
+    async fn comment_delete(&self, id: &str) -> DbResult<bool>;
+    async fn comments_delete_project(&self, project: &str) -> DbResult<()>;
 
     // project groups
     async fn create_group(&self, g: &ProjectGroup) -> DbResult<()>;

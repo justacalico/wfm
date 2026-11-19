@@ -98,6 +98,22 @@ fn row_project(r: sqlx::postgres::PgRow) -> Project {
         last_activity: r.get("last_activity"),
         pinned: r.get::<i32, _>("pinned") != 0,
         template: r.get::<i32, _>("template") != 0,
+        status: r.get("status"),
+        submitted_at: r.get("submitted_at"),
+        reviewed_by: r.get("reviewed_by"),
+    }
+}
+
+fn row_comment(r: sqlx::postgres::PgRow) -> CommentView {
+    CommentView {
+        id: r.get("id"),
+        project_id: r.get("project_id"),
+        user_id: r.get("user_id"),
+        username: r.get("username"),
+        display_name: r.get("display_name"),
+        body: r.get("body"),
+        created_at: r.get("created_at"),
+        edited_at: r.get("edited_at"),
     }
 }
 
@@ -542,7 +558,7 @@ impl Db for PgDb {
 
     async fn create_project(&self, p: &Project) -> DbResult<()> {
         sqlx::query(
-            "INSERT INTO projects(id,owner_id,name,display_name,dir,group_id,tags,created_at,last_activity,pinned,template) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)",
+            "INSERT INTO projects(id,owner_id,name,display_name,dir,group_id,tags,created_at,last_activity,pinned,template,status,submitted_at,reviewed_by) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)",
         )
         .bind(&p.id)
         .bind(&p.owner_id)
@@ -555,6 +571,9 @@ impl Db for PgDb {
         .bind(p.last_activity)
         .bind(p.pinned as i64)
         .bind(p.template as i64)
+        .bind(&p.status)
+        .bind(p.submitted_at)
+        .bind(&p.reviewed_by)
         .execute(&self.pool)
         .await
         .map(|_| ())
@@ -655,6 +674,99 @@ impl Db for PgDb {
         sqlx::query("UPDATE projects SET template=$1 WHERE id=$2")
             .bind(template as i64)
             .bind(id)
+            .execute(&self.pool)
+            .await
+            .map(|_| ())
+            .map_err(map_err)
+    }
+
+    async fn set_project_status(
+        &self,
+        id: &str,
+        status: &str,
+        submitted_at: i64,
+        reviewed_by: &str,
+    ) -> DbResult<()> {
+        sqlx::query(
+            "UPDATE projects SET status=$1,submitted_at=$2,reviewed_by=$3 WHERE id=$4",
+        )
+        .bind(status)
+        .bind(submitted_at)
+        .bind(reviewed_by)
+        .bind(id)
+        .execute(&self.pool)
+        .await
+        .map(|_| ())
+        .map_err(map_err)
+    }
+
+    async fn comment_add(
+        &self,
+        id: &str,
+        project: &str,
+        user: &str,
+        body: &str,
+        ts: i64,
+    ) -> DbResult<()> {
+        sqlx::query(
+            "INSERT INTO project_comments(id,project_id,user_id,body,created_at) VALUES($1,$2,$3,$4,$5)",
+        )
+        .bind(id)
+        .bind(project)
+        .bind(user)
+        .bind(body)
+        .bind(ts)
+        .execute(&self.pool)
+        .await
+        .map(|_| ())
+        .map_err(map_err)
+    }
+
+    async fn comments_for(&self, project: &str) -> DbResult<Vec<CommentView>> {
+        sqlx::query(
+            "SELECT c.id,c.project_id,c.user_id,u.username,u.display_name,c.body,c.created_at,c.edited_at FROM project_comments c JOIN users u ON u.id=c.user_id WHERE c.project_id=$1 ORDER BY c.created_at",
+        )
+        .bind(project)
+        .fetch_all(&self.pool)
+        .await
+        .map(|rows| rows.into_iter().map(row_comment).collect())
+        .map_err(map_err)
+    }
+
+    async fn comment_by_id(&self, id: &str) -> DbResult<CommentView> {
+        sqlx::query(
+            "SELECT c.id,c.project_id,c.user_id,u.username,u.display_name,c.body,c.created_at,c.edited_at FROM project_comments c JOIN users u ON u.id=c.user_id WHERE c.id=$1",
+        )
+        .bind(id)
+        .fetch_one(&self.pool)
+        .await
+        .map(row_comment)
+        .map_err(map_err)
+    }
+
+    async fn comment_edit(&self, id: &str, body: &str, ts: i64) -> DbResult<bool> {
+        sqlx::query("UPDATE project_comments SET body=$1,edited_at=$2 WHERE id=$3")
+            .bind(body)
+            .bind(ts)
+            .bind(id)
+            .execute(&self.pool)
+            .await
+            .map(|r| r.rows_affected() > 0)
+            .map_err(map_err)
+    }
+
+    async fn comment_delete(&self, id: &str) -> DbResult<bool> {
+        sqlx::query("DELETE FROM project_comments WHERE id=$1")
+            .bind(id)
+            .execute(&self.pool)
+            .await
+            .map(|r| r.rows_affected() > 0)
+            .map_err(map_err)
+    }
+
+    async fn comments_delete_project(&self, project: &str) -> DbResult<()> {
+        sqlx::query("DELETE FROM project_comments WHERE project_id=$1")
+            .bind(project)
             .execute(&self.pool)
             .await
             .map(|_| ())

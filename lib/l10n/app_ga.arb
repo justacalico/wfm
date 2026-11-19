@@ -409,5 +409,20 @@
   "template": "Teimpléad",
   "markTemplate": "Marcáil mar theimpléad",
   "unmarkTemplate": "Bain an marc teimpléid",
-  "projectDuplicated": "Cóip cruthaithe"
+  "projectDuplicated": "Cóip cruthaithe",
+  "comments": "Nótaí tráchta",
+  "noComments": "Níl aon nóta tráchta fós",
+  "writeComment": "Scríobh nóta tráchta",
+  "editComment": "Cuir nóta tráchta in eagar",
+  "edited": "curtha in eagar",
+  "submitForReview": "Cuir isteach le haghaidh athbhreithnithe",
+  "withdrawSubmission": "Tarraing siar an t-aighneacht",
+  "markReviewed": "Marcáil mar athbhreithnithe",
+  "returnToDraft": "Fill ar dhreacht",
+  "statusSubmitted": "Curtha isteach",
+  "statusReviewed": "Athbhreithnithe",
+  "notifComment": "Rinne {from} tráchtaireacht ar {project}",
+  "notifSubmitted": "Chuir {from} {project} isteach le haghaidh athbhreithnithe",
+  "notifReviewed": "Mharcáil {from} {project} mar athbhreithnithe",
+  "notifReturned": "Thug {from} {project} ar ais go dreacht"
 }

@@ -103,6 +103,28 @@ pub struct Project {
     pub last_activity: i64,
     pub pinned: bool,
     pub template: bool,
+    pub status: String,
+    #[serde(rename = "submittedAt")]
+    pub submitted_at: i64,
+    #[serde(rename = "reviewedBy")]
+    pub reviewed_by: String,
+}
+
+#[derive(Clone, Serialize)]
+pub struct CommentView {
+    pub id: String,
+    #[serde(rename = "projectId")]
+    pub project_id: String,
+    #[serde(rename = "userId")]
+    pub user_id: String,
+    pub username: String,
+    #[serde(rename = "displayName")]
+    pub display_name: String,
+    pub body: String,
+    #[serde(rename = "createdAt")]
+    pub created_at: i64,
+    #[serde(rename = "editedAt")]
+    pub edited_at: i64,
 }
 
 #[derive(Clone, Serialize)]

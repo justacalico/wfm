@@ -409,5 +409,20 @@
   "template": "Шаблон",
   "markTemplate": "Сделать шаблоном",
   "unmarkTemplate": "Убрать шаблон",
-  "projectDuplicated": "Копия создана"
+  "projectDuplicated": "Копия создана",
+  "comments": "Комментарии",
+  "noComments": "Пока нет комментариев",
+  "writeComment": "Написать комментарий",
+  "editComment": "Изменить комментарий",
+  "edited": "изменено",
+  "submitForReview": "Отправить на проверку",
+  "withdrawSubmission": "Отозвать отправку",
+  "markReviewed": "Отметить проверенным",
+  "returnToDraft": "Вернуть в черновик",
+  "statusSubmitted": "Отправлено",
+  "statusReviewed": "Проверено",
+  "notifComment": "{from} прокомментировал {project}",
+  "notifSubmitted": "{from} отправил {project} на проверку",
+  "notifReviewed": "{from} отметил {project} проверенным",
+  "notifReturned": "{from} вернул {project} в черновик"
 }

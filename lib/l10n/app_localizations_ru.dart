@@ -934,4 +934,57 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get projectDuplicated => 'Копия создана';
+
+  @override
+  String get comments => 'Комментарии';
+
+  @override
+  String get noComments => 'Пока нет комментариев';
+
+  @override
+  String get writeComment => 'Написать комментарий';
+
+  @override
+  String get editComment => 'Изменить комментарий';
+
+  @override
+  String get edited => 'изменено';
+
+  @override
+  String get submitForReview => 'Отправить на проверку';
+
+  @override
+  String get withdrawSubmission => 'Отозвать отправку';
+
+  @override
+  String get markReviewed => 'Отметить проверенным';
+
+  @override
+  String get returnToDraft => 'Вернуть в черновик';
+
+  @override
+  String get statusSubmitted => 'Отправлено';
+
+  @override
+  String get statusReviewed => 'Проверено';
+
+  @override
+  String notifComment(Object from, Object project) {
+    return '$from прокомментировал $project';
+  }
+
+  @override
+  String notifSubmitted(Object from, Object project) {
+    return '$from отправил $project на проверку';
+  }
+
+  @override
+  String notifReviewed(Object from, Object project) {
+    return '$from отметил $project проверенным';
+  }
+
+  @override
+  String notifReturned(Object from, Object project) {
+    return '$from вернул $project в черновик';
+  }
 }

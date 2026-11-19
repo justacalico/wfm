@@ -936,4 +936,57 @@ class AppLocalizationsGa extends AppLocalizations {
 
   @override
   String get projectDuplicated => 'Cóip cruthaithe';
+
+  @override
+  String get comments => 'Nótaí tráchta';
+
+  @override
+  String get noComments => 'Níl aon nóta tráchta fós';
+
+  @override
+  String get writeComment => 'Scríobh nóta tráchta';
+
+  @override
+  String get editComment => 'Cuir nóta tráchta in eagar';
+
+  @override
+  String get edited => 'curtha in eagar';
+
+  @override
+  String get submitForReview => 'Cuir isteach le haghaidh athbhreithnithe';
+
+  @override
+  String get withdrawSubmission => 'Tarraing siar an t-aighneacht';
+
+  @override
+  String get markReviewed => 'Marcáil mar athbhreithnithe';
+
+  @override
+  String get returnToDraft => 'Fill ar dhreacht';
+
+  @override
+  String get statusSubmitted => 'Curtha isteach';
+
+  @override
+  String get statusReviewed => 'Athbhreithnithe';
+
+  @override
+  String notifComment(Object from, Object project) {
+    return 'Rinne $from tráchtaireacht ar $project';
+  }
+
+  @override
+  String notifSubmitted(Object from, Object project) {
+    return 'Chuir $from $project isteach le haghaidh athbhreithnithe';
+  }
+
+  @override
+  String notifReviewed(Object from, Object project) {
+    return 'Mharcáil $from $project mar athbhreithnithe';
+  }
+
+  @override
+  String notifReturned(Object from, Object project) {
+    return 'Thug $from $project ar ais go dreacht';
+  }
 }
