@@ -86,6 +86,9 @@ pub trait Db: Send + Sync {
     async fn create_project(&self, p: &Project) -> DbResult<()>;
     async fn project_by_id(&self, id: &str) -> DbResult<Project>;
     async fn projects_by_owner(&self, owner_id: &str) -> DbResult<Vec<Project>>;
+    async fn managed_projects(&self, actor: &User) -> DbResult<Vec<Project>>;
+    async fn user_in_subtree(&self, actor: &User, user_id: &str) -> DbResult<bool>;
+    async fn set_project_owner(&self, id: &str, owner_id: &str) -> DbResult<()>;
     async fn update_project(
         &self,
         id: &str,

@@ -315,5 +315,9 @@
   "currentSession": "This session",
   "revoke": "Revoke",
   "revokeSessionBody": "Sign out this session?",
-  "sessionLastSeen": "Last seen {time}"
+  "sessionLastSeen": "Last seen {time}",
+  "readOnly": "Read only",
+  "takeOver": "Take over",
+  "takeOverBody": "Take ownership of {name}?",
+  "ownedBy": "by {name}"
 }

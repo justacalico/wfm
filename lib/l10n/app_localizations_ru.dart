@@ -641,4 +641,20 @@ class AppLocalizationsRu extends AppLocalizations {
   String sessionLastSeen(Object time) {
     return 'Активность $time';
   }
+
+  @override
+  String get readOnly => 'Только чтение';
+
+  @override
+  String get takeOver => 'Перехватить';
+
+  @override
+  String takeOverBody(Object name) {
+    return 'Стать владельцем $name?';
+  }
+
+  @override
+  String ownedBy(Object name) {
+    return 'владелец $name';
+  }
 }

@@ -315,5 +315,9 @@
   "currentSession": "Этот сеанс",
   "revoke": "Отозвать",
   "revokeSessionBody": "Завершить этот сеанс?",
-  "sessionLastSeen": "Активность {time}"
+  "sessionLastSeen": "Активность {time}",
+  "readOnly": "Только чтение",
+  "takeOver": "Перехватить",
+  "takeOverBody": "Стать владельцем {name}?",
+  "ownedBy": "владелец {name}"
 }

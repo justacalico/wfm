@@ -640,6 +640,22 @@ class AppLocalizationsEn extends AppLocalizations {
   String sessionLastSeen(Object time) {
     return 'Last seen $time';
   }
+
+  @override
+  String get readOnly => 'Read only';
+
+  @override
+  String get takeOver => 'Take over';
+
+  @override
+  String takeOverBody(Object name) {
+    return 'Take ownership of $name?';
+  }
+
+  @override
+  String ownedBy(Object name) {
+    return 'by $name';
+  }
 }
 
 /// The translations for English, as used in the United Kingdom (`en_GB`).

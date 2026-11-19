@@ -166,6 +166,19 @@ class _ProjectsPageState extends State<ProjectsPage> {
     }
   }
 
+  Future<void> _takeOver(Project p) async {
+    if (!await confirm(context, context.l10n.takeOver,
+        context.l10n.takeOverBody(p.displayName))) {
+      return;
+    }
+    try {
+      await Api.i.takeOverProject(p.id);
+      _load();
+    } catch (e) {
+      if (mounted) snack(context, e);
+    }
+  }
+
   Widget _menu(AppLocalizations l10n, Project p) => SizedBox(
         width: 28,
         height: 28,
@@ -175,37 +188,46 @@ class _ProjectsPageState extends State<ProjectsPage> {
           onSelected: (v) => switch (v) {
             'pin' => _togglePin(p),
             'tags' => _editTags(p),
+            'take' => _takeOver(p),
             _ => _moveToGroup(p),
           },
           itemBuilder: (_) => [
-            PopupMenuItem(
-                value: 'pin',
-                child: Text(p.pinned ? l10n.unpinProject : l10n.pinProject)),
-            PopupMenuItem(value: 'tags', child: Text(l10n.editTags)),
-            PopupMenuItem(value: 'group', child: Text(l10n.moveToGroup)),
+            if (!p.editable)
+              PopupMenuItem(value: 'take', child: Text(l10n.takeOver))
+            else ...[
+              PopupMenuItem(
+                  value: 'pin',
+                  child: Text(p.pinned ? l10n.unpinProject : l10n.pinProject)),
+              PopupMenuItem(value: 'tags', child: Text(l10n.editTags)),
+              PopupMenuItem(value: 'group', child: Text(l10n.moveToGroup)),
+            ],
           ],
         ),
       );
 
   Widget _actions(BuildContext c, AppLocalizations l10n, Project p) =>
       Row(mainAxisSize: MainAxisSize.min, children: [
-        TextButton.icon(
-          onPressed: () =>
-              showDialog(context: c, builder: (_) => RenderDialog(project: p)),
-          icon: const Icon(Icons.movie_creation_outlined, size: 16),
-          label: Text(l10n.render),
-        ),
-        TextButton.icon(
-          onPressed: () {
-            try {
-              openExternal(Api.i.projectUrl(p.id, theme: _theme(c)));
-            } catch (e) {
-              if (c.mounted) snack(c, e);
-            }
-          },
-          icon: const Icon(Icons.open_in_new, size: 16),
-          label: Text(l10n.openInFilmcraft),
-        ),
+        if (!p.editable)
+          Text(l10n.readOnly, style: Theme.of(c).textTheme.labelSmall),
+        if (p.editable) ...[
+          TextButton.icon(
+            onPressed: () => showDialog(
+                context: c, builder: (_) => RenderDialog(project: p)),
+            icon: const Icon(Icons.movie_creation_outlined, size: 16),
+            label: Text(l10n.render),
+          ),
+          TextButton.icon(
+            onPressed: () {
+              try {
+                openExternal(Api.i.projectUrl(p.id, theme: _theme(c)));
+              } catch (e) {
+                if (c.mounted) snack(c, e);
+              }
+            },
+            icon: const Icon(Icons.open_in_new, size: 16),
+            label: Text(l10n.openInFilmcraft),
+          ),
+        ],
       ]);
 
   Widget _card(BuildContext c, AppLocalizations l10n, Project p, double w) {
@@ -229,7 +251,11 @@ class _ProjectsPageState extends State<ProjectsPage> {
                 ),
                 _menu(l10n, p),
               ]),
-              Text(l10n.createdAgo(fmtAgo(l10n, p.createdAt)),
+              Text(
+                  [
+                    l10n.createdAgo(fmtAgo(l10n, p.createdAt)),
+                    if (p.ownerName.isNotEmpty) l10n.ownedBy(p.ownerName),
+                  ].join('  ·  '),
                   style: Theme.of(c).textTheme.bodySmall),
               if (p.tags.isNotEmpty)
                 Padding(
@@ -518,25 +544,34 @@ class _ProjectPageState extends State<ProjectPage> {
       appBar: AppBar(
         title: Text(_p.displayName),
         actions: [
-          FilledButton.tonalIcon(
-            onPressed: () {
-              try {
-                openExternal(Api.i.projectUrl(_p.id, theme: _theme(context)));
-              } catch (e) {
-                if (context.mounted) snack(context, e);
-              }
-            },
-            icon: const Icon(Icons.movie_edit, size: 18),
-            label: Text(l10n.openInFilmcraft),
-          ),
-          const SizedBox(width: 8),
-          PopupMenuButton<String>(
-            onSelected: (v) => v == 'rename' ? _rename() : _delete(),
-            itemBuilder: (_) => [
-              PopupMenuItem(value: 'rename', child: Text(l10n.rename)),
-              PopupMenuItem(value: 'delete', child: Text(l10n.delete)),
-            ],
-          ),
+          if (!_p.editable)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Center(
+                  child: Text(l10n.readOnly,
+                      style: Theme.of(context).textTheme.labelSmall)),
+            ),
+          if (_p.editable) ...[
+            FilledButton.tonalIcon(
+              onPressed: () {
+                try {
+                  openExternal(Api.i.projectUrl(_p.id, theme: _theme(context)));
+                } catch (e) {
+                  if (context.mounted) snack(context, e);
+                }
+              },
+              icon: const Icon(Icons.movie_edit, size: 18),
+              label: Text(l10n.openInFilmcraft),
+            ),
+            const SizedBox(width: 8),
+            PopupMenuButton<String>(
+              onSelected: (v) => v == 'rename' ? _rename() : _delete(),
+              itemBuilder: (_) => [
+                PopupMenuItem(value: 'rename', child: Text(l10n.rename)),
+                PopupMenuItem(value: 'delete', child: Text(l10n.delete)),
+              ],
+            ),
+          ],
         ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(40),
@@ -809,19 +844,21 @@ class _FilesTabState extends State<FilesTab> {
               icon: Icon(_view == 0 ? Icons.grid_view : Icons.view_list),
               tooltip: _view == 0 ? l10n.gridView : l10n.listView,
               onPressed: () => _setView(_view == 0 ? 1 : 0)),
-          IconButton(
-              icon: const Icon(Icons.create_new_folder_outlined),
-              tooltip: l10n.newFolder,
-              onPressed: _mkdir),
+          if (widget.project.editable)
+            IconButton(
+                icon: const Icon(Icons.create_new_folder_outlined),
+                tooltip: l10n.newFolder,
+                onPressed: _mkdir),
           IconButton(
               icon: const Icon(Icons.refresh),
               tooltip: l10n.refresh,
               onPressed: _load),
-          FilledButton.tonalIcon(
-            onPressed: _uploading ? null : _upload,
-            icon: const Icon(Icons.upload_file, size: 18),
-            label: Text(l10n.upload),
-          ),
+          if (widget.project.editable)
+            FilledButton.tonalIcon(
+              onPressed: _uploading ? null : _upload,
+              icon: const Icon(Icons.upload_file, size: 18),
+              label: Text(l10n.upload),
+            ),
         ]),
       ),
       const Divider(height: 1),
@@ -871,8 +908,10 @@ class _FilesTabState extends State<FilesTab> {
         itemBuilder: (_) => [
           if (!e.isDir)
             PopupMenuItem(value: 'download', child: Text(l10n.download)),
-          PopupMenuItem(value: 'rename', child: Text(l10n.rename)),
-          PopupMenuItem(value: 'delete', child: Text(l10n.delete)),
+          if (widget.project.editable) ...[
+            PopupMenuItem(value: 'rename', child: Text(l10n.rename)),
+            PopupMenuItem(value: 'delete', child: Text(l10n.delete)),
+          ],
         ],
       );
 
@@ -883,7 +922,8 @@ class _FilesTabState extends State<FilesTab> {
             ? null
             : Text('${fmtBytes(e.size)}  ·  ${fmtAgo(l10n, e.modified)}'),
         onTap: e.isDir ? () => _go(e.path) : null,
-        trailing: _menu(c, l10n, e),
+        trailing:
+            e.isDir && !widget.project.editable ? null : _menu(c, l10n, e),
       );
 
   Widget _cell(BuildContext c, AppLocalizations l10n, FileEntry e) => Card(
@@ -897,7 +937,7 @@ class _FilesTabState extends State<FilesTab> {
               Row(children: [
                 Icon(fileIcon(e)),
                 const Spacer(),
-                _menu(c, l10n, e),
+                if (!e.isDir || widget.project.editable) _menu(c, l10n, e),
               ]),
               const Spacer(),
               Text(e.name, overflow: TextOverflow.ellipsis),
@@ -1024,16 +1064,18 @@ class _RendersTabState extends State<RendersTab> {
     final l10n = context.l10n;
     final jobs = _jobs;
     return Scaffold(
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () async {
-          final queued = await showDialog<bool>(
-              context: context,
-              builder: (_) => RenderDialog(project: widget.project));
-          if (queued == true) _load();
-        },
-        icon: const Icon(Icons.add),
-        label: Text(l10n.newRender),
-      ),
+      floatingActionButton: widget.project.editable
+          ? FloatingActionButton.extended(
+              onPressed: () async {
+                final queued = await showDialog<bool>(
+                    context: context,
+                    builder: (_) => RenderDialog(project: widget.project));
+                if (queued == true) _load();
+              },
+              icon: const Icon(Icons.add),
+              label: Text(l10n.newRender),
+            )
+          : null,
       body: jobs == null
           ? const Center(child: CircularProgressIndicator())
           : jobs.isEmpty
@@ -1086,12 +1128,12 @@ class _RendersTabState extends State<RendersTab> {
                             tooltip: l10n.download,
                             onPressed: () => _download(j),
                           ),
-                        if (j.active)
+                        if (j.active && widget.project.editable)
                           IconButton(
                               icon: const Icon(Icons.stop),
                               tooltip: l10n.cancel,
                               onPressed: () => _cancel(j)),
-                        if (!j.active) ...[
+                        if (!j.active && widget.project.editable) ...[
                           IconButton(
                               icon: const Icon(Icons.refresh),
                               tooltip: l10n.retry,

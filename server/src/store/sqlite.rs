@@ -516,6 +516,51 @@ impl Db for SqliteDb {
             .map_err(dberr)
     }
 
+    async fn managed_projects(&self, actor: &User) -> DbResult<Vec<Project>> {
+        let (role, pat) = (actor.role as i64, format!("%/{}/%", actor.id));
+        self.q(move |c| {
+                let mut st = c.prepare(&format!(
+                    "SELECT p.id,p.owner_id,p.name,p.display_name,p.dir,p.group_id,p.tags,p.created_at,p.last_activity,p.pinned FROM projects p JOIN users u ON p.owner_id=u.id WHERE u.role < ? AND u.lineage LIKE ? ORDER BY p.created_at DESC"
+                ))?;
+                let rows = st.query_map(params![role, pat], map_project)?;
+                rows.collect::<rusqlite::Result<Vec<_>>>()
+            })
+            .await
+            .map_err(dberr)
+    }
+
+    async fn user_in_subtree(&self, actor: &User, user_id: &str) -> DbResult<bool> {
+        let (role, pat, uid) = (
+            actor.role as i64,
+            format!("%/{}/%", actor.id),
+            user_id.to_string(),
+        );
+        self.q(move |c| {
+                c.query_row(
+                    "SELECT 1 FROM users WHERE id=? AND role < ? AND lineage LIKE ?",
+                    params![uid, role, pat],
+                    |_| Ok(()),
+                )
+                .map(|_| true)
+                .or_else(|e| match e {
+                    rusqlite::Error::QueryReturnedNoRows => Ok(false),
+                    e => Err(e),
+                })
+            })
+            .await
+            .map_err(dberr)
+    }
+
+    async fn set_project_owner(&self, id: &str, owner_id: &str) -> DbResult<()> {
+        let (id, oid) = (id.to_string(), owner_id.to_string());
+        self.q(move |c| {
+                c.execute("UPDATE projects SET owner_id=? WHERE id=?", params![oid, id])?;
+                Ok(())
+            })
+            .await
+            .map_err(dberr)
+    }
+
     async fn update_project(
         &self,
         id: &str,
@@ -1208,6 +1253,54 @@ mod tests {
         assert!(db.project_by_id("p").await.unwrap().pinned);
         db.set_project_pinned("p", false).await.unwrap();
         assert!(!db.project_by_id("p").await.unwrap().pinned);
+    }
+
+    #[tokio::test]
+    async fn managed_projects_and_take_over() {
+        let db = connect(":memory:").await.unwrap();
+        let u = |id: &str, role: Role, lineage: &str| User {
+            id: id.into(),
+            username: format!("u{id}"),
+            display_name: String::new(),
+            role,
+            role_name: role.as_str().into(),
+            student_id: String::new(),
+            note: String::new(),
+            disabled: false,
+            created_by: String::new(),
+            lineage: lineage.into(),
+            created_at: 1,
+            last_login: 0,
+        };
+        let teacher = u("t", Role::Teacher, "/o/");
+        let student = u("s", Role::Student, "/o/t/");
+        let other = u("x", Role::Student, "/o/");
+        db.create_user(&teacher, "h").await.unwrap();
+        db.create_user(&student, "h").await.unwrap();
+        db.create_user(&other, "h").await.unwrap();
+        let p = |id: &str, owner: &str| Project {
+            id: id.into(),
+            owner_id: owner.into(),
+            name: id.into(),
+            display_name: id.into(),
+            dir: "d".into(),
+            group_id: String::new(),
+            tags: vec![],
+            created_at: 1,
+            last_activity: 1,
+            pinned: false,
+        };
+        db.create_project(&p("sp", "s")).await.unwrap();
+        db.create_project(&p("xp", "x")).await.unwrap();
+        db.create_project(&p("tp", "t")).await.unwrap();
+        let managed = db.managed_projects(&teacher).await.unwrap();
+        assert_eq!(managed.len(), 1);
+        assert_eq!(managed[0].id, "sp");
+        assert!(db.user_in_subtree(&teacher, "s").await.unwrap());
+        assert!(!db.user_in_subtree(&teacher, "x").await.unwrap());
+        assert!(!db.user_in_subtree(&student, "x").await.unwrap());
+        db.set_project_owner("sp", "t").await.unwrap();
+        assert_eq!(db.project_by_id("sp").await.unwrap().owner_id, "t");
     }
 
     #[tokio::test]
