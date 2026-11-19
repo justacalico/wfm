@@ -1,0 +1,178 @@
+diff --git a/apps/filmcraft-web/Cargo.toml b/apps/filmcraft-web/Cargo.toml
+index b174a3a..415dffc 100644
+--- a/apps/filmcraft-web/Cargo.toml
++++ b/apps/filmcraft-web/Cargo.toml
+@@ -37,6 +37,8 @@ wasm-bindgen-futures = "0.4"
+ js-sys = "0.3"
+ web-time = "1"
+ web-sys = { version = "0.3", features = [
++    "AbortController",
++    "AbortSignal",
+     "AudioContext",
+     "AudioContextOptions",
+     "AudioContextState",
+@@ -78,6 +80,7 @@ web-sys = { version = "0.3", features = [
+     "OffscreenCanvas",
+     "OffscreenCanvasRenderingContext2d",
+     "Performance",
++    "ReadableStream",
+     "RequestInit",
+     "Response",
+     "StorageManager",
+diff --git a/apps/filmcraft-web/src/fs.rs b/apps/filmcraft-web/src/fs.rs
+index 4b00be3..b6612d8 100644
+--- a/apps/filmcraft-web/src/fs.rs
++++ b/apps/filmcraft-web/src/fs.rs
+@@ -238,7 +238,10 @@ impl Fs {
+     }
+ }
+ 
+-/// `[a, b)` of a remote file, from the host's ranged download.
++/// `[a, b)` of a remote file, from the host's ranged download. Fails unless the answer is `206`:
++/// a `200` means some proxy dropped `Range` and the body is the *whole* file, never a chunk. Each
++/// call is aborted after [`range_fetch::TIMEOUT_MS`] so a stalled request cannot pin the chunk
++/// `inflight` — and every read on it at "still loading" — forever.
+ async fn fetch_range(url: &str, a: u64, b: u64) -> Result<Vec<u8>, wasm_bindgen::JsValue> {
+     let w = web_sys::window().ok_or_else(|| wasm_bindgen::JsValue::from_str("no window"))?;
+     let init = web_sys::RequestInit::new();
+@@ -249,8 +252,22 @@ async fn fetch_range(url: &str, a: u64, b: u64) -> Result<Vec<u8>, wasm_bindgen:
+         &wasm_bindgen::JsValue::from_str(&format!("bytes={a}-{}", b.saturating_sub(1))),
+     )?;
+     init.set_headers(&headers);
+-    let resp: web_sys::Response = JsFuture::from(w.fetch_with_str_and_init(url, &init)).await?.dyn_into()?;
+-    if !resp.ok() {
++    let ctl = web_sys::AbortController::new()?;
++    init.set_signal(Some(&ctl.signal()));
++    let abort = wasm_bindgen::closure::Closure::once(move || ctl.abort());
++    let timer = w.set_timeout_with_callback_and_timeout_and_arguments_0(
++        abort.as_ref().unchecked_ref(),
++        crate::range_fetch::TIMEOUT_MS,
++    )?;
++    let resp = JsFuture::from(w.fetch_with_str_and_init(url, &init)).await;
++    w.clear_timeout_with_handle(timer);
++    drop(abort);
++    let resp: web_sys::Response = resp?.dyn_into()?;
++    if !crate::range_fetch::is_chunk_status(resp.status()) {
++        // stop the body: without 206 the response streams the entire file
++        if let Some(body) = resp.body() {
++            let _ = body.cancel();
++        }
+         return Err(wasm_bindgen::JsValue::from_str(&format!("GET {url}: status {}", resp.status())));
+     }
+     let buf = JsFuture::from(resp.array_buffer()?).await?;
+@@ -280,7 +297,7 @@ fn request(id: u32, c: u64) {
+     });
+     let Some(src) = src else { return };
+     wasm_bindgen_futures::spawn_local(async move {
+-        let r: Result<Vec<u8>, wasm_bindgen::JsValue> = match src {
++        let r: Result<Vec<u8>, wasm_bindgen::JsValue> = match &src {
+             Src::Blob(blob) => {
+                 let size = blob.size() as u64;
+                 let (a, b) = (c * CHUNK, ((c + 1) * CHUNK).min(size));
+@@ -289,7 +306,19 @@ fn request(id: u32, c: u64) {
+                     Err(e) => Err(e),
+                 }
+             }
+-            Src::Url(url, size) => fetch_range(&url, c * CHUNK, ((c + 1) * CHUNK).min(size)).await,
++            Src::Url(url, size) => {
++                // network reads fail transiently; back off and retry before the chunk is dead
++                let (a, b) = (c * CHUNK, ((c + 1) * CHUNK).min(*size));
++                let mut r = fetch_range(url, a, b).await;
++                for delay in crate::range_fetch::RETRY_DELAYS_MS {
++                    if r.is_ok() {
++                        break;
++                    }
++                    sleep(delay).await;
++                    r = fetch_range(url, a, b).await;
++                }
++                r
++            }
+         };
+         let wake = FS.with(|fs| {
+             let mut fs = fs.borrow_mut();
+diff --git a/apps/filmcraft-web/src/lib.rs b/apps/filmcraft-web/src/lib.rs
+index a8280bc..964adeb 100644
+--- a/apps/filmcraft-web/src/lib.rs
++++ b/apps/filmcraft-web/src/lib.rs
+@@ -27,6 +27,7 @@ pub mod hostmode;
+ pub mod import;
+ pub mod opfs;
+ pub mod recovery;
++pub mod range_fetch;
+ pub mod recovery_policy;
+ pub mod webcodecs;
+ 
+diff --git a/apps/filmcraft-web/src/range_fetch.rs b/apps/filmcraft-web/src/range_fetch.rs
+new file mode 100644
+index 0000000..04c8f37
+--- /dev/null
++++ b/apps/filmcraft-web/src/range_fetch.rs
+@@ -0,0 +1,28 @@
++//! Remote-media range fetch policy (pure, so it is tested natively in `tests/it/range_fetch.rs`;
++//! the fetches themselves live in [`crate::fs`]).
++//!
++//! A remote entry's bytes are read one chunk at a time from the host's ranged download endpoint.
++//! Three failure shapes used to look identical to the reader — "still loading" forever:
++//!
++//! - a `200` answer (some proxy dropped the `Range` header) streams the *whole* file, which for
++//!   a gigabyte clip never finishes;
++//! - a stalled fetch never resolves, pinning the chunk `inflight`;
++//! - a transient failure marked the chunk dead with no retry.
++//!
++//! The constants and the status check here bound every attempt and let the fetch loop retry
++//! before the chunk is written off.
++
++/// Milliseconds one ranged fetch may take before it is aborted. A chunk fetch is a few MiB from a
++/// same-origin host, so half a minute is generous; the bound exists because a stalled request
++/// would otherwise never resolve.
++pub const TIMEOUT_MS: i32 = 30_000;
++
++/// Delays (ms) slept before each retry of a failed ranged fetch: one initial try plus this many
++/// retries, so a dead server still fails the chunk in bounded time.
++pub const RETRY_DELAYS_MS: [i32; 3] = [500, 1_500, 4_500];
++
++/// Whether a response's status can serve a chunk: only `206 Partial Content` carries the asked-for
++/// `Content-Range` bytes. A `200` means a proxy dropped `Range` and the body is the entire file.
++pub fn is_chunk_status(status: u16) -> bool {
++    status == 206
++}
+diff --git a/apps/filmcraft-web/tests/it/main.rs b/apps/filmcraft-web/tests/it/main.rs
+index 3421d2b..e0eab87 100644
+--- a/apps/filmcraft-web/tests/it/main.rs
++++ b/apps/filmcraft-web/tests/it/main.rs
+@@ -1,3 +1,4 @@
+ mod download_pacing;
+ mod hostmode;
++mod range_fetch;
+ mod recovery_policy;
+diff --git a/apps/filmcraft-web/tests/it/range_fetch.rs b/apps/filmcraft-web/tests/it/range_fetch.rs
+new file mode 100644
+index 0000000..b49f38b
+--- /dev/null
++++ b/apps/filmcraft-web/tests/it/range_fetch.rs
+@@ -0,0 +1,25 @@
++//! Tests for [`range_fetch`]: the status a chunk fetch must answer and its bounded retry policy.
++
++#[path = "../../src/range_fetch.rs"]
++mod rules;
++
++use rules::{is_chunk_status, RETRY_DELAYS_MS, TIMEOUT_MS};
++
++#[test]
++fn only_a_partial_content_response_is_a_chunk() {
++    assert!(is_chunk_status(206));
++    for status in [200, 201, 204, 301, 302, 400, 403, 404, 416, 500] {
++        assert!(!is_chunk_status(status), "status {status} is not ranged content");
++    }
++}
++
++#[test]
++fn retries_back_off_and_still_fail_bounded() {
++    assert!(RETRY_DELAYS_MS.iter().all(|d| *d > 0));
++    assert!(
++        RETRY_DELAYS_MS.windows(2).all(|w| w[1] > w[0]),
++        "each retry waits longer than the last"
++    );
++    let worst = RETRY_DELAYS_MS.iter().sum::<i32>() + TIMEOUT_MS * (RETRY_DELAYS_MS.len() as i32 + 1);
++    assert!(worst < 3 * 60_000, "a dead server fails a chunk inside three minutes, not forever");
++}
