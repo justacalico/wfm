@@ -1642,6 +1642,10 @@ void main() {
       await t.tap(find.text('open'));
       await settle(t);
       expect(find.byType(RenderDialog), findsOneWidget);
+      await t.tap(find.text('This device'));
+      await settle(t);
+      await t.tap(find.text('Server').last);
+      await settle(t);
       await t.tap(find.text('Render'));
       await settle(t);
       expect(renderBody, contains('"mode":"server"'));
