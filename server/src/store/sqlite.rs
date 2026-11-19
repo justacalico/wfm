@@ -5,7 +5,7 @@ use rusqlite::{params, OptionalExtension};
 use tokio_rusqlite::Connection;
 
 use crate::model::*;
-use crate::store::{migration_files, migration_sql, Db, DbError, DbResult, LockOutcome};
+use crate::store::{migration_files, migration_sql, AuditFilter, Db, DbError, DbResult, LockOutcome};
 
 pub struct SqliteDb {
     conn: Connection,
@@ -1071,29 +1071,57 @@ impl Db for SqliteDb {
         &self,
         scope: &str,
         subtree_user_id: Option<&str>,
-        limit: i64,
+        f: &AuditFilter,
     ) -> DbResult<Vec<AuditEntry>> {
         let scope = scope.to_string();
         let uid = subtree_user_id.map(|u| u.to_string());
-        let like = subtree_user_id.map(|u| format!("%/{}/%", u));
+        let f = AuditFilter {
+            action: f.action.clone(),
+            actor: f.actor.clone(),
+            from: f.from,
+            to: f.to,
+            limit: f.limit,
+            offset: f.offset,
+        };
         self.q(move |c| {
-                match (&like, &uid) {
-                    (Some(l), Some(u)) => {
-                        let mut st = c.prepare(
-                            "SELECT id,ts,scope,actor_id,actor_name,action,target,detail FROM audit WHERE scope=? AND (lineage LIKE ? OR actor_id=?) ORDER BY id DESC LIMIT ?",
-                        )?;
-                        let rows = st.query_map(params![scope, l, u, limit], map_audit)?;
-                        rows.collect::<rusqlite::Result<Vec<_>>>()
-                    }
-                    _ => {
-                        let mut st = c.prepare(
-                            "SELECT id,ts,scope,actor_id,actor_name,action,target,detail FROM audit WHERE scope=? ORDER BY id DESC LIMIT ?",
-                        )?;
-                        let rows = st.query_map(params![scope, limit], map_audit)?;
-                        rows.collect::<rusqlite::Result<Vec<_>>>()
-                    }
+                let mut sql =
+                    "SELECT id,ts,scope,actor_id,actor_name,action,target,detail FROM audit WHERE scope=?"
+                        .to_string();
+                let mut v: Vec<rusqlite::types::Value> = vec![scope.into()];
+                if let Some(u) = &uid {
+                    sql.push_str(" AND (lineage LIKE ? OR actor_id=?)");
+                    v.push(format!("%/{u}/%").into());
+                    v.push(u.clone().into());
                 }
+                if !f.action.is_empty() {
+                    sql.push_str(" AND action=?");
+                    v.push(f.action.clone().into());
+                }
+                if !f.actor.is_empty() {
+                    sql.push_str(" AND actor_name LIKE ?");
+                    v.push(format!("%{}%", f.actor).into());
+                }
+                if f.from > 0 {
+                    sql.push_str(" AND ts>=?");
+                    v.push(f.from.into());
+                }
+                if f.to > 0 {
+                    sql.push_str(" AND ts<=?");
+                    v.push(f.to.into());
+                }
+                sql.push_str(" ORDER BY id DESC LIMIT ? OFFSET ?");
+                v.push(f.limit.into());
+                v.push(f.offset.into());
+                let mut st = c.prepare(&sql)?;
+                let rows = st.query_map(rusqlite::params_from_iter(v), map_audit)?;
+                rows.collect::<rusqlite::Result<Vec<_>>>()
             })
+            .await
+            .map_err(dberr)
+    }
+
+    async fn audit_purge(&self, before: i64) -> DbResult<()> {
+        self.q(move |c| c.execute("DELETE FROM audit WHERE ts<?", params![before]).map(|_| ()))
             .await
             .map_err(dberr)
     }
@@ -1393,5 +1421,113 @@ mod tests {
         let rows = db.list_sessions("u").await.unwrap();
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0].id, "t2");
+    }
+
+    #[tokio::test]
+    async fn audit_filters_pagination_and_purge() {
+        let db = connect(":memory:").await.unwrap();
+        db.audit("account", "u1", "alice", "login", "t", "d", "/u1/", 100)
+            .await
+            .unwrap();
+        db.audit("account", "u2", "bob", "upload", "t", "d", "/u2/", 200)
+            .await
+            .unwrap();
+        db.audit("account", "u1", "alice", "delete", "t", "d", "/u1/", 300)
+            .await
+            .unwrap();
+        let all = db
+            .audit_list(
+                "account",
+                None,
+                &AuditFilter {
+                    limit: 10,
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
+        assert_eq!(all.len(), 3);
+        let v = db
+            .audit_list(
+                "account",
+                None,
+                &AuditFilter {
+                    action: "login".into(),
+                    limit: 10,
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
+        assert_eq!(v.len(), 1);
+        assert_eq!(v[0].action, "login");
+        let v = db
+            .audit_list(
+                "account",
+                None,
+                &AuditFilter {
+                    actor: "ali".into(),
+                    limit: 10,
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
+        assert_eq!(v.len(), 2);
+        let v = db
+            .audit_list(
+                "account",
+                None,
+                &AuditFilter {
+                    from: 150,
+                    to: 250,
+                    limit: 10,
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
+        assert_eq!(v.len(), 1);
+        assert_eq!(v[0].ts, 200);
+        let p1 = db
+            .audit_list(
+                "account",
+                None,
+                &AuditFilter {
+                    limit: 2,
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
+        let p2 = db
+            .audit_list(
+                "account",
+                None,
+                &AuditFilter {
+                    limit: 2,
+                    offset: 2,
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
+        assert_eq!(p1.len(), 2);
+        assert_eq!(p2.len(), 1);
+        assert_ne!(p1[0].id, p2[0].id);
+        db.audit_purge(250).await.unwrap();
+        let v = db
+            .audit_list(
+                "account",
+                None,
+                &AuditFilter {
+                    limit: 10,
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
+        assert_eq!(v.len(), 1);
+        assert_eq!(v[0].ts, 300);
     }
 }

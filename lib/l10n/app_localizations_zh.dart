@@ -679,4 +679,22 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get changePhoto => '更换头像';
+
+  @override
+  String get action => '操作';
+
+  @override
+  String get actor => '操作者';
+
+  @override
+  String get from => '开始';
+
+  @override
+  String get to => '结束';
+
+  @override
+  String get applyFilters => '应用筛选';
+
+  @override
+  String get clearFilters => '清除筛选';
 }

@@ -410,11 +410,23 @@ class Api {
       post('/me/password', {'current': current, 'next': next});
 
   Future<List<AuditEntry>> audit(
-          {String scope = 'account', int limit = 200}) async =>
+          {String scope = 'account',
+          int limit = 200,
+          int offset = 0,
+          String action = '',
+          String actor = '',
+          int from = 0,
+          int to = 0}) async =>
       [
-        for (final e
-            in (await get('/audit', {'scope': scope, 'limit': '$limit'}))
-                as List)
+        for (final e in (await get('/audit', {
+          'scope': scope,
+          'limit': '$limit',
+          'offset': '$offset',
+          'action': action,
+          'actor': actor,
+          'from': '$from',
+          'to': '$to',
+        })) as List)
           AuditEntry.fromJson(e)
       ];
 

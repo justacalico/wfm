@@ -685,4 +685,22 @@ class AppLocalizationsGa extends AppLocalizations {
 
   @override
   String get changePhoto => 'Athraigh grianghraf';
+
+  @override
+  String get action => 'Gníomh';
+
+  @override
+  String get actor => 'Aisteoir';
+
+  @override
+  String get from => 'Ó';
+
+  @override
+  String get to => 'Go dtí';
+
+  @override
+  String get applyFilters => 'Cuir scagairí i bhfeidhm';
+
+  @override
+  String get clearFilters => 'Glan na scagairí';
 }

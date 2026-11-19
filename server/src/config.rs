@@ -15,6 +15,7 @@ pub struct Config {
     pub local_renders: bool,
     pub db_url: Option<String>,
     pub session_ttl: i64,
+    pub audit_days: i64,
     pub lock_ttl: i64,
     pub worker: Option<WorkerCfg>,
     pub media_kind: String,
@@ -96,6 +97,7 @@ impl Config {
             local_renders: env_bool("WFM_LOCAL_RENDERS", true),
             db_url: std::env::var("WFM_DB").ok().filter(|s| !s.is_empty()),
             session_ttl: env_int("WFM_SESSION_DAYS", 7) * 86400,
+            audit_days: env_int("WFM_AUDIT_DAYS", 0),
             lock_ttl: env_int("WFM_LOCK_TTL", 45),
             media_kind: env("WFM_MEDIA", "local"),
             media_path: std::env::var("WFM_MEDIA_PATH").ok().map(PathBuf::from),
@@ -151,6 +153,9 @@ impl Config {
                 "--s3-prefix" => c.s3_prefix = next(&mut i)?,
                 "--session-days" => {
                     c.session_ttl = next(&mut i)?.parse::<i64>().map_err(|e| e.to_string())? * 86400
+                }
+                "--audit-days" => {
+                    c.audit_days = next(&mut i)?.parse::<i64>().map_err(|e| e.to_string())?
                 }
                 "--lock-ttl" => c.lock_ttl = next(&mut i)?.parse::<i64>().map_err(|e| e.to_string())?,
                 "--trusted-proxies" => {

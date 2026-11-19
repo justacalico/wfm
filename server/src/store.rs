@@ -42,6 +42,17 @@ pub enum LockOutcome {
     Held(LockInfo),
 }
 
+/// Filters for audit_list: empty action/actor and zero from/to mean unfiltered.
+#[derive(Default)]
+pub struct AuditFilter {
+    pub action: String,
+    pub actor: String,
+    pub from: i64,
+    pub to: i64,
+    pub limit: i64,
+    pub offset: i64,
+}
+
 /// Storage backend contract. SQLite is bundled and default; Postgres is
 /// available with `--features postgres`. Adding another engine means
 /// implementing this trait and registering it in `connect`.
@@ -184,8 +195,9 @@ pub trait Db: Send + Sync {
         &self,
         scope: &str,
         subtree_user_id: Option<&str>,
-        limit: i64,
+        f: &AuditFilter,
     ) -> DbResult<Vec<AuditEntry>>;
+    async fn audit_purge(&self, before: i64) -> DbResult<()>;
 
     // key-value settings
     async fn setting_get(&self, k: &str) -> DbResult<Option<String>>;

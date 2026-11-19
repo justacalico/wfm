@@ -327,5 +327,11 @@
   "downloadZip": "打包下载",
   "destFolder": "目标文件夹",
   "selectedCount": "已选 {n} 项",
-  "changePhoto": "更换头像"
+  "changePhoto": "更换头像",
+  "action": "操作",
+  "actor": "操作者",
+  "from": "开始",
+  "to": "结束",
+  "applyFilters": "应用筛选",
+  "clearFilters": "清除筛选"
 }

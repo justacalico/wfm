@@ -683,4 +683,22 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get changePhoto => 'Изменить фото';
+
+  @override
+  String get action => 'Действие';
+
+  @override
+  String get actor => 'Автор';
+
+  @override
+  String get from => 'От';
+
+  @override
+  String get to => 'До';
+
+  @override
+  String get applyFilters => 'Применить фильтры';
+
+  @override
+  String get clearFilters => 'Сбросить фильтры';
 }

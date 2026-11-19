@@ -682,6 +682,24 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get changePhoto => 'Change photo';
+
+  @override
+  String get action => 'Action';
+
+  @override
+  String get actor => 'Actor';
+
+  @override
+  String get from => 'From';
+
+  @override
+  String get to => 'To';
+
+  @override
+  String get applyFilters => 'Apply filters';
+
+  @override
+  String get clearFilters => 'Clear filters';
 }
 
 /// The translations for English, as used in the United Kingdom (`en_GB`).
@@ -745,4 +763,22 @@ class AppLocalizationsEnGb extends AppLocalizationsEn {
 
   @override
   String get changePhoto => 'Change photo';
+
+  @override
+  String get action => 'Action';
+
+  @override
+  String get actor => 'Actor';
+
+  @override
+  String get from => 'From';
+
+  @override
+  String get to => 'To';
+
+  @override
+  String get applyFilters => 'Apply filters';
+
+  @override
+  String get clearFilters => 'Clear filters';
 }

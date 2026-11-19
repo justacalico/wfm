@@ -327,5 +327,11 @@
   "downloadZip": "Íoslódáil zip",
   "destFolder": "Fillteán sprice",
   "selectedCount": "{n} roghnaithe",
-  "changePhoto": "Athraigh grianghraf"
+  "changePhoto": "Athraigh grianghraf",
+  "action": "Gníomh",
+  "actor": "Aisteoir",
+  "from": "Ó",
+  "to": "Go dtí",
+  "applyFilters": "Cuir scagairí i bhfeidhm",
+  "clearFilters": "Glan na scagairí"
 }

@@ -27,5 +27,11 @@
   },
   "sessions": "Sessions",
   "revoke": "Revoke",
-  "changePhoto": "Change photo"
+  "changePhoto": "Change photo",
+  "action": "Action",
+  "actor": "Actor",
+  "from": "From",
+  "to": "To",
+  "applyFilters": "Apply filters",
+  "clearFilters": "Clear filters"
 }

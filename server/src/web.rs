@@ -211,6 +211,7 @@ mod tests {
                 local_renders: false,
                 db_url: None,
                 session_ttl: 86400,
+                audit_days: 0,
                 lock_ttl: 45,
                 worker: None,
                 media_kind: "local".into(),
