@@ -1043,16 +1043,25 @@ impl Db for SqliteDb {
         self.q(move |c| {
                 c.execute(
                     "INSERT INTO render_jobs(id,project_id,user_id,status,mode,spec,output_name,progress,error,worker,attempts,lease_until,created_at,finished_at)
-                     VALUES(?,?,?,?,?,?,?,0,'','',0,0,?,0)",
+                     SELECT ?,?,?,?,?,?,?,0,'','',0,0,?,0
+                     WHERE NOT EXISTS(
+                       SELECT 1 FROM render_jobs
+                       WHERE project_id=? AND status IN('queued','running'))",
                     params![
                         j.id, j.project_id, j.user_id, j.status, j.mode, j.spec,
-                        j.output_name, j.created_at
+                        j.output_name, j.created_at, j.project_id
                     ],
                 )
-                .map(|_| ())
             })
             .await
             .map_err(dberr)
+            .and_then(|rows| {
+                if rows == 0 {
+                    Err(DbError::Conflict)
+                } else {
+                    Ok(())
+                }
+            })
     }
 
     async fn job_by_id(&self, id: &str) -> DbResult<RenderJob> {
@@ -1964,6 +1973,27 @@ mod tests {
         db.job_delete("j0").await.unwrap();
         assert!(db.job_by_id("j0").await.is_err());
         assert_eq!(db.jobs_by_project("p", 0, 50).await.unwrap().len(), 2);
+    }
+
+    #[tokio::test]
+    async fn only_one_active_render_per_project() {
+        let db = connect(":memory:").await.unwrap();
+        db.job_create(&job("j1")).await.unwrap();
+        assert!(matches!(
+            db.job_create(&job("j2")).await,
+            Err(DbError::Conflict)
+        ));
+        let mut running = job("j3");
+        running.status = "running".into();
+        assert!(matches!(
+            db.job_create(&running).await,
+            Err(DbError::Conflict)
+        ));
+        db.job_finish("j1", "", "done", "", 100).await.unwrap();
+        db.job_create(&job("j2")).await.unwrap();
+        let mut other = job("j4");
+        other.project_id = "p2".into();
+        db.job_create(&other).await.unwrap();
     }
 
     #[tokio::test]

@@ -265,6 +265,9 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get renderAlreadyActive => '该项目已有一个正在进行的渲染。';
+
+  @override
   String get outputName => '输出名称';
 
   @override

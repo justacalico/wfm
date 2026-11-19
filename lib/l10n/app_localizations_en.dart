@@ -266,6 +266,10 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get renderAlreadyActive =>
+      'A render is already in progress for this project.';
+
+  @override
   String get outputName => 'Output name';
 
   @override

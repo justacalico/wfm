@@ -267,6 +267,10 @@ class AppLocalizationsGa extends AppLocalizations {
   }
 
   @override
+  String get renderAlreadyActive =>
+      'Tá rindreáil ar siúl don tionscadal seo cheana féin.';
+
+  @override
   String get outputName => 'Ainm aschuir';
 
   @override

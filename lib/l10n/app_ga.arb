@@ -114,6 +114,7 @@
   "render": "Rindreáil",
   "queuing": "Á chur sa scuaine…",
   "renderStatus": "{status}  ·  {when}",
+  "renderAlreadyActive": "Tá rindreáil ar siúl don tionscadal seo cheana féin.",
   "@renderStatus": {
     "placeholders": {
       "status": {},
