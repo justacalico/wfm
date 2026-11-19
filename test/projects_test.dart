@@ -309,9 +309,21 @@ void main() {
     testWidgets('card render button opens the render dialog', (t) async {
       installApi();
       await pump(t, const ProjectsPage());
+      await t.tap(find.byType(PopupMenuButton<String>).first);
+      await settle(t);
       await t.tap(find.text('Render'));
       await settle(t);
       expect(find.byType(RenderDialog), findsOneWidget);
+    });
+
+    testWidgets('card menu share opens the share dialog', (t) async {
+      installApi();
+      await pump(t, const ProjectsPage());
+      await t.tap(find.byType(PopupMenuButton<String>).first);
+      await settle(t);
+      await t.tap(find.text('Share'));
+      await settle(t);
+      expect(find.byType(Dialog), findsOneWidget);
     });
 
     testWidgets('status badge shows on card and row', (t) async {
