@@ -5,7 +5,7 @@ use sqlx::postgres::PgPoolOptions;
 use sqlx::{PgPool, Row};
 
 use crate::model::*;
-use crate::store::{migration_files, migration_sql, Db, DbError, DbResult, LockOutcome};
+use crate::store::{migration_files, migration_sql, AuditFilter, Db, DbError, DbResult, LockOutcome};
 
 pub struct PgDb {
     pool: PgPool,
@@ -982,28 +982,63 @@ impl Db for PgDb {
         &self,
         scope: &str,
         subtree_user_id: Option<&str>,
-        limit: i64,
+        f: &AuditFilter,
     ) -> DbResult<Vec<AuditEntry>> {
-        let rows = match subtree_user_id {
-            Some(uid) => sqlx::query(
-                "SELECT * FROM audit WHERE scope=$1 AND (lineage LIKE $2 OR actor_id=$3) ORDER BY id DESC LIMIT $4",
-            )
-            .bind(scope)
-            .bind(format!("%/{}/%", uid))
-            .bind(uid)
-            .bind(limit)
-            .fetch_all(&self.pool)
-            .await,
-            None => sqlx::query(
-                "SELECT * FROM audit WHERE scope=$1 ORDER BY id DESC LIMIT $2",
-            )
-            .bind(scope)
-            .bind(limit)
-            .fetch_all(&self.pool)
-            .await,
+        let mut sql = "SELECT * FROM audit WHERE scope=$1".to_string();
+        let mut n = 1;
+        if subtree_user_id.is_some() {
+            sql.push_str(&format!(" AND (lineage LIKE ${} OR actor_id=${})", n + 1, n + 2));
+            n += 2;
         }
-        .map_err(map_err)?;
+        if !f.action.is_empty() {
+            n += 1;
+            sql.push_str(&format!(" AND action=${n}"));
+        }
+        if !f.actor.is_empty() {
+            n += 1;
+            sql.push_str(&format!(" AND actor_name LIKE ${n}"));
+        }
+        if f.from > 0 {
+            n += 1;
+            sql.push_str(&format!(" AND ts>=${n}"));
+        }
+        if f.to > 0 {
+            n += 1;
+            sql.push_str(&format!(" AND ts<=${n}"));
+        }
+        sql.push_str(&format!(" ORDER BY id DESC LIMIT ${} OFFSET ${}", n + 1, n + 2));
+        let mut q = sqlx::query(&sql).bind(scope);
+        if let Some(uid) = subtree_user_id {
+            q = q.bind(format!("%/{uid}/%")).bind(uid);
+        }
+        if !f.action.is_empty() {
+            q = q.bind(&f.action);
+        }
+        if !f.actor.is_empty() {
+            q = q.bind(format!("%{}%", f.actor));
+        }
+        if f.from > 0 {
+            q = q.bind(f.from);
+        }
+        if f.to > 0 {
+            q = q.bind(f.to);
+        }
+        let rows = q
+            .bind(f.limit)
+            .bind(f.offset)
+            .fetch_all(&self.pool)
+            .await
+            .map_err(map_err)?;
         Ok(rows.into_iter().map(row_audit).collect())
+    }
+
+    async fn audit_purge(&self, before: i64) -> DbResult<()> {
+        sqlx::query("DELETE FROM audit WHERE ts<$1")
+            .bind(before)
+            .execute(&self.pool)
+            .await
+            .map(|_| ())
+            .map_err(map_err)
     }
 
     async fn setting_get(&self, k: &str) -> DbResult<Option<String>> {

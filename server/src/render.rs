@@ -268,6 +268,12 @@ pub fn spawn_janitor(state: Arc<AppState>) {
                     let now = AppState::now();
                     let _ = state.db.clean_locks(now).await;
                     let _ = state.db.clean_sessions(now).await;
+                    if state.cfg.audit_days > 0 {
+                        let _ = state
+                            .db
+                            .audit_purge(now - state.cfg.audit_days * 86400)
+                            .await;
+                    }
                     let _ = state.db.job_requeue_stale(now).await;
                     let _ = state.db.job_fail_stale(now).await;
                     crate::auth::login_prune(&state.logins);

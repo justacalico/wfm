@@ -16,7 +16,7 @@ use crate::auth::{
 use crate::files::{self, FsError};
 use crate::model::{self, can_manage, Project, ProjectGroup, RenderJob, RenderSpec, Role, User};
 use crate::render;
-use crate::store::{DbError, LockOutcome};
+use crate::store::{AuditFilter, DbError, LockOutcome};
 
 fn blob_key(dir: &str, rel: &str) -> String {
     format!("{}/{}", dir.trim_matches('/'), rel.trim_matches('/'))
@@ -788,6 +788,16 @@ struct AuditQuery {
     scope: String,
     #[serde(default = "dlimit")]
     limit: i64,
+    #[serde(default)]
+    offset: i64,
+    #[serde(default)]
+    action: String,
+    #[serde(default)]
+    actor: String,
+    #[serde(default)]
+    from: i64,
+    #[serde(default)]
+    to: i64,
 }
 fn dscope() -> String {
     "account".into()
@@ -819,8 +829,15 @@ async fn audit(
     } else {
         Some(session.user.id.as_str())
     };
-    let limit = q.limit.clamp(1, 1000);
-    match s.db.audit_list(scope, subtree, limit).await {
+    let f = AuditFilter {
+        action: q.action,
+        actor: q.actor,
+        from: q.from,
+        to: q.to,
+        limit: q.limit.clamp(1, 1000),
+        offset: q.offset.max(0),
+    };
+    match s.db.audit_list(scope, subtree, &f).await {
         Ok(v) => Json(json!(v)).into_response(),
         Err(e) => db_resp(e),
     }

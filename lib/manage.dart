@@ -286,6 +286,10 @@ class _AuditTabState extends State<AuditTab> {
   List<AuditEntry>? _items;
   String _scope = 'account';
   String _err = '';
+  bool _hasMore = false;
+  int _from = 0, _to = 0;
+  final _action = TextEditingController();
+  final _actor = TextEditingController();
 
   @override
   void initState() {
@@ -293,13 +297,55 @@ class _AuditTabState extends State<AuditTab> {
     _load();
   }
 
-  Future<void> _load() async {
+  @override
+  void dispose() {
+    _action.dispose();
+    _actor.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load([int offset = 0]) async {
     try {
-      final v = await Api.i.audit(scope: _scope);
-      setState(() => _items = v);
+      final v = await Api.i.audit(
+          scope: _scope,
+          offset: offset,
+          action: _action.text,
+          actor: _actor.text,
+          from: _from,
+          to: _to);
+      setState(() {
+        _items = offset == 0 ? v : [...?_items, ...v];
+        _hasMore = v.length == 200;
+        _err = '';
+      });
     } catch (e) {
       setState(() => _err = '$e');
     }
+  }
+
+  void _apply() {
+    setState(() => _items = null);
+    _load();
+  }
+
+  void _clearFilters() {
+    _action.clear();
+    _actor.clear();
+    _from = _to = 0;
+    _apply();
+  }
+
+  Future<void> _pick(bool isFrom) async {
+    final now = DateTime.now();
+    final d = await showDatePicker(
+        context: context,
+        initialDate: now,
+        firstDate: DateTime(2020),
+        lastDate: now.add(const Duration(days: 366)));
+    if (d == null || !mounted) return;
+    var t = d.millisecondsSinceEpoch ~/ 1000;
+    if (!isFrom) t += 86399;
+    setState(() => isFrom ? _from = t : _to = t);
   }
 
   @override
@@ -330,17 +376,67 @@ class _AuditTabState extends State<AuditTab> {
               onPressed: _load),
         ]),
       ),
+      Padding(
+        padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+        child: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              SizedBox(
+                  width: 140,
+                  child: TextField(
+                      controller: _action,
+                      decoration: InputDecoration(
+                          labelText: l10n.action, isDense: true),
+                      onSubmitted: (_) => _apply())),
+              SizedBox(
+                  width: 140,
+                  child: TextField(
+                      controller: _actor,
+                      decoration:
+                          InputDecoration(labelText: l10n.actor, isDense: true),
+                      onSubmitted: (_) => _apply())),
+              ActionChip(
+                  avatar: const Icon(Icons.date_range, size: 18),
+                  label: Text(_from == 0
+                      ? l10n.from
+                      : '${l10n.from} ${fmtTime(l10n, _from)}'),
+                  onPressed: () => _pick(true)),
+              ActionChip(
+                  avatar: const Icon(Icons.date_range, size: 18),
+                  label: Text(
+                      _to == 0 ? l10n.to : '${l10n.to} ${fmtTime(l10n, _to)}'),
+                  onPressed: () => _pick(false)),
+              IconButton(
+                  icon: const Icon(Icons.search),
+                  tooltip: l10n.applyFilters,
+                  onPressed: _apply),
+              IconButton(
+                  icon: const Icon(Icons.filter_alt_off),
+                  tooltip: l10n.clearFilters,
+                  onPressed: _clearFilters),
+            ]),
+      ),
       const Divider(height: 1),
       Expanded(
         child: _err.isNotEmpty
-            ? errorView(context, _err, _load)
+            ? errorView(context, _err, () => _load())
             : items == null
                 ? const Center(child: CircularProgressIndicator())
                 : items.isEmpty
                     ? Center(child: Text(l10n.nothingRecorded))
                     : ListView.builder(
-                        itemCount: items.length,
+                        itemCount: items.length + (_hasMore ? 1 : 0),
                         itemBuilder: (c, i) {
+                          if (i == items.length) {
+                            return Center(
+                                child: Padding(
+                                    padding: const EdgeInsets.all(8),
+                                    child: TextButton(
+                                        onPressed: () => _load(items.length),
+                                        child: Text(l10n.loadMore))));
+                          }
                           final e = items[i];
                           return ListTile(
                             dense: true,

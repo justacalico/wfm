@@ -320,6 +320,70 @@ void main() {
       await pump(t, const AuditTab());
       expect(find.text('audit err'), findsOneWidget);
     });
+
+    testWidgets('filters, pagination, clear', (t) async {
+      final reqs = <Map<String, String>>[];
+      installApi(extra: {
+        'GET /api/audit': (req) {
+          final q = req.url.queryParameters;
+          reqs.add(q);
+          final n = q['offset'] == '0' ? 200 : 3;
+          return List.generate(
+              n,
+              (i) => {
+                    'ts': 1700000000 + i,
+                    'actorName': 'Ada',
+                    'action': 'login',
+                    'target': '',
+                    'detail': ''
+                  });
+        },
+      });
+      Api.i.user = User.fromJson({'role': 'owner'});
+      await pump(t, const AuditTab());
+      await t.enterText(find.byType(TextField).first, 'upload');
+      await t.testTextInput.receiveAction(TextInputAction.done);
+      await settle(t);
+      expect(reqs.last['action'], 'upload');
+      await t.enterText(find.byType(TextField).at(1), 'ada');
+      await t.testTextInput.receiveAction(TextInputAction.done);
+      await settle(t);
+      expect(reqs.last['actor'], 'ada');
+      await t.tap(find.byIcon(Icons.search));
+      await settle(t);
+      await t.dragUntilVisible(find.text('Load more'),
+          find.byType(Scrollable).last, const Offset(0, -400));
+      await t.tap(find.text('Load more'));
+      await settle(t);
+      expect(reqs.last['offset'], '200');
+      expect(find.text('Load more'), findsNothing);
+      await t.tap(find.byIcon(Icons.filter_alt_off));
+      await settle(t);
+      expect(reqs.last['action'], '');
+      expect(reqs.last['offset'], '0');
+    });
+
+    testWidgets('date range pickers', (t) async {
+      installApi(extra: {'GET /api/audit': (_) => []});
+      await pump(t, const AuditTab());
+      await t.tap(find.byType(ActionChip).first);
+      await t.pumpAndSettle();
+      await t.tap(find.text('Cancel'));
+      await t.pumpAndSettle();
+      expect(find.text('From'), findsOneWidget);
+      await t.tap(find.byType(ActionChip).first);
+      await t.pumpAndSettle();
+      await t.tap(find.text('OK'));
+      await t.pumpAndSettle();
+      await t.tap(find.byType(ActionChip).at(1));
+      await t.pumpAndSettle();
+      await t.tap(find.text('OK'));
+      await t.pumpAndSettle();
+      await t.tap(find.byIcon(Icons.search));
+      await settle(t);
+      expect(lastRequest!.url.queryParameters['from'], isNot('0'));
+      expect(lastRequest!.url.queryParameters['to'], isNot('0'));
+    });
   });
 
   group('NodesTab', () {
