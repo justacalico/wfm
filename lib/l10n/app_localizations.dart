@@ -368,11 +368,11 @@ abstract class AppLocalizations {
   /// **'Created {when}'**
   String createdAgo(Object when);
 
-  /// No description provided for @openInFilmcraft.
+  /// No description provided for @editInFilmcraft.
   ///
   /// In en, this message translates to:
-  /// **'Open'**
-  String get openInFilmcraft;
+  /// **'Edit'**
+  String get editInFilmcraft;
 
   /// No description provided for @openScript.
   ///

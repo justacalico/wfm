@@ -240,8 +240,8 @@ class _ProjectsPageState extends State<ProjectsPage> {
                 if (c.mounted) snack(c, e);
               }
             },
-            icon: const Icon(Icons.open_in_new, size: 16),
-            label: Text(l10n.openInFilmcraft),
+            icon: const Icon(Icons.edit_outlined, size: 16),
+            label: Text(l10n.editInFilmcraft),
           ),
           TextButton.icon(
             onPressed: () async {
@@ -703,7 +703,7 @@ class _ProjectPageState extends State<ProjectPage> {
                 }
               },
               icon: const Icon(Icons.movie_edit, size: 18),
-              label: Text(l10n.openInFilmcraft),
+              label: Text(l10n.editInFilmcraft),
             ),
             const SizedBox(width: 8),
             IconButton(

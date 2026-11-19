@@ -59,7 +59,7 @@
       "when": {}
     }
   },
-  "openInFilmcraft": "打开",
+  "editInFilmcraft": "编辑",
   "openScript": "剧本",
   "openBoards": "故事板",
   "renameProject": "重命名项目",

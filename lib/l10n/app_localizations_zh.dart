@@ -150,7 +150,7 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get openInFilmcraft => '打开';
+  String get editInFilmcraft => '编辑';
 
   @override
   String get openScript => '剧本';
