@@ -1630,7 +1630,6 @@ class _RenderDialogState extends State<RenderDialog> {
           _info = i;
           _seq = i.activeSequence ??
               (i.sequences.isEmpty ? 0 : i.sequences.first.id);
-          _mode = i.serverRender ? 'server' : 'device';
         });
       }
     }).catchError((e) {
@@ -2051,6 +2050,8 @@ class _RenderDialogState extends State<RenderDialog> {
                                               () => _captionSidecar = v)),
                                     ),
                                   ]),
+                                  _field(l10n.extraParams, _extra),
+                                  const SizedBox(height: 8),
                                   Wrap(spacing: 8, children: [
                                     FilterChip(
                                         label: Text(l10n.h264IntraOnly),
@@ -2068,8 +2069,6 @@ class _RenderDialogState extends State<RenderDialog> {
                                         onSelected: (v) =>
                                             setState(() => _alpha = v)),
                                   ]),
-                                  const SizedBox(height: 8),
-                                  _field(l10n.extraParams, _extra),
                                 ],
                               ),
                             ]),

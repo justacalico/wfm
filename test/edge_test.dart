@@ -175,6 +175,7 @@ void main() {
 
     testWidgets('FAB opens dialog and queues render', (t) async {
       var renderPosts = 0;
+      openEditorForTesting = (_) {};
       installApi(extra: {
         'GET /api/projects/p1/renders': (_) => [
               {'id': 'r1', 'status': 'done', 'outputName': 'x'},
@@ -301,11 +302,12 @@ void main() {
 
     testWidgets('posts match-source defaults for the active sequence',
         (t) async {
+      openEditorForTesting = (_) {};
       await openDialog(t);
       await t.tap(find.text('Render'));
       await settle(t);
       final body = posted();
-      expect(body['mode'], 'server');
+      expect(body['mode'], 'device');
       expect(body['sequence'], 21);
       expect(body['output'], 'export');
       final p = body['params'] as Map<String, dynamic>;
@@ -316,6 +318,7 @@ void main() {
     });
 
     testWidgets('sequence dropdown selects another sequence', (t) async {
+      openEditorForTesting = (_) {};
       await openDialog(t);
       await choose(t, 'Sequence', 'Rough Cut');
       await t.tap(find.text('Render'));
@@ -401,6 +404,7 @@ void main() {
     });
 
     testWidgets('all options map into params', (t) async {
+      openEditorForTesting = (_) {};
       await openDialog(t);
       await choose(t, 'Format', 'ProRes');
       await choose(t, 'Range', 'Custom');
