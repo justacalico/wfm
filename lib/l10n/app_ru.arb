@@ -372,5 +372,14 @@
   "noShares": "С вами пока ничем не поделились",
   "autoShares": "Автодоступ",
   "autoSharesHint": "Эти люди автоматически приглашаются в каждый новый проект ваших учеников.",
-  "autoShareAdd": "Добавить"
+  "autoShareAdd": "Добавить",
+  "quotaMb": "Квота хранилища (МБ)",
+  "quotaMbHint": "Оставьте пустым для безлимита",
+  "storageUsed": "Использовано {used} из {quota}",
+  "@storageUsed": {
+    "placeholders": {
+      "used": {},
+      "quota": {}
+    }
+  }
 }

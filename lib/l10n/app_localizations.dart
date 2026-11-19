@@ -1597,6 +1597,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Add auto-share'**
   String get autoShareAdd;
+
+  /// No description provided for @quotaMb.
+  ///
+  /// In en, this message translates to:
+  /// **'Storage quota (MB)'**
+  String get quotaMb;
+
+  /// No description provided for @quotaMbHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave empty for unlimited'**
+  String get quotaMbHint;
+
+  /// No description provided for @storageUsed.
+  ///
+  /// In en, this message translates to:
+  /// **'{used} of {quota} used'**
+  String storageUsed(Object used, Object quota);
 }
 
 class _AppLocalizationsDelegate

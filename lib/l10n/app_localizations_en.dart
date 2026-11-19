@@ -822,6 +822,17 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get autoShareAdd => 'Add auto-share';
+
+  @override
+  String get quotaMb => 'Storage quota (MB)';
+
+  @override
+  String get quotaMbHint => 'Leave empty for unlimited';
+
+  @override
+  String storageUsed(Object used, Object quota) {
+    return '$used of $quota used';
+  }
 }
 
 /// The translations for English, as used in the United Kingdom (`en_GB`).
@@ -1025,4 +1036,15 @@ class AppLocalizationsEnGb extends AppLocalizationsEn {
 
   @override
   String get autoShareAdd => 'Add auto-share';
+
+  @override
+  String get quotaMb => 'Storage quota (MB)';
+
+  @override
+  String get quotaMbHint => 'Leave empty for unlimited';
+
+  @override
+  String storageUsed(Object used, Object quota) {
+    return '$used of $quota used';
+  }
 }

@@ -72,6 +72,8 @@ pub struct User {
     pub note: String,
     pub disabled: bool,
     pub avatar: String,
+    #[serde(rename = "quotaBytes")]
+    pub quota_bytes: i64,
     #[serde(rename = "createdBy")]
     pub created_by: String,
     #[serde(skip)]
@@ -420,6 +422,7 @@ mod tests {
             note: String::new(),
             disabled: false,
             avatar: String::new(),
+            quota_bytes: 0,
             created_by: created_by.into(),
             lineage: lineage.into(),
             created_at: 0,

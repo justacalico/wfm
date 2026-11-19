@@ -15,7 +15,7 @@ class ApiException implements Exception {
 class User {
   final String id, username, name, role, studentId, note, avatar;
   final bool disabled;
-  final int createdAt, lastLogin;
+  final int createdAt, lastLogin, quotaBytes;
   User.fromJson(Map<String, dynamic> j)
       : id = j['id'] ?? '',
         username = j['username'] ?? '',
@@ -26,7 +26,8 @@ class User {
         note = j['note'] ?? '',
         avatar = j['avatar'] ?? '',
         createdAt = j['createdAt'] ?? 0,
-        lastLogin = j['lastLogin'] ?? 0;
+        lastLogin = j['lastLogin'] ?? 0,
+        quotaBytes = j['quotaBytes'] ?? 0;
   bool get hasAvatar => avatar.isNotEmpty;
 
   static const ranks = {
@@ -507,6 +508,12 @@ class Api {
 
   Future<User> createAccount(Map<String, dynamic> body) async =>
       User.fromJson(await post('/accounts', body));
+
+  Future<int> projectUsage(String id) async =>
+      (await get('/projects/$id/usage'))['bytes'] ?? 0;
+
+  Future<int> accountUsage(String id) async =>
+      (await get('/accounts/$id/usage'))['bytes'] ?? 0;
 
   Future<User> updateAccount(String id, Map<String, dynamic> body) async =>
       User.fromJson(await patch('/accounts/$id', body));

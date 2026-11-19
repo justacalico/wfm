@@ -69,6 +69,8 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/shares/{sid}/decline", post(decline_share))
         .route("/auto-shares", get(list_auto_shares).post(add_auto_share))
         .route("/auto-shares/{id}", delete(delete_auto_share))
+        .route("/projects/{id}/usage", get(project_usage))
+        .route("/accounts/{id}/usage", get(account_usage))
         .route(
             "/projects/{id}",
             get(get_project).patch(update_project).delete(delete_project),
@@ -202,6 +204,7 @@ async fn setup_owner(
         note: String::new(),
         disabled: false,
         avatar: String::new(),
+        quota_bytes: 0,
         created_by: String::new(),
         lineage: "/".into(),
         created_at: AppState::now(),
@@ -607,6 +610,7 @@ async fn create_account(
         note,
         disabled: false,
         avatar: String::new(),
+        quota_bytes: 0,
         created_by: session.user.id.clone(),
         lineage: format!("{}{}/", session.user.lineage, session.user.id),
         created_at: AppState::now(),
@@ -824,6 +828,7 @@ async fn redeem_invite(
         note: String::new(),
         disabled: false,
         avatar: String::new(),
+        quota_bytes: 0,
         created_by: inv.created_by.clone(),
         lineage: format!("{}{}/", inviter.lineage, inviter.id),
         created_at: now,
@@ -962,6 +967,8 @@ struct UpdateAccountReq {
     role: Option<String>,
     student_id: Option<String>,
     note: Option<String>,
+    #[serde(rename = "quotaBytes")]
+    quota_bytes: Option<i64>,
 }
 
 async fn update_account(
@@ -1018,6 +1025,15 @@ async fn update_account(
         if note != target.note {
             target.note = note;
             detail.push("note");
+        }
+    }
+    if let Some(q) = req.quota_bytes {
+        if q < 0 {
+            return err(StatusCode::BAD_REQUEST, "quota must be zero or more");
+        }
+        if q != target.quota_bytes {
+            target.quota_bytes = q;
+            detail.push("quota");
         }
     }
     if !detail.is_empty() {
@@ -1879,6 +1895,69 @@ async fn list_files(
     }
 }
 
+async fn usage_bytes(s: &AppState, prefix: &str) -> u64 {
+    let mut total = 0u64;
+    let mut stack = vec![prefix.trim_matches('/').to_string()];
+    let mut guard = 0usize;
+    while let Some(p) = stack.pop() {
+        guard += 1;
+        if guard > 10000 {
+            break;
+        }
+        match s.blobs.list(&p).await {
+            Ok((dirs, objs)) => {
+                for o in objs {
+                    total = total.saturating_add(o.size);
+                }
+                stack.extend(dirs);
+            }
+            Err(_) => break,
+        }
+    }
+    total
+}
+
+async fn quota_exceeded(s: &AppState, owner_id: &str, incoming: u64) -> bool {
+    let owner = match s.db.user_by_id(owner_id).await {
+        Ok(u) => u,
+        Err(_) => return false,
+    };
+    if owner.quota_bytes <= 0 {
+        return false;
+    }
+    let used = usage_bytes(s, &format!("{}/{}", owner.username, owner.id)).await;
+    used.saturating_add(incoming) > owner.quota_bytes as u64
+}
+
+async fn project_usage(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Path(id): Path<String>,
+) -> Response {
+    match read_project(&s, &session, &id).await {
+        Ok(p) => {
+            let bytes = usage_bytes(&s, &p.dir).await;
+            Json(json!({"bytes": bytes})).into_response()
+        }
+        Err(r) => r,
+    }
+}
+
+async fn account_usage(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Path(id): Path<String>,
+) -> Response {
+    match require_manager(&s, &session, &id).await {
+        Ok(t) => {
+            let bytes =
+                usage_bytes(&s, &format!("{}/{}", t.username, t.id)).await;
+            Json(json!({"bytes": bytes})).into_response()
+        }
+        Err(r) => r,
+    }
+}
+
 async fn upload_file(
     State(s): State<Arc<AppState>>,
     session: Session,
@@ -1898,6 +1977,9 @@ async fn upload_file(
         .unwrap_or(0);
     if len > s.cfg.max_upload {
         return err(StatusCode::PAYLOAD_TOO_LARGE, "file too large");
+    }
+    if quota_exceeded(&s, &p.owner_id, len).await {
+        return err(StatusCode::PAYLOAD_TOO_LARGE, "storage quota exceeded");
     }
     let key = match files::clean_rel_key(&q.path) {
         Ok(k) => k,
@@ -2089,6 +2171,13 @@ async fn upload_complete(
                 return err(StatusCode::CONFLICT, "lock lost");
             }
             _ => {}
+        }
+    }
+    if let Ok(p) = s.db.project_by_id(&u.project).await {
+        if quota_exceeded(&s, &p.owner_id, u.received).await {
+            let _ = tokio::fs::remove_file(&u.tmp).await;
+            s.chunk_uploads.lock().unwrap().remove(&uid);
+            return err(StatusCode::PAYLOAD_TOO_LARGE, "storage quota exceeded");
         }
     }
     let put = async {

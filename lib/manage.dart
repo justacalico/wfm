@@ -58,7 +58,7 @@ class _AccountsTabState extends State<AccountsTab> {
   }
 
   Future<void> _create() async {
-    final fields = await showDialog<Map<String, String>>(
+    final fields = await showDialog<Map<String, dynamic>>(
         context: context, builder: (_) => const _AccountDialog());
     if (fields == null || !mounted) return;
     try {
@@ -88,9 +88,11 @@ class _AccountsTabState extends State<AccountsTab> {
   }
 
   Future<void> _edit(User u) async {
-    final fields = await showDialog<Map<String, String>>(
+    final fields = await showDialog<Map<String, dynamic>>(
         context: context, builder: (_) => _AccountDialog(existing: u));
     if (fields == null || !mounted) return;
+    final q = int.tryParse('${fields.remove('quotaMb')}'.trim());
+    if (q != null) fields['quotaBytes'] = q * 1048576;
     try {
       await Api.i.updateAccount(u.id, fields);
       _load();
@@ -239,6 +241,11 @@ class _AccountDialogState extends State<_AccountDialog> {
   late final _sid =
       TextEditingController(text: widget.existing?.studentId ?? '');
   late final _note = TextEditingController(text: widget.existing?.note ?? '');
+  late final _quota = TextEditingController(
+      text: widget.existing == null || widget.existing!.quotaBytes <= 0
+          ? ''
+          : '${widget.existing!.quotaBytes ~/ 1048576}');
+  int _usage = -1;
   final _pass = TextEditingController();
   bool _invite = false;
   late String _role = widget.existing?.role ??
@@ -253,8 +260,19 @@ class _AccountDialogState extends State<_AccountDialog> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    final u = widget.existing;
+    if (u != null) {
+      Api.i.accountUsage(u.id).then((v) {
+        if (mounted) setState(() => _usage = v);
+      }).catchError((_) {});
+    }
+  }
+
+  @override
   void dispose() {
-    for (final c in [_name, _user, _sid, _note, _pass]) {
+    for (final c in [_name, _user, _sid, _note, _pass, _quota]) {
       c.dispose();
     }
     super.dispose();
@@ -330,6 +348,21 @@ class _AccountDialogState extends State<_AccountDialog> {
                 maxLength: 20,
                 decoration: dec(l10n.noteOptional)),
           ],
+          if (editing) ...[
+            const SizedBox(height: 8),
+            TextField(
+                controller: _quota,
+                keyboardType: TextInputType.number,
+                decoration: dec(l10n.quotaMb, l10n.quotaMbHint)),
+            if (_usage >= 0)
+              Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(l10n.storageUsed(
+                      fmtBytes(_usage),
+                      _quota.text.trim().isEmpty
+                          ? '∞'
+                          : '${_quota.text.trim()} MB'))),
+          ],
         ]),
       ),
       actions: [
@@ -337,13 +370,14 @@ class _AccountDialogState extends State<_AccountDialog> {
             onPressed: () => Navigator.pop(context), child: Text(l10n.cancel)),
         FilledButton(
             onPressed: valid
-                ? () => Navigator.pop(context, {
+                ? () => Navigator.pop(context, <String, dynamic>{
                       if (_invite) 'invite': '1',
                       'username': _user.text.trim(),
                       'name': _name.text.trim(),
                       'role': _role,
                       'studentId': _sid.text.trim(),
                       'note': _note.text.trim(),
+                      'quotaMb': _quota.text.trim(),
                       if (!editing) 'password': _pass.text,
                     })
                 : null,

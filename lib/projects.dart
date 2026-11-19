@@ -687,6 +687,7 @@ class _FilesTabState extends State<FilesTab> {
   String _err = '';
   int _view = 0;
   bool _sel = false;
+  int _usage = -1;
   final _selPaths = <String>{};
 
   @override
@@ -697,6 +698,7 @@ class _FilesTabState extends State<FilesTab> {
       if (v != null && mounted) setState(() => _view = v);
     });
     _load();
+    _loadUsage();
     installDropHandler(_enqueue);
   }
 
@@ -713,6 +715,12 @@ class _FilesTabState extends State<FilesTab> {
     } catch (e) {
       setState(() => _err = '$e');
     }
+  }
+
+  void _loadUsage() {
+    Api.i.projectUsage(widget.project.id).then((v) {
+      if (mounted) setState(() => _usage = v);
+    }).catchError((_) {});
   }
 
   void _toggleSel(FileEntry e) {
@@ -952,6 +960,17 @@ class _FilesTabState extends State<FilesTab> {
                   ),
                 ],
                 const Spacer(),
+                if (_usage >= 0)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: Text(
+                        Api.i.user?.quotaBytes != null &&
+                                Api.i.user!.quotaBytes > 0
+                            ? l10n.storageUsed(fmtBytes(_usage),
+                                fmtBytes(Api.i.user!.quotaBytes))
+                            : fmtBytes(_usage),
+                        style: Theme.of(context).textTheme.bodySmall),
+                  ),
                 IconButton(
                     icon: const Icon(Icons.checklist),
                     tooltip: l10n.selectFiles,

@@ -825,4 +825,15 @@ class AppLocalizationsGa extends AppLocalizations {
 
   @override
   String get autoShareAdd => 'Cuir uath-roinnt leis';
+
+  @override
+  String get quotaMb => 'Cuóta stórála (MB)';
+
+  @override
+  String get quotaMbHint => 'Fág folamh le haghaidh gan teorainn';
+
+  @override
+  String storageUsed(Object used, Object quota) {
+    return '$used as $quota in úsáid';
+  }
 }

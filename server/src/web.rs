@@ -261,6 +261,7 @@ mod tests {
             note: String::new(),
             disabled: false,
             avatar: String::new(),
+            quota_bytes: 0,
             created_by: String::new(),
             lineage: "/".into(),
             created_at: AppState::now(),
