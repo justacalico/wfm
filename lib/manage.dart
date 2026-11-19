@@ -664,7 +664,8 @@ class _InviteDoneDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final url = '${Uri.base.scheme.startsWith('http') ? '${Uri.base.origin}/' : ''}app/invite/$code';
+    final url =
+        '${Uri.base.scheme.startsWith('http') ? '${Uri.base.origin}/' : ''}app/invite/$code';
     Widget row(String label, String value) => Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,

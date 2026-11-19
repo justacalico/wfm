@@ -445,10 +445,8 @@ void main() {
       expect(inv[2].expired(10), isTrue);
       expect(inv[2].pending(10), isFalse);
       expect(inv[3].pending(100), isFalse);
-      expect(await api.inviteCreate('student', username: 'u', name: 'n'),
-          'c9');
-      expect(
-          jsonDecode(utf8.decode(lastRequest!.bodyBytes))['username'], 'u');
+      expect(await api.inviteCreate('student', username: 'u', name: 'n'), 'c9');
+      expect(jsonDecode(utf8.decode(lastRequest!.bodyBytes))['username'], 'u');
       await api.inviteRevoke('i1');
       expect(await api.inviteGet('c9'), {'username': 'ann', 'name': 'Ann'});
       await api.inviteRedeem('c9', 'ann', 'Ann', 'password1');

@@ -15,14 +15,12 @@ void main() {
       'POST /api/invites/c9/redeem': (_) =>
           {'user': userJson, 'csrf': 'x', 'token': 't'},
     });
-    await t.pumpWidget(
-        WfmApp(uri: Uri.parse('https://x/app/invite/c9')));
+    await t.pumpWidget(WfmApp(uri: Uri.parse('https://x/app/invite/c9')));
     await settle(t);
     expect(find.byType(InvitePage), findsOneWidget);
     expect(find.text('ann'), findsOneWidget);
     expect(find.widgetWithText(TextField, 'Display name'), findsOneWidget);
-    await t.enterText(
-        find.widgetWithText(TextField, 'Display name'), 'Ann A');
+    await t.enterText(find.widgetWithText(TextField, 'Display name'), 'Ann A');
     await t.enterText(find.widgetWithText(TextField, 'Password'), 'hunter22');
     await t.enterText(
         find.widgetWithText(TextField, 'Confirm password'), 'hunter22');
@@ -43,13 +41,11 @@ void main() {
     expect(find.widgetWithText(TextField, 'Username'), findsOneWidget);
     await t.enterText(find.widgetWithText(TextField, 'Username'), 'newkid');
     await t.enterText(find.widgetWithText(TextField, 'Password'), 'a');
-    await t.enterText(
-        find.widgetWithText(TextField, 'Confirm password'), 'b');
+    await t.enterText(find.widgetWithText(TextField, 'Confirm password'), 'b');
     await t.tap(find.text('Sign up'));
     await settle(t);
     expect(find.text('Passwords do not match'), findsOneWidget);
-    await t.enterText(
-        find.widgetWithText(TextField, 'Confirm password'), 'a');
+    await t.enterText(find.widgetWithText(TextField, 'Confirm password'), 'a');
     await t.tap(find.text('Sign up'));
     await settle(t);
     expect(find.text('gone'), findsOneWidget);
@@ -57,8 +53,7 @@ void main() {
 
   testWidgets('invite page shows load failure', (t) async {
     installApi(extra: {
-      'GET /api/invites/dead': (_) =>
-          http.Response('{"error":"no"}', 404),
+      'GET /api/invites/dead': (_) => http.Response('{"error":"no"}', 404),
     });
     await t.pumpWidget(testApp(const InvitePage(code: 'dead')));
     await settle(t);
@@ -69,8 +64,8 @@ void main() {
     installApi(extra: {
       'GET /api/invites/zz': (_) => {'username': '', 'name': ''},
     });
-    await t.pumpWidget(
-        testApp(Gate(uri: Uri.parse('https://x/app/invite/zz'))));
+    await t
+        .pumpWidget(testApp(Gate(uri: Uri.parse('https://x/app/invite/zz'))));
     await settle(t);
     expect(find.byType(InvitePage), findsOneWidget);
   });
