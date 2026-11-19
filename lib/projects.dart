@@ -255,6 +255,18 @@ class _ProjectsPageState extends State<ProjectsPage> {
             icon: const Icon(Icons.edit_note, size: 16),
             label: Text(l10n.openScript),
           ),
+          TextButton.icon(
+            onPressed: () async {
+              try {
+                await openEditor(
+                    c, Api.i, Api.i.deckUrl(p.id, theme: _theme(c)));
+              } catch (e) {
+                if (c.mounted) snack(c, e);
+              }
+            },
+            icon: const Icon(Icons.view_carousel_outlined, size: 16),
+            label: Text(l10n.openBoards),
+          ),
         ],
       ]);
 
@@ -705,6 +717,18 @@ class _ProjectPageState extends State<ProjectPage> {
               },
               icon: const Icon(Icons.edit_note, size: 20),
               tooltip: l10n.openScript,
+            ),
+            IconButton(
+              onPressed: () async {
+                try {
+                  await openEditor(context, Api.i,
+                      Api.i.deckUrl(_p.id, theme: _theme(context)));
+                } catch (e) {
+                  if (context.mounted) snack(context, e);
+                }
+              },
+              icon: const Icon(Icons.view_carousel_outlined, size: 20),
+              tooltip: l10n.openBoards,
             ),
           ],
           if (_p.mine && _p.status != 'reviewed')

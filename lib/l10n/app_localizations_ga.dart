@@ -157,6 +157,9 @@ class AppLocalizationsGa extends AppLocalizations {
   String get openScript => 'Script';
 
   @override
+  String get openBoards => 'Scéalchlár';
+
+  @override
   String get renameProject => 'Athainmnigh tionscadal';
 
   @override

@@ -319,6 +319,9 @@ void main() {
       expect(api.scriptUrl('p1'), '/scriptcraft/wfm.html?project=p1');
       expect(api.scriptUrl('p1', theme: 'dark'),
           '/scriptcraft/wfm.html?project=p1&theme=dark');
+      expect(api.deckUrl('p1'), '/deckcraft/wfm.html?project=p1');
+      expect(api.deckUrl('p1', theme: 'dark'),
+          '/deckcraft/wfm.html?project=p1&theme=dark');
       expect(api.downloadUrl('p1', 'a b.mp4'),
           '/api/projects/p1/download?path=a%20b.mp4');
       expect(api.downloadUrl('p1', 'a.mp4', dl: true),
@@ -341,6 +344,8 @@ void main() {
           'https://s.example/filmcraft/wfm.html?project=p1');
       expect(api.scriptUrl('p1'),
           'https://s.example/scriptcraft/wfm.html?project=p1');
+      expect(
+          api.deckUrl('p1'), 'https://s.example/deckcraft/wfm.html?project=p1');
       expect(api.renderUrl('p1', 'r9'),
           'https://s.example/filmcraft/wfm.html?project=p1&render=r9');
       final u = await api.handoffUrl('/filmcraft/wfm.html?project=p1');

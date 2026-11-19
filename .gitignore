@@ -49,6 +49,7 @@ app.*.map.json
 target/
 filmcraft/dist/
 scriptcraft/dist/
+deckcraft/dist/
 *.db
 *.db-*
 .env

@@ -156,6 +156,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get openScript => 'Script';
 
   @override
+  String get openBoards => 'Storyboard';
+
+  @override
   String get renameProject => 'Rename project';
 
   @override

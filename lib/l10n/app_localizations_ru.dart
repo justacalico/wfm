@@ -157,6 +157,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get openScript => 'Сценарий';
 
   @override
+  String get openBoards => 'Раскадровка';
+
+  @override
   String get renameProject => 'Переименовать проект';
 
   @override
