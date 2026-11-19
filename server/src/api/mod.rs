@@ -11,13 +11,13 @@ use serde::Deserialize;
 use serde_json::{json, Value};
 
 use crate::auth::{
-    self, client_ip, err, login_failed, login_ok, login_throttle, AppState, ChunkUpload,
-    NodeSession, Session,
+    self, client_ip, err, link_throttle, login_failed, login_ok, login_throttle, AppState,
+    ChunkUpload, NodeSession, Session,
 };
 use crate::files::{self, FsError};
 use crate::model::{
-    self, can_manage, lineage_has, InviteCode, Project, ProjectGroup, ProjectShare, RenderJob,
-    RenderSpec, Role, User,
+    self, can_manage, lineage_has, InviteCode, Project, ProjectGroup, ProjectLink,
+    ProjectShare, RenderJob, RenderSpec, Role, User,
 };
 use crate::render;
 use crate::store::{AuditFilter, DbError, LockOutcome};
@@ -72,6 +72,13 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/notifications", get(my_notifications))
         .route("/notifications/read-all", post(notifications_read_all))
         .route("/notifications/{id}/read", post(notification_read))
+        .route(
+            "/projects/{id}/links",
+            get(list_links).post(create_link),
+        )
+        .route("/projects/{id}/links/{lid}", delete(revoke_link))
+        .route("/link/{token}", get(link_resolve))
+        .route("/link/{token}/file", get(link_file))
         .route("/projects/{id}/usage", get(project_usage))
         .route("/accounts/{id}/usage", get(account_usage))
         .route(
@@ -1587,6 +1594,183 @@ async fn decline_share(
 }
 
 #[derive(Deserialize)]
+struct LinkReq {
+    scope: String,
+    #[serde(rename = "expiresAt")]
+    expires_at: Option<i64>,
+}
+
+async fn create_link(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Path(id): Path<String>,
+    Json(req): Json<LinkReq>,
+) -> Response {
+    let p = match owned_project(&s, &session, &id).await {
+        Ok(p) => p,
+        Err(r) => return r,
+    };
+    if req.scope != "project" && req.scope != "renders" {
+        return err(StatusCode::BAD_REQUEST, "scope must be project or renders");
+    }
+    let token = model::new_token();
+    let l = ProjectLink {
+        id: model::new_id(),
+        token_hash: model::token_hash(&token),
+        project_id: p.id.clone(),
+        scope: req.scope,
+        created_by: session.user.id.clone(),
+        created_at: AppState::now(),
+        expires_at: req.expires_at.unwrap_or(0),
+        revoked: false,
+    };
+    if let Err(e) = s.db.link_create(&l).await {
+        return db_resp(e);
+    }
+    s.audit(
+        "project",
+        &session.user,
+        "share_link_create",
+        &p.display_name,
+        &format!("scope={}", l.scope),
+        &p.id,
+    )
+    .await;
+    Json(json!({"id": l.id, "token": token})).into_response()
+}
+
+async fn list_links(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Path(id): Path<String>,
+) -> Response {
+    let p = match owned_project(&s, &session, &id).await {
+        Ok(p) => p,
+        Err(r) => return r,
+    };
+    match s.db.links_by_project(&p.id).await {
+        Ok(v) => Json(json!(v)).into_response(),
+        Err(e) => db_resp(e),
+    }
+}
+
+async fn revoke_link(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Path((pid, lid)): Path<(String, String)>,
+) -> Response {
+    let p = match owned_project(&s, &session, &pid).await {
+        Ok(p) => p,
+        Err(r) => return r,
+    };
+    match s.db.link_revoke(&lid, &p.id).await {
+        Ok(true) => {
+            s.audit(
+                "project",
+                &session.user,
+                "share_link_revoke",
+                &p.display_name,
+                &lid,
+                &p.id,
+            )
+            .await;
+            Json(json!({"ok": true})).into_response()
+        }
+        Ok(false) => err(StatusCode::NOT_FOUND, "unknown link"),
+        Err(e) => db_resp(e),
+    }
+}
+
+async fn link_valid(s: &Arc<AppState>, token: &str) -> Result<(ProjectLink, Project), Response> {
+    let l = s
+        .db
+        .link_by_hash(&model::token_hash(token))
+        .await
+        .map_err(|_| err(StatusCode::NOT_FOUND, "no such link"))?;
+    if l.revoked || (l.expires_at > 0 && l.expires_at < AppState::now()) {
+        return Err(err(StatusCode::NOT_FOUND, "no such link"));
+    }
+    let p = s
+        .db
+        .project_by_id(&l.project_id)
+        .await
+        .map_err(|_| err(StatusCode::NOT_FOUND, "no such link"))?;
+    Ok((l, p))
+}
+
+async fn link_resolve(
+    State(s): State<Arc<AppState>>,
+    parts: axum::http::request::Parts,
+    Path(token): Path<String>,
+) -> Response {
+    if link_throttle(&s, client_ip(&s, &parts)) {
+        return err(StatusCode::TOO_MANY_REQUESTS, "rate limited");
+    }
+    let (l, p) = match link_valid(&s, &token).await {
+        Ok(v) => v,
+        Err(r) => return r,
+    };
+    let root = if l.scope == "renders" {
+        format!("{}/Exports", p.dir)
+    } else {
+        p.dir.clone()
+    };
+    let strip = format!("{}/", p.dir);
+    let mut files = vec![];
+    let mut stack = vec![root];
+    let mut guard = 0usize;
+    while let Some(pre) = stack.pop() {
+        guard += 1;
+        if guard > 2000 {
+            break;
+        }
+        if let Ok((dirs, objs)) = s.blobs.list(&pre).await {
+            stack.extend(dirs);
+            for o in objs {
+                let rel = o.key.strip_prefix(&strip).unwrap_or(&o.key);
+                files.push(json!({"path": rel, "size": o.size}));
+            }
+        }
+    }
+    files.sort_by(|a, b| a["path"].as_str().cmp(&b["path"].as_str()));
+    Json(json!({
+        "name": p.display_name,
+        "scope": l.scope,
+        "files": files,
+    }))
+    .into_response()
+}
+
+#[derive(Deserialize)]
+struct LinkFileQuery {
+    path: String,
+}
+
+async fn link_file(
+    State(s): State<Arc<AppState>>,
+    Path(token): Path<String>,
+    Query(q): Query<LinkFileQuery>,
+    headers: HeaderMap,
+    parts: axum::http::request::Parts,
+) -> Response {
+    if link_throttle(&s, client_ip(&s, &parts)) {
+        return err(StatusCode::TOO_MANY_REQUESTS, "rate limited");
+    }
+    let (l, p) = match link_valid(&s, &token).await {
+        Ok(v) => v,
+        Err(r) => return r,
+    };
+    let key = match files::clean_rel_key(&q.path) {
+        Ok(k) => k,
+        Err(e) => return fs_resp(e),
+    };
+    if l.scope == "renders" && !key.starts_with("Exports/") {
+        return err(StatusCode::NOT_FOUND, "not found");
+    }
+    serve_blob(&s, &blob_key(&p.dir, &key), &key, &headers, false).await
+}
+
+#[derive(Deserialize)]
 struct NotifQuery {
     before: Option<i64>,
     limit: Option<i64>,
@@ -1905,6 +2089,7 @@ async fn delete_project(
         return db_resp(e);
     }
     let _ = s.db.shares_delete_project(&id).await;
+    let _ = s.db.links_delete_project(&id).await;
     let _ = s.blobs.delete_prefix(&p.dir).await;
     let _ = s.blobs.delete_prefix(&format!("{}.thumbs", p.dir)).await;
     s.audit(

@@ -873,4 +873,39 @@ class AppLocalizationsZh extends AppLocalizations {
   String notifNodeOffline(Object name) {
     return '渲染节点 $name 已离线';
   }
+
+  @override
+  String get shareLinks => '分享链接';
+
+  @override
+  String get createLink => '创建链接';
+
+  @override
+  String get scopeProject => '整个项目';
+
+  @override
+  String get scopeRenders => '仅渲染成品';
+
+  @override
+  String get expiryNever => '永不过期';
+
+  @override
+  String get expiryDay => '1 天';
+
+  @override
+  String get expiryWeek => '7 天';
+
+  @override
+  String get expiryMonth => '30 天';
+
+  @override
+  String linkExpires(Object when) {
+    return '$when 过期';
+  }
+
+  @override
+  String get linkEmpty => '暂无内容';
+
+  @override
+  String get linkRendersOnly => '仅渲染成品';
 }

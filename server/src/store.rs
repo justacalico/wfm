@@ -244,6 +244,13 @@ pub trait Db: Send + Sync {
     /// marks them so the report fires once.
     async fn nodes_newly_offline(&self, stale_before: i64) -> DbResult<Vec<RenderNode>>;
 
+    // public view-only share links
+    async fn link_create(&self, l: &ProjectLink) -> DbResult<()>;
+    async fn link_by_hash(&self, hash: &str) -> DbResult<ProjectLink>;
+    async fn links_by_project(&self, project: &str) -> DbResult<Vec<ProjectLink>>;
+    async fn link_revoke(&self, id: &str, project: &str) -> DbResult<bool>;
+    async fn links_delete_project(&self, project: &str) -> DbResult<()>;
+
     // key-value settings
     async fn setting_get(&self, k: &str) -> DbResult<Option<String>>;
     async fn setting_set(&self, k: &str, v: &str) -> DbResult<()>;

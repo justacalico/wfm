@@ -297,6 +297,7 @@ pub fn spawn_janitor(state: Arc<AppState>) {
                         }
                     }
                     crate::auth::login_prune(&state.logins);
+                    crate::auth::login_prune(&state.link_hits);
                     // Cancel flags only matter while a job runs; purge ids
                     // whose job reached a terminal state (or vanished) so the
                     // set cannot grow forever.

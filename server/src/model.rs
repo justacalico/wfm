@@ -254,6 +254,23 @@ pub struct AutoShare {
 }
 
 #[derive(Clone, Serialize)]
+pub struct ProjectLink {
+    pub id: String,
+    #[serde(skip)]
+    pub token_hash: String,
+    #[serde(rename = "projectId")]
+    pub project_id: String,
+    pub scope: String,
+    #[serde(skip)]
+    pub created_by: String,
+    #[serde(rename = "createdAt")]
+    pub created_at: i64,
+    #[serde(rename = "expiresAt")]
+    pub expires_at: i64,
+    pub revoked: bool,
+}
+
+#[derive(Clone, Serialize)]
 pub struct Notification {
     pub id: String,
     pub kind: String,

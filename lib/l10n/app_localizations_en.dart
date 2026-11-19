@@ -877,6 +877,41 @@ class AppLocalizationsEn extends AppLocalizations {
   String notifNodeOffline(Object name) {
     return 'Render node $name went offline';
   }
+
+  @override
+  String get shareLinks => 'Share links';
+
+  @override
+  String get createLink => 'Create link';
+
+  @override
+  String get scopeProject => 'Whole project';
+
+  @override
+  String get scopeRenders => 'Renders only';
+
+  @override
+  String get expiryNever => 'Never expires';
+
+  @override
+  String get expiryDay => '1 day';
+
+  @override
+  String get expiryWeek => '7 days';
+
+  @override
+  String get expiryMonth => '30 days';
+
+  @override
+  String linkExpires(Object when) {
+    return 'Expires $when';
+  }
+
+  @override
+  String get linkEmpty => 'Nothing to show';
+
+  @override
+  String get linkRendersOnly => 'Renders only';
 }
 
 /// The translations for English, as used in the United Kingdom (`en_GB`).
@@ -1135,4 +1170,39 @@ class AppLocalizationsEnGb extends AppLocalizationsEn {
   String notifNodeOffline(Object name) {
     return 'Render node $name went offline';
   }
+
+  @override
+  String get shareLinks => 'Share links';
+
+  @override
+  String get createLink => 'Create link';
+
+  @override
+  String get scopeProject => 'Whole project';
+
+  @override
+  String get scopeRenders => 'Renders only';
+
+  @override
+  String get expiryNever => 'Never expires';
+
+  @override
+  String get expiryDay => '1 day';
+
+  @override
+  String get expiryWeek => '7 days';
+
+  @override
+  String get expiryMonth => '30 days';
+
+  @override
+  String linkExpires(Object when) {
+    return 'Expires $when';
+  }
+
+  @override
+  String get linkEmpty => 'Nothing to show';
+
+  @override
+  String get linkRendersOnly => 'Renders only';
 }

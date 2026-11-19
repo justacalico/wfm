@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'api.dart';
 import 'l10n/app_localizations.dart';
@@ -1900,8 +1901,12 @@ class _ShareDialog extends StatefulWidget {
 
 class _ShareDialogState extends State<_ShareDialog> {
   List<Share>? _shares;
+  List<ShareLink>? _links;
+  final _tokens = <String, String>{};
   final _user = TextEditingController();
   String _level = 'view';
+  String _scope = 'renders';
+  int _days = 7;
   bool _busy = false;
 
   @override
@@ -1924,7 +1929,33 @@ class _ShareDialogState extends State<_ShareDialog> {
       setState(() => _shares = []);
       if (mounted) snack(context, e);
     }
+    try {
+      final l = await Api.i.projectLinks(widget.project.id);
+      setState(() => _links = l);
+    } catch (e) {
+      setState(() => _links = []);
+      if (mounted) snack(context, e);
+    }
   }
+
+  Future<void> _createLink() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      final r = await Api.i.linkCreate(widget.project.id, _scope,
+          expiresAt: _days > 0
+              ? DateTime.now().millisecondsSinceEpoch ~/ 1000 + _days * 86400
+              : 0);
+      _tokens['${r['id']}'] = '${r['token']}';
+      await _load();
+    } catch (e) {
+      if (mounted) snack(context, e);
+    }
+    if (mounted) setState(() => _busy = false);
+  }
+
+  String _linkUrl(ShareLink l) =>
+      '${Uri.base.scheme.startsWith('http') ? '${Uri.base.origin}/' : ''}app/link/${_tokens[l.id]}';
 
   Future<void> _send() async {
     final username = _user.text.trim();
@@ -1948,66 +1979,143 @@ class _ShareDialogState extends State<_ShareDialog> {
       title: Text(l10n.shareProject),
       content: SizedBox(
         width: 400,
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Row(children: [
-            Expanded(
-              child: TextField(
-                controller: _user,
-                decoration:
-                    InputDecoration(labelText: l10n.username, isDense: true),
-                onSubmitted: (_) => _send(),
-              ),
-            ),
-            const SizedBox(width: 8),
-            DropdownButton<String>(
-              value: _level,
-              items: [
-                DropdownMenuItem(value: 'view', child: Text(l10n.canView)),
-                DropdownMenuItem(value: 'edit', child: Text(l10n.canEdit)),
-              ],
-              onChanged: (v) => setState(() => _level = v!),
-            ),
-            IconButton(
-                icon: const Icon(Icons.send),
-                tooltip: l10n.send,
-                onPressed: _busy ? null : _send),
-          ]),
-          const SizedBox(height: 8),
-          if (shares == null)
-            const Padding(
-                padding: EdgeInsets.all(16), child: CircularProgressIndicator())
-          else
-            for (final sh in shares)
-              ListTile(
-                dense: true,
-                leading: const Icon(Icons.person_outline),
-                title: Text(sh.inviteeName.isEmpty
-                    ? sh.inviteeUsername
-                    : sh.inviteeName),
-                subtitle: Text(
-                    '${sh.level == 'edit' ? l10n.canEdit : l10n.canView}  ·  ${sh.status == 'pending' ? l10n.pending : sh.status == 'accepted' ? l10n.accepted : l10n.declined}'),
-                trailing: PopupMenuButton<String>(
-                  icon: const Icon(Icons.more_vert, size: 20),
-                  onSelected: (v) async {
-                    try {
-                      if (v == 'revoke') {
-                        await Api.i.shareRevoke(widget.project.id, sh.id);
-                      } else {
-                        await Api.i.shareLevel(widget.project.id, sh.id, v);
-                      }
-                      _load();
-                    } catch (e) {
-                      if (context.mounted) snack(context, e);
-                    }
-                  },
-                  itemBuilder: (_) => [
-                    PopupMenuItem(value: 'view', child: Text(l10n.canView)),
-                    PopupMenuItem(value: 'edit', child: Text(l10n.canEdit)),
-                    PopupMenuItem(value: 'revoke', child: Text(l10n.revoke)),
-                  ],
+        child: SingleChildScrollView(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Row(children: [
+              Expanded(
+                child: TextField(
+                  controller: _user,
+                  decoration:
+                      InputDecoration(labelText: l10n.username, isDense: true),
+                  onSubmitted: (_) => _send(),
                 ),
               ),
-        ]),
+              const SizedBox(width: 8),
+              DropdownButton<String>(
+                value: _level,
+                items: [
+                  DropdownMenuItem(value: 'view', child: Text(l10n.canView)),
+                  DropdownMenuItem(value: 'edit', child: Text(l10n.canEdit)),
+                ],
+                onChanged: (v) => setState(() => _level = v!),
+              ),
+              IconButton(
+                  icon: const Icon(Icons.send),
+                  tooltip: l10n.send,
+                  onPressed: _busy ? null : _send),
+            ]),
+            const SizedBox(height: 8),
+            if (shares == null)
+              const Padding(
+                  padding: EdgeInsets.all(16),
+                  child: CircularProgressIndicator())
+            else
+              for (final sh in shares)
+                ListTile(
+                  dense: true,
+                  leading: const Icon(Icons.person_outline),
+                  title: Text(sh.inviteeName.isEmpty
+                      ? sh.inviteeUsername
+                      : sh.inviteeName),
+                  subtitle: Text(
+                      '${sh.level == 'edit' ? l10n.canEdit : l10n.canView}  ·  ${sh.status == 'pending' ? l10n.pending : sh.status == 'accepted' ? l10n.accepted : l10n.declined}'),
+                  trailing: PopupMenuButton<String>(
+                    icon: const Icon(Icons.more_vert, size: 20),
+                    onSelected: (v) async {
+                      try {
+                        if (v == 'revoke') {
+                          await Api.i.shareRevoke(widget.project.id, sh.id);
+                        } else {
+                          await Api.i.shareLevel(widget.project.id, sh.id, v);
+                        }
+                        _load();
+                      } catch (e) {
+                        if (context.mounted) snack(context, e);
+                      }
+                    },
+                    itemBuilder: (_) => [
+                      PopupMenuItem(value: 'view', child: Text(l10n.canView)),
+                      PopupMenuItem(value: 'edit', child: Text(l10n.canEdit)),
+                      PopupMenuItem(value: 'revoke', child: Text(l10n.revoke)),
+                    ],
+                  ),
+                ),
+            const Divider(height: 24),
+            Row(children: [
+              Text(l10n.shareLinks,
+                  style: Theme.of(context).textTheme.labelLarge),
+              const Spacer(),
+              IconButton(
+                  icon: const Icon(Icons.add_link),
+                  tooltip: l10n.createLink,
+                  onPressed: _busy ? null : _createLink),
+            ]),
+            Row(children: [
+              Expanded(
+                child: DropdownButton<String>(
+                  value: _scope,
+                  isExpanded: true,
+                  items: [
+                    DropdownMenuItem(
+                        value: 'renders', child: Text(l10n.scopeRenders)),
+                    DropdownMenuItem(
+                        value: 'project', child: Text(l10n.scopeProject)),
+                  ],
+                  onChanged: (v) => setState(() => _scope = v!),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: DropdownButton<int>(
+                  value: _days,
+                  isExpanded: true,
+                  items: [
+                    DropdownMenuItem(value: 0, child: Text(l10n.expiryNever)),
+                    DropdownMenuItem(value: 1, child: Text(l10n.expiryDay)),
+                    DropdownMenuItem(value: 7, child: Text(l10n.expiryWeek)),
+                    DropdownMenuItem(value: 30, child: Text(l10n.expiryMonth)),
+                  ],
+                  onChanged: (v) => setState(() => _days = v!),
+                ),
+              ),
+            ]),
+            if (_links != null)
+              for (final l in _links!)
+                if (!l.revoked)
+                  ListTile(
+                    dense: true,
+                    leading: const Icon(Icons.link, size: 20),
+                    title: Text(l.scope == 'renders'
+                        ? l10n.scopeRenders
+                        : l10n.scopeProject),
+                    subtitle: Text(l.expiresAt > 0
+                        ? l10n.linkExpires(fmtTime(l10n, l.expiresAt))
+                        : l10n.expiryNever),
+                    trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                      if (_tokens.containsKey(l.id))
+                        IconButton(
+                            icon: const Icon(Icons.copy, size: 18),
+                            tooltip: l10n.copy,
+                            onPressed: () {
+                              Clipboard.setData(
+                                  ClipboardData(text: _linkUrl(l)));
+                              snack(context, l10n.copied, good: true);
+                            }),
+                      IconButton(
+                          icon: const Icon(Icons.delete_outline, size: 18),
+                          tooltip: l10n.revoke,
+                          onPressed: () async {
+                            try {
+                              await Api.i.linkRevoke(widget.project.id, l.id);
+                              _load();
+                            } catch (e) {
+                              if (context.mounted) snack(context, e);
+                            }
+                          }),
+                    ]),
+                  ),
+          ]),
+        ),
       ),
       actions: [
         TextButton(

@@ -391,5 +391,16 @@
   "notifShareDeclined": "Dhiúltaigh {from} do chuireadh chuig {project}",
   "notifRenderDone": "Críochnaíodh an rindreáil: {name} i {project}",
   "notifRenderFailed": "Theip ar an rindreáil: {name} i {project}",
-  "notifNodeOffline": "Chuaigh an nód rindreála {name} as líne"
+  "notifNodeOffline": "Chuaigh an nód rindreála {name} as líne",
+  "shareLinks": "Naisc roinnte",
+  "createLink": "Cruthaigh nasc",
+  "scopeProject": "An tionscadal ar fad",
+  "scopeRenders": "Rindreálacha amháin",
+  "expiryNever": "Gan dáta éaga",
+  "expiryDay": "1 lá",
+  "expiryWeek": "7 lá",
+  "expiryMonth": "30 lá",
+  "linkExpires": "Éagann {when}",
+  "linkEmpty": "Tada le taispeáint",
+  "linkRendersOnly": "Rindreálacha amháin"
 }

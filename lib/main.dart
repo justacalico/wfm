@@ -8,6 +8,7 @@ import 'notifications.dart';
 import 'projects.dart';
 import 'shared.dart';
 import 'invite.dart';
+import 'link.dart';
 import 'manage.dart';
 import 'settings.dart';
 
@@ -426,9 +427,14 @@ class _GateState extends State<Gate> {
     try {
       const m = '/invite/';
       final p = widget.uri?.path ?? Uri.base.path;
-      final i = p.indexOf(m);
+      var i = p.indexOf(m);
       if (i >= 0 && i + m.length < p.length) {
         return InvitePage(code: p.substring(i + m.length));
+      }
+      const l = '/link/';
+      i = p.indexOf(l);
+      if (i >= 0 && i + l.length < p.length) {
+        return LinkPage(token: p.substring(i + l.length));
       }
       if (await Api.i.needsSetup()) return const SetupPage();
       final u = await Api.i.me();

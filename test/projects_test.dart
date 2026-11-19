@@ -614,7 +614,13 @@ void main() {
   });
 
   testWidgets('share dialog send change level revoke', (t) async {
-    var created = 0, leveled = 0, revoked = 0, loads = 0;
+    var created = 0,
+        leveled = 0,
+        revoked = 0,
+        loads = 0,
+        lcalls = 0,
+        ccalls = 0,
+        rcalls = 0;
     installApi(extra: {
       'GET /api/projects/p1/shares': (_) {
         loads++;
@@ -653,7 +659,50 @@ void main() {
         revoked++;
         return {'ok': true};
       },
+      'GET /api/projects/p1/links': (_) {
+        lcalls++;
+        if (lcalls == 1) return http.Response('{"error":"x"}', 500);
+        return [
+          if (ccalls > 1)
+            {
+              'id': 'l3',
+              'projectId': 'p1',
+              'scope': 'project',
+              'createdAt': 3,
+              'expiresAt': 0,
+              'revoked': false
+            },
+          {
+            'id': 'l1',
+            'projectId': 'p1',
+            'scope': 'project',
+            'createdAt': 1,
+            'expiresAt': 0,
+            'revoked': false
+          },
+          {
+            'id': 'l2',
+            'projectId': 'p1',
+            'scope': 'renders',
+            'createdAt': 2,
+            'expiresAt': 1700000100,
+            'revoked': false
+          },
+        ];
+      },
+      'POST /api/projects/p1/links': (_) {
+        ccalls++;
+        return ccalls == 1
+            ? http.Response('{"error":"no"}', 400)
+            : {'id': 'l3', 'token': 'tok3'};
+      },
+      'DELETE /api/projects/p1/links/l1': (_) {
+        rcalls++;
+        return rcalls == 1 ? http.Response('{"error":"x"}', 500) : {'ok': true};
+      },
     });
+    await t.binding.setSurfaceSize(const Size(1280, 900));
+    addTearDown(() => t.binding.setSurfaceSize(null));
     await pump(
         t,
         ProjectPage(
@@ -661,7 +710,7 @@ void main() {
     await t.tap(find.byIcon(Icons.share_outlined));
     await settle(t);
     expect(find.text('Share project'), findsOneWidget);
-    expect(find.byType(Notice), findsOneWidget);
+    expect(find.byType(Notice), findsWidgets);
     await t.tap(find.descendant(
         of: find.byType(AlertDialog), matching: find.byIcon(Icons.send)));
     await settle(t);
@@ -708,6 +757,33 @@ void main() {
     await t.tap(find.text('Revoke'));
     await settle(t);
     expect(revoked, 1);
+    await t.tap(find.byIcon(Icons.add_link));
+    await settle(t);
+    expect(ccalls, 1);
+    expect(find.text('Share links'), findsOneWidget);
+    await t.tap(find.text('Renders only').first);
+    await settle(t);
+    await t.tap(find.text('Whole project').last);
+    await settle(t);
+    await t.tap(find.text('7 days').first);
+    await settle(t);
+    await t.tap(find.text('Never expires').last);
+    await settle(t);
+    await t.tap(find.byIcon(Icons.add_link));
+    await settle(t);
+    expect(ccalls, 2);
+    expect(find.byIcon(Icons.copy), findsOneWidget);
+    await t.tap(find.byIcon(Icons.copy));
+    await settle(t);
+    final del = find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.byIcon(Icons.delete_outline));
+    await t.tap(del.at(1));
+    await settle(t);
+    expect(rcalls, 1);
+    await t.tap(del.at(1));
+    await settle(t);
+    expect(rcalls, 2);
   });
 
   group('ProjectPage', () {

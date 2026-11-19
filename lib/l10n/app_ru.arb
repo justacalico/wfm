@@ -391,5 +391,16 @@
   "notifShareDeclined": "{from} отклонил(а) ваше приглашение в {project}",
   "notifRenderDone": "Рендер завершён: {name} в {project}",
   "notifRenderFailed": "Рендер не удался: {name} в {project}",
-  "notifNodeOffline": "Рендер-узел {name} отключился"
+  "notifNodeOffline": "Рендер-узел {name} отключился",
+  "shareLinks": "Ссылки для просмотра",
+  "createLink": "Создать ссылку",
+  "scopeProject": "Весь проект",
+  "scopeRenders": "Только рендеры",
+  "expiryNever": "Без срока",
+  "expiryDay": "1 день",
+  "expiryWeek": "7 дней",
+  "expiryMonth": "30 дней",
+  "linkExpires": "Истекает {when}",
+  "linkEmpty": "Нечего показать",
+  "linkRendersOnly": "Только рендеры"
 }
