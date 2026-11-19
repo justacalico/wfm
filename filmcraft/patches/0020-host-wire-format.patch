@@ -1,0 +1,105 @@
+diff --git a/apps/filmcraft-web/src/host.rs b/apps/filmcraft-web/src/host.rs
+index 3a099d6..82bef4a 100644
+--- a/apps/filmcraft-web/src/host.rs
++++ b/apps/filmcraft-web/src/host.rs
+@@ -64,8 +64,8 @@ thread_local! {
+     /// The installed bridge, so import code can hand new media to the host.
+     static BRIDGE: RefCell<Option<Bridge>> = const { RefCell::new(None) };
+     /// Files the host sent for the open project (`Media_` opens), held until the project is
+-    /// open: (virtual path, folders from the project's root).
+-    static RESTORED: RefCell<Vec<(String, Vec<String>)>> = const { RefCell::new(Vec::new()) };
++    /// open: (virtual paths the doc may reference, folders from the project's root).
++    static RESTORED: RefCell<Vec<(Vec<String>, Vec<String>)>> = const { RefCell::new(Vec::new()) };
+     /// Folders the host sent for the open project (`Folder_` opens): bin paths to create even
+     /// when they hold no media yet.
+     static FOLDERS: RefCell<Vec<Vec<String>>> = const { RefCell::new(Vec::new()) };
+@@ -214,7 +214,7 @@ impl Bridge {
+ 
+ /// Handle a `filmcraft:open` payload: checked, then opened or imported like a file the user
+ /// picked or dropped.
+-fn deliver_open(bridge: &Bridge, name: &str, data: &FileData) {
++fn deliver_open(bridge: &Bridge, name0: &str, data: &FileData) {
+     let FileData::Bytes(array) = data else {
+         return rejected_open("FilmCraft reads bytes, not a File".to_string());
+     };
+@@ -223,7 +223,47 @@ fn deliver_open(bridge: &Bridge, name: &str, data: &FileData) {
+     if !open_size_ok(len) {
+         return rejected_open(format!("{len} bytes is over the {} MiB host open limit", MAX_OPEN_BYTES >> 20));
+     }
+-    let name = open_name(name);
++    let mut name = String::new();
++    if let Some(meta) = serde_json::from_str::<Value>(name0.strip_prefix("wfm:").unwrap_or("")).ok() {
++        match meta["k"].as_str() {
++            Some("folder") => {
++                // `{"k":"folder","p":"dir/dir"}`, `/` delimited: server names allow `:`.
++                let dirs = meta["p"].as_str().unwrap_or("").split('/').filter(|d| !d.is_empty()).map(str::to_string).collect::<Vec<_>>();
++                if !dirs.is_empty() {
++                    FOLDERS.with(|f| f.borrow_mut().push(dirs));
++                }
++                return;
++            }
++            Some("media") => {
++                // `{"k":"media","p":"dir/dir/file"}`: registered under the whole path so two
++                // basenames never collide; the basename stays too so docs that referenced it
++                // keep resolving.
++                let p = meta["p"].as_str().unwrap_or("").to_string();
++                let dirs = p.rsplit_once('/').map(|(d, _)| d).unwrap_or("").split('/').filter(|d| !d.is_empty()).map(str::to_string).collect::<Vec<_>>();
++                let clean: String = p.chars().map(|c| if c == '/' || c == '\\' { '_' } else { c }).collect();
++                let Some(blob) = blob_from_bytes(array) else { return rejected_open("couldn't wrap the bytes in a Blob".to_string()) };
++                wasm_bindgen_futures::spawn_local(async move {
++                    let path = crate::fs::register_blob(&clean, blob.clone());
++                    let mut paths = vec![path.clone()];
++                    if let Some(base) = p.rsplit('/').next().filter(|b| *b != clean) {
++                        paths.push(crate::fs::register_blob(base, blob));
++                    }
++                    RESTORED.with(|r| r.borrow_mut().push((paths, dirs)));
++                    crate::import::prewarm(&path, len).await;
++                });
++                return;
++            }
++            Some("doc") => {
++                if let Some(n) = meta["n"].as_str() {
++                    name = open_name(n);
++                }
++            }
++            _ => return,
++        }
++    }
++    if name.is_empty() {
++        name = open_name(name0);
++    }
+     if let Some(rest) = name.strip_prefix("Folder_") {
+         // A folder the host stores for the open project (`Folder_<dir>::…::<dir>`): held for
+         // the bin pass so the project's folder tree shows as bins, empty ones included.
+@@ -245,7 +285,7 @@ fn deliver_open(bridge: &Bridge, name: &str, data: &FileData) {
+         let file = file.to_string();
+         wasm_bindgen_futures::spawn_local(async move {
+             let path = crate::fs::register_blob(&file, blob);
+-            RESTORED.with(|r| r.borrow_mut().push((path.clone(), dirs)));
++            RESTORED.with(|r| r.borrow_mut().push((vec![path.clone()], dirs)));
+             crate::import::prewarm(&path, len).await;
+         });
+     } else if is_project(&name) {
+@@ -319,11 +359,11 @@ fn restore_bins() {
+                 crate::post(move |w, _| w.app.status(e));
+             }
+         }
+-        for (path, dirs) in files {
++        for (paths, dirs) in files {
+             let r = crate::import::on_ui(move |w, _| {
+                 let s = &mut w.app.session;
+                 let referenced = s.project.items.values().any(|i| match &i.kind {
+-                    filmcraft_engine::project::ItemKind::Media(m) => matches!(&m.media, filmcraft_engine::project::MediaRef::File { path: p } if *p == path),
++                    filmcraft_engine::project::ItemKind::Media(m) => matches!(&m.media, filmcraft_engine::project::MediaRef::File { path: p } if paths.iter().any(|x| x == p)),
+                     _ => false,
+                 });
+                 if referenced {
+@@ -331,7 +371,7 @@ fn restore_bins() {
+                 }
+                 let root = s.project.root.clone();
+                 let parent = bin_for(&root, s, &dirs)?;
+-                s.execute("file.import", json!({"paths": [path], "bin": parent.0})).map_err(|e| e.to_string())
++                s.execute("file.import", json!({"paths": [paths[0]], "bin": parent.0})).map_err(|e| e.to_string())
+             })
+             .await;
+             if let Err(e) = r {
