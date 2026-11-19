@@ -192,13 +192,17 @@ class _ProjectsPageState extends State<ProjectsPage> {
     }
   }
 
-  Widget _menu(AppLocalizations l10n, Project p) => SizedBox(
+  Widget _menu(BuildContext c, AppLocalizations l10n, Project p) => SizedBox(
         width: 28,
         height: 28,
         child: PopupMenuButton<String>(
           iconSize: 18,
           padding: EdgeInsets.zero,
           onSelected: (v) => switch (v) {
+            'share' =>
+              showDialog(context: c, builder: (_) => _ShareDialog(project: p)),
+            'render' =>
+              showDialog(context: c, builder: (_) => RenderDialog(project: p)),
             'pin' => _togglePin(p),
             'tags' => _editTags(p),
             'take' => _takeOver(p),
@@ -206,6 +210,9 @@ class _ProjectsPageState extends State<ProjectsPage> {
             _ => _moveToGroup(p),
           },
           itemBuilder: (_) => [
+            PopupMenuItem(value: 'share', child: Text(l10n.share)),
+            if (p.editable)
+              PopupMenuItem(value: 'render', child: Text(l10n.render)),
             if (!p.editable)
               PopupMenuItem(value: 'take', child: Text(l10n.takeOver))
             else ...[
@@ -220,55 +227,36 @@ class _ProjectsPageState extends State<ProjectsPage> {
         ),
       );
 
-  Widget _actions(BuildContext c, AppLocalizations l10n, Project p) =>
-      Wrap(children: [
-        if (!p.editable)
-          Text(l10n.readOnly, style: Theme.of(c).textTheme.labelSmall),
-        if (p.editable) ...[
-          TextButton.icon(
-            onPressed: () => showDialog(
-                context: c, builder: (_) => RenderDialog(project: p)),
-            icon: const Icon(Icons.movie_creation_outlined, size: 16),
-            label: Text(l10n.render),
-          ),
-          TextButton.icon(
-            onPressed: () async {
-              try {
-                await openEditor(
-                    c, Api.i, Api.i.projectUrl(p.id, theme: _theme(c)));
-              } catch (e) {
-                if (c.mounted) snack(c, e);
-              }
-            },
-            icon: const Icon(Icons.edit_outlined, size: 16),
-            label: Text(l10n.editInFilmcraft),
-          ),
-          TextButton.icon(
-            onPressed: () async {
-              try {
-                await openEditor(
-                    c, Api.i, Api.i.scriptUrl(p.id, theme: _theme(c)));
-              } catch (e) {
-                if (c.mounted) snack(c, e);
-              }
-            },
-            icon: const Icon(Icons.edit_note, size: 16),
-            label: Text(l10n.openScript),
-          ),
-          TextButton.icon(
-            onPressed: () async {
-              try {
-                await openEditor(
-                    c, Api.i, Api.i.deckUrl(p.id, theme: _theme(c)));
-              } catch (e) {
-                if (c.mounted) snack(c, e);
-              }
-            },
-            icon: const Icon(Icons.view_carousel_outlined, size: 16),
-            label: Text(l10n.openBoards),
-          ),
-        ],
-      ]);
+  Widget _openAction(BuildContext c, IconData icon, String label, String url) =>
+      TextButton.icon(
+        onPressed: () async {
+          try {
+            await openEditor(c, Api.i, url);
+          } catch (e) {
+            if (c.mounted) snack(c, e);
+          }
+        },
+        icon: Icon(icon, size: 16),
+        label: FittedBox(fit: BoxFit.scaleDown, child: Text(label)),
+      );
+
+  Widget _actions(BuildContext c, AppLocalizations l10n, Project p,
+      {bool expand = false}) {
+    if (!p.editable) {
+      return Text(l10n.readOnly, style: Theme.of(c).textTheme.labelSmall);
+    }
+    final theme = _theme(c);
+    final buttons = [
+      _openAction(c, Icons.edit_note, l10n.openScript,
+          Api.i.scriptUrl(p.id, theme: theme)),
+      _openAction(c, Icons.view_carousel_outlined, l10n.openBoards,
+          Api.i.deckUrl(p.id, theme: theme)),
+      _openAction(c, Icons.edit_outlined, l10n.editInFilmcraft,
+          Api.i.projectUrl(p.id, theme: theme)),
+    ];
+    if (!expand) return Row(mainAxisSize: MainAxisSize.min, children: buttons);
+    return Row(children: [for (final b in buttons) Expanded(child: b)]);
+  }
 
   Widget _card(BuildContext c, AppLocalizations l10n, Project p, double w) {
     return SizedBox(
@@ -296,7 +284,7 @@ class _ProjectsPageState extends State<ProjectsPage> {
                           fontWeight: FontWeight.bold, fontSize: 16),
                       overflow: TextOverflow.ellipsis),
                 ),
-                _menu(l10n, p),
+                _menu(c, l10n, p),
               ]),
               Text(
                   [
@@ -320,9 +308,8 @@ class _ProjectsPageState extends State<ProjectsPage> {
                     for (final t in p.tags) tagChip(context, t),
                   ]),
                 ),
-              Align(
-                  alignment: Alignment.centerRight,
-                  child: _actions(c, l10n, p)),
+              const SizedBox(height: 4),
+              _actions(c, l10n, p, expand: true),
             ]),
           ),
         ),
@@ -374,8 +361,10 @@ class _ProjectsPageState extends State<ProjectsPage> {
                       ),
                   ]),
             ),
-            _menu(l10n, p),
-            _actions(c, l10n, p),
+            _menu(c, l10n, p),
+            Flexible(
+                child: FittedBox(
+                    fit: BoxFit.scaleDown, child: _actions(c, l10n, p))),
           ]),
         ),
       ),
