@@ -355,5 +355,15 @@
   "signUp": "Cláraigh",
   "confirmPassword": "Deimhnigh an pasfhocal",
   "passwordsMismatch": "Ní mheaitseálann na pasfhocail",
-  "revoked": "Cúlghlactha"
+  "revoked": "Cúlghlactha",
+  "share": "Comhroinn",
+  "shareProject": "Comhroinn tionscadal",
+  "send": "Seol",
+  "canView": "Amharc",
+  "canEdit": "Eagarthóireacht",
+  "accepted": "Glactha",
+  "declined": "Diúltaithe",
+  "accept": "Glac",
+  "decline": "Diúltaigh",
+  "shareInviteFrom": "Cuireadh ó {user} · {level}"
 }

@@ -768,6 +768,38 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get revoked => 'Revoked';
+
+  @override
+  String get share => 'Share';
+
+  @override
+  String get shareProject => 'Share project';
+
+  @override
+  String get send => 'Send';
+
+  @override
+  String get canView => 'Can view';
+
+  @override
+  String get canEdit => 'Can edit';
+
+  @override
+  String get accepted => 'Accepted';
+
+  @override
+  String get declined => 'Declined';
+
+  @override
+  String get accept => 'Accept';
+
+  @override
+  String get decline => 'Decline';
+
+  @override
+  String shareInviteFrom(Object level, Object user) {
+    return 'Invited by $user · $level';
+  }
 }
 
 /// The translations for English, as used in the United Kingdom (`en_GB`).
@@ -917,4 +949,36 @@ class AppLocalizationsEnGb extends AppLocalizationsEn {
 
   @override
   String get revoked => 'Revoked';
+
+  @override
+  String get share => 'Share';
+
+  @override
+  String get shareProject => 'Share project';
+
+  @override
+  String get send => 'Send';
+
+  @override
+  String get canView => 'Can view';
+
+  @override
+  String get canEdit => 'Can edit';
+
+  @override
+  String get accepted => 'Accepted';
+
+  @override
+  String get declined => 'Declined';
+
+  @override
+  String get accept => 'Accept';
+
+  @override
+  String get decline => 'Decline';
+
+  @override
+  String shareInviteFrom(Object level, Object user) {
+    return 'Invited by $user · $level';
+  }
 }

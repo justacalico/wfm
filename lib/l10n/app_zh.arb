@@ -355,5 +355,15 @@
   "signUp": "注册",
   "confirmPassword": "确认密码",
   "passwordsMismatch": "两次输入的密码不一致",
-  "revoked": "已撤销"
+  "revoked": "已撤销",
+  "share": "分享",
+  "shareProject": "分享项目",
+  "send": "发送",
+  "canView": "可查看",
+  "canEdit": "可编辑",
+  "accepted": "已接受",
+  "declined": "已拒绝",
+  "accept": "接受",
+  "decline": "拒绝",
+  "shareInviteFrom": "{user} 邀请你 · {level}"
 }

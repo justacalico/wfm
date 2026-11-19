@@ -223,6 +223,48 @@ pub struct InviteCode {
 }
 
 #[derive(Clone, Serialize)]
+pub struct ProjectShare {
+    pub id: String,
+    #[serde(rename = "projectId")]
+    pub project_id: String,
+    #[serde(rename = "inviterId")]
+    pub inviter_id: String,
+    #[serde(rename = "inviteeId")]
+    pub invitee_id: String,
+    pub level: String,
+    pub status: String,
+    #[serde(rename = "createdAt")]
+    pub created_at: i64,
+    #[serde(rename = "respondedAt")]
+    pub responded_at: i64,
+}
+
+#[derive(Clone, Serialize)]
+pub struct ShareView {
+    pub id: String,
+    #[serde(rename = "projectId")]
+    pub project_id: String,
+    #[serde(rename = "projectName")]
+    pub project_name: String,
+    #[serde(rename = "inviterId")]
+    pub inviter_id: String,
+    #[serde(rename = "inviterUsername")]
+    pub inviter_username: String,
+    #[serde(rename = "inviteeId")]
+    pub invitee_id: String,
+    #[serde(rename = "inviteeUsername")]
+    pub invitee_username: String,
+    #[serde(rename = "inviteeName")]
+    pub invitee_name: String,
+    pub level: String,
+    pub status: String,
+    #[serde(rename = "createdAt")]
+    pub created_at: i64,
+    #[serde(rename = "respondedAt")]
+    pub responded_at: i64,
+}
+
+#[derive(Clone, Serialize)]
 pub struct AuditEntry {
     pub id: i64,
     pub ts: i64,

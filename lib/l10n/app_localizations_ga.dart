@@ -771,4 +771,36 @@ class AppLocalizationsGa extends AppLocalizations {
 
   @override
   String get revoked => 'Cúlghlactha';
+
+  @override
+  String get share => 'Comhroinn';
+
+  @override
+  String get shareProject => 'Comhroinn tionscadal';
+
+  @override
+  String get send => 'Seol';
+
+  @override
+  String get canView => 'Amharc';
+
+  @override
+  String get canEdit => 'Eagarthóireacht';
+
+  @override
+  String get accepted => 'Glactha';
+
+  @override
+  String get declined => 'Diúltaithe';
+
+  @override
+  String get accept => 'Glac';
+
+  @override
+  String get decline => 'Diúltaigh';
+
+  @override
+  String shareInviteFrom(Object level, Object user) {
+    return 'Cuireadh ó $user · $level';
+  }
 }

@@ -453,4 +453,45 @@ void main() {
       expect(api.user!.username, 'ada');
     });
   });
+  group('shares', () {
+    test('Share model and endpoints', () async {
+      final api = Api(client({
+        'GET /api/projects/p1/shares': [
+          {
+            'id': 's1',
+            'projectId': 'p1',
+            'projectName': 'Short Film',
+            'inviterUsername': 'ada',
+            'inviteeId': 'u2',
+            'inviteeUsername': 'bob',
+            'inviteeName': 'Bob',
+            'level': 'view',
+            'status': 'pending',
+            'createdAt': 5
+          }
+        ],
+        'GET /api/shares': [
+          {'id': 's2', 'projectId': 'p2', 'level': 'edit', 'status': 'accepted'}
+        ],
+        'POST /api/projects/p1/shares': {'ok': true},
+        'PATCH /api/projects/p1/shares/s1': {'ok': true},
+        'DELETE /api/projects/p1/shares/s1': {'ok': true},
+        'POST /api/shares/s2/accept': {'ok': true},
+        'POST /api/shares/s3/decline': {'ok': true},
+      }));
+      final sh = (await api.projectShares('p1')).first;
+      expect(sh.projectName, 'Short Film');
+      expect(sh.inviteeUsername, 'bob');
+      expect(sh.level, 'view');
+      expect(sh.status, 'pending');
+      expect((await api.shares()).first.projectId, 'p2');
+      await api.shareProject('p1', 'bob', 'edit');
+      expect(jsonDecode(utf8.decode(lastRequest!.bodyBytes))['level'], 'edit');
+      await api.shareLevel('p1', 's1', 'edit');
+      await api.shareRevoke('p1', 's1');
+      await api.shareRespond('s2', true);
+      await api.shareRespond('s3', false);
+      expect(lastRequest!.url.path, '/api/shares/s3/decline');
+    });
+  });
 }

@@ -613,6 +613,199 @@ void main() {
     });
   });
 
+  testWidgets('shared invites accept decline and open', (t) async {
+    var accepted = false, declined = false;
+    installApi(extra: {
+      'GET /api/shares': (_) => [
+            {
+              'id': 's1',
+              'projectId': 'p2',
+              'projectName': 'Other Cut',
+              'inviterUsername': 'teacher',
+              'level': 'edit',
+              'status': 'pending',
+              'createdAt': 1
+            },
+            {
+              'id': 's3',
+              'projectId': 'sp',
+              'projectName': '',
+              'inviterUsername': 'teacher',
+              'level': 'view',
+              'status': 'accepted',
+              'createdAt': 1
+            },
+          ],
+      'GET /api/projects/sp/files': (_) => [],
+      'POST /api/shares/s1/accept': (_) {
+        accepted = true;
+        return {'ok': true};
+      },
+      'POST /api/shares/s1/decline': (_) {
+        declined = true;
+        return {'ok': true};
+      },
+    });
+    await pump(t, const ProjectsPage());
+    expect(find.textContaining('Invited by teacher'), findsOneWidget);
+    await t.tap(find.text('Accept'));
+    await settle(t);
+    expect(accepted, isTrue);
+    await t.tap(find.text('Decline'));
+    await settle(t);
+    expect(declined, isTrue);
+    await t.tap(find.text('sp'));
+    await settle(t);
+    expect(find.byType(ProjectPage), findsOneWidget);
+    expect(find.text('Read only'), findsWidgets);
+  });
+
+  testWidgets('share respond error shows snack', (t) async {
+    installApi(extra: {
+      'GET /api/shares': (_) => [
+            {
+              'id': 's1',
+              'projectId': 'p2',
+              'projectName': 'Other',
+              'inviterUsername': 'teacher',
+              'level': 'view',
+              'status': 'pending',
+              'createdAt': 1
+            }
+          ],
+      'POST /api/shares/s1/accept': (_) =>
+          http.Response('{"error":"nope"}', 409),
+    });
+    await pump(t, const ProjectsPage());
+    await t.tap(find.text('Accept'));
+    await settle(t);
+    expect(find.byType(Notice), findsOneWidget);
+  });
+
+  testWidgets('shared project opens inside the shell', (t) async {
+    installApi(extra: {
+      'GET /api/shares': (_) => [
+            {
+              'id': 's2',
+              'projectId': 'p1',
+              'projectName': 'Short Film',
+              'inviterUsername': 'teacher',
+              'level': 'view',
+              'status': 'accepted',
+              'createdAt': 1
+            }
+          ],
+    });
+    await t.binding.setSurfaceSize(const Size(1280, 800));
+    await t.pumpWidget(const WfmApp());
+    await settle(t);
+    await t
+        .tap(find.widgetWithText(ListTile, 'Projects').first)
+        .then((_) => settle(t));
+    await t.tap(find.textContaining('Short Film').first);
+    await settle(t);
+    expect(find.byType(ProjectPage), findsOneWidget);
+    expect(find.text('Read only'), findsWidgets);
+    await t.binding.setSurfaceSize(null);
+  });
+
+  testWidgets('share dialog send change level revoke', (t) async {
+    var created = 0, leveled = 0, revoked = 0, loads = 0;
+    installApi(extra: {
+      'GET /api/projects/p1/shares': (_) {
+        loads++;
+        if (loads == 1) return http.Response('{"error":"x"}', 500);
+        return [
+          {
+            'id': 's9',
+            'projectId': 'p1',
+            'inviteeUsername': 'bob',
+            'inviteeName': 'Bob',
+            'level': 'view',
+            'status': 'accepted',
+            'createdAt': 1
+          },
+          {
+            'id': 's10',
+            'projectId': 'p1',
+            'inviteeUsername': 'cat',
+            'level': 'edit',
+            'status': 'pending',
+            'createdAt': 1
+          }
+        ];
+      },
+      'POST /api/projects/p1/shares': (req) {
+        created++;
+        return created > 1
+            ? {'ok': true}
+            : http.Response('{"error":"no"}', 400);
+      },
+      'PATCH /api/projects/p1/shares/s9': (_) {
+        leveled++;
+        return leveled > 1 ? {'ok': true} : http.Response('{"error":"x"}', 500);
+      },
+      'DELETE /api/projects/p1/shares/s9': (_) {
+        revoked++;
+        return {'ok': true};
+      },
+    });
+    await pump(
+        t,
+        ProjectPage(
+            project: Project.fromJson({'id': 'p1', 'name': 'short-film'})));
+    await t.tap(find.byIcon(Icons.share_outlined));
+    await settle(t);
+    expect(find.text('Share project'), findsOneWidget);
+    expect(find.byType(Notice), findsOneWidget);
+    await t.tap(find.descendant(
+        of: find.byType(AlertDialog), matching: find.byIcon(Icons.send)));
+    await settle(t);
+    expect(created, 0);
+    await t.enterText(find.byType(TextField).first, 'bob');
+    await t.testTextInput.receiveAction(TextInputAction.done);
+    await settle(t);
+    expect(created, 1);
+    expect(find.byType(Notice), findsWidgets);
+    await t.tap(find.text('Can view').first);
+    await settle(t);
+    await t.tap(find.text('Can edit').last);
+    await settle(t);
+    await t.tap(find.descendant(
+        of: find.byType(AlertDialog), matching: find.byIcon(Icons.send)));
+    await settle(t);
+    expect(created, 2);
+    expect(find.text('Bob'), findsOneWidget);
+    expect(find.text('cat'), findsOneWidget);
+    await t.tap(find
+        .descendant(
+            of: find.byType(AlertDialog),
+            matching: find.byIcon(Icons.more_vert))
+        .first);
+    await settle(t);
+    await t.tap(find.text('Can edit').last);
+    await settle(t);
+    expect(leveled, 1);
+    await t.tap(find
+        .descendant(
+            of: find.byType(AlertDialog),
+            matching: find.byIcon(Icons.more_vert))
+        .first);
+    await settle(t);
+    await t.tap(find.text('Can view').last);
+    await settle(t);
+    expect(leveled, 2);
+    await t.tap(find
+        .descendant(
+            of: find.byType(AlertDialog),
+            matching: find.byIcon(Icons.more_vert))
+        .first);
+    await settle(t);
+    await t.tap(find.text('Revoke'));
+    await settle(t);
+    expect(revoked, 1);
+  });
+
   group('ProjectPage', () {
     testWidgets('open filmcraft, rename, delete', (t) async {
       var opened = '';

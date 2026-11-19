@@ -56,7 +56,7 @@ class Caps {
 }
 
 class Project {
-  final String id, name, displayName, groupId, ownerId, ownerName;
+  final String id, name, displayName, groupId, ownerId, ownerName, access;
   final List<String> tags;
   final int createdAt, lastActivity;
   final bool pinned;
@@ -67,14 +67,17 @@ class Project {
         groupId = j['groupId'] ?? '',
         ownerId = j['ownerId'] ?? '',
         ownerName = j['ownerName'] ?? '',
+        access = j['access'] ?? '',
         tags = [for (final t in (j['tags'] ?? []) as List) '$t'],
         createdAt = j['createdAt'] ?? 0,
         lastActivity = j['lastActivity'] ?? j['createdAt'] ?? 0,
         pinned = j['pinned'] ?? false;
-  bool get editable =>
-      ownerId.isEmpty ||
-      ownerId == Api.i.user?.id ||
-      (Api.i.user?.isOwner ?? false);
+  bool get mine => access.isEmpty
+      ? (ownerId.isEmpty ||
+          ownerId == Api.i.user?.id ||
+          (Api.i.user?.isOwner ?? false))
+      : access == 'owner';
+  bool get editable => mine || access == 'edit';
 }
 
 class ProjectGroup {
@@ -158,6 +161,30 @@ class RenderNode {
         disabled = j['disabled'] ?? false,
         createdAt = j['createdAt'] ?? 0,
         lastSeen = j['lastSeen'] ?? 0;
+}
+
+class Share {
+  final String id,
+      projectId,
+      projectName,
+      inviterUsername,
+      inviteeId,
+      inviteeUsername,
+      inviteeName,
+      level,
+      status;
+  final int createdAt;
+  Share.fromJson(Map<String, dynamic> j)
+      : id = j['id'] ?? '',
+        projectId = j['projectId'] ?? '',
+        projectName = j['projectName'] ?? '',
+        inviterUsername = j['inviterUsername'] ?? '',
+        inviteeId = j['inviteeId'] ?? '',
+        inviteeUsername = j['inviteeUsername'] ?? '',
+        inviteeName = j['inviteeName'] ?? '',
+        level = j['level'] ?? 'view',
+        status = j['status'] ?? '',
+        createdAt = j['createdAt'] ?? 0;
 }
 
 class Invite {
@@ -480,6 +507,26 @@ class Api {
 
   Future<void> changePassword(String current, String next) =>
       post('/me/password', {'current': current, 'next': next});
+
+  Future<List<Share>> projectShares(String pid) async => [
+        for (final e in (await get('/projects/$pid/shares')) as List)
+          Share.fromJson(e)
+      ];
+
+  Future<void> shareProject(String pid, String username, String level) =>
+      post('/projects/$pid/shares', {'username': username, 'level': level});
+
+  Future<void> shareLevel(String pid, String sid, String level) =>
+      patch('/projects/$pid/shares/$sid', {'level': level});
+
+  Future<void> shareRevoke(String pid, String sid) =>
+      del('/projects/$pid/shares/$sid');
+
+  Future<List<Share>> shares() async =>
+      [for (final e in (await get('/shares')) as List) Share.fromJson(e)];
+
+  Future<void> shareRespond(String sid, bool accept) =>
+      post('/shares/$sid/${accept ? 'accept' : 'decline'}', {});
 
   Future<List<Invite>> invites() async =>
       [for (final e in (await get('/invites')) as List) Invite.fromJson(e)];

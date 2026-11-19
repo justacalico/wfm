@@ -152,6 +152,38 @@ fn row_invite(r: sqlx::postgres::PgRow) -> InviteCode {
     }
 }
 
+fn row_share(r: sqlx::postgres::PgRow) -> ProjectShare {
+    ProjectShare {
+        id: r.get("id"),
+        project_id: r.get("project_id"),
+        inviter_id: r.get("inviter_id"),
+        invitee_id: r.get("invitee_id"),
+        level: r.get("level"),
+        status: r.get("status"),
+        created_at: r.get("created_at"),
+        responded_at: r.get("responded_at"),
+    }
+}
+
+fn row_share_view(r: sqlx::postgres::PgRow) -> ShareView {
+    ShareView {
+        id: r.get("id"),
+        project_id: r.get("project_id"),
+        inviter_id: r.get("inviter_id"),
+        invitee_id: r.get("invitee_id"),
+        level: r.get("level"),
+        status: r.get("status"),
+        created_at: r.get("created_at"),
+        responded_at: r.get("responded_at"),
+        project_name: r.get("project_name"),
+        inviter_username: r.get("inviter_username"),
+        invitee_username: r.get("invitee_username"),
+        invitee_name: r.get("invitee_name"),
+    }
+}
+
+const SHARE_VIEW_SELECT: &str = "SELECT s.id,s.project_id,s.inviter_id,s.invitee_id,s.level,s.status,s.created_at,s.responded_at,p.name AS project_name,iv.username AS inviter_username,ie.username AS invitee_username,ie.display_name AS invitee_name FROM project_shares s JOIN projects p ON p.id=s.project_id JOIN users iv ON iv.id=s.inviter_id JOIN users ie ON ie.id=s.invitee_id";
+
 fn row_audit(r: sqlx::postgres::PgRow) -> AuditEntry {
     AuditEntry {
         id: r.get("id"),
@@ -1145,6 +1177,108 @@ impl Db for PgDb {
         sqlx::query("INSERT INTO wfm_settings(k,v) VALUES($1,$2) ON CONFLICT(k) DO UPDATE SET v=excluded.v")
             .bind(k)
             .bind(v)
+            .execute(&self.pool)
+            .await
+            .map(|_| ())
+            .map_err(map_err)
+    }
+
+    async fn share_by(&self, project: &str, invitee: &str) -> DbResult<ProjectShare> {
+        sqlx::query(
+            "SELECT id,project_id,inviter_id,invitee_id,level,status,created_at,responded_at FROM project_shares WHERE project_id=$1 AND invitee_id=$2",
+        )
+        .bind(project)
+        .bind(invitee)
+        .map(row_share)
+        .fetch_one(&self.pool)
+        .await
+        .map_err(map_err)
+    }
+
+    async fn share_upsert(&self, sh: &ProjectShare) -> DbResult<()> {
+        sqlx::query(
+            "INSERT INTO project_shares(id,project_id,inviter_id,invitee_id,level,status,created_at,responded_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT(project_id,invitee_id) DO UPDATE SET inviter_id=excluded.inviter_id,level=excluded.level,status=excluded.status,created_at=excluded.created_at,responded_at=excluded.responded_at",
+        )
+        .bind(&sh.id)
+        .bind(&sh.project_id)
+        .bind(&sh.inviter_id)
+        .bind(&sh.invitee_id)
+        .bind(&sh.level)
+        .bind(&sh.status)
+        .bind(sh.created_at)
+        .bind(sh.responded_at)
+        .execute(&self.pool)
+        .await
+        .map(|_| ())
+        .map_err(map_err)
+    }
+
+    async fn shares_by_project(&self, project: &str) -> DbResult<Vec<ShareView>> {
+        sqlx::query(&format!(
+            "{SHARE_VIEW_SELECT} WHERE s.project_id=$1 ORDER BY s.created_at DESC"
+        ))
+        .bind(project)
+        .map(row_share_view)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(map_err)
+    }
+
+    async fn shares_for_user(&self, invitee: &str) -> DbResult<Vec<ShareView>> {
+        sqlx::query(&format!(
+            "{SHARE_VIEW_SELECT} WHERE s.invitee_id=$1 AND s.status!='declined' ORDER BY s.created_at DESC"
+        ))
+        .bind(invitee)
+        .map(row_share_view)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(map_err)
+    }
+
+    async fn share_respond(
+        &self,
+        id: &str,
+        invitee: &str,
+        status: &str,
+        ts: i64,
+    ) -> DbResult<bool> {
+        sqlx::query(
+            "UPDATE project_shares SET status=$1, responded_at=$2 WHERE id=$3 AND invitee_id=$4 AND status='pending'",
+        )
+        .bind(status)
+        .bind(ts)
+        .bind(id)
+        .bind(invitee)
+        .execute(&self.pool)
+        .await
+        .map(|r| r.rows_affected() > 0)
+        .map_err(map_err)
+    }
+
+    async fn share_set_level(&self, id: &str, project: &str, level: &str) -> DbResult<bool> {
+        sqlx::query("UPDATE project_shares SET level=$1 WHERE id=$2 AND project_id=$3")
+            .bind(level)
+            .bind(id)
+            .bind(project)
+            .execute(&self.pool)
+            .await
+            .map(|r| r.rows_affected() > 0)
+            .map_err(map_err)
+    }
+
+    async fn share_delete(&self, id: &str, project: &str) -> DbResult<bool> {
+        sqlx::query("DELETE FROM project_shares WHERE id=$1 AND project_id=$2")
+            .bind(id)
+            .bind(project)
+            .execute(&self.pool)
+            .await
+            .map(|r| r.rows_affected() > 0)
+            .map_err(map_err)
+    }
+
+    async fn shares_delete_project(&self, project: &str) -> DbResult<()> {
+        sqlx::query("DELETE FROM project_shares WHERE project_id=$1")
+            .bind(project)
             .execute(&self.pool)
             .await
             .map(|_| ())

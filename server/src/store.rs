@@ -207,6 +207,20 @@ pub trait Db: Send + Sync {
     async fn invite_use(&self, hash: &str, uid: &str, ts: i64) -> DbResult<bool>;
     async fn invite_unuse(&self, hash: &str) -> DbResult<()>;
     async fn invite_revoke(&self, id: &str, creator: &str) -> DbResult<bool>;
+    async fn share_by(&self, project: &str, invitee: &str) -> DbResult<ProjectShare>;
+    async fn share_upsert(&self, s: &ProjectShare) -> DbResult<()>;
+    async fn shares_by_project(&self, project: &str) -> DbResult<Vec<ShareView>>;
+    async fn shares_for_user(&self, invitee: &str) -> DbResult<Vec<ShareView>>;
+    async fn share_respond(
+        &self,
+        id: &str,
+        invitee: &str,
+        status: &str,
+        ts: i64,
+    ) -> DbResult<bool>;
+    async fn share_set_level(&self, id: &str, project: &str, level: &str) -> DbResult<bool>;
+    async fn share_delete(&self, id: &str, project: &str) -> DbResult<bool>;
+    async fn shares_delete_project(&self, project: &str) -> DbResult<()>;
 
     // key-value settings
     async fn setting_get(&self, k: &str) -> DbResult<Option<String>>;

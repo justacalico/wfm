@@ -16,7 +16,8 @@ use crate::auth::{
 };
 use crate::files::{self, FsError};
 use crate::model::{
-    self, can_manage, InviteCode, Project, ProjectGroup, RenderJob, RenderSpec, Role, User,
+    self, can_manage, InviteCode, Project, ProjectGroup, ProjectShare, RenderJob, RenderSpec,
+    Role, User,
 };
 use crate::render;
 use crate::store::{AuditFilter, DbError, LockOutcome};
@@ -55,6 +56,17 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/audit", get(audit))
         .route("/projects", get(list_projects).post(create_project))
         .route("/projects/{id}/take-over", post(take_over_project))
+        .route(
+            "/projects/{id}/shares",
+            get(list_project_shares).post(create_share),
+        )
+        .route(
+            "/projects/{id}/shares/{sid}",
+            patch(update_share).delete(delete_share),
+        )
+        .route("/shares", get(list_my_shares))
+        .route("/shares/{sid}/accept", post(accept_share))
+        .route("/shares/{sid}/decline", post(decline_share))
         .route(
             "/projects/{id}",
             get(get_project).patch(update_project).delete(delete_project),
@@ -1214,6 +1226,194 @@ async fn fetch_project(s: &Arc<AppState>, id: &str) -> Result<Project, Response>
         .map_err(|_| err(StatusCode::NOT_FOUND, "no such project"))
 }
 
+#[derive(Deserialize)]
+struct ShareReq {
+    username: String,
+    #[serde(default)]
+    level: String,
+}
+
+async fn create_share(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Path(id): Path<String>,
+    Json(req): Json<ShareReq>,
+) -> Response {
+    let p = match owned_project(&s, &session, &id).await {
+        Ok(p) => p,
+        Err(r) => return r,
+    };
+    if req.level != "view" && req.level != "edit" {
+        return err(StatusCode::BAD_REQUEST, "level must be view or edit");
+    }
+    let invitee = match s.db.user_by_name(&req.username.trim()).await {
+        Ok((u, _)) => u,
+        Err(_) => return err(StatusCode::NOT_FOUND, "unknown user"),
+    };
+    if invitee.id == session.user.id {
+        return err(StatusCode::BAD_REQUEST, "cannot share with yourself");
+    }
+    if invitee.disabled {
+        return err(StatusCode::BAD_REQUEST, "user is disabled");
+    }
+    let now = AppState::now();
+    let sh = ProjectShare {
+        id: model::new_id(),
+        project_id: p.id.clone(),
+        inviter_id: session.user.id.clone(),
+        invitee_id: invitee.id.clone(),
+        level: req.level.clone(),
+        status: "pending".into(),
+        created_at: now,
+        responded_at: 0,
+    };
+    if let Err(e) = s.db.share_upsert(&sh).await {
+        return db_resp(e);
+    }
+    s.audit(
+        "project",
+        &session.user,
+        "share_invite",
+        &invitee.username,
+        &format!("{} level={}", p.display_name, req.level),
+        &p.id,
+    )
+    .await;
+    Json(json!({"ok": true})).into_response()
+}
+
+async fn list_project_shares(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Path(id): Path<String>,
+) -> Response {
+    match owned_project(&s, &session, &id).await {
+        Ok(p) => match s.db.shares_by_project(&p.id).await {
+            Ok(v) => Json(json!(v)).into_response(),
+            Err(e) => db_resp(e),
+        },
+        Err(r) => r,
+    }
+}
+
+#[derive(Deserialize)]
+struct ShareLevelReq {
+    level: String,
+}
+
+async fn update_share(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Path((pid, sid)): Path<(String, String)>,
+    Json(req): Json<ShareLevelReq>,
+) -> Response {
+    match owned_project(&s, &session, &pid).await {
+        Ok(p) => {
+            if req.level != "view" && req.level != "edit" {
+                return err(StatusCode::BAD_REQUEST, "level must be view or edit");
+            }
+            match s.db.share_set_level(&sid, &p.id, &req.level).await {
+                Ok(true) => {
+                    s.audit(
+                        "project",
+                        &session.user,
+                        "share_update",
+                        &p.display_name,
+                        &format!("level={}", req.level),
+                        &p.id,
+                    )
+                    .await;
+                    Json(json!({"ok": true})).into_response()
+                }
+                Ok(false) => err(StatusCode::NOT_FOUND, "unknown share"),
+                Err(e) => db_resp(e),
+            }
+        }
+        Err(r) => r,
+    }
+}
+
+async fn delete_share(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Path((pid, sid)): Path<(String, String)>,
+) -> Response {
+    match owned_project(&s, &session, &pid).await {
+        Ok(p) => match s.db.share_delete(&sid, &p.id).await {
+            Ok(true) => {
+                s.audit(
+                    "project",
+                    &session.user,
+                    "share_revoke",
+                    &p.display_name,
+                    &sid,
+                    &p.id,
+                )
+                .await;
+                Json(json!({"ok": true})).into_response()
+            }
+            Ok(false) => err(StatusCode::NOT_FOUND, "unknown share"),
+            Err(e) => db_resp(e),
+        },
+        Err(r) => r,
+    }
+}
+
+async fn list_my_shares(State(s): State<Arc<AppState>>, session: Session) -> Response {
+    match s.db.shares_for_user(&session.user.id).await {
+        Ok(v) => Json(json!(v)).into_response(),
+        Err(e) => db_resp(e),
+    }
+}
+
+async fn respond_share(
+    s: &Arc<AppState>,
+    session: &Session,
+    sid: &str,
+    status: &str,
+) -> Response {
+    match s
+        .db
+        .share_respond(sid, &session.user.id, status, AppState::now())
+        .await
+    {
+        Ok(true) => {
+            s.audit(
+                "project",
+                &session.user,
+                if status == "accepted" {
+                    "share_accept"
+                } else {
+                    "share_decline"
+                },
+                sid,
+                "",
+                &session.user.lineage,
+            )
+            .await;
+            Json(json!({"ok": true})).into_response()
+        }
+        Ok(false) => err(StatusCode::NOT_FOUND, "no pending invite"),
+        Err(e) => db_resp(e),
+    }
+}
+
+async fn accept_share(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Path(sid): Path<String>,
+) -> Response {
+    respond_share(&s, &session, &sid, "accepted").await
+}
+
+async fn decline_share(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Path(sid): Path<String>,
+) -> Response {
+    respond_share(&s, &session, &sid, "declined").await
+}
+
 async fn owned_project(s: &Arc<AppState>, session: &Session, id: &str) -> Result<Project, Response> {
     let p = fetch_project(s, id).await?;
     if p.owner_id != session.user.id && session.user.role != Role::Owner {
@@ -1223,17 +1423,41 @@ async fn owned_project(s: &Arc<AppState>, session: &Session, id: &str) -> Result
     Ok(p)
 }
 
-async fn read_project(s: &Arc<AppState>, session: &Session, id: &str) -> Result<Project, Response> {
+async fn project_access(
+    s: &Arc<AppState>,
+    session: &Session,
+    id: &str,
+) -> Result<(Project, &'static str), Response> {
     let p = fetch_project(s, id).await?;
-    if p.owner_id != session.user.id && session.user.role != Role::Owner {
-        let in_subtree = s
-            .db
-            .user_in_subtree(&session.user, &p.owner_id)
-            .await
-            .unwrap_or(false);
-        if !in_subtree {
-            return Err(err(StatusCode::FORBIDDEN, "not your project"));
+    if p.owner_id == session.user.id || session.user.role == Role::Owner {
+        return Ok((p, "owner"));
+    }
+    if let Ok(share) = s.db.share_by(&p.id, &session.user.id).await {
+        if share.status == "accepted" {
+            return Ok((p, if share.level == "edit" { "edit" } else { "view" }));
         }
+    }
+    let in_subtree = s
+        .db
+        .user_in_subtree(&session.user, &p.owner_id)
+        .await
+        .unwrap_or(false);
+    if in_subtree {
+        return Ok((p, "view"));
+    }
+    Err(err(StatusCode::FORBIDDEN, "not your project"))
+}
+
+async fn read_project(s: &Arc<AppState>, session: &Session, id: &str) -> Result<Project, Response> {
+    let (p, _) = project_access(s, session, id).await?;
+    let _ = s.db.touch_project(&p.id, AppState::now()).await;
+    Ok(p)
+}
+
+async fn edit_project(s: &Arc<AppState>, session: &Session, id: &str) -> Result<Project, Response> {
+    let (p, level) = project_access(s, session, id).await?;
+    if level == "view" {
+        return Err(err(StatusCode::FORBIDDEN, "read only"));
     }
     let _ = s.db.touch_project(&p.id, AppState::now()).await;
     Ok(p)
@@ -1275,8 +1499,15 @@ async fn take_over_project(
 }
 
 async fn get_project(State(s): State<Arc<AppState>>, session: Session, Path(id): Path<String>) -> Response {
-    match read_project(&s, &session, &id).await {
-        Ok(p) => Json(json!(p)).into_response(),
+    match project_access(&s, &session, &id).await {
+        Ok((p, level)) => {
+            let _ = s.db.touch_project(&p.id, AppState::now()).await;
+            let mut v = serde_json::to_value(&p).unwrap_or_default();
+            if let Some(o) = v.as_object_mut() {
+                o.insert("access".into(), json!(level));
+            }
+            Json(v).into_response()
+        }
         Err(r) => r,
     }
 }
@@ -1446,6 +1677,7 @@ async fn delete_project(
     if let Err(e) = s.db.delete_project(&id).await {
         return db_resp(e);
     }
+    let _ = s.db.shares_delete_project(&id).await;
     let _ = s.blobs.delete_prefix(&p.dir).await;
     let _ = s.blobs.delete_prefix(&format!("{}.thumbs", p.dir)).await;
     s.audit(
@@ -1542,7 +1774,7 @@ async fn upload_file(
     headers: HeaderMap,
     body: Body,
 ) -> Response {
-    let p = match owned_project(&s, &session, &id).await {
+    let p = match edit_project(&s, &session, &id).await {
         Ok(p) => p,
         Err(r) => return r,
     };
@@ -1620,7 +1852,7 @@ async fn upload_start(
     Path(id): Path<String>,
     Json(b): Json<UploadStart>,
 ) -> Response {
-    let p = match owned_project(&s, &session, &id).await {
+    let p = match edit_project(&s, &session, &id).await {
         Ok(p) => p,
         Err(r) => return r,
     };
@@ -1831,7 +2063,7 @@ async fn mkdir(
     Path(id): Path<String>,
     Json(req): Json<PathReq>,
 ) -> Response {
-    let p = match owned_project(&s, &session, &id).await {
+    let p = match edit_project(&s, &session, &id).await {
         Ok(p) => p,
         Err(r) => return r,
     };
@@ -1860,7 +2092,7 @@ async fn move_file(
     Path(id): Path<String>,
     Json(req): Json<MoveReq>,
 ) -> Response {
-    let p = match owned_project(&s, &session, &id).await {
+    let p = match edit_project(&s, &session, &id).await {
         Ok(p) => p,
         Err(r) => return r,
     };
@@ -1883,7 +2115,7 @@ async fn delete_file(
     Path(id): Path<String>,
     Query(q): Query<FileQuery>,
 ) -> Response {
-    let p = match owned_project(&s, &session, &id).await {
+    let p = match edit_project(&s, &session, &id).await {
         Ok(p) => p,
         Err(r) => return r,
     };
@@ -2213,7 +2445,7 @@ async fn lock_acquire(
     Path(id): Path<String>,
     Json(req): Json<LockReq>,
 ) -> Response {
-    let _p = match owned_project(&s, &session, &id).await {
+    let _p = match edit_project(&s, &session, &id).await {
         Ok(p) => p,
         Err(r) => return r,
     };
@@ -2254,7 +2486,7 @@ async fn lock_heartbeat(
     Path(id): Path<String>,
     Json(req): Json<LockReq>,
 ) -> Response {
-    let _p = match owned_project(&s, &session, &id).await {
+    let _p = match edit_project(&s, &session, &id).await {
         Ok(p) => p,
         Err(r) => return r,
     };
@@ -2287,7 +2519,7 @@ async fn lock_release(
     Path(id): Path<String>,
     Query(q): Query<LockDelQuery>,
 ) -> Response {
-    let _p = match owned_project(&s, &session, &id).await {
+    let _p = match edit_project(&s, &session, &id).await {
         Ok(p) => p,
         Err(r) => return r,
     };
@@ -2380,7 +2612,7 @@ async fn create_render(
     Path(id): Path<String>,
     Json(req): Json<RenderReq>,
 ) -> Response {
-    let p = match owned_project(&s, &session, &id).await {
+    let p = match edit_project(&s, &session, &id).await {
         Ok(p) => p,
         Err(r) => return r,
     };
@@ -2677,7 +2909,7 @@ async fn cancel_render(
         Ok(j) => j,
         Err(_) => return err(StatusCode::NOT_FOUND, "no such render"),
     };
-    let p = match owned_project(&s, &session, &job.project_id).await {
+    let p = match edit_project(&s, &session, &job.project_id).await {
         Ok(p) => p,
         Err(r) => return r,
     };
@@ -2715,7 +2947,7 @@ async fn retry_render(
         Ok(j) => j,
         Err(_) => return err(StatusCode::NOT_FOUND, "no such render"),
     };
-    let p = match owned_project(&s, &session, &job.project_id).await {
+    let p = match edit_project(&s, &session, &job.project_id).await {
         Ok(p) => p,
         Err(r) => return r,
     };
@@ -2809,7 +3041,7 @@ async fn delete_render(
         Ok(j) => j,
         Err(_) => return err(StatusCode::NOT_FOUND, "no such render"),
     };
-    let p = match owned_project(&s, &session, &job.project_id).await {
+    let p = match edit_project(&s, &session, &job.project_id).await {
         Ok(p) => p,
         Err(r) => return r,
     };
