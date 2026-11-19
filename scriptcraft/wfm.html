@@ -61,7 +61,7 @@ async function boot() {
   csrf = me.csrf || "";
   const lock = await api("/projects/" + projectId + "/locks", {
     method: "POST", headers: { "content-type": "application/json" },
-    body: JSON.stringify({ kind: "docs", clientId })
+    body: JSON.stringify({ kind: "script", clientId })
   });
   const lr = await lock.json();
   if (!lock.ok && !lr.lock) return fail("Could not open the script.");
@@ -69,7 +69,7 @@ async function boot() {
     return overlay("This project's script is already open in another tab or device.", [
       ["Take over", async () => {
         await api("/projects/" + projectId + "/locks", { method: "POST", headers: { "content-type": "application/json" },
-          body: JSON.stringify({ kind: "docs", clientId, force: true }) });
+          body: JSON.stringify({ kind: "script", clientId, force: true }) });
         boot();
       }],
       ["Close tab", () => window.close()]
@@ -84,7 +84,7 @@ async function boot() {
 
 function heartbeat() {
   api("/projects/" + projectId + "/locks/heartbeat", { method: "POST",
-    headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "docs", clientId }) })
+    headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "script", clientId }) })
     .then(r => { if (r.status === 409) loseLock(); })
     .catch(() => {});
 }
@@ -136,7 +136,7 @@ async function handleSave(d) {
 }
 
 function releaseLock() {
-  fetch(API + "/projects/" + projectId + "/locks/release?kind=docs&clientId=" + encodeURIComponent(clientId), {
+  fetch(API + "/projects/" + projectId + "/locks/release?kind=script&clientId=" + encodeURIComponent(clientId), {
     method: "POST", keepalive: true,
     headers: { "x-csrf-token": csrf, "content-type": "application/json" }
   });

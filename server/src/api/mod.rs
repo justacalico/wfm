@@ -3380,7 +3380,7 @@ fn parse_range(v: &str, size: u64) -> Option<(u64, u64)> {
 
 #[cfg(test)]
 mod tests {
-    use super::{handoff_to, parse_range, reserved_worker_name};
+    use super::{handoff_to, lock_kind, parse_range, reserved_worker_name};
 
     #[test]
     fn handoff_destinations() {
@@ -3404,6 +3404,16 @@ mod tests {
         assert!(!reserved_worker_name("render-node-1"));
         assert!(!reserved_worker_name("localnode"));
         assert!(!reserved_worker_name("device-2"));
+    }
+
+    #[test]
+    fn lock_kinds() {
+        for k in ["edit", "render", "docs", "script", "deck"] {
+            assert!(lock_kind(k), "{k}");
+        }
+        for k in ["", "Edit", "doc", "write", "scriptcraft"] {
+            assert!(!lock_kind(k), "{k}");
+        }
     }
 
     #[test]
@@ -3443,7 +3453,7 @@ async fn lock_acquire(
         Err(r) => return r,
     };
     let kind = match req.kind.as_str() {
-        "edit" | "render" | "docs" => req.kind.clone(),
+        _ if lock_kind(&req.kind) => req.kind.clone(),
         _ => return err(StatusCode::BAD_REQUEST, "bad lock kind"),
     };
     if req.client_id.is_empty() || req.client_id.len() > 64 {
@@ -3497,6 +3507,13 @@ async fn lock_heartbeat(
         Ok(false) => err(StatusCode::CONFLICT, "lock lost"),
         Err(e) => db_resp(e),
     }
+}
+
+/// Lock kinds each app mutexes independently: FilmCraft edits under `"edit"`, renders under
+/// `"render"`, ScriptCraft under `"script"`, DeckCraft under `"deck"`; `"docs"` stays accepted for
+/// pre-split clients until they are gone.
+fn lock_kind(kind: &str) -> bool {
+    matches!(kind, "edit" | "render" | "docs" | "script" | "deck")
 }
 
 #[derive(Deserialize)]
