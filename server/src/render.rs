@@ -177,7 +177,11 @@ impl Mcp {
                 continue;
             }
             if let Some(e) = msg.get("error") {
-                return Err(e.get("message").and_then(Value::as_str).unwrap_or("mcp error").to_string());
+                return Err(e
+                    .get("message")
+                    .and_then(Value::as_str)
+                    .unwrap_or("mcp error")
+                    .to_string());
             }
             return Ok(msg.get("result").cloned().unwrap_or(Value::Null));
         }
@@ -224,7 +228,11 @@ impl Mcp {
                         p["progress"].as_f64().unwrap_or(0.0),
                         p["total"].as_f64().unwrap_or(0.0),
                     );
-                    let frac = if total > 0.0 { (done / total).clamp(0.0, 0.999) } else { 0.0 };
+                    let frac = if total > 0.0 {
+                        (done / total).clamp(0.0, 0.999)
+                    } else {
+                        0.0
+                    };
                     on_progress(frac, p["message"].as_str().unwrap_or(""));
                 }
                 continue;
@@ -236,7 +244,11 @@ impl Mcp {
                 return Err("canceled".into());
             }
             if let Some(e) = msg.get("error") {
-                return Err(e.get("message").and_then(Value::as_str).unwrap_or("mcp error").to_string());
+                return Err(e
+                    .get("message")
+                    .and_then(Value::as_str)
+                    .unwrap_or("mcp error")
+                    .to_string());
             }
             let result = msg.get("result").cloned().unwrap_or(Value::Null);
             if result["isError"].as_bool() == Some(true) {
@@ -571,8 +583,8 @@ async fn run_job(state: &Arc<AppState>, job: &RenderJob, worker: &str) {
         return;
     }
 
-    let out_name = files::valid_project_name_or_err(&spec.output)
-        .unwrap_or_else(|_| "export".into());
+    let out_name =
+        files::valid_project_name_or_err(&spec.output).unwrap_or_else(|_| "export".into());
     let alive = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true));
     let (state2, jid, w2, alive2) = (
         state.clone(),
@@ -589,8 +601,7 @@ async fn run_job(state: &Arc<AppState>, job: &RenderJob, worker: &str) {
         move |p, _status| {
             if last_report.elapsed().as_secs() >= 2 {
                 last_report = std::time::Instant::now();
-                let (st, id, w, a) =
-                    (state2.clone(), jid.clone(), w2.clone(), alive2.clone());
+                let (st, id, w, a) = (state2.clone(), jid.clone(), w2.clone(), alive2.clone());
                 tokio::spawn(async move {
                     // The update no-ops once the job is requeued or finished
                     // under someone else, telling us to stop rendering.
@@ -635,11 +646,13 @@ async fn run_job(state: &Arc<AppState>, job: &RenderJob, worker: &str) {
                     .file_name()
                     .map(|n| n.to_string_lossy().into_owned())
                     .unwrap_or_default();
-                let name = if multi { base } else { format!("{out_name}{ext}") };
+                let name = if multi {
+                    base
+                } else {
+                    format!("{out_name}{ext}")
+                };
                 let put = async {
-                    let mut f = tokio::fs::File::open(&f)
-                        .await
-                        .map_err(|e| e.to_string())?;
+                    let mut f = tokio::fs::File::open(&f).await.map_err(|e| e.to_string())?;
                     let len = f.metadata().await.map_err(|e| e.to_string())?.len();
                     state
                         .blobs
@@ -744,7 +757,10 @@ mod tests {
             "Raw/notes.txt".into(),
         ];
         let m = stage_media(&paths);
-        let got: Vec<(&str, &str)> = m.iter().map(|f| (f.name.as_str(), f.path.as_str())).collect();
+        let got: Vec<(&str, &str)> = m
+            .iter()
+            .map(|f| (f.name.as_str(), f.path.as_str()))
+            .collect();
         assert_eq!(
             got,
             [

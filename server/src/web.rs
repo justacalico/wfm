@@ -17,7 +17,9 @@ use crate::model;
 struct Embedded;
 
 fn mime(path: &str) -> String {
-    mime_guess::from_path(path).first_or_octet_stream().to_string()
+    mime_guess::from_path(path)
+        .first_or_octet_stream()
+        .to_string()
 }
 
 /// Serve one asset: override dir first, then the embedded copy.
@@ -33,11 +35,7 @@ async fn asset(dir: Option<&PathBuf>, prefix: &str, path: &str, spa_fallback: &s
         }
     }
     if let Some(f) = Embedded::get(&format!("{prefix}/{clean}")) {
-        return (
-            [(header::CONTENT_TYPE, mime(clean))],
-            f.data.into_owned(),
-        )
-            .into_response();
+        return ([(header::CONTENT_TYPE, mime(clean))], f.data.into_owned()).into_response();
     }
     // SPA fallback
     if let Some(d) = dir {
@@ -56,10 +54,7 @@ async fn asset(dir: Option<&PathBuf>, prefix: &str, path: &str, spa_fallback: &s
     (StatusCode::NOT_FOUND, "not found").into_response()
 }
 
-fn file_response(
-    data: Result<Vec<u8>, std::io::Error>,
-    path: &str,
-) -> Response {
+fn file_response(data: Result<Vec<u8>, std::io::Error>, path: &str) -> Response {
     match data {
         Ok(bytes) => ([(header::CONTENT_TYPE, mime(path))], bytes).into_response(),
         Err(_) => (StatusCode::NOT_FOUND, "not found").into_response(),
@@ -72,8 +67,34 @@ async fn app_asset(State(s): State<Arc<AppState>>, uri: Uri) -> Response {
 }
 
 async fn filmcraft_asset(State(s): State<Arc<AppState>>, req: axum::extract::Request) -> Response {
+    craft_asset(s.clone(), s.cfg.filmcraft_dir.as_ref(), "filmcraft", req).await
+}
+
+async fn scriptcraft_asset(
+    State(s): State<Arc<AppState>>,
+    req: axum::extract::Request,
+) -> Response {
+    craft_asset(
+        s.clone(),
+        s.cfg.scriptcraft_dir.as_ref(),
+        "scriptcraft",
+        req,
+    )
+    .await
+}
+
+async fn craft_asset(
+    s: Arc<AppState>,
+    dir: Option<&PathBuf>,
+    prefix: &str,
+    req: axum::extract::Request,
+) -> Response {
     let (parts, _) = req.into_parts();
-    let path = parts.uri.path().trim_start_matches("/filmcraft").to_string();
+    let path = parts
+        .uri
+        .path()
+        .trim_start_matches(&format!("/{prefix}"))
+        .to_string();
     let ok = match cookie_token(&parts) {
         Some(t) => {
             s.db.session_user(&model::token_hash(&t), AppState::now())
@@ -85,7 +106,7 @@ async fn filmcraft_asset(State(s): State<Arc<AppState>>, req: axum::extract::Req
     if !ok {
         return Redirect::to("/app/").into_response();
     }
-    asset(s.cfg.filmcraft_dir.as_ref(), "filmcraft", &path, "index.html").await
+    asset(dir, prefix, &path, "index.html").await
 }
 
 async fn root() -> Redirect {
@@ -111,14 +132,11 @@ async fn security_headers(req: axum::extract::Request, next: Next) -> Response {
         HeaderValue::from_static("same-origin"),
     );
     if path.starts_with("/api/") {
-        h.insert(
-            header::CACHE_CONTROL,
-            HeaderValue::from_static("no-store"),
-        );
+        h.insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
     } else {
-        // FilmCraft's shipped index.html and the wfm.html wrapper boot from
+        // The craft bundles' index.html and the wfm.html wrappers boot from
         // inline <script> blocks, so that route gets unsafe-inline.
-        let csp = if path.starts_with("/filmcraft/") {
+        let csp = if path.starts_with("/filmcraft/") || path.starts_with("/scriptcraft/") {
             "default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; \
              worker-src 'self' blob:; media-src 'self' blob:; \
              img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; \
@@ -152,6 +170,8 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/app/{*path}", get(app_asset))
         .route("/filmcraft/", get(filmcraft_asset))
         .route("/filmcraft/{*path}", get(filmcraft_asset))
+        .route("/scriptcraft/", get(scriptcraft_asset))
+        .route("/scriptcraft/{*path}", get(scriptcraft_asset))
         .with_state(state.clone())
         .layer(tower_http::compression::CompressionLayer::new())
         .layer(middleware::from_fn(security_headers))
@@ -202,6 +222,7 @@ mod tests {
                 data_dir: dir.to_path_buf(),
                 web_dir: None,
                 filmcraft_dir: Some(dir.join("filmcraft")),
+                scriptcraft_dir: Some(dir.join("scriptcraft")),
                 max_upload: 0,
                 secure_cookies: false,
                 cors_origins: vec![],
@@ -270,12 +291,39 @@ mod tests {
             last_login: 0,
         };
         s.db.create_user(&u, "h").await.unwrap();
-        s.db.create_session(&model::token_hash("tok"), &u.id, "csrf", AppState::now() + 60, "", "")
-            .await
-            .unwrap();
+        s.db.create_session(
+            &model::token_hash("tok"),
+            &u.id,
+            "csrf",
+            AppState::now() + 60,
+            "",
+            "",
+        )
+        .await
+        .unwrap();
         let r = filmcraft_asset(
             State(s.clone()),
             Request::get("/filmcraft/dist/index.html")
+                .header(header::COOKIE, "wfm_session=tok")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await;
+        assert_eq!(r.status(), StatusCode::OK);
+
+        std::fs::create_dir_all(dir.join("scriptcraft/dist")).unwrap();
+        std::fs::write(dir.join("scriptcraft/dist/index.html"), "sc").unwrap();
+        let r = scriptcraft_asset(
+            State(s.clone()),
+            Request::get("/scriptcraft/dist/index.html")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await;
+        assert_eq!(r.status(), StatusCode::SEE_OTHER);
+        let r = scriptcraft_asset(
+            State(s.clone()),
+            Request::get("/scriptcraft/dist/index.html")
                 .header(header::COOKIE, "wfm_session=tok")
                 .body(Body::empty())
                 .unwrap(),

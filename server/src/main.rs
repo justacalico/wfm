@@ -7,8 +7,8 @@ mod model;
 mod render;
 mod store;
 mod web;
-mod zip;
 mod worker;
+mod zip;
 
 use std::collections::{HashMap, HashSet};
 use std::net::SocketAddr;
@@ -20,8 +20,7 @@ use auth::AppState;
 async fn main() {
     tracing_subscriber::fmt()
         .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "info".into()),
+            tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()),
         )
         .init();
 
@@ -113,7 +112,10 @@ async fn main() {
             std::process::exit(1);
         }
     };
-    tracing::info!("wfm listening on http://{addr} (data: {})", state.cfg.data_dir.display());
+    tracing::info!(
+        "wfm listening on http://{addr} (data: {})",
+        state.cfg.data_dir.display()
+    );
     if let Err(e) = axum::serve(
         listener,
         app.into_make_service_with_connect_info::<SocketAddr>(),

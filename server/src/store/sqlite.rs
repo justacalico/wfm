@@ -5,7 +5,9 @@ use rusqlite::{params, OptionalExtension};
 use tokio_rusqlite::Connection;
 
 use crate::model::*;
-use crate::store::{migration_files, migration_sql, AuditFilter, Db, DbError, DbResult, LockOutcome};
+use crate::store::{
+    migration_files, migration_sql, AuditFilter, Db, DbError, DbResult, LockOutcome,
+};
 
 pub struct SqliteDb {
     conn: Connection,
@@ -43,9 +45,7 @@ pub async fn connect(path: &str) -> Result<Arc<dyn Db>, String> {
 
 fn dberr(e: tokio_rusqlite::Error) -> DbError {
     match e {
-        tokio_rusqlite::Error::Rusqlite(rusqlite::Error::QueryReturnedNoRows) => {
-            DbError::NotFound
-        }
+        tokio_rusqlite::Error::Rusqlite(rusqlite::Error::QueryReturnedNoRows) => DbError::NotFound,
         tokio_rusqlite::Error::Rusqlite(rusqlite::Error::SqliteFailure(se, _))
             if se.code == rusqlite::ErrorCode::ConstraintViolation =>
         {
@@ -289,44 +289,55 @@ impl Db for SqliteDb {
     async fn user_by_id(&self, id: &str) -> DbResult<User> {
         let id = id.to_string();
         self.q(move |c| {
-                c.query_row(
-                    &format!("SELECT {USER_COLS} FROM users WHERE id=?"),
-                    [id],
-                    map_user,
-                )
-            })
-            .await
-            .map_err(dberr)
+            c.query_row(
+                &format!("SELECT {USER_COLS} FROM users WHERE id=?"),
+                [id],
+                map_user,
+            )
+        })
+        .await
+        .map_err(dberr)
     }
 
     async fn user_by_name(&self, name: &str) -> DbResult<(User, String)> {
         let name = name.to_string();
         self.q(move |c| {
-                c.query_row(
-                    &format!("SELECT {USER_COLS} FROM users WHERE username=?"),
-                    [name],
-                    |r| Ok((map_user(r)?, r.get::<_, String>(3)?)),
-                )
-            })
-            .await
-            .map_err(dberr)
+            c.query_row(
+                &format!("SELECT {USER_COLS} FROM users WHERE username=?"),
+                [name],
+                |r| Ok((map_user(r)?, r.get::<_, String>(3)?)),
+            )
+        })
+        .await
+        .map_err(dberr)
     }
 
     async fn create_user(&self, u: &User, pass_hash: &str) -> DbResult<()> {
         let (u, h) = (u.clone(), pass_hash.to_string());
         self.q(move |c| {
-                c.execute(
-                    &format!("INSERT INTO users({USER_COLS}) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)"),
-                    params![
-                        u.id, u.username, u.display_name, h, u.role as i64, u.student_id,
-                        u.note, u.disabled as i64, u.avatar, u.created_by, u.lineage, u.created_at,
-                        u.last_login, u.quota_bytes
-                    ],
-                )
-                .map(|_| ())
-            })
-            .await
-            .map_err(dberr)
+            c.execute(
+                &format!("INSERT INTO users({USER_COLS}) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)"),
+                params![
+                    u.id,
+                    u.username,
+                    u.display_name,
+                    h,
+                    u.role as i64,
+                    u.student_id,
+                    u.note,
+                    u.disabled as i64,
+                    u.avatar,
+                    u.created_by,
+                    u.lineage,
+                    u.created_at,
+                    u.last_login,
+                    u.quota_bytes
+                ],
+            )
+            .map(|_| ())
+        })
+        .await
+        .map_err(dberr)
     }
 
     async fn create_owner(&self, u: &User, pass_hash: &str) -> DbResult<bool> {
@@ -348,9 +359,7 @@ impl Db for SqliteDb {
 
     async fn set_password(&self, id: &str, pass_hash: &str) -> DbResult<()> {
         let (id, h) = (id.to_string(), pass_hash.to_string());
-        self.q(move |c| {
-                c.execute("UPDATE users SET pass_hash=? WHERE id=?", params![h, id])
-            })
+        self.q(move |c| c.execute("UPDATE users SET pass_hash=? WHERE id=?", params![h, id]))
             .await
             .map(|_| ())
             .map_err(dberr)
@@ -379,41 +388,42 @@ impl Db for SqliteDb {
 
     async fn set_user_avatar(&self, id: &str, key: &str) -> DbResult<()> {
         let (id, key) = (id.to_string(), key.to_string());
-        self.q(move |c| c.execute("UPDATE users SET avatar=? WHERE id=?", params![key, id]).map(|_| ()))
-            .await
-            .map_err(dberr)
+        self.q(move |c| {
+            c.execute("UPDATE users SET avatar=? WHERE id=?", params![key, id])
+                .map(|_| ())
+        })
+        .await
+        .map_err(dberr)
     }
 
     async fn set_user_disabled(&self, id: &str, disabled: bool) -> DbResult<()> {
         let id = id.to_string();
         self.q(move |c| {
-                c.execute(
-                    "UPDATE users SET disabled=? WHERE id=?",
-                    params![disabled as i64, id],
-                )
-            })
-            .await
-            .map(|_| ())
-            .map_err(dberr)
+            c.execute(
+                "UPDATE users SET disabled=? WHERE id=?",
+                params![disabled as i64, id],
+            )
+        })
+        .await
+        .map(|_| ())
+        .map_err(dberr)
     }
 
     async fn delete_user(&self, id: &str) -> DbResult<()> {
         let id = id.to_string();
         self.q(move |c| {
-                let tx = c.transaction()?;
-                tx.execute("DELETE FROM sessions WHERE user_id=?", [&id])?;
-                tx.execute("DELETE FROM users WHERE id=?", [&id])?;
-                tx.commit()
-            })
-            .await
-            .map_err(dberr)
+            let tx = c.transaction()?;
+            tx.execute("DELETE FROM sessions WHERE user_id=?", [&id])?;
+            tx.execute("DELETE FROM users WHERE id=?", [&id])?;
+            tx.commit()
+        })
+        .await
+        .map_err(dberr)
     }
 
     async fn touch_login(&self, id: &str, ts: i64) -> DbResult<()> {
         let id = id.to_string();
-        self.q(move |c| {
-                c.execute("UPDATE users SET last_login=? WHERE id=?", params![ts, id])
-            })
+        self.q(move |c| c.execute("UPDATE users SET last_login=? WHERE id=?", params![ts, id]))
             .await
             .map(|_| ())
             .map_err(dberr)
@@ -421,14 +431,14 @@ impl Db for SqliteDb {
 
     async fn owner_count(&self) -> DbResult<i64> {
         self.q(|c| {
-                c.query_row(
-                    "SELECT COUNT(*) FROM users WHERE role=?",
-                    [Role::Owner as i64],
-                    |r| r.get(0),
-                )
-            })
-            .await
-            .map_err(dberr)
+            c.query_row(
+                "SELECT COUNT(*) FROM users WHERE role=?",
+                [Role::Owner as i64],
+                |r| r.get(0),
+            )
+        })
+        .await
+        .map_err(dberr)
     }
 
     async fn managed_users(&self, actor: &User) -> DbResult<Vec<User>> {
@@ -475,34 +485,37 @@ impl Db for SqliteDb {
     async fn session_user(&self, token_hash: &str, now: i64) -> DbResult<(String, String)> {
         let th = token_hash.to_string();
         self.q(move |c| {
-                let row = c
-                    .query_row(
-                        "SELECT user_id,csrf,expires_at FROM sessions WHERE token_hash=?",
-                        [&th],
-                        |r| {
-                            Ok((
-                                r.get::<_, String>(0)?,
-                                r.get::<_, String>(1)?,
-                                r.get::<_, i64>(2)?,
-                            ))
-                        },
-                    )
-                    .optional()?;
-                match row {
-                    Some((uid, csrf, exp)) if exp > now => {
-                        c.execute("UPDATE sessions SET last_seen=? WHERE token_hash=?", params![now, th])?;
-                        Ok(Some((uid, csrf)))
-                    }
-                    Some(_) => {
-                        c.execute("DELETE FROM sessions WHERE token_hash=?", [&th])?;
-                        Ok(None)
-                    }
-                    None => Ok(None),
+            let row = c
+                .query_row(
+                    "SELECT user_id,csrf,expires_at FROM sessions WHERE token_hash=?",
+                    [&th],
+                    |r| {
+                        Ok((
+                            r.get::<_, String>(0)?,
+                            r.get::<_, String>(1)?,
+                            r.get::<_, i64>(2)?,
+                        ))
+                    },
+                )
+                .optional()?;
+            match row {
+                Some((uid, csrf, exp)) if exp > now => {
+                    c.execute(
+                        "UPDATE sessions SET last_seen=? WHERE token_hash=?",
+                        params![now, th],
+                    )?;
+                    Ok(Some((uid, csrf)))
                 }
-            })
-            .await
-            .map_err(dberr)?
-            .ok_or(DbError::NotFound)
+                Some(_) => {
+                    c.execute("DELETE FROM sessions WHERE token_hash=?", [&th])?;
+                    Ok(None)
+                }
+                None => Ok(None),
+            }
+        })
+        .await
+        .map_err(dberr)?
+        .ok_or(DbError::NotFound)
     }
 
     async fn delete_session(&self, token_hash: &str) -> DbResult<()> {
@@ -547,17 +560,18 @@ impl Db for SqliteDb {
 
     async fn delete_user_session(&self, user_id: &str, token_hash: &str) -> DbResult<()> {
         let (uid, th) = (user_id.to_string(), token_hash.to_string());
-        self.q(move |c| c.execute("DELETE FROM sessions WHERE user_id=? AND token_hash=?", params![uid, th]))
-            .await
-            .map_err(dberr)?;
+        self.q(move |c| {
+            c.execute(
+                "DELETE FROM sessions WHERE user_id=? AND token_hash=?",
+                params![uid, th],
+            )
+        })
+        .await
+        .map_err(dberr)?;
         Ok(())
     }
 
-    async fn delete_user_sessions_except(
-        &self,
-        user_id: &str,
-        token_hash: &str,
-    ) -> DbResult<()> {
+    async fn delete_user_sessions_except(&self, user_id: &str, token_hash: &str) -> DbResult<()> {
         let uid = user_id.to_string();
         let th = token_hash.to_string();
         self.q(move |c| {
@@ -594,27 +608,27 @@ impl Db for SqliteDb {
     async fn project_by_id(&self, id: &str) -> DbResult<Project> {
         let id = id.to_string();
         self.q(move |c| {
-                c.query_row(
-                    &format!("SELECT {PROJECT_COLS} FROM projects WHERE id=?"),
-                    [id],
-                    map_project,
-                )
-            })
-            .await
-            .map_err(dberr)
+            c.query_row(
+                &format!("SELECT {PROJECT_COLS} FROM projects WHERE id=?"),
+                [id],
+                map_project,
+            )
+        })
+        .await
+        .map_err(dberr)
     }
 
     async fn projects_by_owner(&self, owner_id: &str) -> DbResult<Vec<Project>> {
         let oid = owner_id.to_string();
         self.q(move |c| {
-                let mut st = c.prepare(
-                    &format!("SELECT {PROJECT_COLS} FROM projects WHERE owner_id=? ORDER BY created_at DESC"),
-                )?;
-                let rows = st.query_map([oid], map_project)?;
-                rows.collect::<rusqlite::Result<Vec<_>>>()
-            })
-            .await
-            .map_err(dberr)
+            let mut st = c.prepare(&format!(
+                "SELECT {PROJECT_COLS} FROM projects WHERE owner_id=? ORDER BY created_at DESC"
+            ))?;
+            let rows = st.query_map([oid], map_project)?;
+            rows.collect::<rusqlite::Result<Vec<_>>>()
+        })
+        .await
+        .map_err(dberr)
     }
 
     async fn managed_projects(&self, actor: &User) -> DbResult<Vec<Project>> {
@@ -637,29 +651,32 @@ impl Db for SqliteDb {
             user_id.to_string(),
         );
         self.q(move |c| {
-                c.query_row(
-                    "SELECT 1 FROM users WHERE id=? AND role < ? AND lineage LIKE ?",
-                    params![uid, role, pat],
-                    |_| Ok(()),
-                )
-                .map(|_| true)
-                .or_else(|e| match e {
-                    rusqlite::Error::QueryReturnedNoRows => Ok(false),
-                    e => Err(e),
-                })
+            c.query_row(
+                "SELECT 1 FROM users WHERE id=? AND role < ? AND lineage LIKE ?",
+                params![uid, role, pat],
+                |_| Ok(()),
+            )
+            .map(|_| true)
+            .or_else(|e| match e {
+                rusqlite::Error::QueryReturnedNoRows => Ok(false),
+                e => Err(e),
             })
-            .await
-            .map_err(dberr)
+        })
+        .await
+        .map_err(dberr)
     }
 
     async fn set_project_owner(&self, id: &str, owner_id: &str) -> DbResult<()> {
         let (id, oid) = (id.to_string(), owner_id.to_string());
         self.q(move |c| {
-                c.execute("UPDATE projects SET owner_id=? WHERE id=?", params![oid, id])?;
-                Ok(())
-            })
-            .await
-            .map_err(dberr)
+            c.execute(
+                "UPDATE projects SET owner_id=? WHERE id=?",
+                params![oid, id],
+            )?;
+            Ok(())
+        })
+        .await
+        .map_err(dberr)
     }
 
     async fn update_project(
@@ -676,14 +693,14 @@ impl Db for SqliteDb {
             tags.to_string(),
         );
         self.q(move |c| {
-                c.execute(
-                    "UPDATE projects SET display_name=?, group_id=?, tags=? WHERE id=?",
-                    params![name, gid, tags, id],
-                )
-            })
-            .await
-            .map(|_| ())
-            .map_err(dberr)
+            c.execute(
+                "UPDATE projects SET display_name=?, group_id=?, tags=? WHERE id=?",
+                params![name, gid, tags, id],
+            )
+        })
+        .await
+        .map(|_| ())
+        .map_err(dberr)
     }
 
     async fn touch_project(&self, id: &str, ts: i64) -> DbResult<()> {
@@ -812,12 +829,10 @@ impl Db for SqliteDb {
 
     async fn comment_delete(&self, id: &str) -> DbResult<bool> {
         let id = id.to_string();
-        self.q(move |c| {
-            c.execute("DELETE FROM project_comments WHERE id=?", params![id])
-        })
-        .await
-        .map(|n| n > 0)
-        .map_err(dberr)
+        self.q(move |c| c.execute("DELETE FROM project_comments WHERE id=?", params![id]))
+            .await
+            .map(|n| n > 0)
+            .map_err(dberr)
     }
 
     async fn comments_delete_project(&self, project: &str) -> DbResult<()> {
@@ -836,40 +851,40 @@ impl Db for SqliteDb {
     async fn delete_project(&self, id: &str) -> DbResult<()> {
         let id = id.to_string();
         self.q(move |c| {
-                let tx = c.transaction()?;
-                tx.execute("DELETE FROM projects WHERE id=?", [&id])?;
-                tx.execute("DELETE FROM locks WHERE project_id=?", [&id])?;
-                tx.execute("DELETE FROM render_jobs WHERE project_id=?", [&id])?;
-                tx.commit()
-            })
-            .await
-            .map_err(dberr)
+            let tx = c.transaction()?;
+            tx.execute("DELETE FROM projects WHERE id=?", [&id])?;
+            tx.execute("DELETE FROM locks WHERE project_id=?", [&id])?;
+            tx.execute("DELETE FROM render_jobs WHERE project_id=?", [&id])?;
+            tx.commit()
+        })
+        .await
+        .map_err(dberr)
     }
 
     async fn create_group(&self, g: &ProjectGroup) -> DbResult<()> {
         let g = g.clone();
         self.q(move |c| {
-                c.execute(
-                    "INSERT INTO project_groups(id,owner_id,name,created_at) VALUES(?,?,?,?)",
-                    params![g.id, g.owner_id, g.name, g.created_at],
-                )
-            })
-            .await
-            .map(|_| ())
-            .map_err(dberr)
+            c.execute(
+                "INSERT INTO project_groups(id,owner_id,name,created_at) VALUES(?,?,?,?)",
+                params![g.id, g.owner_id, g.name, g.created_at],
+            )
+        })
+        .await
+        .map(|_| ())
+        .map_err(dberr)
     }
 
     async fn group_by_id(&self, id: &str) -> DbResult<ProjectGroup> {
         let id = id.to_string();
         self.q(move |c| {
-                c.query_row(
-                    "SELECT id,owner_id,name,created_at FROM project_groups WHERE id=?",
-                    [id],
-                    map_group,
-                )
-            })
-            .await
-            .map_err(dberr)
+            c.query_row(
+                "SELECT id,owner_id,name,created_at FROM project_groups WHERE id=?",
+                [id],
+                map_group,
+            )
+        })
+        .await
+        .map_err(dberr)
     }
 
     async fn groups_by_owner(&self, owner_id: &str) -> DbResult<Vec<ProjectGroup>> {
@@ -888,45 +903,45 @@ impl Db for SqliteDb {
     async fn rename_group(&self, id: &str, name: &str) -> DbResult<()> {
         let (id, name) = (id.to_string(), name.to_string());
         self.q(move |c| {
-                c.execute(
-                    "UPDATE project_groups SET name=? WHERE id=?",
-                    params![name, id],
-                )
-            })
-            .await
-            .map(|_| ())
-            .map_err(dberr)
+            c.execute(
+                "UPDATE project_groups SET name=? WHERE id=?",
+                params![name, id],
+            )
+        })
+        .await
+        .map(|_| ())
+        .map_err(dberr)
     }
 
     async fn delete_group(&self, id: &str) -> DbResult<()> {
         let id = id.to_string();
         self.q(move |c| {
-                let tx = c.transaction()?;
-                tx.execute("DELETE FROM project_groups WHERE id=?", [&id])?;
-                tx.execute("UPDATE projects SET group_id='' WHERE group_id=?", [&id])?;
-                tx.commit()
-            })
-            .await
-            .map_err(dberr)
+            let tx = c.transaction()?;
+            tx.execute("DELETE FROM project_groups WHERE id=?", [&id])?;
+            tx.execute("UPDATE projects SET group_id='' WHERE group_id=?", [&id])?;
+            tx.commit()
+        })
+        .await
+        .map_err(dberr)
     }
 
     async fn lock_get(&self, project_id: &str, kind: &str) -> DbResult<LockInfo> {
         let (p, k) = (project_id.to_string(), kind.to_string());
         self.q(move |c| {
-                c.query_row(
-                    "SELECT holder,label,expires_at FROM locks WHERE project_id=? AND kind=?",
-                    params![p, k],
-                    |r| {
-                        Ok(LockInfo {
-                            holder: r.get(0)?,
-                            label: r.get(1)?,
-                            expires_at: r.get(2)?,
-                        })
-                    },
-                )
-            })
-            .await
-            .map_err(dberr)
+            c.query_row(
+                "SELECT holder,label,expires_at FROM locks WHERE project_id=? AND kind=?",
+                params![p, k],
+                |r| {
+                    Ok(LockInfo {
+                        holder: r.get(0)?,
+                        label: r.get(1)?,
+                        expires_at: r.get(2)?,
+                    })
+                },
+            )
+        })
+        .await
+        .map_err(dberr)
     }
 
     async fn lock_acquire(
@@ -990,37 +1005,29 @@ impl Db for SqliteDb {
         holder: &str,
         expires: i64,
     ) -> DbResult<bool> {
-        let (p, k, h) = (
-            project_id.to_string(),
-            kind.to_string(),
-            holder.to_string(),
-        );
+        let (p, k, h) = (project_id.to_string(), kind.to_string(), holder.to_string());
         self.q(move |c| {
-                c.execute(
-                    "UPDATE locks SET expires_at=? WHERE project_id=? AND kind=? AND holder=?",
-                    params![expires, p, k, h],
-                )
-            })
-            .await
-            .map(|n| n > 0)
-            .map_err(dberr)
+            c.execute(
+                "UPDATE locks SET expires_at=? WHERE project_id=? AND kind=? AND holder=?",
+                params![expires, p, k, h],
+            )
+        })
+        .await
+        .map(|n| n > 0)
+        .map_err(dberr)
     }
 
     async fn lock_release(&self, project_id: &str, kind: &str, holder: &str) -> DbResult<()> {
-        let (p, k, h) = (
-            project_id.to_string(),
-            kind.to_string(),
-            holder.to_string(),
-        );
+        let (p, k, h) = (project_id.to_string(), kind.to_string(), holder.to_string());
         self.q(move |c| {
-                c.execute(
-                    "DELETE FROM locks WHERE project_id=? AND kind=? AND holder=?",
-                    params![p, k, h],
-                )
-            })
-            .await
-            .map(|_| ())
-            .map_err(dberr)
+            c.execute(
+                "DELETE FROM locks WHERE project_id=? AND kind=? AND holder=?",
+                params![p, k, h],
+            )
+        })
+        .await
+        .map(|_| ())
+        .map_err(dberr)
     }
 
     async fn clean_locks(&self, now: i64) -> DbResult<()> {
@@ -1050,17 +1057,22 @@ impl Db for SqliteDb {
     async fn job_by_id(&self, id: &str) -> DbResult<RenderJob> {
         let id = id.to_string();
         self.q(move |c| {
-                c.query_row(
-                    &format!("SELECT {JOB_COLS} FROM render_jobs WHERE id=?"),
-                    [id],
-                    map_job,
-                )
-            })
-            .await
-            .map_err(dberr)
+            c.query_row(
+                &format!("SELECT {JOB_COLS} FROM render_jobs WHERE id=?"),
+                [id],
+                map_job,
+            )
+        })
+        .await
+        .map_err(dberr)
     }
 
-    async fn jobs_by_project(&self, project_id: &str, offset: i64, limit: i64) -> DbResult<Vec<RenderJob>> {
+    async fn jobs_by_project(
+        &self,
+        project_id: &str,
+        offset: i64,
+        limit: i64,
+    ) -> DbResult<Vec<RenderJob>> {
         let pid = project_id.to_string();
         self.q(move |c| {
                 let mut st = c.prepare(&format!(
@@ -1178,22 +1190,22 @@ impl Db for SqliteDb {
     async fn node_create(&self, n: &RenderNode, token_hash: &str) -> DbResult<()> {
         let (n, th) = (n.clone(), token_hash.to_string());
         self.q(move |c| {
-                c.execute(
-                    "INSERT INTO render_nodes(id,name,token_hash,disabled,created_at,last_seen)
+            c.execute(
+                "INSERT INTO render_nodes(id,name,token_hash,disabled,created_at,last_seen)
                      SELECT ?,?,?,0,?,0 WHERE NOT EXISTS(
                        SELECT 1 FROM render_nodes WHERE name=? COLLATE NOCASE)",
-                    params![n.id, n.name, th, n.created_at, n.name],
-                )
-            })
-            .await
-            .map_err(dberr)
-            .and_then(|rows| {
-                if rows == 0 {
-                    Err(DbError::Conflict)
-                } else {
-                    Ok(())
-                }
-            })
+                params![n.id, n.name, th, n.created_at, n.name],
+            )
+        })
+        .await
+        .map_err(dberr)
+        .and_then(|rows| {
+            if rows == 0 {
+                Err(DbError::Conflict)
+            } else {
+                Ok(())
+            }
+        })
     }
 
     async fn node_by_token(&self, token_hash: &str) -> DbResult<RenderNode> {
@@ -1224,27 +1236,33 @@ impl Db for SqliteDb {
     async fn node_touch(&self, id: &str, ts: i64) -> DbResult<()> {
         let id = id.to_string();
         self.q(move |c| {
-                c.execute(
-                    "UPDATE render_nodes SET last_seen=?, offline_notified=0 WHERE id=?",
-                    params![ts, id],
-                )
-            })
-            .await
-            .map(|_| ())
-            .map_err(dberr)
+            c.execute(
+                "UPDATE render_nodes SET last_seen=?, offline_notified=0 WHERE id=?",
+                params![ts, id],
+            )
+        })
+        .await
+        .map(|_| ())
+        .map_err(dberr)
     }
 
     async fn node_set_disabled(&self, id: &str, disabled: bool) -> DbResult<()> {
         let id = id.to_string();
         self.q(move |c| {
-                c.execute(
-                    "UPDATE render_nodes SET disabled=? WHERE id=?",
-                    params![disabled as i64, id],
-                )
-            })
-            .await
-            .map_err(dberr)
-            .and_then(|rows| if rows == 0 { Err(DbError::NotFound) } else { Ok(()) })
+            c.execute(
+                "UPDATE render_nodes SET disabled=? WHERE id=?",
+                params![disabled as i64, id],
+            )
+        })
+        .await
+        .map_err(dberr)
+        .and_then(|rows| {
+            if rows == 0 {
+                Err(DbError::NotFound)
+            } else {
+                Ok(())
+            }
+        })
     }
 
     async fn node_delete(&self, id: &str) -> DbResult<()> {
@@ -1252,7 +1270,13 @@ impl Db for SqliteDb {
         self.q(move |c| c.execute("DELETE FROM render_nodes WHERE id=?", [id]))
             .await
             .map_err(dberr)
-            .and_then(|rows| if rows == 0 { Err(DbError::NotFound) } else { Ok(()) })
+            .and_then(|rows| {
+                if rows == 0 {
+                    Err(DbError::NotFound)
+                } else {
+                    Ok(())
+                }
+            })
     }
 
     async fn audit(
@@ -1335,9 +1359,12 @@ impl Db for SqliteDb {
     }
 
     async fn audit_purge(&self, before: i64) -> DbResult<()> {
-        self.q(move |c| c.execute("DELETE FROM audit WHERE ts<?", params![before]).map(|_| ()))
-            .await
-            .map_err(dberr)
+        self.q(move |c| {
+            c.execute("DELETE FROM audit WHERE ts<?", params![before])
+                .map(|_| ())
+        })
+        .await
+        .map_err(dberr)
     }
 
     async fn invite_create(&self, i: &InviteCode) -> DbResult<()> {
@@ -1409,28 +1436,28 @@ impl Db for SqliteDb {
     async fn invite_unuse(&self, hash: &str) -> DbResult<()> {
         let hash = hash.to_string();
         self.q(move |c| {
-                c.execute(
-                    "UPDATE invite_codes SET used_by='', used_at=0 WHERE code_hash=?",
-                    params![hash],
-                )
-            })
-            .await
-            .map(|_| ())
-            .map_err(dberr)
+            c.execute(
+                "UPDATE invite_codes SET used_by='', used_at=0 WHERE code_hash=?",
+                params![hash],
+            )
+        })
+        .await
+        .map(|_| ())
+        .map_err(dberr)
     }
 
     async fn invite_revoke(&self, id: &str, creator: &str) -> DbResult<bool> {
         let id = id.to_string();
         let creator = creator.to_string();
         self.q(move |c| {
-                c.execute(
-                    "UPDATE invite_codes SET revoked=1 WHERE id=? AND created_by=? AND used_by=''",
-                    params![id, creator],
-                )
-            })
-            .await
-            .map(|n| n > 0)
-            .map_err(dberr)
+            c.execute(
+                "UPDATE invite_codes SET revoked=1 WHERE id=? AND created_by=? AND used_by=''",
+                params![id, creator],
+            )
+        })
+        .await
+        .map(|n| n > 0)
+        .map_err(dberr)
     }
 
     async fn setting_get(&self, k: &str) -> DbResult<Option<String>> {
@@ -1547,38 +1574,41 @@ impl Db for SqliteDb {
         let project = project.to_string();
         let level = level.to_string();
         self.q(move |c| {
-                c.execute(
-                    "UPDATE project_shares SET level=? WHERE id=? AND project_id=?",
-                    params![level, id, project],
-                )
-            })
-            .await
-            .map(|n| n > 0)
-            .map_err(dberr)
+            c.execute(
+                "UPDATE project_shares SET level=? WHERE id=? AND project_id=?",
+                params![level, id, project],
+            )
+        })
+        .await
+        .map(|n| n > 0)
+        .map_err(dberr)
     }
 
     async fn share_delete(&self, id: &str, project: &str) -> DbResult<bool> {
         let id = id.to_string();
         let project = project.to_string();
         self.q(move |c| {
-                c.execute(
-                    "DELETE FROM project_shares WHERE id=? AND project_id=?",
-                    params![id, project],
-                )
-            })
-            .await
-            .map(|n| n > 0)
-            .map_err(dberr)
+            c.execute(
+                "DELETE FROM project_shares WHERE id=? AND project_id=?",
+                params![id, project],
+            )
+        })
+        .await
+        .map(|n| n > 0)
+        .map_err(dberr)
     }
 
     async fn shares_delete_project(&self, project: &str) -> DbResult<()> {
         let project = project.to_string();
         self.q(move |c| {
-                c.execute("DELETE FROM project_shares WHERE project_id=?", params![project])
-            })
-            .await
-            .map(|_| ())
-            .map_err(dberr)
+            c.execute(
+                "DELETE FROM project_shares WHERE project_id=?",
+                params![project],
+            )
+        })
+        .await
+        .map(|_| ())
+        .map_err(dberr)
     }
 
     async fn auto_shares_list(&self, owner: &str) -> DbResult<Vec<AutoShareView>> {
@@ -1603,12 +1633,7 @@ impl Db for SqliteDb {
             .map_err(dberr)
     }
 
-    async fn auto_share_upsert(
-        &self,
-        owner: &str,
-        invitee: &str,
-        level: &str,
-    ) -> DbResult<()> {
+    async fn auto_share_upsert(&self, owner: &str, invitee: &str, level: &str) -> DbResult<()> {
         let owner = owner.to_string();
         let invitee = invitee.to_string();
         let level = level.to_string();
@@ -1627,34 +1652,33 @@ impl Db for SqliteDb {
         let owner = owner.to_string();
         let id = id.to_string();
         self.q(move |c| {
-                c.execute(
-                    "DELETE FROM auto_shares WHERE id=? AND owner_id=?",
-                    params![id, owner],
-                )
-            })
-            .await
-            .map(|n| n > 0)
-            .map_err(dberr)
+            c.execute(
+                "DELETE FROM auto_shares WHERE id=? AND owner_id=?",
+                params![id, owner],
+            )
+        })
+        .await
+        .map(|n| n > 0)
+        .map_err(dberr)
     }
 
     async fn auto_shares_all(&self) -> DbResult<Vec<AutoShare>> {
         self.q(move |c| {
-                let mut st = c.prepare(
-                    "SELECT id,owner_id,invitee_id,level,created_at FROM auto_shares"
-                )?;
-                let rows = st.query_map([], |r| {
-                    Ok(AutoShare {
-                        id: r.get(0)?,
-                        owner_id: r.get(1)?,
-                        invitee_id: r.get(2)?,
-                        level: r.get(3)?,
-                        created_at: r.get(4)?,
-                    })
-                })?;
-                rows.collect::<rusqlite::Result<Vec<_>>>()
-            })
-            .await
-            .map_err(dberr)
+            let mut st =
+                c.prepare("SELECT id,owner_id,invitee_id,level,created_at FROM auto_shares")?;
+            let rows = st.query_map([], |r| {
+                Ok(AutoShare {
+                    id: r.get(0)?,
+                    owner_id: r.get(1)?,
+                    invitee_id: r.get(2)?,
+                    level: r.get(3)?,
+                    created_at: r.get(4)?,
+                })
+            })?;
+            rows.collect::<rusqlite::Result<Vec<_>>>()
+        })
+        .await
+        .map_err(dberr)
     }
 
     async fn share_by_id(&self, id: &str) -> DbResult<ProjectShare> {
@@ -1694,7 +1718,10 @@ impl Db for SqliteDb {
         before: i64,
         limit: i64,
     ) -> DbResult<Vec<Notification>> {
-        let (user, before) = (user.to_string(), if before <= 0 { i64::MAX } else { before });
+        let (user, before) = (
+            user.to_string(),
+            if before <= 0 { i64::MAX } else { before },
+        );
         self.q(move |c| {
                 let mut st = c.prepare(
                     "SELECT id,kind,payload,read_at,created_at FROM notifications WHERE user_id=? AND created_at<? ORDER BY created_at DESC, id DESC LIMIT ?"
@@ -1709,51 +1736,50 @@ impl Db for SqliteDb {
     async fn notifications_unread(&self, user: &str) -> DbResult<i64> {
         let user = user.to_string();
         self.q(move |c| {
-                c.query_row(
-                    "SELECT COUNT(*) FROM notifications WHERE user_id=? AND read_at=0",
-                    params![user],
-                    |r| r.get(0),
-                )
-            })
-            .await
-            .map_err(dberr)
+            c.query_row(
+                "SELECT COUNT(*) FROM notifications WHERE user_id=? AND read_at=0",
+                params![user],
+                |r| r.get(0),
+            )
+        })
+        .await
+        .map_err(dberr)
     }
 
     async fn notification_read(&self, user: &str, id: &str, ts: i64) -> DbResult<bool> {
         let (user, id) = (user.to_string(), id.to_string());
         self.q(move |c| {
-                c.execute(
-                    "UPDATE notifications SET read_at=? WHERE id=? AND user_id=? AND read_at=0",
-                    params![ts, id, user],
-                )
-            })
-            .await
-            .map(|n| n > 0)
-            .map_err(dberr)
+            c.execute(
+                "UPDATE notifications SET read_at=? WHERE id=? AND user_id=? AND read_at=0",
+                params![ts, id, user],
+            )
+        })
+        .await
+        .map(|n| n > 0)
+        .map_err(dberr)
     }
 
     async fn notifications_read_all(&self, user: &str, ts: i64) -> DbResult<()> {
         let user = user.to_string();
         self.q(move |c| {
-                c.execute(
-                    "UPDATE notifications SET read_at=? WHERE user_id=? AND read_at=0",
-                    params![ts, user],
-                )
-            })
-            .await
-            .map(|_| ())
-            .map_err(dberr)
+            c.execute(
+                "UPDATE notifications SET read_at=? WHERE user_id=? AND read_at=0",
+                params![ts, user],
+            )
+        })
+        .await
+        .map(|_| ())
+        .map_err(dberr)
     }
 
     async fn staff_ids(&self) -> DbResult<Vec<String>> {
         self.q(move |c| {
-                let mut st =
-                    c.prepare("SELECT id FROM users WHERE role>=3 AND disabled=0")?;
-                let rows = st.query_map([], |r| r.get(0))?;
-                rows.collect::<rusqlite::Result<Vec<_>>>()
-            })
-            .await
-            .map_err(dberr)
+            let mut st = c.prepare("SELECT id FROM users WHERE role>=3 AND disabled=0")?;
+            let rows = st.query_map([], |r| r.get(0))?;
+            rows.collect::<rusqlite::Result<Vec<_>>>()
+        })
+        .await
+        .map_err(dberr)
     }
 
     async fn nodes_newly_offline(&self, stale_before: i64) -> DbResult<Vec<RenderNode>> {
@@ -1777,18 +1803,11 @@ impl Db for SqliteDb {
     }
 
     async fn link_create(&self, l: &ProjectLink) -> DbResult<()> {
-        let v: Vec<String> = [
-            &l.id,
-            &l.token_hash,
-            &l.project_id,
-            &l.scope,
-            &l.created_by,
-        ]
-        .iter()
-        .map(|s| s.to_string())
-        .collect();
-        let (created_at, expires_at, revoked) =
-            (l.created_at, l.expires_at, l.revoked as i64);
+        let v: Vec<String> = [&l.id, &l.token_hash, &l.project_id, &l.scope, &l.created_by]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+        let (created_at, expires_at, revoked) = (l.created_at, l.expires_at, l.revoked as i64);
         self.q(move |c| {
                 c.execute(
                     "INSERT INTO project_links(id,token_hash,project_id,scope,created_by,created_at,expires_at,revoked) VALUES(?,?,?,?,?,?,?,?)",
@@ -1829,27 +1848,27 @@ impl Db for SqliteDb {
     async fn link_revoke(&self, id: &str, project: &str) -> DbResult<bool> {
         let (id, project) = (id.to_string(), project.to_string());
         self.q(move |c| {
-                c.execute(
-                    "UPDATE project_links SET revoked=1 WHERE id=? AND project_id=? AND revoked=0",
-                    params![id, project],
-                )
-            })
-            .await
-            .map(|n| n > 0)
-            .map_err(dberr)
+            c.execute(
+                "UPDATE project_links SET revoked=1 WHERE id=? AND project_id=? AND revoked=0",
+                params![id, project],
+            )
+        })
+        .await
+        .map(|n| n > 0)
+        .map_err(dberr)
     }
 
     async fn links_delete_project(&self, project: &str) -> DbResult<()> {
         let project = project.to_string();
         self.q(move |c| {
-                c.execute(
-                    "DELETE FROM project_links WHERE project_id=?",
-                    params![project],
-                )
-            })
-            .await
-            .map(|_| ())
-            .map_err(dberr)
+            c.execute(
+                "DELETE FROM project_links WHERE project_id=?",
+                params![project],
+            )
+        })
+        .await
+        .map(|_| ())
+        .map_err(dberr)
     }
 }
 
@@ -1909,7 +1928,9 @@ mod tests {
         assert!(db.job_progress("j", "w1", 0.5, 300).await.unwrap());
         // A foreign or stale worker can neither report nor finish.
         assert!(!db.job_progress("j", "w2", 0.6, 300).await.unwrap());
-        db.job_finish("j", "w2", "failed", "oops", 400).await.unwrap();
+        db.job_finish("j", "w2", "failed", "oops", 400)
+            .await
+            .unwrap();
         let j = db.job_by_id("j").await.unwrap();
         assert_eq!(j.status, "running");
         assert_eq!(j.progress, 0.5);
@@ -1918,7 +1939,9 @@ mod tests {
         let j = db.job_by_id("j").await.unwrap();
         assert_eq!(j.status, "done");
         // Terminal jobs ignore late completions even from the claimant.
-        db.job_finish("j", "w1", "failed", "oops", 500).await.unwrap();
+        db.job_finish("j", "w1", "failed", "oops", 500)
+            .await
+            .unwrap();
         assert_eq!(db.job_by_id("j").await.unwrap().status, "done");
     }
 
@@ -1932,7 +1955,10 @@ mod tests {
             db.job_create(&j).await.unwrap();
         }
         let ids = |v: Vec<RenderJob>| v.iter().map(|j| j.id.clone()).collect::<Vec<_>>();
-        assert_eq!(ids(db.jobs_by_project("p", 0, 2).await.unwrap()), ["j2", "j1"]);
+        assert_eq!(
+            ids(db.jobs_by_project("p", 0, 2).await.unwrap()),
+            ["j2", "j1"]
+        );
         assert_eq!(ids(db.jobs_by_project("p", 2, 2).await.unwrap()), ["j0"]);
         db.job_delete("j0").await.unwrap();
         assert!(db.job_by_id("j0").await.is_err());
@@ -2125,7 +2151,9 @@ mod tests {
             last_login: 0,
         };
         db.create_user(&u, "h").await.unwrap();
-        db.create_session("t1", "u", "c", 9, "1.2.3.4", "ua").await.unwrap();
+        db.create_session("t1", "u", "c", 9, "1.2.3.4", "ua")
+            .await
+            .unwrap();
         db.create_session("t2", "u", "c", 9, "", "").await.unwrap();
         let rows = db.list_sessions("u").await.unwrap();
         assert_eq!(rows.len(), 2);
@@ -2221,13 +2249,22 @@ mod tests {
         assert_eq!(db.share_by("p1", "v1").await.unwrap().status, "pending");
         assert_eq!(db.shares_by_project("p1").await.unwrap().len(), 1);
         assert_eq!(db.shares_for_user("v1").await.unwrap().len(), 1);
-        assert!(!db.share_respond("s1", "other", "accepted", 2).await.unwrap());
+        assert!(!db
+            .share_respond("s1", "other", "accepted", 2)
+            .await
+            .unwrap());
         assert!(db.share_respond("s1", "v1", "accepted", 2).await.unwrap());
         assert!(!db.share_respond("s1", "v1", "declined", 3).await.unwrap());
         assert_eq!(db.share_by("p1", "v1").await.unwrap().status, "accepted");
         assert!(db.share_set_level("s1", "p1", "edit").await.unwrap());
         assert_eq!(db.share_by("p1", "v1").await.unwrap().level, "edit");
-        db.share_upsert(&ProjectShare { status: "pending".into(), responded_at: 0, ..sh.clone() }).await.unwrap();
+        db.share_upsert(&ProjectShare {
+            status: "pending".into(),
+            responded_at: 0,
+            ..sh.clone()
+        })
+        .await
+        .unwrap();
         assert_eq!(db.share_by("p1", "v1").await.unwrap().status, "pending");
         db.set_project_template("p1", true).await.unwrap();
         assert!(db.project_by_id("p1").await.unwrap().template);
@@ -2244,22 +2281,25 @@ mod tests {
     #[tokio::test]
     async fn comments_and_status() {
         let db = connect(":memory:").await.unwrap();
-        db.create_user(&User {
-            id: "u1".into(),
-            username: "ada".into(),
-            display_name: "Ada".into(),
-            role: Role::Student,
-            role_name: String::new(),
-            student_id: String::new(),
-            note: String::new(),
-            disabled: false,
-            avatar: String::new(),
-            quota_bytes: 0,
-            created_by: String::new(),
-            lineage: "/".into(),
-            created_at: 1,
-            last_login: 0,
-        }, "h")
+        db.create_user(
+            &User {
+                id: "u1".into(),
+                username: "ada".into(),
+                display_name: "Ada".into(),
+                role: Role::Student,
+                role_name: String::new(),
+                student_id: String::new(),
+                note: String::new(),
+                disabled: false,
+                avatar: String::new(),
+                quota_bytes: 0,
+                created_by: String::new(),
+                lineage: "/".into(),
+                created_at: 1,
+                last_login: 0,
+            },
+            "h",
+        )
         .await
         .unwrap();
         db.create_project(&Project {
@@ -2293,11 +2333,15 @@ mod tests {
         assert!(!db.comment_edit("nope", "x", 1).await.unwrap());
         assert!(db.comment_delete("c1").await.unwrap());
         assert!(!db.comment_delete("c1").await.unwrap());
-        db.set_project_status("p1", "submitted", 40, "").await.unwrap();
+        db.set_project_status("p1", "submitted", 40, "")
+            .await
+            .unwrap();
         let p = db.project_by_id("p1").await.unwrap();
         assert_eq!(p.status, "submitted");
         assert_eq!(p.submitted_at, 40);
-        db.set_project_status("p1", "reviewed", 40, "t1").await.unwrap();
+        db.set_project_status("p1", "reviewed", 40, "t1")
+            .await
+            .unwrap();
         assert_eq!(db.project_by_id("p1").await.unwrap().reviewed_by, "t1");
         db.comments_delete_project("p1").await.unwrap();
         assert!(db.comments_for("p1").await.unwrap().is_empty());
@@ -2455,8 +2499,12 @@ mod tests {
     #[tokio::test]
     async fn notifications_lifecycle() {
         let db = connect(":memory:").await.unwrap();
-        db.notify("u1", "share_invite", "{\"a\":1}", 10).await.unwrap();
-        db.notify("u1", "render_done", "{\"b\":2}", 20).await.unwrap();
+        db.notify("u1", "share_invite", "{\"a\":1}", 10)
+            .await
+            .unwrap();
+        db.notify("u1", "render_done", "{\"b\":2}", 20)
+            .await
+            .unwrap();
         db.notify("u2", "node_offline", "{}", 30).await.unwrap();
 
         assert_eq!(db.notifications_unread("u1").await.unwrap(), 2);

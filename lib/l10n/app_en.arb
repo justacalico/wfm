@@ -60,6 +60,7 @@
     }
   },
   "openInFilmcraft": "Open",
+  "openScript": "Script",
   "renameProject": "Rename project",
   "displayName": "Display name",
   "deleteProject": "Delete project",

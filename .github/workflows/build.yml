@@ -183,9 +183,29 @@ jobs:
           name: filmcraft-dist
           path: filmcraft/dist
 
+  scriptcraft:
+    name: Build ScriptCraft bundle
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup wasm toolchain
+        run: |
+          rustup target add wasm32-unknown-unknown
+          curl -fsSL https://github.com/rustwasm/wasm-bindgen/releases/download/0.2.129/wasm-bindgen-0.2.129-x86_64-unknown-linux-musl.tar.gz | tar -xz -C /opt
+          echo "/opt/wasm-bindgen-0.2.129-x86_64-unknown-linux-musl" >> "$GITHUB_PATH"
+
+      - name: Build patched bundle
+        run: bash scripts/build-scriptcraft.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: scriptcraft-dist
+          path: scriptcraft/dist
+
   build:
     name: Build ${{ matrix.target }}
-    needs: [setup, verify, filmcraft]
+    needs: [setup, verify, filmcraft, scriptcraft]
     if: ${{ needs.setup.outputs.build_all == 'true' }}
     strategy:
       fail-fast: false
@@ -235,6 +255,18 @@ jobs:
         with:
           name: filmcraft-dist
           path: server/web/filmcraft/dist
+
+      - name: Stage ScriptCraft bundle
+        if: matrix.target != 'web'
+        run: |
+          mkdir -p server/web/scriptcraft
+          cp scriptcraft/wfm.html scriptcraft/icon.svg scriptcraft/VERSION server/web/scriptcraft/
+
+      - uses: actions/download-artifact@v4
+        if: matrix.target != 'web'
+        with:
+          name: scriptcraft-dist
+          path: server/web/scriptcraft/dist
 
       - name: Build server binary
         if: matrix.target != 'web'

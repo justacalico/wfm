@@ -154,6 +154,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get openInFilmcraft => 'Открыть';
 
   @override
+  String get openScript => 'Сценарий';
+
+  @override
   String get renameProject => 'Переименовать проект';
 
   @override

@@ -1,6 +1,6 @@
-pub mod sqlite;
 #[cfg(feature = "postgres")]
 pub mod postgres;
+pub mod sqlite;
 
 use std::fmt;
 use std::sync::Arc;
@@ -87,11 +87,7 @@ pub trait Db: Send + Sync {
     async fn delete_user_sessions(&self, user_id: &str) -> DbResult<()>;
     async fn list_sessions(&self, user_id: &str) -> DbResult<Vec<SessionInfo>>;
     async fn delete_user_session(&self, user_id: &str, token_hash: &str) -> DbResult<()>;
-    async fn delete_user_sessions_except(
-        &self,
-        user_id: &str,
-        token_hash: &str,
-    ) -> DbResult<()>;
+    async fn delete_user_sessions_except(&self, user_id: &str, token_hash: &str) -> DbResult<()>;
     async fn clean_sessions(&self, now: i64) -> DbResult<()>;
 
     // projects
@@ -168,7 +164,12 @@ pub trait Db: Send + Sync {
     // render jobs
     async fn job_create(&self, j: &RenderJob) -> DbResult<()>;
     async fn job_by_id(&self, id: &str) -> DbResult<RenderJob>;
-    async fn jobs_by_project(&self, project_id: &str, offset: i64, limit: i64) -> DbResult<Vec<RenderJob>>;
+    async fn jobs_by_project(
+        &self,
+        project_id: &str,
+        offset: i64,
+        limit: i64,
+    ) -> DbResult<Vec<RenderJob>>;
     async fn job_delete(&self, id: &str) -> DbResult<()>;
     async fn job_next_queued(&self) -> DbResult<Option<RenderJob>>;
     async fn job_claim(&self, id: &str, worker: &str, lease_until: i64) -> DbResult<bool>;
@@ -234,13 +235,8 @@ pub trait Db: Send + Sync {
     async fn share_upsert(&self, s: &ProjectShare) -> DbResult<()>;
     async fn shares_by_project(&self, project: &str) -> DbResult<Vec<ShareView>>;
     async fn shares_for_user(&self, invitee: &str) -> DbResult<Vec<ShareView>>;
-    async fn share_respond(
-        &self,
-        id: &str,
-        invitee: &str,
-        status: &str,
-        ts: i64,
-    ) -> DbResult<bool>;
+    async fn share_respond(&self, id: &str, invitee: &str, status: &str, ts: i64)
+        -> DbResult<bool>;
     async fn share_set_level(&self, id: &str, project: &str, level: &str) -> DbResult<bool>;
     async fn share_delete(&self, id: &str, project: &str) -> DbResult<bool>;
     async fn shares_delete_project(&self, project: &str) -> DbResult<()>;

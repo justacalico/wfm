@@ -91,7 +91,9 @@ async fn pull_file(
         return Err(format!("download {rel}: http {}", resp.status()));
     }
     // Stream to disk: media files can be several GB.
-    let mut f = tokio::fs::File::create(dest).await.map_err(|e| e.to_string())?;
+    let mut f = tokio::fs::File::create(dest)
+        .await
+        .map_err(|e| e.to_string())?;
     let mut body = resp.bytes_stream();
     while let Some(chunk) = body.next().await {
         let chunk = chunk.map_err(|e| e.to_string())?;
@@ -118,7 +120,8 @@ async fn run_job(client: &reqwest::Client, cfg: &WorkerCfg, job: &Job) -> Result
     )
     .await?;
     for m in &spec.media {
-        if let Err(e) = pull_file(client, cfg, job, &m.path, &dir.join("files").join(&m.name)).await {
+        if let Err(e) = pull_file(client, cfg, job, &m.path, &dir.join("files").join(&m.name)).await
+        {
             cleanup(&dir);
             return Err(e);
         }
@@ -176,8 +179,8 @@ async fn run_job(client: &reqwest::Client, cfg: &WorkerCfg, job: &Job) -> Result
         }
     };
 
-    let out_name = files::valid_project_name_or_err(&job.output_name)
-        .unwrap_or_else(|_| "export".into());
+    let out_name =
+        files::valid_project_name_or_err(&job.output_name).unwrap_or_else(|_| "export".into());
     let multi = produced.len() > 1;
     let last_idx = produced.len() - 1;
     for (i, f) in produced.iter().enumerate() {
@@ -189,7 +192,11 @@ async fn run_job(client: &reqwest::Client, cfg: &WorkerCfg, job: &Job) -> Result
             .file_name()
             .map(|n| n.to_string_lossy().into_owned())
             .unwrap_or_default();
-        let name = if multi { base } else { format!("{out_name}{ext}") };
+        let name = if multi {
+            base
+        } else {
+            format!("{out_name}{ext}")
+        };
         // Stream the export from disk instead of buffering it in memory.
         let len = tokio::fs::metadata(f)
             .await

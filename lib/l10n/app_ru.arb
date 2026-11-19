@@ -60,6 +60,7 @@
     }
   },
   "openInFilmcraft": "Открыть",
+  "openScript": "Сценарий",
   "renameProject": "Переименовать проект",
   "displayName": "Отображаемое имя",
   "deleteProject": "Удалить проект",

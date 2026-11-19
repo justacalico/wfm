@@ -6,6 +6,7 @@ pub struct Config {
     pub data_dir: PathBuf,
     pub web_dir: Option<PathBuf>,
     pub filmcraft_dir: Option<PathBuf>,
+    pub scriptcraft_dir: Option<PathBuf>,
     pub max_upload: u64,
     pub secure_cookies: bool,
     pub cors_origins: Vec<String>,
@@ -84,6 +85,13 @@ impl Config {
                     let d = PathBuf::from("filmcraft");
                     d.is_dir().then_some(d)
                 }),
+            scriptcraft_dir: std::env::var("WFM_SCRIPTCRAFT_DIR")
+                .ok()
+                .map(PathBuf::from)
+                .or_else(|| {
+                    let d = PathBuf::from("scriptcraft");
+                    d.is_dir().then_some(d)
+                }),
             max_upload: env_int("WFM_MAX_UPLOAD_MB", 4096) as u64 * 1024 * 1024,
             secure_cookies: env_bool("WFM_SECURE_COOKIES", false),
             cors_origins: env("WFM_CORS_ORIGINS", "")
@@ -125,8 +133,10 @@ impl Config {
                 "--data" => c.data_dir = PathBuf::from(next(&mut i)?),
                 "--web-dir" => c.web_dir = Some(PathBuf::from(next(&mut i)?)),
                 "--filmcraft-dir" => c.filmcraft_dir = Some(PathBuf::from(next(&mut i)?)),
+                "--scriptcraft-dir" => c.scriptcraft_dir = Some(PathBuf::from(next(&mut i)?)),
                 "--max-upload-mb" => {
-                    c.max_upload = next(&mut i)?.parse::<u64>().map_err(|e| e.to_string())? * 1024 * 1024
+                    c.max_upload =
+                        next(&mut i)?.parse::<u64>().map_err(|e| e.to_string())? * 1024 * 1024
                 }
                 "--secure-cookies" => c.secure_cookies = true,
                 "--cors-origins" => {
@@ -157,10 +167,10 @@ impl Config {
                 "--audit-days" => {
                     c.audit_days = next(&mut i)?.parse::<i64>().map_err(|e| e.to_string())?
                 }
-                "--lock-ttl" => c.lock_ttl = next(&mut i)?.parse::<i64>().map_err(|e| e.to_string())?,
-                "--trusted-proxies" => {
-                    c.trusted_proxies = crate::auth::parse_nets(&next(&mut i)?)?
+                "--lock-ttl" => {
+                    c.lock_ttl = next(&mut i)?.parse::<i64>().map_err(|e| e.to_string())?
                 }
+                "--trusted-proxies" => c.trusted_proxies = crate::auth::parse_nets(&next(&mut i)?)?,
                 "--worker" => {
                     let server = next(&mut i)?;
                     // Trailing positionals stop at the next flag: with
@@ -184,9 +194,7 @@ impl Config {
                             return Err("--worker: too many arguments".into());
                         }
                         (None, []) => {
-                            return Err(
-                                "--worker: missing token (arg or WFM_WORKER_TOKEN)".into()
-                            );
+                            return Err("--worker: missing token (arg or WFM_WORKER_TOKEN)".into());
                         }
                         (None, [t]) | (None, [t, _]) => {
                             eprintln!(
@@ -228,7 +236,7 @@ impl Config {
                          --trusted-proxies LIST honor X-Forwarded-For from these proxies\n\
                          --worker URL [TOKEN] [NAME]  run as a remote render node\n\
                                                     (token via WFM_WORKER_TOKEN preferred)\n\
-                         Env: WFM_ADDR WFM_DATA WFM_DB WFM_WEB_DIR WFM_FILMCRAFT_DIR \
+                         Env: WFM_ADDR WFM_DATA WFM_DB WFM_WEB_DIR WFM_FILMCRAFT_DIR WFM_SCRIPTCRAFT_DIR \
                          WFM_MAX_UPLOAD_MB WFM_SECURE_COOKIES WFM_CORS_ORIGINS \
                          WFM_RENDER_WORKERS WFM_FILMCRAFT_CLI WFM_LOCAL_RENDERS \
                          WFM_SESSION_DAYS WFM_LOCK_TTL WFM_WORKER_TOKEN \
