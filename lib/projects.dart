@@ -566,6 +566,7 @@ class ProjectPage extends StatefulWidget {
 
 class _ProjectPageState extends State<ProjectPage> {
   int _tab = 0;
+  String _filesPath = '';
   late Project _p = widget.project;
 
   @override
@@ -574,6 +575,7 @@ class _ProjectPageState extends State<ProjectPage> {
     if (!identical(old.project, widget.project)) {
       _p = widget.project;
       _tab = 0;
+      _filesPath = '';
     }
   }
 
@@ -817,7 +819,8 @@ class _ProjectPageState extends State<ProjectPage> {
         ),
       ),
       body: _tab == 0
-          ? FilesTab(project: _p)
+          ? FilesTab(
+              project: _p, path: _filesPath, onPath: (p) => _filesPath = p)
           : _tab == 1
               ? RendersTab(project: _p)
               : CommentsTab(project: _p),
@@ -861,7 +864,10 @@ IconData fileIcon(FileEntry e) {
 
 class FilesTab extends StatefulWidget {
   final Project project;
-  const FilesTab({super.key, required this.project});
+  final String path;
+  final ValueChanged<String>? onPath;
+  const FilesTab(
+      {super.key, required this.project, this.path = '', this.onPath});
   @override
   State<FilesTab> createState() => _FilesTabState();
 }
@@ -878,6 +884,7 @@ class _FilesTabState extends State<FilesTab> {
   @override
   void initState() {
     super.initState();
+    _path = widget.path;
     SharedPreferences.getInstance().then((p) {
       final v = p.getInt('filesView');
       if (v != null && mounted) setState(() => _view = v);
@@ -885,6 +892,16 @@ class _FilesTabState extends State<FilesTab> {
     _load();
     _loadUsage();
     installDropHandler(_enqueue);
+  }
+
+  @override
+  void didUpdateWidget(FilesTab old) {
+    super.didUpdateWidget(old);
+    if (widget.path != _path) {
+      _path = widget.path;
+      _items = null;
+      _load();
+    }
   }
 
   void _setView(int v) {
@@ -972,6 +989,7 @@ class _FilesTabState extends State<FilesTab> {
 
   void _go(String path) {
     _path = path;
+    widget.onPath?.call(path);
     _items = null;
     _load();
   }
@@ -1192,6 +1210,8 @@ class _FilesTabState extends State<FilesTab> {
                     ? Center(child: Text(l10n.emptyFolder))
                     : _view == 1
                         ? GridView.extent(
+                            key: PageStorageKey(
+                                'files-grid-${widget.project.id}-$_path'),
                             maxCrossAxisExtent: 220,
                             childAspectRatio: 1.5,
                             mainAxisSpacing: 8,
@@ -1202,6 +1222,8 @@ class _FilesTabState extends State<FilesTab> {
                             ],
                           )
                         : ListView.builder(
+                            key: PageStorageKey(
+                                'files-list-${widget.project.id}-$_path'),
                             itemCount: _items!.length,
                             itemBuilder: (c, i) => _tile(c, l10n, _items![i]),
                           ),
