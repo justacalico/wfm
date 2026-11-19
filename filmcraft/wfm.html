@@ -70,7 +70,7 @@ const clientId = (() => {
   const h = [...b].map(x => x.toString(16).padStart(2, "0")).join("");
   return h.slice(0, 8) + "-" + h.slice(8, 12) + "-" + h.slice(12, 16) + "-" + h.slice(16, 20) + "-" + h.slice(20);
 })();
-let csrf = "", dirty = false, docSent = false, pending = 0, docName = "project.fcproj", docErrors = 0;
+let csrf = "", dirty = false, docSent = false, pending = 0, docName = "project.fcproj", docErrors = 0, lockLost = false;
 const FMT_EXT = {
   h264: ".mp4", hevc: ".mp4", prores: ".mov", dnxhr: ".mov", apv: ".mp4",
   mjpeg: ".avi", "mxf-op1a": ".mxf", "mxf-opatom": ".mxf",
@@ -139,7 +139,15 @@ async function boot() {
 
 function heartbeat() {
   api("/projects/" + projectId + "/locks/heartbeat", { method: "POST",
-    headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "edit", clientId }) });
+    headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "edit", clientId }) })
+    .then(r => { if (r.status === 409) loseLock(); })
+    .catch(() => {});
+}
+
+function loseLock() {
+  if (lockLost) return;
+  lockLost = true;
+  overlay("This project was taken over in another tab or device. Changes here will no longer be saved.", [["Close tab", () => window.close()]]);
 }
 
 window.addEventListener("message", async (ev) => {
@@ -291,6 +299,7 @@ async function handleSave(d) {
   } else if (!path.startsWith("Raw/")) {
     path = "Exports/" + path.replace(/^.*\//, "");
   }
+  if (path === "project.fcproj" && (renderId || lockLost)) return;
   pending++;
   try {
     if (media) {
@@ -305,7 +314,7 @@ async function handleSave(d) {
         uplRemove(path, 800);
       }
     } else {
-      const r = await api("/projects/" + projectId + "/files?path=" + encodeURIComponent(path), {
+      const r = await api("/projects/" + projectId + "/files?path=" + encodeURIComponent(path) + "&clientId=" + encodeURIComponent(clientId), {
         method: "PUT", body: d.bytes
       });
       if (!r.ok) toast("Save failed: " + (await r.text()));
