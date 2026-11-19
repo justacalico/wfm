@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.14.0 - 2026-11-19
+#### Features
+- rename project card Open action to Edit - (9fb2a0b) - calico, *Devin*
+
+- - -
+
 ## v0.13.1 - 2026-11-19
 #### Bug Fixes
 - read filmcraft:open names before the host crate's basename clean - (d5f8477) - calico, *Devin*
