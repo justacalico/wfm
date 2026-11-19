@@ -245,6 +245,44 @@ void main() {
       expect(find.byType(FilesTab), findsOneWidget);
       await t.pumpWidget(const SizedBox());
     });
+
+    testWidgets('files tab keeps its folder across tab switches', (t) async {
+      final asked = <String>[];
+      installApi(extra: {
+        'GET /api/projects/p1/files': (req) {
+          asked.add(req.url.queryParameters['path'] ?? '');
+          return asked.last == ''
+              ? [
+                  {'name': 'Images', 'path': 'Images', 'type': 'dir'}
+                ]
+              : [];
+        },
+      });
+      await pump(t, ProjectPage(project: p1));
+      await t.tap(find.text('Images'));
+      await settle(t);
+      expect(find.text('Empty folder'), findsOneWidget);
+      await t.tap(find.text('Renders'));
+      await settle(t);
+      await t.tap(find.text('Files'));
+      await settle(t);
+      expect(asked.last, 'Images');
+      expect(find.text('Images'), findsOneWidget);
+    });
+
+    testWidgets('files tab follows a host-driven path change', (t) async {
+      final asked = <String>[];
+      installApi(extra: {
+        'GET /api/projects/p1/files': (req) {
+          asked.add(req.url.queryParameters['path'] ?? '');
+          return [];
+        },
+      });
+      await pump(t, FilesTab(project: p1, path: 'Images', onPath: (_) {}));
+      expect(asked.last, 'Images');
+      await pump(t, FilesTab(project: p1, path: '', onPath: (_) {}));
+      expect(asked.last, '');
+    });
   });
 
   group('RenderDialog leftovers', () {
