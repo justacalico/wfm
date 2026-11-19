@@ -1,12 +1,13 @@
 FROM ghcr.io/cirruslabs/flutter:stable AS web
 WORKDIR /app
 COPY pubspec.yaml pubspec.lock l10n.yaml ./
+COPY LICENSE ./
 COPY lib/ ./lib/
 COPY assets/ ./assets/
 COPY web/ ./web/
 RUN flutter pub get && flutter build web --release --base-href /app/ --no-web-resources-cdn
 
-FROM rust:1-slim AS filmcraft
+FROM rust:1-slim-bookworm AS filmcraft
 RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates curl && rm -rf /var/lib/apt/lists/*
 RUN rustup target add wasm32-unknown-unknown \
  && curl -fsSL https://github.com/rustwasm/wasm-bindgen/releases/download/0.2.129/wasm-bindgen-0.2.129-x86_64-unknown-linux-musl.tar.gz | tar -xz -C /opt \
@@ -19,9 +20,36 @@ WORKDIR /fc/src
 RUN for p in /wfm/patches/*.patch; do git apply "$p"; done && cargo xtask web \
  && cargo build --release -p filmcraft-cli
 
-FROM rust:1-slim AS build
+FROM rust:1-slim-bookworm AS scriptcraft
+RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates curl && rm -rf /var/lib/apt/lists/*
+RUN rustup target add wasm32-unknown-unknown \
+ && curl -fsSL https://github.com/rustwasm/wasm-bindgen/releases/download/0.2.129/wasm-bindgen-0.2.129-x86_64-unknown-linux-musl.tar.gz | tar -xz -C /opt \
+ && ln -s /opt/wasm-bindgen-0.2.129-x86_64-unknown-linux-musl/wasm-bindgen /usr/local/bin/wasm-bindgen
+WORKDIR /sc
+COPY scriptcraft/VERSION /wfm/VERSION
+COPY scriptcraft/patches/ /wfm/patches/
+RUN git clone --depth 1 --branch "v$(cat /wfm/VERSION)" https://github.com/NoJuanNobody/scriptcraft /sc/src
+WORKDIR /sc/src
+RUN for p in /wfm/patches/*.patch; do git apply "$p"; done && cargo xtask web
+
+FROM rust:1-slim-bookworm AS deckcraft
+RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates curl && rm -rf /var/lib/apt/lists/*
+RUN rustup target add wasm32-unknown-unknown \
+ && mkdir -p /opt/trunk \
+ && curl -fsSL https://github.com/trunk-rs/trunk/releases/download/v0.21.14/trunk-x86_64-unknown-linux-gnu.tar.gz | tar -xz -C /opt/trunk \
+ && ln -s /opt/trunk/trunk /usr/local/bin/trunk
+WORKDIR /dc
+COPY deckcraft/VERSION /wfm/VERSION
+COPY deckcraft/patches/ /wfm/patches/
+RUN git clone --depth 1 --branch "v$(cat /wfm/VERSION)" https://github.com/storytold/deckcraft /dc/src
+WORKDIR /dc/src
+RUN for p in /wfm/patches/*.patch; do [ -e "$p" ] || continue; git apply "$p"; done \
+ && (cd apps/deckcraft-web && trunk build --release)
+
+FROM rust:1-slim-bookworm AS build
 WORKDIR /src
 COPY server/ ./server/
+COPY filmcraft/shortcuts.json ./filmcraft/shortcuts.json
 COPY --from=web /app/build/web ./server/web/app/
 WORKDIR /src/server
 RUN cargo build --release --features postgres
@@ -34,7 +62,11 @@ COPY --from=build /src/server/target/release/wfm /app/wfm
 COPY --from=filmcraft /fc/src/target/release/filmcraft-cli /usr/local/bin/filmcraft-cli
 COPY filmcraft/ /app/filmcraft/
 COPY --from=filmcraft /fc/src/target/web/dist /app/filmcraft/dist
-ENV WFM_ADDR=0.0.0.0:8080 WFM_DATA=/data WFM_FILMCRAFT_DIR=/app/filmcraft WFM_FILMCRAFT_CLI=/usr/local/bin/filmcraft-cli
+COPY scriptcraft/ /app/scriptcraft/
+COPY --from=scriptcraft /sc/src/apps/scriptcraft-web/dist /app/scriptcraft/dist
+COPY deckcraft/ /app/deckcraft/
+COPY --from=deckcraft /dc/src/dist/web /app/deckcraft/dist
+ENV WFM_ADDR=0.0.0.0:8080 WFM_DATA=/data WFM_FILMCRAFT_DIR=/app/filmcraft WFM_FILMCRAFT_CLI=/usr/local/bin/filmcraft-cli WFM_SCRIPTCRAFT_DIR=/app/scriptcraft WFM_DECKCRAFT_DIR=/app/deckcraft
 EXPOSE 8080
 VOLUME /data
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
