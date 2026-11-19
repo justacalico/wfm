@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.17.0 - 2026-11-19
+#### Features
+- default new renders to the device and reorder advanced options - (bc408d8) - calico
+
+- - -
+
 ## v0.16.0 - 2026-11-19
 #### Features
 - show Loading media while FilmCraft restores host media - (54faf33) - calico, *Devin*
