@@ -1,0 +1,332 @@
+diff --git a/apps/filmcraft-web/Cargo.toml b/apps/filmcraft-web/Cargo.toml
+index 229cec6..b174a3a 100644
+--- a/apps/filmcraft-web/Cargo.toml
++++ b/apps/filmcraft-web/Cargo.toml
+@@ -78,6 +78,7 @@ web-sys = { version = "0.3", features = [
+     "OffscreenCanvas",
+     "OffscreenCanvasRenderingContext2d",
+     "Performance",
++    "RequestInit",
+     "Response",
+     "StorageManager",
+     "Url",
+@@ -85,3 +86,6 @@ web-sys = { version = "0.3", features = [
+     "Window",
+     "WritableStream",
+ ] }
++
++[dev-dependencies]
++serde_json = { workspace = true }
+diff --git a/apps/filmcraft-web/src/fs.rs b/apps/filmcraft-web/src/fs.rs
+index 7c3fcb0..4b00be3 100644
+--- a/apps/filmcraft-web/src/fs.rs
++++ b/apps/filmcraft-web/src/fs.rs
+@@ -33,6 +33,8 @@ const WHOLE_FILE_MAX: u64 = 256 << 20;
+ 
+ enum Entry {
+     Blob { id: u32, size: u64 },
++    /// A host's file that stayed on the server: chunks arrive over HTTP range fetches.
++    Remote { id: u32, size: u64 },
+     Mem(Arc<[u8]>),
+ }
+ 
+@@ -40,6 +42,8 @@ enum Entry {
+ struct Fs {
+     entries: HashMap<String, Entry>,
+     blobs: HashMap<u32, web_sys::Blob>,
++    /// `id` → (url, size) for remote entries, fetched in [`CHUNK`] ranges.
++    remote: HashMap<u32, (Rc<str>, u64)>,
+     next_id: u32,
+     chunks: HashMap<(u32, u64), (Arc<[u8]>, u64)>,
+     bytes: usize,
+@@ -73,23 +77,27 @@ fn file_name(path: &str) -> &str {
+ 
+ /// Register a browser `File` (or named `Blob`) at an unused virtual path; collisions get numbered names.
+ /// Name + size do not identify content: replacing an occupied path changes every project item referencing it.
++fn free_path(fs: &Fs, clean: &str) -> String {
++    let (stem, ext) = match clean.rfind('.') {
++        Some(i) if i > 0 => (&clean[..i], &clean[i..]),
++        _ => (clean, ""),
++    };
++    let mut n = 1;
++    loop {
++        let p = if n == 1 { format!("/files/{clean}") } else { format!("/files/{stem} ({n}){ext}") };
++        if !fs.entries.contains_key(&p) {
++            return p;
++        }
++        n += 1;
++    }
++}
++
+ pub fn register_blob(name: &str, blob: web_sys::Blob) -> String {
+     let size = blob.size() as u64;
+     let clean: String = name.chars().map(|c| if c == '/' || c == '\\' { '_' } else { c }).collect();
+     FS.with(|fs| {
+         let mut fs = fs.borrow_mut();
+-        let (stem, ext) = match clean.rfind('.') {
+-            Some(i) if i > 0 => (clean[..i].to_string(), clean[i..].to_string()),
+-            _ => (clean.clone(), String::new()),
+-        };
+-        let mut n = 1;
+-        let path = loop {
+-            let p = if n == 1 { format!("/files/{clean}") } else { format!("/files/{stem} ({n}){ext}") };
+-            if !fs.entries.contains_key(&p) {
+-                break p;
+-            }
+-            n += 1;
+-        };
++        let path = free_path(&fs, &clean);
+         let id = fs.next_id;
+         fs.next_id += 1;
+         fs.blobs.insert(id, blob);
+@@ -99,6 +107,22 @@ pub fn register_blob(name: &str, blob: web_sys::Blob) -> String {
+     })
+ }
+ 
++/// Register a file the host keeps on its server at `url` (same-origin, session-authenticated):
++/// a virtual entry like a Blob's, but its chunks come from HTTP range fetches — nothing is
++/// pulled until something reads it.
++pub fn register_remote(name: &str, url: &str, size: u64) -> String {
++    let clean: String = name.chars().map(|c| if c == '/' || c == '\\' { '_' } else { c }).collect();
++    FS.with(|fs| {
++        let mut fs = fs.borrow_mut();
++        let path = free_path(&fs, &clean);
++        let id = fs.next_id;
++        fs.next_id += 1;
++        fs.remote.insert(id, (Rc::from(url), size));
++        fs.entries.insert(path.clone(), Entry::Remote { id, size });
++        path
++    })
++}
++
+ /// Put bytes at a path (no download).
+ pub fn put(path: &str, data: Vec<u8>) {
+     FS.with(|fs| fs.borrow_mut().entries.insert(path.to_string(), Entry::Mem(data.into())));
+@@ -123,6 +147,7 @@ pub fn list() -> Vec<(String, u64, &'static str)> {
+             .iter()
+             .map(|(p, e)| match e {
+                 Entry::Blob { size, .. } => (p.clone(), *size, "blob"),
++                Entry::Remote { size, .. } => (p.clone(), *size, "remote"),
+                 Entry::Mem(b) => (p.clone(), b.len() as u64, "memory"),
+             })
+             .collect();
+@@ -138,6 +163,7 @@ pub fn blob(path: &str) -> Option<web_sys::Blob> {
+         match fs.entries.get(path)? {
+             Entry::Blob { id, .. } => fs.blobs.get(id).cloned(),
+             Entry::Mem(b) => bytes_to_blob(b, "application/octet-stream").ok(),
++            Entry::Remote { .. } => None,
+         }
+     })
+ }
+@@ -175,7 +201,7 @@ pub async fn sleep(ms: i32) {
+ /// Load `[a, b)` of a registered Blob into the chunk cache (import prewarm: container index).
+ pub async fn prefetch(path: &str, a: u64, b: u64) {
+     let Some((id, size)) = FS.with(|fs| match fs.borrow().entries.get(path) {
+-        Some(Entry::Blob { id, size }) => Some((*id, *size)),
++        Some(Entry::Blob { id, size }) | Some(Entry::Remote { id, size }) => Some((*id, *size)),
+         _ => None,
+     }) else {
+         return;
+@@ -212,32 +238,64 @@ impl Fs {
+     }
+ }
+ 
++/// `[a, b)` of a remote file, from the host's ranged download.
++async fn fetch_range(url: &str, a: u64, b: u64) -> Result<Vec<u8>, wasm_bindgen::JsValue> {
++    let w = web_sys::window().ok_or_else(|| wasm_bindgen::JsValue::from_str("no window"))?;
++    let init = web_sys::RequestInit::new();
++    let headers = js_sys::Object::new();
++    js_sys::Reflect::set(
++        &headers,
++        &wasm_bindgen::JsValue::from_str("Range"),
++        &wasm_bindgen::JsValue::from_str(&format!("bytes={a}-{}", b.saturating_sub(1))),
++    )?;
++    init.set_headers(&headers);
++    let resp: web_sys::Response = JsFuture::from(w.fetch_with_str_and_init(url, &init)).await?.dyn_into()?;
++    if !resp.ok() {
++        return Err(wasm_bindgen::JsValue::from_str(&format!("GET {url}: status {}", resp.status())));
++    }
++    let buf = JsFuture::from(resp.array_buffer()?).await?;
++    Ok(js_sys::Uint8Array::new(&buf).to_vec())
++}
++
+ /// Start fetching chunk `c` of blob `id` unless it is cached or already on its way.
+ fn request(id: u32, c: u64) {
+-    let blob = FS.with(|fs| {
++    enum Src {
++        Blob(web_sys::Blob),
++        Url(Rc<str>, u64),
++    }
++    let src = FS.with(|fs| {
+         let mut fs = fs.borrow_mut();
+         if fs.chunks.contains_key(&(id, c)) || fs.inflight.contains(&(id, c)) {
+             return None;
+         }
+-        let blob = fs.blobs.get(&id)?.clone();
++        let src = fs
++            .blobs
++            .get(&id)
++            .cloned()
++            .map(Src::Blob)
++            .or_else(|| fs.remote.get(&id).map(|(u, s)| Src::Url(u.clone(), *s)))?;
+         fs.failed.remove(&(id, c));
+         fs.inflight.insert((id, c));
+-        Some(blob)
++        Some(src)
+     });
+-    let Some(blob) = blob else { return };
+-    let size = blob.size() as u64;
+-    let (a, b) = (c * CHUNK, ((c + 1) * CHUNK).min(size));
+-    let fut = blob.slice_with_f64_and_f64(a as f64, b as f64).map(|s| JsFuture::from(s.array_buffer()));
++    let Some(src) = src else { return };
+     wasm_bindgen_futures::spawn_local(async move {
+-        let r = match fut {
+-            Ok(f) => f.await.map(|buf| js_sys::Uint8Array::new(&buf).to_vec()),
+-            Err(e) => Err(e),
++        let r: Result<Vec<u8>, wasm_bindgen::JsValue> = match src {
++            Src::Blob(blob) => {
++                let size = blob.size() as u64;
++                let (a, b) = (c * CHUNK, ((c + 1) * CHUNK).min(size));
++                match blob.slice_with_f64_and_f64(a as f64, b as f64) {
++                    Ok(s) => JsFuture::from(s.array_buffer()).await.map(|buf| js_sys::Uint8Array::new(&buf).to_vec()),
++                    Err(e) => Err(e),
++                }
++            }
++            Src::Url(url, size) => fetch_range(&url, c * CHUNK, ((c + 1) * CHUNK).min(size)).await,
+         };
+         let wake = FS.with(|fs| {
+             let mut fs = fs.borrow_mut();
+             fs.inflight.remove(&(id, c));
+             // a blob replaced or dropped meanwhile: discard
+-            if fs.blobs.contains_key(&id) {
++            if fs.blobs.contains_key(&id) || fs.remote.contains_key(&id) {
+                 match r {
+                     Ok(v) => {
+                         fs.clock += 1;
+@@ -329,7 +387,9 @@ pub struct WebServices;
+ impl WebServices {
+     fn entry_reader(path: &str) -> io::Result<SharedReader> {
+         FS.with(|fs| match fs.borrow().entries.get(path) {
+-            Some(Entry::Blob { id, size }) => Ok(Arc::new(BlobReader { id: *id, size: *size }) as SharedReader),
++            Some(Entry::Blob { id, size }) | Some(Entry::Remote { id, size }) => {
++                Ok(Arc::new(BlobReader { id: *id, size: *size }) as SharedReader)
++            }
+             Some(Entry::Mem(b)) => Ok(Arc::new(MemReader(b.clone())) as SharedReader),
+             None => Err(not_found(path)),
+         })
+@@ -415,7 +475,7 @@ impl Services for WebServices {
+                     Some(_) => {}
+                     None => {
+                         let size = match e {
+-                            Entry::Blob { size, .. } => *size,
++                            Entry::Blob { size, .. } | Entry::Remote { size, .. } => *size,
+                             Entry::Mem(b) => b.len() as u64,
+                         };
+                         files.push(DirEntry { name: rest.to_string(), is_dir: false, size: Some(size), modified: None });
+diff --git a/apps/filmcraft-web/src/host.rs b/apps/filmcraft-web/src/host.rs
+index 82bef4a..6927ef7 100644
+--- a/apps/filmcraft-web/src/host.rs
++++ b/apps/filmcraft-web/src/host.rs
+@@ -55,7 +55,7 @@ use craft_web_host::web::{FileData, Host, Message};
+ use serde_json::{Value, json};
+ use filmcraft_engine::Session;
+ 
+-use crate::hostmode::{MAX_OPEN_BYTES, PROJECT_OPEN_MAX, is_project, is_save_as, open_name, open_size_ok, project_open_ok};
++use crate::hostmode::{MAX_OPEN_BYTES, PROJECT_OPEN_MAX, is_project, is_save_as, media_ref, open_name, open_size_ok, project_open_ok, wfm_meta};
+ 
+ /// The app id in the host messages (`filmcraft:ready`).
+ const APP: &str = "filmcraft";
+@@ -224,7 +224,7 @@ fn deliver_open(bridge: &Bridge, name0: &str, data: &FileData) {
+         return rejected_open(format!("{len} bytes is over the {} MiB host open limit", MAX_OPEN_BYTES >> 20));
+     }
+     let mut name = String::new();
+-    if let Some(meta) = serde_json::from_str::<Value>(name0.strip_prefix("wfm:").unwrap_or("")).ok() {
++    if let Some(meta) = wfm_meta(name0) {
+         match meta["k"].as_str() {
+             Some("folder") => {
+                 // `{"k":"folder","p":"dir/dir"}`, `/` delimited: server names allow `:`.
+@@ -253,6 +253,23 @@ fn deliver_open(bridge: &Bridge, name0: &str, data: &FileData) {
+                 });
+                 return;
+             }
++            Some("media-ref") => {
++                // `{"k":"media-ref","p":"dir/dir/file","u":"…","s":bytes}`: the file stays on
++                // the server; it registers remote so only the chunks actually read are fetched.
++                let Some((p, url, size)) = media_ref(&meta) else { return };
++                let dirs = p.rsplit_once('/').map(|(d, _)| d).unwrap_or("").split('/').filter(|d| !d.is_empty()).map(str::to_string).collect::<Vec<_>>();
++                let clean: String = p.chars().map(|c| if c == '/' || c == '\\' { '_' } else { c }).collect();
++                let path = crate::fs::register_remote(&clean, &url, size);
++                let mut paths = vec![path.clone()];
++                if let Some(base) = p.rsplit('/').next().filter(|b| *b != clean) {
++                    paths.push(crate::fs::register_remote(base, &url, size));
++                }
++                RESTORED.with(|r| r.borrow_mut().push((paths, dirs)));
++                wasm_bindgen_futures::spawn_local(async move {
++                    crate::import::prewarm(&path, size).await;
++                });
++                return;
++            }
+             Some("doc") => {
+                 if let Some(n) = meta["n"].as_str() {
+                     name = open_name(n);
+diff --git a/apps/filmcraft-web/src/hostmode.rs b/apps/filmcraft-web/src/hostmode.rs
+index a839a68..92bfae4 100644
+--- a/apps/filmcraft-web/src/hostmode.rs
++++ b/apps/filmcraft-web/src/hostmode.rs
+@@ -54,3 +54,20 @@ pub fn project_open_ok(len: u64) -> bool {
+ pub fn is_save_as(write: &str, host_document: Option<&str>, project_path: Option<&str>) -> bool {
+     host_document != Some(write) && project_path == Some(write)
+ }
++
++/// The `wfm:` metadata a WFM host rides in an open request's name (`wfm:{"k":…}`): the
++/// parsed object, or `None` for a plain file name.
++pub fn wfm_meta(name: &str) -> Option<serde_json::Value> {
++    serde_json::from_str::<serde_json::Value>(name.strip_prefix("wfm:")?)
++        .ok()
++        .filter(|v| v.is_object())
++}
++
++/// What a `wfm:` `media-ref` message names: the file's path in the project's tree, the URL its
++/// bytes come from (same-origin; reads fetch byte ranges), and its size in bytes. `None` for a
++/// malformed one — an open request it can't act on.
++pub fn media_ref(meta: &serde_json::Value) -> Option<(String, String, u64)> {
++    let p = meta["p"].as_str().filter(|p| !p.is_empty())?;
++    let url = meta["u"].as_str().filter(|u| !u.is_empty())?;
++    Some((p.to_string(), url.to_string(), meta["s"].as_u64().unwrap_or(0)))
++}
+diff --git a/apps/filmcraft-web/tests/it/hostmode.rs b/apps/filmcraft-web/tests/it/hostmode.rs
+index 9a0c69c..329eff0 100644
+--- a/apps/filmcraft-web/tests/it/hostmode.rs
++++ b/apps/filmcraft-web/tests/it/hostmode.rs
+@@ -4,7 +4,7 @@
+ #[path = "../../src/hostmode.rs"]
+ mod rules;
+ 
+-use rules::{DEFAULT_OPEN_NAME, MAX_OPEN_BYTES, PROJECT_OPEN_MAX, is_project, is_save_as, open_name, open_size_ok, project_open_ok};
++use rules::{DEFAULT_OPEN_NAME, MAX_OPEN_BYTES, PROJECT_OPEN_MAX, is_project, is_save_as, media_ref, open_name, open_size_ok, project_open_ok, wfm_meta};
+ 
+ #[test]
+ fn open_names_fall_back_to_the_default_and_lose_path_separators() {
+@@ -55,3 +55,22 @@ fn a_project_over_256_mib_is_refused_before_it_would_be_copied() {
+     assert!(open_size_ok(PROJECT_OPEN_MAX + 1), "media may still be that large, as a Blob");
+     assert_eq!(PROJECT_OPEN_MAX >> 20, 256);
+ }
++
++#[test]
++fn wfm_meta_reads_the_hosts_json_and_ignores_plain_names() {
++    assert!(wfm_meta("Trailer.fcproj").is_none());
++    assert!(wfm_meta("wfm:not-json").is_none());
++    assert!(wfm_meta("wfm:3").is_none(), "a scalar is not a message");
++    let m = wfm_meta(r#"wfm:{"k":"doc","n":"x.fcproj"}"#).unwrap();
++    assert_eq!(m["k"], "doc");
++}
++
++#[test]
++fn media_refs_need_a_path_and_a_url() {
++    let m = wfm_meta(r#"wfm:{"k":"media-ref","p":"Raw/a.mp4","u":"/api/p1/download?path=Raw%2Fa.mp4","s":12}"#).unwrap();
++    assert_eq!(media_ref(&m), Some(("Raw/a.mp4".into(), "/api/p1/download?path=Raw%2Fa.mp4".into(), 12u64)));
++    assert!(media_ref(&serde_json::json!({"k": "media-ref", "p": "", "u": "/x"})).is_none());
++    assert!(media_ref(&serde_json::json!({"k": "media-ref", "p": "a.mp4"})).is_none());
++    let (p, u, s) = media_ref(&serde_json::json!({"p": "a.mp4", "u": "/x"})).unwrap();
++    assert_eq!((p.as_str(), u.as_str(), s), ("a.mp4", "/x", 0), "a missing size reads as empty");
++}

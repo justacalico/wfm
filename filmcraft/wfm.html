@@ -196,9 +196,7 @@ async function sendDoc() {
       .filter(e => e.type !== "dir" && !e.path.startsWith("Exports/") && !e.name.endsWith(".fcproj") && MEDIA_EXT.test(e.name))
       .sort((a, b) => (a.path < b.path ? -1 : 1));
     for (const m of media) {
-      const r = await api("/projects/" + projectId + "/download?path=" + encodeURIComponent(m.path));
-      if (r.ok) send({ k: "media", p: m.path }, await r.arrayBuffer());
-      else { docErrors++; }
+      send({ k: "media-ref", p: m.path, s: m.size, u: API + "/projects/" + projectId + "/download?path=" + encodeURIComponent(m.path) }, new ArrayBuffer(0));
     }
   } catch (_) { docErrors++; }
   const hasDoc = entries.some(e => e.type !== "dir" && e.path === "project.fcproj");
