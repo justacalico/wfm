@@ -31,6 +31,8 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/logout", post(logout))
         .route("/me", get(me))
         .route("/me/password", post(change_password))
+        .route("/sessions", get(list_sessions))
+        .route("/sessions/{id}", delete(delete_session))
         .route("/roles", get(roles))
         .route("/accounts", get(list_accounts).post(create_account))
         .route(
@@ -284,6 +286,37 @@ async fn login(
         .unwrap(),
     );
     r
+}
+
+async fn list_sessions(State(s): State<Arc<AppState>>, session: Session) -> Response {
+    match s.db.list_sessions(&session.user.id).await {
+        Ok(rows) => {
+            let out: Vec<_> = rows
+                .into_iter()
+                .map(|r| {
+                    let mut v = serde_json::to_value(&r).unwrap_or_default();
+                    v["current"] = json!(r.id == session.token_hash);
+                    v
+                })
+                .collect();
+            Json(json!(out)).into_response()
+        }
+        Err(e) => db_resp(e),
+    }
+}
+
+async fn delete_session(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Path(id): Path<String>,
+) -> Response {
+    if id == session.token_hash {
+        return err(StatusCode::BAD_REQUEST, "cannot revoke the current session");
+    }
+    if let Err(e) = s.db.delete_user_session(&session.user.id, &id).await {
+        return db_resp(e);
+    }
+    Json(json!({"ok": true})).into_response()
 }
 
 async fn logout(State(s): State<Arc<AppState>>, parts: axum::http::request::Parts) -> Response {

@@ -388,7 +388,10 @@ impl Db for SqliteDb {
                     )
                     .optional()?;
                 match row {
-                    Some((uid, csrf, exp)) if exp > now => Ok(Some((uid, csrf))),
+                    Some((uid, csrf, exp)) if exp > now => {
+                        c.execute("UPDATE sessions SET last_seen=? WHERE token_hash=?", params![now, th])?;
+                        Ok(Some((uid, csrf)))
+                    }
                     Some(_) => {
                         c.execute("DELETE FROM sessions WHERE token_hash=?", [&th])?;
                         Ok(None)
@@ -415,6 +418,38 @@ impl Db for SqliteDb {
             .await
             .map(|_| ())
             .map_err(dberr)
+    }
+
+    async fn list_sessions(&self, user_id: &str) -> DbResult<Vec<SessionInfo>> {
+        let uid = user_id.to_string();
+        self.q(move |c| {
+                let mut st = c.prepare(
+                    "SELECT token_hash,ip,ua,created_at,expires_at,last_seen FROM sessions WHERE user_id=? ORDER BY created_at DESC",
+                )?;
+                let rows = st
+                    .query_map([&uid], |r| {
+                        Ok(SessionInfo {
+                            id: r.get(0)?,
+                            ip: r.get(1)?,
+                            ua: r.get(2)?,
+                            created_at: r.get(3)?,
+                            expires_at: r.get(4)?,
+                            last_seen: r.get(5)?,
+                        })
+                    })?
+                    .collect::<rusqlite::Result<Vec<_>>>()?;
+                Ok(rows)
+            })
+            .await
+            .map_err(dberr)
+    }
+
+    async fn delete_user_session(&self, user_id: &str, token_hash: &str) -> DbResult<()> {
+        let (uid, th) = (user_id.to_string(), token_hash.to_string());
+        self.q(move |c| c.execute("DELETE FROM sessions WHERE user_id=? AND token_hash=?", params![uid, th]))
+            .await
+            .map_err(dberr)?;
+        Ok(())
     }
 
     async fn delete_user_sessions_except(
@@ -1198,5 +1233,36 @@ mod tests {
         db.delete_user("u").await.unwrap();
         assert!(db.user_by_id("u").await.is_err());
         assert!(db.session_user("t", 1).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn list_and_delete_own_sessions() {
+        let db = connect(":memory:").await.unwrap();
+        let u = User {
+            id: "u".into(),
+            username: "u".into(),
+            display_name: "n".into(),
+            role: Role::Student,
+            role_name: "student".into(),
+            student_id: String::new(),
+            note: String::new(),
+            disabled: false,
+            created_by: String::new(),
+            lineage: "/".into(),
+            created_at: 1,
+            last_login: 0,
+        };
+        db.create_user(&u, "h").await.unwrap();
+        db.create_session("t1", "u", "c", 9, "1.2.3.4", "ua").await.unwrap();
+        db.create_session("t2", "u", "c", 9, "", "").await.unwrap();
+        let rows = db.list_sessions("u").await.unwrap();
+        assert_eq!(rows.len(), 2);
+        assert_eq!(rows[0].ip, "1.2.3.4");
+        db.session_user("t1", 1).await.unwrap();
+        assert_eq!(db.list_sessions("u").await.unwrap()[0].last_seen, 1);
+        db.delete_user_session("u", "t1").await.unwrap();
+        let rows = db.list_sessions("u").await.unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].id, "t2");
     }
 }

@@ -310,5 +310,10 @@
     "placeholders": {
       "name": {}
     }
-  }
+  },
+  "sessions": "登录设备",
+  "currentSession": "当前会话",
+  "revoke": "撤销",
+  "revokeSessionBody": "退出此会话？",
+  "sessionLastSeen": "最近活动 {time}"
 }

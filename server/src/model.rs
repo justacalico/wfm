@@ -145,6 +145,19 @@ pub fn tags_split(csv: &str) -> Vec<String> {
 }
 
 #[derive(Clone, Serialize)]
+pub struct SessionInfo {
+    pub id: String,
+    pub ip: String,
+    pub ua: String,
+    #[serde(rename = "createdAt")]
+    pub created_at: i64,
+    #[serde(rename = "expiresAt")]
+    pub expires_at: i64,
+    #[serde(rename = "lastSeen")]
+    pub last_seen: i64,
+}
+
+#[derive(Clone, Serialize)]
 pub struct LockInfo {
     pub holder: String,
     pub label: String,

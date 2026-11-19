@@ -24,5 +24,7 @@
     "placeholders": {
       "name": {}
     }
-  }
+  },
+  "sessions": "Sessions",
+  "revoke": "Revoke"
 }

@@ -310,5 +310,10 @@
     "placeholders": {
       "name": {}
     }
-  }
+  },
+  "sessions": "Sessions",
+  "currentSession": "This session",
+  "revoke": "Revoke",
+  "revokeSessionBody": "Sign out this session?",
+  "sessionLastSeen": "Last seen {time}"
 }

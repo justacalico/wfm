@@ -624,4 +624,21 @@ class AppLocalizationsRu extends AppLocalizations {
   String deleteRenderBody(Object name) {
     return 'Удалить запись рендера «$name»? Экспортированные файлы останутся в проекте.';
   }
+
+  @override
+  String get sessions => 'Сеансы';
+
+  @override
+  String get currentSession => 'Этот сеанс';
+
+  @override
+  String get revoke => 'Отозвать';
+
+  @override
+  String get revokeSessionBody => 'Завершить этот сеанс?';
+
+  @override
+  String sessionLastSeen(Object time) {
+    return 'Активность $time';
+  }
 }

@@ -1,0 +1,1 @@
+ALTER TABLE sessions ADD last_seen INTEGER NOT NULL DEFAULT 0;
