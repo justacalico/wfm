@@ -2,6 +2,57 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.13.0 - 2026-11-19
+#### Features
+- 集成 DeckCraft 故事板 - (8c56f0c) - calico
+- 集成 ScriptCraft 剧本编辑器 - (9773ea8) - calico
+- 管理界面的 Windows/macOS/Linux 桌面端 - (1504b34) - calico
+- 设置页管理 FilmCraft 快捷键 - (8e7016b) - calico
+- 项目评论与送审状态 - (4561868) - calico
+- 项目复制与教师模板 - (595be52) - calico
+- 项目只读分享链接 - (30af54b) - calico
+- 应用内通知收件箱 - (617d929) - calico
+- 存储用量与配额 - (b1295b2) - calico
+- 教师自动共享列表 - (6380fbf) - calico
+- “与我共享”页面与导航角标 - (7a3d409) - calico
+- 按用户名邀请共享项目 - (865fc3e) - calico
+- 邀请码自助注册 - (c0737cc) - calico
+- 分块上传与可配置块大小 - (f64944a) - calico
+- 审计日志保留期、筛选与分页 - (f2b5673) - calico
+- 项目页在壳布局内打开 - (e70dbb3) - calico
+- 用户头像上传与展示 - (ee7b355) - calico
+- 批量文件操作与目录打包下载 - (334d94c) - calico
+- 文件拖拽上传与逐文件进度 - (4a2d233) - calico
+- 文件页媒体缩略图与预览 - (3715ab2) - calico
+- 教师可查看学生项目并接管 - (695d06f) - calico
+- 会话管理列表与撤销 - (db15307) - calico
+- FilmCraft 移除本地项目入口 - (ba049ef) - calico
+- FilmCraft 移除项目设置本地路径页 - (566d1fc) - calico
+- FilmCraft 移除另存为模板 - (0f363d5) - calico
+- FilmCraft 图形菜单改名 - (637ea7a) - calico
+- 渲染列表重试删除与分页 - (50f3918) - calico
+- FilmCraft 只保留编辑模式 - (f1143e4) - calico
+- 精简 FilmCraft 关于对话框 - (5b36f10) - calico
+- 去掉 FilmCraft 顶栏音量和全屏按钮 - (8ea69a7) - calico
+- 设置页显示许可证和 GitLab 链接 - (b96dcd6) - calico
+#### Bug Fixes
+- 移除未跟踪的补丁目录复制 - (9e507c9) - calico
+- 修复 Docker 镜像构建 - (82b2945) - calico
+- 快捷键补丁改为基于最新补丁序列生成 - (2d3e1f8) - calico
+- 补齐 postgres 测试 User 字段 - (d42fbb3) - calico
+- postgres 测试补 avatar 字段 - (9ee9d78) - calico
+- 打开项目时按需拉取媒体 - (ba273a6) - calico
+- 编辑锁丢失时阻止写入并提示 - (ca12c09) - calico
+- FilmCraft 宿主传输改用无歧义格式 - (f09be29) - calico
+- 渲染任务校验缺失媒体与输出文件 - (6bd76da) - calico
+- FilmCraft 仅限宿主模式并校验消息来源 - (c4ec882) - calico
+- FilmCraft 跟随应用主题 - (0878d2f) - calico
+- 隐藏 FilmCraft 项目管理器入口 - (25b467b) - calico
+- 设置页移除上次登录时间 - (9f88460) - calico
+- 补齐测试格式 - (beecfea) - calico
+
+- - -
+
 ## v0.12.0 - 2026-11-18
 #### Features
 - (**projects**) 支持置顶项目 - (dd17a85) - calico
