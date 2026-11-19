@@ -294,6 +294,13 @@
   "extraParams": "Доп. параметры экспорта (JSON)",
   "invalidJson": "Неверный JSON",
   "defaultOption": "По умолчанию",
+  "serverUrl": " ",
+  "connect": "",
+  "connecting": "…",
+  "finishSetupInBrowser": "    .    : {url}.",
+  "@finishSetupInBrowser": {
+    "placeholders": {"url": {"type": "String"}}
+  },
   "serverUnreachable": "Не удаётся связаться с сервером: {error}",
   "@serverUnreachable": {
     "placeholders": {

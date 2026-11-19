@@ -1184,6 +1184,30 @@ abstract class AppLocalizations {
   /// **'Default'**
   String get defaultOption;
 
+  /// No description provided for @serverUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'Server URL'**
+  String get serverUrl;
+
+  /// No description provided for @connect.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect'**
+  String get connect;
+
+  /// No description provided for @connecting.
+  ///
+  /// In en, this message translates to:
+  /// **'Connecting…'**
+  String get connecting;
+
+  /// No description provided for @finishSetupInBrowser.
+  ///
+  /// In en, this message translates to:
+  /// **'This server has no admin account yet. Finish setup in a browser at {url}.'**
+  String finishSetupInBrowser(String url);
+
   /// No description provided for @serverUnreachable.
   ///
   /// In en, this message translates to:

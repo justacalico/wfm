@@ -600,6 +600,20 @@ class AppLocalizationsEn extends AppLocalizations {
   String get defaultOption => 'Default';
 
   @override
+  String get serverUrl => 'Server URL';
+
+  @override
+  String get connect => 'Connect';
+
+  @override
+  String get connecting => 'Connecting…';
+
+  @override
+  String finishSetupInBrowser(String url) {
+    return 'This server has no admin account yet. Finish setup in a browser at $url.';
+  }
+
+  @override
   String serverUnreachable(Object error) {
     return 'Can\'t reach the server: $error';
   }

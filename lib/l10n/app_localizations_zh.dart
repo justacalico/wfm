@@ -597,6 +597,20 @@ class AppLocalizationsZh extends AppLocalizations {
   String get defaultOption => '默认';
 
   @override
+  String get serverUrl => '服务器地址';
+
+  @override
+  String get connect => '连接';
+
+  @override
+  String get connecting => '连接中…';
+
+  @override
+  String finishSetupInBrowser(String url) {
+    return '该服务器还没有管理员账号。请在浏览器中打开 $url 完成初始化。';
+  }
+
+  @override
   String serverUnreachable(Object error) {
     return '无法连接服务器:$error';
   }

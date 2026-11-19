@@ -294,6 +294,13 @@
   "extraParams": "Extra export params (JSON)",
   "invalidJson": "Invalid JSON",
   "defaultOption": "Default",
+  "serverUrl": "Server URL",
+  "connect": "Connect",
+  "connecting": "Connecting…",
+  "finishSetupInBrowser": "This server has no admin account yet. Finish setup in a browser at {url}.",
+  "@finishSetupInBrowser": {
+    "placeholders": {"url": {"type": "String"}}
+  },
   "serverUnreachable": "Can't reach the server: {error}",
   "@serverUnreachable": {
     "placeholders": {

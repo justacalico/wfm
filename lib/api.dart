@@ -343,14 +343,16 @@ class Api {
 
   Api([http.Client? client]) : _c = client ?? http.Client();
 
-  static const _base = String.fromEnvironment('WFM_API');
+  String baseUrl = const String.fromEnvironment('WFM_API');
+  String sessionToken = '';
 
-  Uri _u(String p, [Map<String, String>? q]) => Uri.parse('$_base/api$p')
+  Uri _u(String p, [Map<String, String>? q]) => Uri.parse('$baseUrl/api$p')
       .replace(queryParameters: (q == null || q.isEmpty) ? null : q);
 
   Map<String, String> get _h => {
         'content-type': 'application/json',
         if (csrf.isNotEmpty) 'x-csrf-token': csrf,
+        if (sessionToken.isNotEmpty) 'authorization': 'Bearer $sessionToken',
       };
 
   Future<dynamic> _go(Future<http.Response> Function() send) async {
@@ -359,6 +361,8 @@ class Api {
     if (r.statusCode == 401) {
       if (user != null) {
         user = null;
+        csrf = '';
+        sessionToken = '';
         onSignedOut?.call();
       }
       throw ApiException(401, 'auth');
@@ -371,7 +375,7 @@ class Api {
   }
 
   Future<dynamic> get(String p, [Map<String, String>? q]) =>
-      _go(() => _c.get(_u(p, q)));
+      _go(() => _c.get(_u(p, q), headers: _h));
   Future<dynamic> post(String p, Object? body, [Map<String, String>? q]) =>
       _go(() => _c.post(_u(p, q), headers: _h, body: jsonEncode(body ?? {})));
   Future<dynamic> patch(String p, Object? body) =>
@@ -381,11 +385,11 @@ class Api {
   Future<dynamic> del(String p, [Map<String, String>? q]) =>
       _go(() => _c.delete(_u(p, q), headers: _h));
   Future<dynamic> putFile(String p, Uint8List bytes, Map<String, String> q) =>
-      _go(() => _c.put(_u(p, q),
-          headers: {if (csrf.isNotEmpty) 'x-csrf-token': csrf}, body: bytes));
+      _go(() => _c.put(_u(p, q), headers: _h, body: bytes));
 
   void _session(Map<String, dynamic> j) {
     csrf = j['csrf'] ?? csrf;
+    sessionToken = j['token'] ?? sessionToken;
     user = User.fromJson(j['user'] ?? j);
   }
 
@@ -427,6 +431,7 @@ class Api {
     } finally {
       user = null;
       csrf = '';
+      sessionToken = '';
       caps = Caps.none;
     }
   }
@@ -587,7 +592,7 @@ class Api {
   }
 
   String avatarUrl(String uid, String key) =>
-      '$_base/api/users/$uid/avatar?v=${Uri.encodeComponent(key)}';
+      '$baseUrl/api/users/$uid/avatar?v=${Uri.encodeComponent(key)}';
 
   Future<void> uploadAvatar(Uint8List bytes) =>
       putFile('/me/avatar', bytes, {});
@@ -599,24 +604,29 @@ class Api {
       post('/projects/$pid/files/move', {'from': from, 'to': to});
 
   String zipUrl(String pid, List<String> paths) =>
-      '$_base/api/projects/$pid/zip?paths=${paths.map(Uri.encodeComponent).join(',')}';
+      '$baseUrl/api/projects/$pid/zip?paths=${paths.map(Uri.encodeComponent).join(',')}';
 
   Future<void> deleteFile(String pid, String path) =>
       del('/projects/$pid/files', {'path': path});
 
   String projectUrl(String pid, {String? theme}) =>
-      '/filmcraft/wfm.html?project=$pid${theme == null ? '' : '&theme=$theme'}';
+      '$baseUrl/filmcraft/wfm.html?project=$pid${theme == null ? '' : '&theme=$theme'}';
 
   String renderUrl(String pid, String rid, {String? theme}) =>
-      '/filmcraft/wfm.html?project=$pid&render=$rid${theme == null ? '' : '&theme=$theme'}';
+      '$baseUrl/filmcraft/wfm.html?project=$pid&render=$rid${theme == null ? '' : '&theme=$theme'}';
+
+  Future<String> handoffUrl(String to) async =>
+      '$baseUrl/api/handoff?t=${(await post('/handoff', {
+            'to': to
+          }))['t']}&to=${Uri.encodeComponent(to)}';
 
   Future<RenderInfo> renderInfo(String pid) async =>
       RenderInfo.fromJson(await get('/projects/$pid/render-info'));
   String thumbUrl(String pid, String path) =>
-      '$_base/api/projects/$pid/thumb?path=${Uri.encodeComponent(path)}';
+      '$baseUrl/api/projects/$pid/thumb?path=${Uri.encodeComponent(path)}';
 
   String downloadUrl(String pid, String path, {bool dl = false}) =>
-      '$_base/api/projects/$pid/download?path=${Uri.encodeComponent(path)}${dl ? '&dl=true' : ''}';
+      '$baseUrl/api/projects/$pid/download?path=${Uri.encodeComponent(path)}${dl ? '&dl=true' : ''}';
 
   Future<List<RenderJob>> renders(String pid,
           {int offset = 0, int limit = 50}) async =>
@@ -722,7 +732,7 @@ class Api {
       (await get('/link/$token')) as Map<String, dynamic>;
 
   String linkFileUrl(String token, String path) =>
-      '$_base/api/link/$token/file?path=${Uri.encodeComponent(path)}';
+      '$baseUrl/api/link/$token/file?path=${Uri.encodeComponent(path)}';
 
   Future<int> notificationsUnread() async {
     final j = await get('/notifications?limit=1') as Map<String, dynamic>;

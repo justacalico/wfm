@@ -13,6 +13,7 @@ void main() {
   setUp(() {
     SharedPreferences.setMockInitialValues({});
     openExternalForTesting = null;
+    openEditorForTesting = null;
     pickFilesForTesting = null;
     UpdateChecker.factoryForTesting = null;
   });
@@ -329,7 +330,7 @@ void main() {
     await t.tap(find.text('View on GitLab'));
     await settle(t);
     expect(opened, 'https://gitlab.com/HttpAnimations/wfm');
-    openExternalForTesting = null;
+    openExternalForTesting = (_) => throw 'no browser';
     await t.tap(find.text('View on GitLab'));
     await settle(t);
     expect(find.byType(Notice), findsWidgets);
@@ -370,6 +371,7 @@ void main() {
         pageUrl: 'https://page');
     await t.binding.setSurfaceSize(const Size(1000, 900));
     addTearDown(() => t.binding.setSurfaceSize(null));
+    openExternalForTesting = (_) => throw 'no browser';
     await goSettings(t);
     await t.tap(find.text('Check for updates'));
     await settle(t);

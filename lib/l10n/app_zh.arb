@@ -294,6 +294,13 @@
   "extraParams": "额外导出参数（JSON）",
   "invalidJson": "JSON 无效",
   "defaultOption": "默认",
+  "serverUrl": "服务器地址",
+  "connect": "连接",
+  "connecting": "连接中…",
+  "finishSetupInBrowser": "该服务器还没有管理员账号。请在浏览器中打开 {url} 完成初始化。",
+  "@finishSetupInBrowser": {
+    "placeholders": {"url": {"type": "String"}}
+  },
   "serverUnreachable": "无法连接服务器:{error}",
   "@serverUnreachable": {
     "placeholders": {

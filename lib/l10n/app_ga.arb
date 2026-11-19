@@ -293,6 +293,13 @@
   "extraParams": "Paraiméadair bhreise easpórtála (JSON)",
   "invalidJson": "JSON neamhbhailí",
   "defaultOption": "Réamhshocrú",
+  "serverUrl": "URL an fhreastalaí",
+  "connect": "Ceangail",
+  "connecting": "Ag ceangal…",
+  "finishSetupInBrowser": "Níl cuntas riarthóra ar an bhfreastalaí seo fós. Críochnaigh an tsocrú sa bhrabhsálaí ag {url}.",
+  "@finishSetupInBrowser": {
+    "placeholders": {"url": {"type": "String"}}
+  },
   "serverUnreachable": "Ní féidir teagmháil a dhéanamh leis an bhfreastalaí: {error}",
   "@serverUnreachable": {
     "placeholders": {

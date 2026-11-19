@@ -89,6 +89,9 @@ pub struct AppState {
     /// process; the hourly janitor sweep expires idle entries and their tmp
     /// spool files.
     pub chunk_uploads: Mutex<HashMap<String, ChunkUpload>>,
+    /// One-time handoff tokens for the desktop editor handoff: token ->
+    /// (user id, expiry). Redeemed once to mint a cookie session.
+    pub handoffs: Mutex<HashMap<String, (String, i64)>>,
     pub trusted: RwLock<Vec<ipnet::IpNet>>,
 }
 

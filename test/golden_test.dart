@@ -29,6 +29,8 @@ void main() {
   setUp(() {
     SharedPreferences.setMockInitialValues({});
     openExternalForTesting = null;
+    openEditorForTesting = null;
+    isDesktopApp = false;
     pickFilesForTesting = null;
     final prev = goldenFileComparator;
     if (prev is LocalFileComparator) {

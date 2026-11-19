@@ -33,6 +33,7 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/setup", get(setup_status).post(setup_owner))
         .route("/login", post(login))
         .route("/logout", post(logout))
+        .route("/handoff", get(handoff_redeem).post(handoff_create))
         .route("/me", get(me))
         .route("/me/avatar", put(upload_avatar))
         .route("/users/{id}/avatar", get(avatar))
@@ -347,6 +348,84 @@ async fn session_response(
     }
     let _ = s.db.touch_login(&user.id, AppState::now()).await;
     let mut r = Json(json!({"user": user, "csrf": csrf, "token": token})).into_response();
+    r.headers_mut().insert(
+        header::SET_COOKIE,
+        HeaderValue::from_str(&auth::session_cookie(
+            &token,
+            s.cfg.secure_cookies,
+            s.cfg.session_ttl,
+        ))
+        .unwrap(),
+    );
+    r
+}
+
+fn handoff_to(to: &str) -> Option<String> {
+    if to.starts_with('/') && !to.starts_with("//") && to.len() <= 2000 {
+        Some(to.to_string())
+    } else {
+        None
+    }
+}
+
+#[derive(Deserialize)]
+struct HandoffReq {
+    to: String,
+}
+
+// The desktop client trades a session for a one-time URL a webview (or the
+// system browser) can open: GET /handoff mints the cookie, then redirects.
+async fn handoff_create(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Json(req): Json<HandoffReq>,
+) -> Response {
+    if handoff_to(&req.to).is_none() {
+        return err(StatusCode::BAD_REQUEST, "bad destination");
+    }
+    let t = model::new_token();
+    s.handoffs
+        .lock()
+        .unwrap()
+        .insert(t.clone(), (session.user.id, AppState::now() + 60));
+    Json(json!({"t": t})).into_response()
+}
+
+#[derive(Deserialize)]
+struct HandoffQuery {
+    t: String,
+    to: Option<String>,
+}
+
+async fn handoff_redeem(
+    State(s): State<Arc<AppState>>,
+    parts: axum::http::request::Parts,
+    Query(q): Query<HandoffQuery>,
+) -> Response {
+    let to = q
+        .to
+        .as_deref()
+        .and_then(handoff_to)
+        .unwrap_or_else(|| "/".to_string());
+    let hit = s.handoffs.lock().unwrap().remove(&q.t);
+    let Some((uid, exp)) = hit else {
+        return err(StatusCode::UNAUTHORIZED, "expired link");
+    };
+    if exp < AppState::now() {
+        return err(StatusCode::UNAUTHORIZED, "expired link");
+    }
+    let token = model::new_token();
+    let csrf = model::new_token();
+    let expires = AppState::now() + s.cfg.session_ttl;
+    let ip = client_ip(&s, &parts).to_string();
+    if let Err(e) = s
+        .db
+        .create_session(&model::token_hash(&token), &uid, &csrf, expires, &ip, "")
+        .await
+    {
+        return db_resp(e);
+    }
+    let mut r = axum::response::Redirect::to(&to).into_response();
     r.headers_mut().insert(
         header::SET_COOKIE,
         HeaderValue::from_str(&auth::session_cookie(
@@ -3235,7 +3314,20 @@ fn parse_range(v: &str, size: u64) -> Option<(u64, u64)> {
 
 #[cfg(test)]
 mod tests {
-    use super::{parse_range, reserved_worker_name};
+    use super::{handoff_to, parse_range, reserved_worker_name};
+
+    #[test]
+    fn handoff_destinations() {
+        assert_eq!(
+            handoff_to("/filmcraft/wfm.html?project=p1").as_deref(),
+            Some("/filmcraft/wfm.html?project=p1")
+        );
+        assert_eq!(handoff_to("/").as_deref(), Some("/"));
+        assert_eq!(handoff_to("https://evil.example"), None);
+        assert_eq!(handoff_to("//evil.example"), None);
+        assert_eq!(handoff_to(""), None);
+        assert_eq!(handoff_to(&"/".repeat(2001)), None);
+    }
 
     #[test]
     fn reserved_names() {

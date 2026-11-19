@@ -603,6 +603,20 @@ class AppLocalizationsGa extends AppLocalizations {
   String get defaultOption => 'Réamhshocrú';
 
   @override
+  String get serverUrl => 'URL an fhreastalaí';
+
+  @override
+  String get connect => 'Ceangail';
+
+  @override
+  String get connecting => 'Ag ceangal…';
+
+  @override
+  String finishSetupInBrowser(String url) {
+    return 'Níl cuntas riarthóra ar an bhfreastalaí seo fós. Críochnaigh an tsocrú sa bhrabhsálaí ag $url.';
+  }
+
+  @override
   String serverUnreachable(Object error) {
     return 'Ní féidir teagmháil a dhéanamh leis an bhfreastalaí: $error';
   }
