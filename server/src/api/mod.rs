@@ -982,6 +982,8 @@ struct FileQuery {
     dl: bool,
     #[serde(default)]
     done: bool,
+    #[serde(rename = "clientId", default)]
+    client_id: String,
 }
 
 async fn list_files(
@@ -1070,6 +1072,14 @@ async fn upload_file(
         Ok(k) => k,
         Err(e) => return fs_resp(e),
     };
+    if key == "project.fcproj" && !q.client_id.is_empty() {
+        match s.db.lock_get(&id, "edit").await {
+            Ok(l) if l.holder != q.client_id && l.expires_at > AppState::now() => {
+                return err(StatusCode::CONFLICT, "lock lost");
+            }
+            _ => {}
+        }
+    }
     let (tmp, written) = match spool_body(&s, body, s.cfg.max_upload).await {
         Ok(v) => v,
         Err(r) => return r,
