@@ -33,10 +33,15 @@ class UploadQueue extends ChangeNotifier {
         next.state = 1;
         notifyListeners();
         try {
+          var lastProgress = DateTime.fromMillisecondsSinceEpoch(0);
           await next.run((s, t) {
             next!.sent = s;
             next.total = t;
-            notifyListeners();
+            final now = DateTime.now();
+            if (s >= t || now.difference(lastProgress).inMilliseconds >= 150) {
+              lastProgress = now;
+              notifyListeners();
+            }
           });
           next.state = 2;
         } catch (e) {
