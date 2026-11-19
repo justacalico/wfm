@@ -138,9 +138,15 @@ void main() {
       'GET *': (_) => [],
     });
     await goSettings(t);
-    expect(find.text('Sessions'), findsOneWidget);
+    await t.tap(find.text('Sessions'));
+    await settle(t);
     expect(find.textContaining('This session'), findsOneWidget);
     expect(find.text('Revoke'), findsOneWidget);
+    await t.tap(find.text('Revoke'));
+    await settle(t);
+    await t.tap(find.text('Cancel'));
+    await settle(t);
+    expect(find.textContaining('10.0.0.9'), findsOneWidget);
     await t.tap(find.text('Revoke'));
     await settle(t);
     await t.tap(find.widgetWithText(FilledButton, 'Confirm'));
@@ -166,12 +172,44 @@ void main() {
       'GET *': (_) => [],
     });
     await goSettings(t);
+    await t.tap(find.text('Sessions'));
+    await settle(t);
     await t.tap(find.text('Revoke'));
     await settle(t);
     await t.tap(find.widgetWithText(FilledButton, 'Confirm'));
     await settle(t);
     expect(find.textContaining('10.0.0.9'), findsOneWidget);
     expect(find.byType(Notice), findsOneWidget);
+  });
+
+  testWidgets('sessions page shows error and retries', (t) async {
+    var calls = 0;
+    installApi(extra: {
+      'GET /api/sessions': (_) {
+        calls++;
+        return calls == 1
+            ? http.Response('{"error":"down"}', 500)
+            : [
+                {
+                  'id': 'a1',
+                  'ip': '10.0.0.2',
+                  'ua': 'Agent/1.0',
+                  'createdAt': 100,
+                  'expiresAt': 999,
+                  'lastSeen': 0,
+                  'current': true,
+                },
+              ];
+      },
+      'GET *': (_) => [],
+    });
+    await goSettings(t);
+    await t.tap(find.text('Sessions'));
+    await settle(t);
+    expect(find.textContaining('down'), findsOneWidget);
+    await t.tap(find.text('Retry'));
+    await settle(t);
+    expect(find.textContaining('Agent/1.0'), findsOneWidget);
   });
 
   testWidgets('owner sees and saves trusted proxies', (t) async {

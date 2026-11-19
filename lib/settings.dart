@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'api.dart';
 import 'main.dart';
 import 'platform.dart';
+import 'sessions.dart';
 import 'shortcuts.dart';
 import 'util.dart';
 import 'version_check.dart';
@@ -31,7 +32,6 @@ class _SettingsPageState extends State<SettingsPage> {
   UpdateResult _update = UpdateResult.idle;
   AppUpdate? _latest;
   String _version = '';
-  List<SessionInfo>? _sessions;
   List<AutoShare>? _autoShares;
 
   @override
@@ -49,9 +49,6 @@ class _SettingsPageState extends State<SettingsPage> {
     }
     Api.i.serverVersion().then((v) {
       if (mounted) setState(() => _version = v);
-    }).catchError((_) {});
-    Api.i.sessions().then((v) {
-      if (mounted) setState(() => _sessions = v);
     }).catchError((_) {});
     if (Api.i.caps.creatable.isNotEmpty) _loadAutoShares();
   }
@@ -79,21 +76,6 @@ class _SettingsPageState extends State<SettingsPage> {
       await Api.i.autoShareDelete(a.id);
       if (mounted) {
         setState(() => _autoShares!.removeWhere((x) => x.id == a.id));
-      }
-    } catch (e) {
-      if (mounted) snack(context, e);
-    }
-  }
-
-  Future<void> _revoke(SessionInfo se) async {
-    if (!await confirm(
-        context, context.l10n.revoke, context.l10n.revokeSessionBody)) {
-      return;
-    }
-    try {
-      await Api.i.revokeSession(se.id);
-      if (mounted) {
-        setState(() => _sessions!.removeWhere((x) => x.id == se.id));
       }
     } catch (e) {
       if (mounted) snack(context, e);
@@ -224,32 +206,16 @@ class _SettingsPageState extends State<SettingsPage> {
         onTap: () => Navigator.of(context)
             .push(MaterialPageRoute(builder: (_) => const ShortcutsPage())),
       ),
+      ListTile(
+        dense: true,
+        contentPadding: EdgeInsets.zero,
+        leading: const Icon(Icons.devices_outlined, size: 18),
+        title: Text(l10n.sessions),
+        trailing: const Icon(Icons.chevron_right, size: 18),
+        onTap: () => Navigator.of(context)
+            .push(MaterialPageRoute(builder: (_) => const SessionsPage())),
+      ),
       const SizedBox(height: 16),
-      if (_sessions != null) ...[
-        const SizedBox(height: 16),
-        Align(
-            alignment: Alignment.centerLeft,
-            child: Text(l10n.sessions,
-                style: Theme.of(context).textTheme.titleSmall)),
-        for (final se in _sessions!)
-          ListTile(
-            dense: true,
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.devices_outlined, size: 18),
-            title: Text(se.ua.isEmpty ? '—' : se.ua,
-                overflow: TextOverflow.ellipsis),
-            subtitle: Text([
-              if (se.current) l10n.currentSession,
-              if (se.ip.isNotEmpty) se.ip,
-              if (se.lastSeen > 0)
-                l10n.sessionLastSeen(fmtAgo(l10n, se.lastSeen)),
-            ].join('  ·  ')),
-            trailing: se.current
-                ? null
-                : TextButton(
-                    onPressed: () => _revoke(se), child: Text(l10n.revoke)),
-          ),
-      ],
       if (Api.i.caps.creatable.isNotEmpty) ...[
         const SizedBox(height: 16),
         Align(
