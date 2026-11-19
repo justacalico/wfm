@@ -92,6 +92,8 @@ pub struct AppState {
     /// One-time handoff tokens for the desktop editor handoff: token ->
     /// (user id, expiry). Redeemed once to mint a cookie session.
     pub handoffs: Mutex<HashMap<String, (String, i64)>>,
+    /// Cached /api/update-check payload so taps don't live-proxy GitLab.
+    pub update_check: Mutex<Option<(Instant, serde_json::Value)>>,
     pub trusted: RwLock<Vec<ipnet::IpNet>>,
 }
 

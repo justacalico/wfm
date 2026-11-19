@@ -1,10 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
+import 'package:wfm/api.dart';
 import 'package:wfm/version_check.dart';
-
-MockClient releasesClient(String json, [int status = 200]) =>
-    MockClient((_) async => http.Response(json, status));
+import 'helpers.dart';
 
 void main() {
   group('Version', () {
@@ -33,47 +31,32 @@ void main() {
   });
 
   group('UpdateChecker', () {
+    Api api(Map<String, dynamic> body) =>
+        Api(FakeClient({'GET /api/update-check': (_) => body}));
+
     test('newer release available', () async {
-      final c = releasesClient(
-          '[{"tag_name":"v1.0.0"},{"tag_name":"v1.4.0"},{"tag_name":"nightly"}]');
-      final u = await UpdateChecker(c,
-              apiUrl: 'https://x/releases', pageUrl: 'https://x/p')
-          .check('1.0.0');
+      final u = await UpdateChecker(api(
+              {'latest': '1.4.0', 'tag': 'v1.4.0', 'url': 'https://x/v1.4.0'}))
+          .check();
       expect(u, isNotNull);
       expect(u!.version, '1.4.0');
       expect(u.tag, 'v1.4.0');
-      expect(u.url, 'https://x/p/v1.4.0');
+      expect(u.url, 'https://x/v1.4.0');
     });
 
-    test('no update when current is latest', () async {
-      final c = releasesClient('[{"tag_name":"v1.0.0"}]');
-      expect(
-          await UpdateChecker(c, apiUrl: 'https://x').check('1.0.0'), isNull);
+    test('up to date reports null', () async {
+      expect(await UpdateChecker(api({'upToDate': true})).check(), isNull);
     });
 
-    test('unparseable current still reports latest', () async {
-      final c = releasesClient('[{"tag_name":"v2.0.0"}]');
-      expect((await UpdateChecker(c, apiUrl: 'https://x').check(''))?.version,
-          '2.0.0');
-    });
-
-    test('empty releases', () async {
-      final c = MockClient((_) async => http.Response('[]', 200));
-      expect(await UpdateChecker(c, apiUrl: 'https://x').check('1.0'), isNull);
-      final c2 = releasesClient('[{"name":"no tag"}]');
-      expect(await UpdateChecker(c2, apiUrl: 'https://x').check('1.0'), isNull);
+    test('missing latest reports null', () async {
+      expect(await UpdateChecker(api({})).check(), isNull);
     });
 
     test('http error throws', () {
-      final c = releasesClient('boom', 500);
-      expect(
-          UpdateChecker(c, apiUrl: 'https://x').check('1.0'), throwsException);
-    });
-
-    test('default urls are the wfm project', () {
-      expect(UpdateChecker.projectPath, 'HttpAnimations/wfm');
-      expect(UpdateChecker.defaultApi, contains('gitlab.com'));
-      expect(UpdateChecker.releasesPage, contains('gitlab.com'));
+      final a = Api(FakeClient({
+        'GET /api/update-check': (_) => http.Response('{"error":"boom"}', 502)
+      }));
+      expect(UpdateChecker(a).check(), throwsA(isA<ApiException>()));
     });
   });
 }

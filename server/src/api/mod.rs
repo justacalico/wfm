@@ -30,6 +30,7 @@ pub fn router(state: Arc<AppState>) -> Router {
     let api = Router::new()
         .route("/health", get(health))
         .route("/version", get(version))
+        .route("/update-check", get(update_check))
         .route("/setup", get(setup_status).post(setup_owner))
         .route("/login", post(login))
         .route("/logout", post(logout))
@@ -165,6 +166,72 @@ async fn version() -> Json<Value> {
         "version": env!("CARGO_PKG_VERSION"),
         "name": "wfm",
     }))
+}
+
+fn parse_semver(s: &str) -> Option<(u64, u64, u64)> {
+    let v = s.trim().trim_start_matches(['v', 'V']);
+    let core = v.split(['-', '+']).next()?;
+    let parts: Option<Vec<u64>> = core.split('.').map(|p| p.parse().ok()).collect();
+    match parts?.as_slice() {
+        [a, b] => Some((*a, *b, 0)),
+        [a, b, c] => Some((*a, *b, *c)),
+        _ => None,
+    }
+}
+
+async fn fetch_update_check() -> Result<Value, String> {
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(10))
+        .build()
+        .map_err(|e| e.to_string())?;
+    let r = client
+        .get("https://gitlab.com/api/v4/projects/HttpAnimations%2Fwfm/releases?per_page=100&order_by=released_at&sort=desc")
+        .header(reqwest::header::USER_AGENT, "wfm")
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    if !r.status().is_success() {
+        return Err(format!("releases: {}", r.status()));
+    }
+    let items: Vec<Value> = r.json().await.map_err(|e| e.to_string())?;
+    let mut best: Option<((u64, u64, u64), String)> = None;
+    for e in &items {
+        let tag = e["tag_name"].as_str().unwrap_or("");
+        if let Some(v) = parse_semver(tag) {
+            if best.as_ref().is_none_or(|(b, _)| v > *b) {
+                best = Some((v, tag.to_string()));
+            }
+        }
+    }
+    let Some((v, tag)) = best else {
+        return Err("no releases".to_string());
+    };
+    if let Some(now) = parse_semver(env!("CARGO_PKG_VERSION")) {
+        if v <= now {
+            return Ok(json!({"upToDate": true}));
+        }
+    }
+    Ok(json!({
+        "latest": format!("{}.{}.{}", v.0, v.1, v.2),
+        "tag": tag,
+        "url": format!("https://gitlab.com/HttpAnimations/wfm/-/releases/{tag}"),
+    }))
+}
+
+async fn update_check(State(s): State<Arc<AppState>>, _session: Session) -> Response {
+    if let Some((at, v)) = s.update_check.lock().unwrap().clone() {
+        if at.elapsed() < std::time::Duration::from_secs(300) {
+            return Json(v).into_response();
+        }
+    }
+    match fetch_update_check().await {
+        Ok(v) => {
+            *s.update_check.lock().unwrap() =
+                Some((std::time::Instant::now(), v.clone()));
+            Json(v).into_response()
+        }
+        Err(e) => err(StatusCode::BAD_GATEWAY, &e),
+    }
 }
 
 async fn setup_status(State(s): State<Arc<AppState>>) -> Json<Value> {
@@ -3380,7 +3447,18 @@ fn parse_range(v: &str, size: u64) -> Option<(u64, u64)> {
 
 #[cfg(test)]
 mod tests {
-    use super::{handoff_to, lock_kind, parse_range, reserved_worker_name};
+    use super::{handoff_to, lock_kind, parse_range, parse_semver, reserved_worker_name};
+
+    #[test]
+    fn semver_parses_tags() {
+        assert_eq!(parse_semver("v1.2.3"), Some((1, 2, 3)));
+        assert_eq!(parse_semver("1.5"), Some((1, 5, 0)));
+        assert_eq!(parse_semver("V2.0.1-rc1"), Some((2, 0, 1)));
+        assert_eq!(parse_semver("nightly"), None);
+        assert_eq!(parse_semver("1"), None);
+        assert_eq!(parse_semver("1.2.3.4"), None);
+        assert_eq!(parse_semver("1.x.3"), None);
+    }
 
     #[test]
     fn handoff_destinations() {
