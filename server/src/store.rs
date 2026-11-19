@@ -111,6 +111,7 @@ pub trait Db: Send + Sync {
     async fn delete_project(&self, id: &str) -> DbResult<()>;
     async fn touch_project(&self, id: &str, ts: i64) -> DbResult<()>;
     async fn set_project_pinned(&self, id: &str, pinned: bool) -> DbResult<()>;
+    async fn set_project_template(&self, id: &str, template: bool) -> DbResult<()>;
 
     // project groups
     async fn create_group(&self, g: &ProjectGroup) -> DbResult<()>;

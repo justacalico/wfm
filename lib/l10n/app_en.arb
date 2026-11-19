@@ -402,5 +402,12 @@
   "expiryMonth": "30 days",
   "linkExpires": "Expires {when}",
   "linkEmpty": "Nothing to show",
-  "linkRendersOnly": "Renders only"
+  "linkRendersOnly": "Renders only",
+  "duplicate": "Duplicate",
+  "saveCopy": "Save a copy",
+  "useTemplate": "Use template",
+  "template": "Template",
+  "markTemplate": "Mark as template",
+  "unmarkTemplate": "Unmark template",
+  "projectDuplicated": "Copy created"
 }

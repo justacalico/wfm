@@ -402,5 +402,12 @@
   "expiryMonth": "30 дней",
   "linkExpires": "Истекает {when}",
   "linkEmpty": "Нечего показать",
-  "linkRendersOnly": "Только рендеры"
+  "linkRendersOnly": "Только рендеры",
+  "duplicate": "Дублировать",
+  "saveCopy": "Сохранить копию",
+  "useTemplate": "Использовать шаблон",
+  "template": "Шаблон",
+  "markTemplate": "Сделать шаблоном",
+  "unmarkTemplate": "Убрать шаблон",
+  "projectDuplicated": "Копия создана"
 }

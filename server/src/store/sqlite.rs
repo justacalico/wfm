@@ -124,7 +124,7 @@ fn map_user(r: &rusqlite::Row<'_>) -> rusqlite::Result<User> {
 const USER_COLS: &str =
     "id,username,display_name,pass_hash,role,student_id,note,disabled,avatar,created_by,lineage,created_at,last_login,quota_bytes";
 
-const PROJECT_COLS: &str = "id,owner_id,name,display_name,dir,group_id,tags,created_at,last_activity,pinned";
+const PROJECT_COLS: &str = "id,owner_id,name,display_name,dir,group_id,tags,created_at,last_activity,pinned,template";
 
 fn map_project(r: &rusqlite::Row<'_>) -> rusqlite::Result<Project> {
     Ok(Project {
@@ -138,6 +138,7 @@ fn map_project(r: &rusqlite::Row<'_>) -> rusqlite::Result<Project> {
         created_at: r.get(7)?,
         last_activity: r.get(8)?,
         pinned: r.get::<_, i64>(9)? != 0,
+        template: r.get::<_, i64>(10)? != 0,
     })
 }
 
@@ -247,10 +248,11 @@ fn map_share_view(r: &rusqlite::Row) -> rusqlite::Result<ShareView> {
         inviter_username: r.get(9)?,
         invitee_username: r.get(10)?,
         invitee_name: r.get(11)?,
+        template: r.get::<_, i64>(12)? != 0,
     })
 }
 
-const SHARE_VIEW_COLS: &str = "s.id,s.project_id,s.inviter_id,s.invitee_id,s.level,s.status,s.created_at,s.responded_at,p.name,iv.username,ie.username,ie.display_name";
+const SHARE_VIEW_COLS: &str = "s.id,s.project_id,s.inviter_id,s.invitee_id,s.level,s.status,s.created_at,s.responded_at,p.name,iv.username,ie.username,ie.display_name,p.template";
 const SHARE_VIEW_JOINS: &str = "JOIN projects p ON p.id=s.project_id JOIN users iv ON iv.id=s.inviter_id JOIN users ie ON ie.id=s.invitee_id";
 
 fn map_audit(r: &rusqlite::Row<'_>) -> rusqlite::Result<AuditEntry> {
@@ -564,8 +566,8 @@ impl Db for SqliteDb {
         let p = p.clone();
         self.q(move |c| {
                 c.execute(
-                    "INSERT INTO projects(id,owner_id,name,display_name,dir,group_id,tags,created_at,last_activity,pinned) VALUES(?,?,?,?,?,?,?,?,?,?)",
-                    params![p.id, p.owner_id, p.name, p.display_name, p.dir, p.group_id, tags_csv(&p.tags), p.created_at, p.last_activity, p.pinned],
+                    "INSERT INTO projects(id,owner_id,name,display_name,dir,group_id,tags,created_at,last_activity,pinned,template) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                    params![p.id, p.owner_id, p.name, p.display_name, p.dir, p.group_id, tags_csv(&p.tags), p.created_at, p.last_activity, p.pinned, p.template],
                 )
             })
             .await
@@ -603,7 +605,7 @@ impl Db for SqliteDb {
         let (role, pat) = (actor.role as i64, format!("%/{}/%", actor.id));
         self.q(move |c| {
                 let mut st = c.prepare(&format!(
-                    "SELECT p.id,p.owner_id,p.name,p.display_name,p.dir,p.group_id,p.tags,p.created_at,p.last_activity,p.pinned FROM projects p JOIN users u ON p.owner_id=u.id WHERE u.role < ? AND u.lineage LIKE ? ORDER BY p.created_at DESC"
+                    "SELECT p.id,p.owner_id,p.name,p.display_name,p.dir,p.group_id,p.tags,p.created_at,p.last_activity,p.pinned,p.template FROM projects p JOIN users u ON p.owner_id=u.id WHERE u.role < ? AND u.lineage LIKE ? ORDER BY p.created_at DESC"
                 ))?;
                 let rows = st.query_map(params![role, pat], map_project)?;
                 rows.collect::<rusqlite::Result<Vec<_>>>()
@@ -687,6 +689,19 @@ impl Db for SqliteDb {
             c.execute(
                 "UPDATE projects SET pinned=? WHERE id=?",
                 params![pinned as i64, id],
+            )
+        })
+        .await
+        .map(|_| ())
+        .map_err(dberr)
+    }
+
+    async fn set_project_template(&self, id: &str, template: bool) -> DbResult<()> {
+        let id = id.to_string();
+        self.q(move |c| {
+            c.execute(
+                "UPDATE projects SET template=? WHERE id=?",
+                params![template as i64, id],
             )
         })
         .await
@@ -1843,6 +1858,7 @@ mod tests {
             created_at: 1,
             last_activity: 1,
             pinned: false,
+            template: false,
         })
         .await
         .unwrap();
@@ -1892,6 +1908,7 @@ mod tests {
             created_at: 1,
             last_activity: 1,
             pinned: false,
+            template: false,
         };
         db.create_project(&p("sp", "s")).await.unwrap();
         db.create_project(&p("xp", "x")).await.unwrap();
@@ -2053,6 +2070,7 @@ mod tests {
             created_at: 1,
             last_activity: 1,
             pinned: false,
+            template: false,
         })
         .await
         .unwrap();
@@ -2078,6 +2096,11 @@ mod tests {
         assert_eq!(db.share_by("p1", "v1").await.unwrap().level, "edit");
         db.share_upsert(&ProjectShare { status: "pending".into(), responded_at: 0, ..sh.clone() }).await.unwrap();
         assert_eq!(db.share_by("p1", "v1").await.unwrap().status, "pending");
+        db.set_project_template("p1", true).await.unwrap();
+        assert!(db.project_by_id("p1").await.unwrap().template);
+        assert!(db.shares_for_user("v1").await.unwrap()[0].template);
+        db.set_project_template("p1", false).await.unwrap();
+        assert!(!db.project_by_id("p1").await.unwrap().template);
         assert!(db.share_delete("s1", "p1").await.unwrap());
         assert!(!db.share_delete("s1", "p1").await.unwrap());
         db.share_upsert(&sh).await.unwrap();

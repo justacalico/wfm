@@ -913,4 +913,25 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get linkRendersOnly => 'Только рендеры';
+
+  @override
+  String get duplicate => 'Дублировать';
+
+  @override
+  String get saveCopy => 'Сохранить копию';
+
+  @override
+  String get useTemplate => 'Использовать шаблон';
+
+  @override
+  String get template => 'Шаблон';
+
+  @override
+  String get markTemplate => 'Сделать шаблоном';
+
+  @override
+  String get unmarkTemplate => 'Убрать шаблон';
+
+  @override
+  String get projectDuplicated => 'Копия создана';
 }

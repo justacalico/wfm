@@ -97,6 +97,7 @@ fn row_project(r: sqlx::postgres::PgRow) -> Project {
         created_at: r.get("created_at"),
         last_activity: r.get("last_activity"),
         pinned: r.get::<i32, _>("pinned") != 0,
+        template: r.get::<i32, _>("template") != 0,
     }
 }
 
@@ -204,10 +205,11 @@ fn row_share_view(r: sqlx::postgres::PgRow) -> ShareView {
         inviter_username: r.get("inviter_username"),
         invitee_username: r.get("invitee_username"),
         invitee_name: r.get("invitee_name"),
+        template: r.get::<i32, _>("template") != 0,
     }
 }
 
-const SHARE_VIEW_SELECT: &str = "SELECT s.id,s.project_id,s.inviter_id,s.invitee_id,s.level,s.status,s.created_at,s.responded_at,p.name AS project_name,iv.username AS inviter_username,ie.username AS invitee_username,ie.display_name AS invitee_name FROM project_shares s JOIN projects p ON p.id=s.project_id JOIN users iv ON iv.id=s.inviter_id JOIN users ie ON ie.id=s.invitee_id";
+const SHARE_VIEW_SELECT: &str = "SELECT s.id,s.project_id,s.inviter_id,s.invitee_id,s.level,s.status,s.created_at,s.responded_at,p.name AS project_name,iv.username AS inviter_username,ie.username AS invitee_username,ie.display_name AS invitee_name,p.template AS template FROM project_shares s JOIN projects p ON p.id=s.project_id JOIN users iv ON iv.id=s.inviter_id JOIN users ie ON ie.id=s.invitee_id";
 fn row_auto_share(r: sqlx::postgres::PgRow) -> AutoShare {
     AutoShare {
         id: r.get("id"),
@@ -540,7 +542,7 @@ impl Db for PgDb {
 
     async fn create_project(&self, p: &Project) -> DbResult<()> {
         sqlx::query(
-            "INSERT INTO projects(id,owner_id,name,display_name,dir,group_id,tags,created_at,last_activity,pinned) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)",
+            "INSERT INTO projects(id,owner_id,name,display_name,dir,group_id,tags,created_at,last_activity,pinned,template) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)",
         )
         .bind(&p.id)
         .bind(&p.owner_id)
@@ -552,6 +554,7 @@ impl Db for PgDb {
         .bind(p.created_at)
         .bind(p.last_activity)
         .bind(p.pinned as i64)
+        .bind(p.template as i64)
         .execute(&self.pool)
         .await
         .map(|_| ())
@@ -641,6 +644,16 @@ impl Db for PgDb {
     async fn set_project_pinned(&self, id: &str, pinned: bool) -> DbResult<()> {
         sqlx::query("UPDATE projects SET pinned=$1 WHERE id=$2")
             .bind(pinned as i64)
+            .bind(id)
+            .execute(&self.pool)
+            .await
+            .map(|_| ())
+            .map_err(map_err)
+    }
+
+    async fn set_project_template(&self, id: &str, template: bool) -> DbResult<()> {
+        sqlx::query("UPDATE projects SET template=$1 WHERE id=$2")
+            .bind(template as i64)
             .bind(id)
             .execute(&self.pool)
             .await

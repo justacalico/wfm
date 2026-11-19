@@ -44,13 +44,23 @@ class _SharedPageState extends State<SharedPage> {
     }
   }
 
+  Future<void> _copy(Share sh) async {
+    try {
+      await Api.i.duplicateProject(sh.projectId);
+      if (mounted) snack(context, context.l10n.projectDuplicated);
+    } catch (e) {
+      if (mounted) snack(context, e);
+    }
+  }
+
   void _open(Share sh) {
     final p = Project.fromJson({
       'id': sh.projectId,
       'name': sh.projectName,
-      'access': sh.level,
+      'access': sh.template ? 'view' : sh.level,
       'ownerId': 'x',
       'ownerName': sh.inviterUsername,
+      'template': sh.template,
     });
     final shell = context.findAncestorStateOfType<ShellState>();
     if (shell != null) {
@@ -117,8 +127,21 @@ class _SharedPageState extends State<SharedPage> {
                               ? sh.projectId
                               : sh.projectName),
                           subtitle: Text(
-                              '${sh.level == 'edit' ? l10n.canEdit : l10n.canView}  ·  ${sh.inviterUsername}  ·  ${fmtTime(l10n, sh.createdAt)}'),
-                          trailing: const Icon(Icons.chevron_right),
+                              '${sh.level == 'edit' && !sh.template ? l10n.canEdit : l10n.canView}${sh.template ? '  ·  ${l10n.template}' : ''}  ·  ${sh.inviterUsername}  ·  ${fmtTime(l10n, sh.createdAt)}'),
+                          trailing:
+                              Row(mainAxisSize: MainAxisSize.min, children: [
+                            if (sh.template)
+                              TextButton(
+                                  onPressed: () => _copy(sh),
+                                  child: Text(l10n.useTemplate))
+                            else
+                              IconButton(
+                                  icon:
+                                      const Icon(Icons.copy_outlined, size: 20),
+                                  tooltip: l10n.saveCopy,
+                                  onPressed: () => _copy(sh)),
+                            const Icon(Icons.chevron_right),
+                          ]),
                           onTap: () => _open(sh),
                         ),
                       ),

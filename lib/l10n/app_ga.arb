@@ -402,5 +402,12 @@
   "expiryMonth": "30 lá",
   "linkExpires": "Éagann {when}",
   "linkEmpty": "Tada le taispeáint",
-  "linkRendersOnly": "Rindreálacha amháin"
+  "linkRendersOnly": "Rindreálacha amháin",
+  "duplicate": "Dúbail",
+  "saveCopy": "Sábháil cóip",
+  "useTemplate": "Úsáid teimpléad",
+  "template": "Teimpléad",
+  "markTemplate": "Marcáil mar theimpléad",
+  "unmarkTemplate": "Bain an marc teimpléid",
+  "projectDuplicated": "Cóip cruthaithe"
 }

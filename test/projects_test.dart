@@ -305,6 +305,27 @@ void main() {
       expect(find.byType(RenderDialog), findsOneWidget);
     });
 
+    testWidgets('card menu duplicates a project, error then ok', (t) async {
+      var calls = 0;
+      installApi(extra: {
+        'POST /api/projects/p1/duplicate': (_) => ++calls == 1
+            ? http.Response('{"error":"quota"}', 413)
+            : {'id': 'p9', 'name': 'c', 'displayName': 'C'},
+      });
+      await pump(t, const ProjectsPage());
+      await t.tap(find.byType(PopupMenuButton<String>).first);
+      await settle(t);
+      await t.tap(find.text('Duplicate'));
+      await settle(t);
+      expect(find.text('quota'), findsWidgets);
+      await t.tap(find.byType(PopupMenuButton<String>).first);
+      await settle(t);
+      await t.tap(find.text('Duplicate'));
+      await settle(t);
+      expect(calls, 2);
+      expect(find.text('Copy created'), findsWidgets);
+    });
+
     testWidgets('open in filmcraft error shows snack', (t) async {
       installApi();
       await pump(t, const ProjectsPage());
@@ -861,6 +882,98 @@ void main() {
       await t.tap(find.text('Confirm'));
       await settle(t);
       expect(find.byType(ProjectPage), findsOneWidget);
+    });
+
+    testWidgets('menu duplicates and toggles template', (t) async {
+      var dup = 0, patches = 0;
+      String patch = '';
+      installApi(extra: {
+        'POST /api/projects/p1/duplicate': (_) => ++dup == 1
+            ? http.Response('{"error":"nope"}', 500)
+            : {'id': 'p9', 'name': 'c', 'displayName': 'C'},
+        'PATCH /api/projects/p1': (req) {
+          patch = req.body;
+          return ++patches == 1
+              ? http.Response('{"error":"nope"}', 500)
+              : {'ok': true};
+        },
+      });
+      await pump(t, ProjectPage(project: p1));
+      await t.tap(find.descendant(
+          of: find.byType(AppBar),
+          matching: find.byType(PopupMenuButton<String>)));
+      await settle(t);
+      await t.tap(find.text('Duplicate'));
+      await settle(t);
+      expect(find.text('nope'), findsWidgets);
+      await t.tap(find.descendant(
+          of: find.byType(AppBar),
+          matching: find.byType(PopupMenuButton<String>)));
+      await settle(t);
+      await t.tap(find.text('Duplicate'));
+      await settle(t);
+      expect(dup, 2);
+      await t.tap(find.descendant(
+          of: find.byType(AppBar),
+          matching: find.byType(PopupMenuButton<String>)));
+      await settle(t);
+      await t.tap(find.text('Mark as template'));
+      await settle(t);
+      expect(find.text('nope'), findsWidgets);
+      await t.tap(find.descendant(
+          of: find.byType(AppBar),
+          matching: find.byType(PopupMenuButton<String>)));
+      await settle(t);
+      await t.tap(find.text('Mark as template'));
+      await settle(t);
+      expect(patch, contains('"template":true'));
+      expect(find.text('Template'), findsOneWidget);
+      await t.tap(find.descendant(
+          of: find.byType(AppBar),
+          matching: find.byType(PopupMenuButton<String>)));
+      await settle(t);
+      await t.tap(find.text('Unmark template'));
+      await settle(t);
+      expect(patch, contains('"template":false'));
+    });
+
+    testWidgets('shared page shows use template and save copy', (t) async {
+      var dup = 0;
+      installApi(extra: {
+        'GET /api/projects/p1/files': (_) => [],
+        'POST /api/projects/p1/duplicate': (_) {
+          dup++;
+          return {'id': 'p9', 'name': 'c', 'displayName': 'C'};
+        },
+      });
+      await pump(
+          t,
+          ProjectPage(
+              project: Project.fromJson({
+            'id': 'p1',
+            'name': 'shared',
+            'displayName': 'Shared Cut',
+            'access': 'view',
+            'template': true
+          })));
+      expect(find.text('Template'), findsOneWidget);
+      await t.tap(find.text('Use template'));
+      await settle(t);
+      expect(dup, 1);
+      await pump(
+          t,
+          ProjectPage(
+              project: Project.fromJson({
+            'id': 'p1',
+            'name': 'shared',
+            'displayName': 'Shared Cut',
+            'access': 'view'
+          })));
+      expect(find.byIcon(Icons.copy_outlined), findsOneWidget);
+      await t.tap(find.byIcon(Icons.copy_outlined));
+      await settle(t);
+      expect(dup, 2);
+      expect(find.text('Copy created'), findsWidgets);
     });
   });
 

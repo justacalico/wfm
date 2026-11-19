@@ -64,6 +64,32 @@ void main() {
     expect(find.text('Read only'), findsWidgets);
   });
 
+  testWidgets('template and plain shares offer copy actions', (t) async {
+    var dup = 0;
+    installApi(extra: {
+      'GET /api/shares': (_) => [
+            share('s1', status: 'accepted')..['template'] = true,
+            share('s2', status: 'accepted', level: 'edit'),
+          ],
+      'POST /api/projects/p-s1/duplicate': (_) {
+        dup++;
+        return {'id': 'p9', 'name': 'c', 'displayName': 'C'};
+      },
+      'POST /api/projects/p-s2/duplicate': (_) =>
+          http.Response('{"error":"nope"}', 500),
+    });
+    await pump(t, const SharedPage());
+    expect(find.text('Use template'), findsOneWidget);
+    expect(find.textContaining('Can edit'), findsOneWidget);
+    await t.tap(find.text('Use template'));
+    await settle(t);
+    expect(dup, 1);
+    expect(find.text('Copy created'), findsWidgets);
+    await t.tap(find.byIcon(Icons.copy_outlined));
+    await settle(t);
+    expect(find.text('nope'), findsWidgets);
+  });
+
   testWidgets('empty state and error retry', (t) async {
     var fail = true;
     installApi(extra: {
