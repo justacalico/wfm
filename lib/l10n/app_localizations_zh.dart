@@ -982,4 +982,33 @@ class AppLocalizationsZh extends AppLocalizations {
   String notifReturned(Object from, Object project) {
     return '$from 将 $project 退回草稿';
   }
+
+  @override
+  String get keyboardShortcuts => '键盘快捷键';
+
+  @override
+  String get searchShortcuts => '搜索操作';
+
+  @override
+  String get pressShortcut => '按下新的快捷键';
+
+  @override
+  String shortcutConflict(Object action) {
+    return '已被 $action 使用';
+  }
+
+  @override
+  String get clearShortcut => '清除';
+
+  @override
+  String get unbound => '未绑定';
+
+  @override
+  String get resetToDefault => '恢复默认';
+
+  @override
+  String get resetAllShortcuts => '重置所有快捷键';
+
+  @override
+  String get resetAllShortcutsBody => '将所有快捷键恢复为默认？';
 }

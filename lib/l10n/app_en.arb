@@ -425,4 +425,14 @@
   "notifSubmitted": "{from} submitted {project} for review",
   "notifReviewed": "{from} marked {project} reviewed",
   "notifReturned": "{from} returned {project} to draft"
+,
+  "keyboardShortcuts": "Keyboard shortcuts",
+  "searchShortcuts": "Search actions",
+  "pressShortcut": "Press the new shortcut",
+  "shortcutConflict": "Already used by {action}",
+  "clearShortcut": "Clear",
+  "unbound": "Unbound",
+  "resetToDefault": "Reset to default",
+  "resetAllShortcuts": "Reset all shortcuts",
+  "resetAllShortcutsBody": "Restore every shortcut to its default?"
 }

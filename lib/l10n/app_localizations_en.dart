@@ -986,6 +986,35 @@ class AppLocalizationsEn extends AppLocalizations {
   String notifReturned(Object from, Object project) {
     return '$from returned $project to draft';
   }
+
+  @override
+  String get keyboardShortcuts => 'Keyboard shortcuts';
+
+  @override
+  String get searchShortcuts => 'Search actions';
+
+  @override
+  String get pressShortcut => 'Press the new shortcut';
+
+  @override
+  String shortcutConflict(Object action) {
+    return 'Already used by $action';
+  }
+
+  @override
+  String get clearShortcut => 'Clear';
+
+  @override
+  String get unbound => 'Unbound';
+
+  @override
+  String get resetToDefault => 'Reset to default';
+
+  @override
+  String get resetAllShortcuts => 'Reset all shortcuts';
+
+  @override
+  String get resetAllShortcutsBody => 'Restore every shortcut to its default?';
 }
 
 /// The translations for English, as used in the United Kingdom (`en_GB`).
@@ -1353,4 +1382,33 @@ class AppLocalizationsEnGb extends AppLocalizationsEn {
   String notifReturned(Object from, Object project) {
     return '$from returned $project to draft';
   }
+
+  @override
+  String get keyboardShortcuts => 'Keyboard shortcuts';
+
+  @override
+  String get searchShortcuts => 'Search actions';
+
+  @override
+  String get pressShortcut => 'Press the new shortcut';
+
+  @override
+  String shortcutConflict(Object action) {
+    return 'Already used by $action';
+  }
+
+  @override
+  String get clearShortcut => 'Clear';
+
+  @override
+  String get unbound => 'Unbound';
+
+  @override
+  String get resetToDefault => 'Reset to default';
+
+  @override
+  String get resetAllShortcuts => 'Reset all shortcuts';
+
+  @override
+  String get resetAllShortcutsBody => 'Restore every shortcut to its default?';
 }

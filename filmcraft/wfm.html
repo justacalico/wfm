@@ -186,6 +186,11 @@ async function listFiles(path) {
 const MEDIA_EXT = /\.(mp4|mov|mkv|webm|avi|mts|m2ts|mxf|mp3|wav|aac|flac|ogg|oga|m4a|opus|png|jpe?g|webp|gif|tiff?|bmp|srt|vtt|dng|exr|hdr)$/i;
 
 async function sendDoc() {
+  try {
+    const sr = await api("/shortcuts");
+    const sc = sr.ok ? await sr.json().catch(() => null) : null;
+    if (sc && sc.bindings) send({ k: "shortcuts", b: sc.bindings }, new ArrayBuffer(0));
+  } catch (_) {}
   let entries = [];
   try {
     entries = await listFiles("");

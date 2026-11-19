@@ -1873,6 +1873,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{from} returned {project} to draft'**
   String notifReturned(Object from, Object project);
+
+  /// No description provided for @keyboardShortcuts.
+  ///
+  /// In en, this message translates to:
+  /// **'Keyboard shortcuts'**
+  String get keyboardShortcuts;
+
+  /// No description provided for @searchShortcuts.
+  ///
+  /// In en, this message translates to:
+  /// **'Search actions'**
+  String get searchShortcuts;
+
+  /// No description provided for @pressShortcut.
+  ///
+  /// In en, this message translates to:
+  /// **'Press the new shortcut'**
+  String get pressShortcut;
+
+  /// No description provided for @shortcutConflict.
+  ///
+  /// In en, this message translates to:
+  /// **'Already used by {action}'**
+  String shortcutConflict(Object action);
+
+  /// No description provided for @clearShortcut.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get clearShortcut;
+
+  /// No description provided for @unbound.
+  ///
+  /// In en, this message translates to:
+  /// **'Unbound'**
+  String get unbound;
+
+  /// No description provided for @resetToDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset to default'**
+  String get resetToDefault;
+
+  /// No description provided for @resetAllShortcuts.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset all shortcuts'**
+  String get resetAllShortcuts;
+
+  /// No description provided for @resetAllShortcutsBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore every shortcut to its default?'**
+  String get resetAllShortcutsBody;
 }
 
 class _AppLocalizationsDelegate

@@ -989,4 +989,34 @@ class AppLocalizationsGa extends AppLocalizations {
   String notifReturned(Object from, Object project) {
     return 'Thug $from $project ar ais go dreacht';
   }
+
+  @override
+  String get keyboardShortcuts => 'Aicearraí méarchláir';
+
+  @override
+  String get searchShortcuts => 'Cuardaigh gníomhartha';
+
+  @override
+  String get pressShortcut => 'Brúigh an aicearra nua';
+
+  @override
+  String shortcutConflict(Object action) {
+    return 'In úsáid cheana ag $action';
+  }
+
+  @override
+  String get clearShortcut => 'Glan';
+
+  @override
+  String get unbound => 'Gan cheangal';
+
+  @override
+  String get resetToDefault => 'Athshocraigh go réamhshocraithe';
+
+  @override
+  String get resetAllShortcuts => 'Athshocraigh gach aicearra';
+
+  @override
+  String get resetAllShortcutsBody =>
+      'Gach aicearra a chur ar ais go dtí a réamhshocrú?';
 }

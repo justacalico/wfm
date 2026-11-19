@@ -425,4 +425,14 @@
   "notifSubmitted": "{from} отправил {project} на проверку",
   "notifReviewed": "{from} отметил {project} проверенным",
   "notifReturned": "{from} вернул {project} в черновик"
+,
+  "keyboardShortcuts": "Сочетания клавиш",
+  "searchShortcuts": "Поиск действий",
+  "pressShortcut": "Нажмите новое сочетание",
+  "shortcutConflict": "Уже используется: {action}",
+  "clearShortcut": "Очистить",
+  "unbound": "Не назначено",
+  "resetToDefault": "Сбросить на умолчание",
+  "resetAllShortcuts": "Сбросить все сочетания",
+  "resetAllShortcutsBody": "Вернуть все сочетания к значениям по умолчанию?"
 }

@@ -1,0 +1,126 @@
+diff --git a/apps/filmcraft-web/src/host.rs b/apps/filmcraft-web/src/host.rs
+index 6927ef7..61243f1 100644
+--- a/apps/filmcraft-web/src/host.rs
++++ b/apps/filmcraft-web/src/host.rs
+@@ -55,7 +55,7 @@ use craft_web_host::web::{FileData, Host, Message};
+ use serde_json::{Value, json};
+ use filmcraft_engine::Session;
+ 
+-use crate::hostmode::{MAX_OPEN_BYTES, PROJECT_OPEN_MAX, is_project, is_save_as, media_ref, open_name, open_size_ok, project_open_ok, wfm_meta};
++use crate::hostmode::{MAX_OPEN_BYTES, PROJECT_OPEN_MAX, is_project, is_save_as, media_ref, open_name, open_size_ok, project_open_ok, shortcut_bindings, wfm_meta};
+ 
+ /// The app id in the host messages (`filmcraft:ready`).
+ const APP: &str = "filmcraft";
+@@ -270,6 +270,26 @@ fn deliver_open(bridge: &Bridge, name0: &str, data: &FileData) {
+                 });
+                 return;
+             }
++            Some("shortcuts") => {
++                // `{"k":"shortcuts","b":{…}}`: the user's WFM key map — the only bindings the
++                // session keeps, since the in-app editor is patched out. `""` clears a binding.
++                let binds = shortcut_bindings(&meta);
++                wasm_bindgen_futures::spawn_local(async move {
++                    crate::import::on_ui(move |w, _| {
++                        let sc = &mut w.app.session.shortcuts;
++                        for (cmd, keys, panel) in &binds {
++                            let _ = if keys.is_empty() {
++                                sc.clear(cmd, None, panel.as_deref()).map(|_| ())
++                            } else {
++                                sc.set(cmd, keys, panel.as_deref(), false, false).map(|_| ())
++                            };
++                        }
++                        json!(null)
++                    })
++                    .await;
++                });
++                return;
++            }
+             Some("doc") => {
+                 if let Some(n) = meta["n"].as_str() {
+                     name = open_name(n);
+diff --git a/apps/filmcraft-web/src/hostmode.rs b/apps/filmcraft-web/src/hostmode.rs
+index 92bfae4..96f69f5 100644
+--- a/apps/filmcraft-web/src/hostmode.rs
++++ b/apps/filmcraft-web/src/hostmode.rs
+@@ -71,3 +71,27 @@ pub fn media_ref(meta: &serde_json::Value) -> Option<(String, String, u64)> {
+     let url = meta["u"].as_str().filter(|u| !u.is_empty())?;
+     Some((p.to_string(), url.to_string(), meta["s"].as_u64().unwrap_or(0)))
+ }
++
++/// What a `wfm:` `shortcuts` message carries: the user's key map as `(command, keys, panel)`
++/// triples. A key is `command` or `command@panel`; an empty value clears the binding, anything
++/// else assigns it. Malformed entries are dropped, never fatal.
++pub fn shortcut_bindings(meta: &serde_json::Value) -> Vec<(String, String, Option<String>)> {
++    meta["b"]
++        .as_object()
++        .map(|b| {
++            b.iter()
++                .filter_map(|(k, v)| {
++                    let keys = v.as_str()?;
++                    if keys.chars().count() > 100 {
++                        return None;
++                    }
++                    let (cmd, panel) = k.split_once('@').map_or((k.as_str(), None), |(c, p)| (c, Some(p.to_string())));
++                    if cmd.is_empty() {
++                        return None;
++                    }
++                    Some((cmd.to_string(), keys.to_string(), panel))
++                })
++                .collect()
++        })
++        .unwrap_or_default()
++}
+diff --git a/apps/filmcraft-web/tests/it/hostmode.rs b/apps/filmcraft-web/tests/it/hostmode.rs
+index 329eff0..daf23fc 100644
+--- a/apps/filmcraft-web/tests/it/hostmode.rs
++++ b/apps/filmcraft-web/tests/it/hostmode.rs
+@@ -4,7 +4,7 @@
+ #[path = "../../src/hostmode.rs"]
+ mod rules;
+ 
+-use rules::{DEFAULT_OPEN_NAME, MAX_OPEN_BYTES, PROJECT_OPEN_MAX, is_project, is_save_as, media_ref, open_name, open_size_ok, project_open_ok, wfm_meta};
++use rules::{DEFAULT_OPEN_NAME, MAX_OPEN_BYTES, PROJECT_OPEN_MAX, is_project, is_save_as, media_ref, open_name, open_size_ok, project_open_ok, shortcut_bindings, wfm_meta};
+ 
+ #[test]
+ fn open_names_fall_back_to_the_default_and_lose_path_separators() {
+@@ -74,3 +74,17 @@ fn media_refs_need_a_path_and_a_url() {
+     let (p, u, s) = media_ref(&serde_json::json!({"p": "a.mp4", "u": "/x"})).unwrap();
+     assert_eq!((p.as_str(), u.as_str(), s), ("a.mp4", "/x", 0), "a missing size reads as empty");
+ }
++
++#[test]
++fn shortcut_bindings_parse_the_key_map() {
++    let m = serde_json::json!({"k": "shortcuts", "b": {"edit.undo": "Alt+Q", "file.newBin@Project": "", "": "K", "edit.redo": 3}});
++    assert_eq!(
++        shortcut_bindings(&m),
++        vec![
++            ("edit.undo".to_string(), "Alt+Q".to_string(), None),
++            ("file.newBin".to_string(), String::new(), Some("Project".to_string())),
++        ]
++    );
++    assert!(shortcut_bindings(&serde_json::json!({"k": "shortcuts"})).is_empty());
++    assert!(shortcut_bindings(&serde_json::json!({"k": "shortcuts", "b": "x"})).is_empty());
++}
+diff --git a/crates/ui-egui/src/menus.rs b/crates/ui-egui/src/menus.rs
+index 4254f10..2c98bbd 100644
+--- a/crates/ui-egui/src/menus.rs
++++ b/crates/ui-egui/src/menus.rs
+@@ -142,7 +142,7 @@ pub const UI_COMMANDS: &[UiCommand] = &[
+     uic!("mode.edit", "Edit", [], None),
+     uic!("mode.export", "Export", [], None),
+     uic!("app.about", "About FilmCraft", ["Help"], None),
+-    uic!("app.keyboardShortcuts", "Keyboard Shortcuts…", ["Edit"], Some("Cmd+Alt+K")),
++    // WFM manages shortcuts server-side; the in-app editor is removed.
+     uic!("app.settings.general", "General…", ["Edit", "Preferences"], Some("Cmd+,")),
+     uic!("app.settings.appearance", "Appearance…", ["Edit", "Preferences"], None),
+     uic!("app.settings.audio", "Audio…", ["Edit", "Preferences"], None),
+@@ -502,8 +502,7 @@ pub fn invoke_command(app: &mut FilmcraftApp, ctx: &egui::Context, id: &str, mut
+             return Ok(json!({"url": url}));
+         }
+         "help.shortcuts" | "app.keyboardShortcuts" => {
+-            crate::panels::shortcuts_dialog::open(app);
+-            return Ok(Value::Null);
++            return Err("keyboard shortcuts are managed by the host".to_string());
+         }
+         // File ▸ Export ▸ AAF… / OMF… open their settings dialogs; with a path they export directly.
+         "file.exportAaf" | "file.exportOmf" if params.get("path").is_none() => {
