@@ -1369,6 +1369,132 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Upload chunk size'**
   String get chunkSize;
+
+  /// No description provided for @account.
+  ///
+  /// In en, this message translates to:
+  /// **'Account'**
+  String get account;
+
+  /// No description provided for @invite.
+  ///
+  /// In en, this message translates to:
+  /// **'Invite'**
+  String get invite;
+
+  /// No description provided for @newInvite.
+  ///
+  /// In en, this message translates to:
+  /// **'New invite'**
+  String get newInvite;
+
+  /// No description provided for @inviteReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Invite ready'**
+  String get inviteReady;
+
+  /// No description provided for @inviteUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'Invite link'**
+  String get inviteUrl;
+
+  /// No description provided for @inviteCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Invite code'**
+  String get inviteCode;
+
+  /// No description provided for @inviteEmail.
+  ///
+  /// In en, this message translates to:
+  /// **'Email body'**
+  String get inviteEmail;
+
+  /// No description provided for @inviteEmailBody.
+  ///
+  /// In en, this message translates to:
+  /// **'You have been invited to WFM. Sign up here: {url}'**
+  String inviteEmailBody(Object url);
+
+  /// No description provided for @copy.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy'**
+  String get copy;
+
+  /// No description provided for @copied.
+  ///
+  /// In en, this message translates to:
+  /// **'Copied'**
+  String get copied;
+
+  /// No description provided for @invites.
+  ///
+  /// In en, this message translates to:
+  /// **'Invites'**
+  String get invites;
+
+  /// No description provided for @used.
+  ///
+  /// In en, this message translates to:
+  /// **'Used'**
+  String get used;
+
+  /// No description provided for @expired.
+  ///
+  /// In en, this message translates to:
+  /// **'Expired'**
+  String get expired;
+
+  /// No description provided for @pending.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending'**
+  String get pending;
+
+  /// No description provided for @usernameOptional.
+  ///
+  /// In en, this message translates to:
+  /// **'Username (optional)'**
+  String get usernameOptional;
+
+  /// No description provided for @nameOptional.
+  ///
+  /// In en, this message translates to:
+  /// **'Name (optional)'**
+  String get nameOptional;
+
+  /// No description provided for @inviteSignup.
+  ///
+  /// In en, this message translates to:
+  /// **'Create your account'**
+  String get inviteSignup;
+
+  /// No description provided for @signUp.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign up'**
+  String get signUp;
+
+  /// No description provided for @confirmPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm password'**
+  String get confirmPassword;
+
+  /// No description provided for @passwordsMismatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Passwords do not match'**
+  String get passwordsMismatch;
+
+  /// No description provided for @revoked.
+  ///
+  /// In en, this message translates to:
+  /// **'Revoked'**
+  String get revoked;
 }
 
 class _AppLocalizationsDelegate

@@ -179,6 +179,22 @@ fn map_node(r: &rusqlite::Row<'_>) -> rusqlite::Result<RenderNode> {
     })
 }
 
+fn map_invite(r: &rusqlite::Row) -> rusqlite::Result<InviteCode> {
+    Ok(InviteCode {
+        id: r.get(0)?,
+        code_hash: r.get(1)?,
+        created_by: r.get(2)?,
+        role: r.get(3)?,
+        preset_username: r.get(4)?,
+        preset_name: r.get(5)?,
+        used_by: r.get(6)?,
+        used_at: r.get(7)?,
+        expires_at: r.get(8)?,
+        revoked: r.get::<_, i64>(9)? != 0,
+        created_at: r.get(10)?,
+    })
+}
+
 fn map_audit(r: &rusqlite::Row<'_>) -> rusqlite::Result<AuditEntry> {
     Ok(AuditEntry {
         id: r.get(0)?,
@@ -1126,6 +1142,99 @@ impl Db for SqliteDb {
             .map_err(dberr)
     }
 
+    async fn invite_create(&self, i: &InviteCode) -> DbResult<()> {
+        let v: Vec<String> = [
+            &i.id,
+            &i.code_hash,
+            &i.created_by,
+            &i.role,
+            &i.preset_username,
+            &i.preset_name,
+            &i.used_by,
+        ]
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
+        let (used_at, expires_at, revoked, created_at) =
+            (i.used_at, i.expires_at, i.revoked, i.created_at);
+        self.q(move |c| {
+                c.execute(
+                    "INSERT INTO invite_codes(id,code_hash,created_by,role,preset_username,preset_name,used_by,used_at,expires_at,revoked,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                    params![v[0], v[1], v[2], v[3], v[4], v[5], v[6], used_at, expires_at, revoked as i64, created_at],
+                )
+            })
+            .await
+            .map(|_| ())
+            .map_err(dberr)
+    }
+
+    async fn invite_by_hash(&self, hash: &str) -> DbResult<InviteCode> {
+        let hash = hash.to_string();
+        self.q(move |c| {
+                c.query_row(
+                    "SELECT id,code_hash,created_by,role,preset_username,preset_name,used_by,used_at,expires_at,revoked,created_at FROM invite_codes WHERE code_hash=?",
+                    params![hash],
+                    map_invite,
+                )
+            })
+            .await
+            .map_err(dberr)
+    }
+
+    async fn invites_by_creator(&self, uid: &str) -> DbResult<Vec<InviteCode>> {
+        let uid = uid.to_string();
+        self.q(move |c| {
+                let mut st = c.prepare(
+                    "SELECT id,code_hash,created_by,role,preset_username,preset_name,used_by,used_at,expires_at,revoked,created_at FROM invite_codes WHERE created_by=? ORDER BY created_at DESC",
+                )?;
+                let rows = st.query_map(params![uid], map_invite)?;
+                rows.collect::<rusqlite::Result<Vec<_>>>()
+            })
+            .await
+            .map_err(dberr)
+    }
+
+    async fn invite_use(&self, hash: &str, uid: &str, ts: i64) -> DbResult<bool> {
+        let hash = hash.to_string();
+        let uid = uid.to_string();
+        self.q(move |c| {
+                c.execute(
+                    "UPDATE invite_codes SET used_by=?, used_at=? WHERE code_hash=? AND used_by='' AND revoked=0 AND expires_at>?",
+                    params![uid, ts, hash, ts],
+                )
+            })
+            .await
+            .map(|n| n > 0)
+            .map_err(dberr)
+    }
+
+    async fn invite_unuse(&self, hash: &str) -> DbResult<()> {
+        let hash = hash.to_string();
+        self.q(move |c| {
+                c.execute(
+                    "UPDATE invite_codes SET used_by='', used_at=0 WHERE code_hash=?",
+                    params![hash],
+                )
+            })
+            .await
+            .map(|_| ())
+            .map_err(dberr)
+    }
+
+    async fn invite_revoke(&self, id: &str, creator: &str) -> DbResult<bool> {
+        let id = id.to_string();
+        let creator = creator.to_string();
+        self.q(move |c| {
+                c.execute(
+                    "UPDATE invite_codes SET revoked=1 WHERE id=? AND created_by=? AND used_by=''",
+                    params![id, creator],
+                )
+            })
+            .await
+            .map(|n| n > 0)
+            .map_err(dberr)
+    }
+
     async fn setting_get(&self, k: &str) -> DbResult<Option<String>> {
         let k = k.to_string();
         self.q(move |c| {
@@ -1421,6 +1530,36 @@ mod tests {
         let rows = db.list_sessions("u").await.unwrap();
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0].id, "t2");
+    }
+
+    #[tokio::test]
+    async fn invite_lifecycle() {
+        let db = connect(":memory:").await.unwrap();
+        let inv = InviteCode {
+            id: "i1".into(),
+            code_hash: "h1".into(),
+            created_by: "t1".into(),
+            role: "student".into(),
+            preset_username: "".into(),
+            preset_name: "".into(),
+            used_by: "".into(),
+            used_at: 0,
+            expires_at: 1000,
+            revoked: false,
+            created_at: 1,
+        };
+        db.invite_create(&inv).await.unwrap();
+        assert_eq!(db.invite_by_hash("h1").await.unwrap().id, "i1");
+        assert_eq!(db.invites_by_creator("t1").await.unwrap().len(), 1);
+        assert!(!db.invite_use("h1", "u1", 2000).await.unwrap());
+        assert!(db.invite_use("h1", "u1", 500).await.unwrap());
+        assert!(!db.invite_use("h1", "u2", 600).await.unwrap());
+        assert!(!db.invite_revoke("i1", "t1").await.unwrap());
+        db.invite_unuse("h1").await.unwrap();
+        assert!(db.invite_by_hash("h1").await.unwrap().used_by.is_empty());
+        assert!(!db.invite_revoke("i1", "other").await.unwrap());
+        assert!(db.invite_revoke("i1", "t1").await.unwrap());
+        assert!(!db.invite_use("h1", "u1", 500).await.unwrap());
     }
 
     #[tokio::test]

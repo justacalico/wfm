@@ -170,6 +170,92 @@ void main() {
       expect(body, contains('S77'));
     });
 
+    testWidgets('create invite, copy and revoke', (t) async {
+      String? body;
+      var creates = 0;
+      var revoked = 0;
+      installApi(extra: {
+        'GET /api/invites': (_) => [
+              {
+                'id': 'i1',
+                'role': 'student',
+                'presetUsername': 'ann',
+                'usedBy': '',
+                'usedAt': 0,
+                'expiresAt': 9999999999,
+                'createdAt': 1
+              },
+              {
+                'id': 'i2',
+                'role': 'mod',
+                'usedBy': 'u9',
+                'usedAt': 5,
+                'expiresAt': 9999999999,
+                'createdAt': 1
+              },
+              {'id': 'i3', 'role': 'student', 'expiresAt': 1, 'createdAt': 1},
+              {
+                'id': 'i4',
+                'role': 'student',
+                'expiresAt': 9999999999,
+                'revoked': true,
+                'createdAt': 1
+              },
+            ],
+        'POST /api/invites': (req) {
+          creates++;
+          if (creates > 1) {
+            return http.Response('{"error":"dup"}', 409);
+          }
+          body = req.body;
+          return {'code': 'c9', 'invite': {}};
+        },
+        'DELETE /api/invites/i1': (req) {
+          revoked++;
+          return revoked > 1
+              ? http.Response('{"error":"gone"}', 410)
+              : {'ok': true};
+        },
+      });
+      await pump(t, const AccountsTab());
+      expect(find.text('Invites'), findsOneWidget);
+      expect(find.textContaining('Pending'), findsOneWidget);
+      expect(find.textContaining('Used'), findsOneWidget);
+      expect(find.textContaining('Expired'), findsOneWidget);
+      expect(find.textContaining('Revoked'), findsOneWidget);
+      await t.tap(find.byIcon(Icons.delete_outline).last);
+      await settle(t);
+      expect(revoked, 1);
+      await t.tap(find.byIcon(Icons.delete_outline).last);
+      await settle(t);
+      expect(revoked, 2);
+      expect(find.byType(Notice), findsWidgets);
+
+      await t.tap(find.byType(FloatingActionButton));
+      await settle(t);
+      await t.tap(find.text('Invite'));
+      await settle(t);
+      expect(find.text('New invite'), findsOneWidget);
+      await t.enterText(find.byType(TextField).at(1), 'newkid');
+      await t.tap(find.text('Create'));
+      await settle(t);
+      expect(body, contains('"username":"newkid"'));
+      expect(find.text('Invite ready'), findsOneWidget);
+      await t.tap(find.byIcon(Icons.copy).first);
+      await settle(t);
+      expect(find.text('Copied'), findsOneWidget);
+      await t.tap(find.text('OK'));
+      await settle(t);
+
+      await t.tap(find.byType(FloatingActionButton));
+      await settle(t);
+      await t.tap(find.text('Invite'));
+      await settle(t);
+      await t.tap(find.text('Create'));
+      await settle(t);
+      expect(find.byType(Notice), findsWidgets);
+    });
+
     testWidgets('create account cancel and error', (t) async {
       installApi(extra: {
         'POST /api/accounts': (_) => http.Response('{"error":"taken"}', 409),

@@ -704,4 +704,69 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get chunkSize => 'Размер части загрузки';
+
+  @override
+  String get account => 'Аккаунт';
+
+  @override
+  String get invite => 'Приглашение';
+
+  @override
+  String get newInvite => 'Новое приглашение';
+
+  @override
+  String get inviteReady => 'Приглашение создано';
+
+  @override
+  String get inviteUrl => 'Ссылка-приглашение';
+
+  @override
+  String get inviteCode => 'Код приглашения';
+
+  @override
+  String get inviteEmail => 'Текст письма';
+
+  @override
+  String inviteEmailBody(Object url) {
+    return 'Вас пригласили в WFM. Зарегистрируйтесь: $url';
+  }
+
+  @override
+  String get copy => 'Копировать';
+
+  @override
+  String get copied => 'Скопировано';
+
+  @override
+  String get invites => 'Приглашения';
+
+  @override
+  String get used => 'Использовано';
+
+  @override
+  String get expired => 'Истекло';
+
+  @override
+  String get pending => 'Ожидает';
+
+  @override
+  String get usernameOptional => 'Имя пользователя (необязательно)';
+
+  @override
+  String get nameOptional => 'Имя (необязательно)';
+
+  @override
+  String get inviteSignup => 'Создайте свой аккаунт';
+
+  @override
+  String get signUp => 'Зарегистрироваться';
+
+  @override
+  String get confirmPassword => 'Подтвердите пароль';
+
+  @override
+  String get passwordsMismatch => 'Пароли не совпадают';
+
+  @override
+  String get revoked => 'Отозвано';
 }

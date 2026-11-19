@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'api.dart';
 import 'main.dart';
 import 'util.dart';
@@ -38,6 +39,7 @@ class AccountsTab extends StatefulWidget {
 class _AccountsTabState extends State<AccountsTab> {
   List<User>? _users;
   String _err = '';
+  List<Invite> _invites = [];
 
   @override
   void initState() {
@@ -48,6 +50,7 @@ class _AccountsTabState extends State<AccountsTab> {
   Future<void> _load() async {
     try {
       _users = await Api.i.accounts();
+      _invites = await Api.i.invites().catchError((_) => <Invite>[]);
       setState(() {});
     } catch (e) {
       setState(() => _err = '$e');
@@ -59,7 +62,25 @@ class _AccountsTabState extends State<AccountsTab> {
         context: context, builder: (_) => const _AccountDialog());
     if (fields == null || !mounted) return;
     try {
-      await Api.i.createAccount(fields);
+      if (fields['invite'] == '1') {
+        final code = await Api.i.inviteCreate(fields['role']!,
+            username: fields['username'] ?? '', name: fields['name'] ?? '');
+        if (mounted) {
+          await showDialog(
+              context: context, builder: (_) => _InviteDoneDialog(code));
+        }
+      } else {
+        await Api.i.createAccount(fields);
+      }
+      _load();
+    } catch (e) {
+      if (mounted) snack(context, e);
+    }
+  }
+
+  Future<void> _revoke(Invite i) async {
+    try {
+      await Api.i.inviteRevoke(i.id);
       _load();
     } catch (e) {
       if (mounted) snack(context, e);
@@ -124,8 +145,41 @@ class _AccountsTabState extends State<AccountsTab> {
           : users.isEmpty
               ? Center(child: Text(l10n.noAccounts))
               : ListView.builder(
-                  itemCount: users.length,
+                  itemCount: users.length +
+                      (_invites.isEmpty ? 0 : _invites.length + 1),
                   itemBuilder: (c, i) {
+                    if (i >= users.length) {
+                      final j = i - users.length;
+                      if (j == 0) {
+                        return Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+                          child: Text(l10n.invites,
+                              style: Theme.of(context).textTheme.titleSmall),
+                        );
+                      }
+                      final inv = _invites[j - 1];
+                      final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+                      final status = inv.revoked
+                          ? l10n.revoked
+                          : inv.usedBy.isNotEmpty
+                              ? l10n.used
+                              : inv.expired(now)
+                                  ? l10n.expired
+                                  : l10n.pending;
+                      return ListTile(
+                        leading: const Icon(Icons.link),
+                        title: Text(
+                            '${inv.role}${inv.presetUsername.isNotEmpty ? "  ·  ${inv.presetUsername}" : ""}'),
+                        subtitle:
+                            Text('$status  ·  ${fmtTime(l10n, inv.expiresAt)}'),
+                        trailing: inv.pending(now)
+                            ? IconButton(
+                                icon: const Icon(Icons.delete_outline),
+                                tooltip: l10n.revoke,
+                                onPressed: () => _revoke(inv))
+                            : null,
+                      );
+                    }
                     final u = users[i];
                     return ListTile(
                       leading: CircleAvatar(
@@ -186,6 +240,7 @@ class _AccountDialogState extends State<_AccountDialog> {
       TextEditingController(text: widget.existing?.studentId ?? '');
   late final _note = TextEditingController(text: widget.existing?.note ?? '');
   final _pass = TextEditingController();
+  bool _invite = false;
   late String _role = widget.existing?.role ??
       (Api.i.caps.creatable.contains('student')
           ? 'student'
@@ -209,25 +264,43 @@ class _AccountDialogState extends State<_AccountDialog> {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final editing = widget.existing != null;
-    final valid = validDisplayName(_name.text) &&
-        validUsername(_user.text.trim()) &&
-        (editing || validPassword(_pass.text));
+    final valid = _invite
+        ? (_user.text.trim().isEmpty || validUsername(_user.text.trim())) &&
+            (_name.text.isEmpty || validDisplayName(_name.text))
+        : validDisplayName(_name.text) &&
+            validUsername(_user.text.trim()) &&
+            (editing || validPassword(_pass.text));
     return AlertDialog(
       scrollable: true,
-      title: Text(editing ? l10n.editAccount : l10n.newAccount),
+      title: Text(editing
+          ? l10n.editAccount
+          : _invite
+              ? l10n.newInvite
+              : l10n.newAccount),
       content: SizedBox(
         width: 340,
         child: Column(mainAxisSize: MainAxisSize.min, children: [
+          if (!editing) ...[
+            SegmentedButton<bool>(
+              segments: [
+                ButtonSegment(value: false, label: Text(l10n.account)),
+                ButtonSegment(value: true, label: Text(l10n.invite)),
+              ],
+              selected: {_invite},
+              onSelectionChanged: (v) => setState(() => _invite = v.first),
+            ),
+            const SizedBox(height: 8),
+          ],
           TextField(
               controller: _name,
-              decoration: dec(l10n.name),
+              decoration: dec(_invite ? l10n.nameOptional : l10n.name),
               onChanged: (_) => setState(() {})),
           const SizedBox(height: 8),
           TextField(
               controller: _user,
-              decoration: dec(l10n.username),
+              decoration: dec(_invite ? l10n.usernameOptional : l10n.username),
               onChanged: (_) => setState(() {})),
-          if (!editing) ...[
+          if (!editing && !_invite) ...[
             const SizedBox(height: 8),
             TextField(
                 controller: _pass,
@@ -247,13 +320,16 @@ class _AccountDialogState extends State<_AccountDialog> {
               onChanged: (v) => setState(() => _role = v!),
             ),
           ],
-          const SizedBox(height: 8),
-          TextField(controller: _sid, decoration: dec(l10n.studentIdOptional)),
-          const SizedBox(height: 8),
-          TextField(
-              controller: _note,
-              maxLength: 20,
-              decoration: dec(l10n.noteOptional)),
+          if (!_invite) ...[
+            const SizedBox(height: 8),
+            TextField(
+                controller: _sid, decoration: dec(l10n.studentIdOptional)),
+            const SizedBox(height: 8),
+            TextField(
+                controller: _note,
+                maxLength: 20,
+                decoration: dec(l10n.noteOptional)),
+          ],
         ]),
       ),
       actions: [
@@ -262,6 +338,7 @@ class _AccountDialogState extends State<_AccountDialog> {
         FilledButton(
             onPressed: valid
                 ? () => Navigator.pop(context, {
+                      if (_invite) 'invite': '1',
                       'username': _user.text.trim(),
                       'name': _name.text.trim(),
                       'role': _role,
@@ -576,6 +653,50 @@ class _NodesTabState extends State<NodesTab> {
                     );
                   },
                 ),
+    );
+  }
+}
+
+class _InviteDoneDialog extends StatelessWidget {
+  final String code;
+  const _InviteDoneDialog(this.code);
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final url = '${Uri.base.scheme.startsWith('http') ? '${Uri.base.origin}/' : ''}app/invite/$code';
+    Widget row(String label, String value) => Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(label, style: Theme.of(context).textTheme.labelMedium),
+              Row(children: [
+                Expanded(child: SelectableText(value)),
+                IconButton(
+                    icon: const Icon(Icons.copy),
+                    tooltip: l10n.copy,
+                    onPressed: () {
+                      Clipboard.setData(ClipboardData(text: value));
+                      snack(context, l10n.copied, good: true);
+                    }),
+              ]),
+            ]);
+    return AlertDialog(
+      title: Text(l10n.inviteReady),
+      content: SizedBox(
+        width: 420,
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          row(l10n.inviteUrl, url),
+          const SizedBox(height: 8),
+          row(l10n.inviteCode, code),
+          const SizedBox(height: 8),
+          row(l10n.inviteEmail, l10n.inviteEmailBody(url)),
+        ]),
+      ),
+      actions: [
+        FilledButton(
+            onPressed: () => Navigator.pop(context), child: Text(l10n.ok)),
+      ],
     );
   }
 }

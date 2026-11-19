@@ -15,7 +15,9 @@ use crate::auth::{
     NodeSession, Session,
 };
 use crate::files::{self, FsError};
-use crate::model::{self, can_manage, Project, ProjectGroup, RenderJob, RenderSpec, Role, User};
+use crate::model::{
+    self, can_manage, InviteCode, Project, ProjectGroup, RenderJob, RenderSpec, Role, User,
+};
 use crate::render;
 use crate::store::{AuditFilter, DbError, LockOutcome};
 
@@ -44,6 +46,12 @@ pub fn router(state: Arc<AppState>) -> Router {
         )
         .route("/accounts/{id}/password", post(reset_password))
         .route("/accounts/{id}/status", post(set_status))
+        .route("/invites", get(list_invites).post(create_invite))
+        .route(
+            "/invites/{id}",
+            get(invite_preview).delete(revoke_invite),
+        )
+        .route("/invites/{id}/redeem", post(redeem_invite))
         .route("/audit", get(audit))
         .route("/projects", get(list_projects).post(create_project))
         .route("/projects/{id}/take-over", post(take_over_project))
@@ -261,6 +269,17 @@ async fn login(
         return err(StatusCode::UNAUTHORIZED, "invalid username or password");
     }
     login_ok(&s, ip);
+    s.audit("account", &user, "login", &user.username, "", &user.lineage)
+        .await;
+    session_response(&s, &parts, &user, &ip).await
+}
+
+async fn session_response(
+    s: &Arc<AppState>,
+    parts: &axum::http::request::Parts,
+    user: &User,
+    ip: &std::net::IpAddr,
+) -> Response {
     let token = model::new_token();
     let csrf = model::new_token();
     let expires = AppState::now() + s.cfg.session_ttl;
@@ -287,8 +306,6 @@ async fn login(
         return db_resp(e);
     }
     let _ = s.db.touch_login(&user.id, AppState::now()).await;
-    s.audit("account", &user, "login", &user.username, "", &user.lineage)
-        .await;
     let mut r = Json(json!({"user": user, "csrf": csrf, "token": token})).into_response();
     r.headers_mut().insert(
         header::SET_COOKIE,
@@ -597,6 +614,225 @@ async fn create_account(
     )
     .await;
     Json(json!(u)).into_response()
+}
+
+#[derive(Deserialize)]
+struct InviteReq {
+    role: String,
+    #[serde(default)]
+    username: String,
+    #[serde(default)]
+    name: String,
+}
+
+async fn create_invite(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Json(req): Json<InviteReq>,
+) -> Response {
+    if !session.user.role.can_create() {
+        return err(StatusCode::FORBIDDEN, "not allowed");
+    }
+    let role = match Role::parse(&req.role) {
+        Some(r) if r < session.user.role && r != Role::Owner => r,
+        _ => return err(StatusCode::BAD_REQUEST, "cannot create that role"),
+    };
+    let username = req.username.trim();
+    if !username.is_empty() && !model::valid_username(username) {
+        return err(StatusCode::BAD_REQUEST, "invalid username");
+    }
+    let name = req.name.trim();
+    if name.len() > 64 {
+        return err(StatusCode::BAD_REQUEST, "invalid name");
+    }
+    let code = model::new_token();
+    let now = AppState::now();
+    let inv = InviteCode {
+        id: model::new_id(),
+        code_hash: model::token_hash(&code),
+        created_by: session.user.id.clone(),
+        role: role.as_str().into(),
+        preset_username: username.into(),
+        preset_name: name.into(),
+        used_by: String::new(),
+        used_at: 0,
+        expires_at: now + 7 * 86400,
+        revoked: false,
+        created_at: now,
+    };
+    if let Err(e) = s.db.invite_create(&inv).await {
+        return db_resp(e);
+    }
+    s.audit(
+        "account",
+        &session.user,
+        "invite",
+        &inv.preset_username,
+        &format!("role={}", inv.role),
+        &session.user.lineage,
+    )
+    .await;
+    Json(json!({"code": code, "invite": inv})).into_response()
+}
+
+async fn list_invites(State(s): State<Arc<AppState>>, session: Session) -> Response {
+    match s.db.invites_by_creator(&session.user.id).await {
+        Ok(v) => Json(json!(v)).into_response(),
+        Err(e) => db_resp(e),
+    }
+}
+
+async fn revoke_invite(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Path(id): Path<String>,
+) -> Response {
+    match s.db.invite_revoke(&id, &session.user.id).await {
+        Ok(true) => {
+            s.audit(
+                "account",
+                &session.user,
+                "invite_revoke",
+                &id,
+                "",
+                &session.user.lineage,
+            )
+            .await;
+            Json(json!({"ok": true})).into_response()
+        }
+        Ok(false) => err(StatusCode::NOT_FOUND, "unknown invite"),
+        Err(e) => db_resp(e),
+    }
+}
+
+async fn invite_preview(
+    State(s): State<Arc<AppState>>,
+    parts: axum::http::request::Parts,
+    Path(code): Path<String>,
+) -> Response {
+    let ip = client_ip(&s, &parts);
+    if let Some(wait) = login_throttle(&s, ip) {
+        return err(
+            StatusCode::TOO_MANY_REQUESTS,
+            &format!("too many attempts, retry in {wait}s"),
+        );
+    }
+    match s.db.invite_by_hash(&model::token_hash(&code)).await {
+        Ok(i) if i.used_by.is_empty() && !i.revoked && i.expires_at > AppState::now() => {
+            Json(json!({"username": i.preset_username, "name": i.preset_name}))
+                .into_response()
+        }
+        Ok(_) => err(StatusCode::GONE, "invite expired"),
+        Err(_) => {
+            login_failed(&s, ip);
+            err(StatusCode::NOT_FOUND, "unknown invite")
+        }
+    }
+}
+
+#[derive(Deserialize)]
+struct RedeemReq {
+    #[serde(default)]
+    username: String,
+    #[serde(default)]
+    name: String,
+    password: String,
+}
+
+async fn redeem_invite(
+    State(s): State<Arc<AppState>>,
+    parts: axum::http::request::Parts,
+    Path(code): Path<String>,
+    Json(req): Json<RedeemReq>,
+) -> Response {
+    let ip = client_ip(&s, &parts);
+    if let Some(wait) = login_throttle(&s, ip) {
+        return err(
+            StatusCode::TOO_MANY_REQUESTS,
+            &format!("too many attempts, retry in {wait}s"),
+        );
+    }
+    let hash = model::token_hash(&code);
+    let inv = match s.db.invite_by_hash(&hash).await {
+        Ok(i) => i,
+        Err(_) => {
+            login_failed(&s, ip);
+            return err(StatusCode::NOT_FOUND, "unknown invite");
+        }
+    };
+    let now = AppState::now();
+    if !inv.used_by.is_empty() || inv.revoked || inv.expires_at <= now {
+        return err(StatusCode::GONE, "invite expired");
+    }
+    let inviter = match s.db.user_by_id(&inv.created_by).await {
+        Ok(u) => u,
+        Err(e) => return db_resp(e),
+    };
+    let username = if inv.preset_username.is_empty() {
+        req.username.trim().to_string()
+    } else {
+        inv.preset_username.clone()
+    };
+    let name = if inv.preset_name.is_empty() {
+        req.name.trim().to_string()
+    } else {
+        inv.preset_name.clone()
+    };
+    if !model::valid_username(&username) {
+        return err(StatusCode::BAD_REQUEST, "invalid username");
+    }
+    if name.is_empty() {
+        return err(StatusCode::BAD_REQUEST, "invalid name");
+    }
+    if !model::valid_password(&req.password) {
+        return err(StatusCode::BAD_REQUEST, "password must be at least 8 characters");
+    }
+    if s.db.user_by_name(&username).await.is_ok() {
+        return err(StatusCode::CONFLICT, "username taken");
+    }
+    let uid = model::new_id();
+    match s.db.invite_use(&hash, &uid, now).await {
+        Ok(true) => {}
+        Ok(false) => return err(StatusCode::GONE, "invite expired"),
+        Err(e) => return db_resp(e),
+    }
+    let pw = match auth::hash_password(&req.password) {
+        Ok(h) => h,
+        Err(e) => return err(StatusCode::INTERNAL_SERVER_ERROR, &e),
+    };
+    let u = User {
+        id: uid,
+        username: username.clone(),
+        display_name: name,
+        role: Role::parse(&inv.role).unwrap_or(Role::Student),
+        role_name: inv.role.clone(),
+        student_id: String::new(),
+        note: String::new(),
+        disabled: false,
+        avatar: String::new(),
+        created_by: inv.created_by.clone(),
+        lineage: format!("{}{}/", inviter.lineage, inviter.id),
+        created_at: now,
+        last_login: 0,
+    };
+    if let Err(e) = s.db.create_user(&u, &pw).await {
+        let _ = s.db.invite_unuse(&hash).await;
+        return match e {
+            DbError::Conflict => err(StatusCode::CONFLICT, "username taken"),
+            other => db_resp(other),
+        };
+    }
+    login_ok(&s, ip);
+    s.audit(
+        "account",
+        &u,
+        "redeem",
+        &u.username,
+        &format!("invite by {}", inviter.username),
+        &u.lineage,
+    )
+    .await;
+    session_response(&s, &parts, &u, &ip).await
 }
 
 #[derive(Deserialize)]

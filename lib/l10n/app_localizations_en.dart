@@ -703,6 +703,71 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get chunkSize => 'Upload chunk size';
+
+  @override
+  String get account => 'Account';
+
+  @override
+  String get invite => 'Invite';
+
+  @override
+  String get newInvite => 'New invite';
+
+  @override
+  String get inviteReady => 'Invite ready';
+
+  @override
+  String get inviteUrl => 'Invite link';
+
+  @override
+  String get inviteCode => 'Invite code';
+
+  @override
+  String get inviteEmail => 'Email body';
+
+  @override
+  String inviteEmailBody(Object url) {
+    return 'You have been invited to WFM. Sign up here: $url';
+  }
+
+  @override
+  String get copy => 'Copy';
+
+  @override
+  String get copied => 'Copied';
+
+  @override
+  String get invites => 'Invites';
+
+  @override
+  String get used => 'Used';
+
+  @override
+  String get expired => 'Expired';
+
+  @override
+  String get pending => 'Pending';
+
+  @override
+  String get usernameOptional => 'Username (optional)';
+
+  @override
+  String get nameOptional => 'Name (optional)';
+
+  @override
+  String get inviteSignup => 'Create your account';
+
+  @override
+  String get signUp => 'Sign up';
+
+  @override
+  String get confirmPassword => 'Confirm password';
+
+  @override
+  String get passwordsMismatch => 'Passwords do not match';
+
+  @override
+  String get revoked => 'Revoked';
 }
 
 /// The translations for English, as used in the United Kingdom (`en_GB`).
@@ -787,4 +852,69 @@ class AppLocalizationsEnGb extends AppLocalizationsEn {
 
   @override
   String get chunkSize => 'Upload chunk size';
+
+  @override
+  String get account => 'Account';
+
+  @override
+  String get invite => 'Invite';
+
+  @override
+  String get newInvite => 'New invite';
+
+  @override
+  String get inviteReady => 'Invite ready';
+
+  @override
+  String get inviteUrl => 'Invite link';
+
+  @override
+  String get inviteCode => 'Invite code';
+
+  @override
+  String get inviteEmail => 'Email body';
+
+  @override
+  String inviteEmailBody(Object url) {
+    return 'You have been invited to WFM. Sign up here: $url';
+  }
+
+  @override
+  String get copy => 'Copy';
+
+  @override
+  String get copied => 'Copied';
+
+  @override
+  String get invites => 'Invites';
+
+  @override
+  String get used => 'Used';
+
+  @override
+  String get expired => 'Expired';
+
+  @override
+  String get pending => 'Pending';
+
+  @override
+  String get usernameOptional => 'Username (optional)';
+
+  @override
+  String get nameOptional => 'Name (optional)';
+
+  @override
+  String get inviteSignup => 'Create your account';
+
+  @override
+  String get signUp => 'Sign up';
+
+  @override
+  String get confirmPassword => 'Confirm password';
+
+  @override
+  String get passwordsMismatch => 'Passwords do not match';
+
+  @override
+  String get revoked => 'Revoked';
 }

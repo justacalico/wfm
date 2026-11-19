@@ -706,4 +706,69 @@ class AppLocalizationsGa extends AppLocalizations {
 
   @override
   String get chunkSize => 'Méid smutáin uaslódála';
+
+  @override
+  String get account => 'Cuntas';
+
+  @override
+  String get invite => 'Cuireadh';
+
+  @override
+  String get newInvite => 'Cuireadh nua';
+
+  @override
+  String get inviteReady => 'Cuireadh réidh';
+
+  @override
+  String get inviteUrl => 'Nasc cuiridh';
+
+  @override
+  String get inviteCode => 'Cód cuiridh';
+
+  @override
+  String get inviteEmail => 'Corp ríomhphoist';
+
+  @override
+  String inviteEmailBody(Object url) {
+    return 'Tugadh cuireadh duit chuig WFM. Cláraigh anseo: $url';
+  }
+
+  @override
+  String get copy => 'Cóipeáil';
+
+  @override
+  String get copied => 'Cóipeáilte';
+
+  @override
+  String get invites => 'Cuirí';
+
+  @override
+  String get used => 'Úsáidte';
+
+  @override
+  String get expired => 'Imithe in éag';
+
+  @override
+  String get pending => 'Ar feitheamh';
+
+  @override
+  String get usernameOptional => 'Ainm úsáideora (roghnach)';
+
+  @override
+  String get nameOptional => 'Ainm (roghnach)';
+
+  @override
+  String get inviteSignup => 'Cruthaigh do chuntas';
+
+  @override
+  String get signUp => 'Cláraigh';
+
+  @override
+  String get confirmPassword => 'Deimhnigh an pasfhocal';
+
+  @override
+  String get passwordsMismatch => 'Ní mheaitseálann na pasfhocail';
+
+  @override
+  String get revoked => 'Cúlghlactha';
 }
