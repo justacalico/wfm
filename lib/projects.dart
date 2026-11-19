@@ -888,6 +888,41 @@ class _FilesTabState extends State<FilesTab> {
     ]);
   }
 
+  Widget _thumb(FileEntry e, {double? h, double? w}) => Image.network(
+        Api.i.thumbUrl(widget.project.id, e.path),
+        height: h,
+        width: w,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) =>
+            Icon(fileIcon(e), size: h == null ? 40 : 20),
+      );
+
+  void _preview(FileEntry e) {
+    if (playableMedia(e.name)) {
+      try {
+        openExternal(Api.i.downloadUrl(widget.project.id, e.path));
+      } catch (err) {
+        if (mounted) snack(context, err);
+      }
+      return;
+    }
+    showDialog(
+        context: context,
+        builder: (ctx) => Dialog(
+              child: InkWell(
+                  onTap: () => Navigator.of(ctx).pop(),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 640),
+                    child: Image.network(
+                        Api.i.downloadUrl(widget.project.id, e.path),
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) => const Padding(
+                            padding: EdgeInsets.all(24),
+                            child: Icon(Icons.broken_image_outlined))),
+                  )),
+            ));
+  }
+
   Widget _menu(BuildContext c, AppLocalizations l10n, FileEntry e) =>
       PopupMenuButton<String>(
         onSelected: (v) {
@@ -916,12 +951,23 @@ class _FilesTabState extends State<FilesTab> {
       );
 
   Widget _tile(BuildContext c, AppLocalizations l10n, FileEntry e) => ListTile(
-        leading: Icon(fileIcon(e)),
+        leading: SizedBox(
+            width: 40,
+            height: 40,
+            child: e.isDir || !thumbable(e.name)
+                ? Icon(fileIcon(e))
+                : ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: _thumb(e, h: 40, w: 40))),
         title: Text(e.name),
         subtitle: e.isDir
             ? null
             : Text('${fmtBytes(e.size)}  ·  ${fmtAgo(l10n, e.modified)}'),
-        onTap: e.isDir ? () => _go(e.path) : null,
+        onTap: e.isDir
+            ? () => _go(e.path)
+            : (thumbable(e.name) || playableMedia(e.name))
+                ? () => _preview(e)
+                : null,
         trailing:
             e.isDir && !widget.project.editable ? null : _menu(c, l10n, e),
       );
@@ -929,7 +975,11 @@ class _FilesTabState extends State<FilesTab> {
   Widget _cell(BuildContext c, AppLocalizations l10n, FileEntry e) => Card(
         clipBehavior: Clip.antiAlias,
         child: InkWell(
-          onTap: e.isDir ? () => _go(e.path) : null,
+          onTap: e.isDir
+              ? () => _go(e.path)
+              : (thumbable(e.name) || playableMedia(e.name))
+                  ? () => _preview(e)
+                  : null,
           child: Padding(
             padding: const EdgeInsets.fromLTRB(12, 4, 4, 10),
             child:
@@ -939,7 +989,13 @@ class _FilesTabState extends State<FilesTab> {
                 const Spacer(),
                 if (!e.isDir || widget.project.editable) _menu(c, l10n, e),
               ]),
-              const Spacer(),
+              if (!e.isDir && thumbable(e.name))
+                Expanded(
+                    child: ClipRRect(
+                        borderRadius: BorderRadius.circular(6),
+                        child: _thumb(e, w: double.infinity)))
+              else
+                const Spacer(),
               Text(e.name, overflow: TextOverflow.ellipsis),
               if (!e.isDir)
                 Text('${fmtBytes(e.size)}  ·  ${fmtAgo(l10n, e.modified)}',

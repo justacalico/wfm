@@ -718,6 +718,49 @@ void main() {
       await settle(t);
     });
 
+    testWidgets('image preview dialog and video opens inline', (t) async {
+      var opened = '';
+      openExternalForTesting = (u) => opened = u;
+      installApi(extra: {
+        'GET /api/projects/p1/files': (_) => [
+              {
+                'name': 'pic.png',
+                'path': 'pic.png',
+                'type': 'file',
+                'size': 100,
+                'modified': 1
+              },
+              {
+                'name': 'clip.mp4',
+                'path': 'clip.mp4',
+                'type': 'file',
+                'size': 2048,
+                'modified': 1
+              },
+            ],
+      });
+      await pump(t, Scaffold(body: FilesTab(project: p1)));
+      await t.tap(find.text('pic.png'));
+      await settle(t);
+      expect(find.byType(Dialog), findsOneWidget);
+      await t.tap(find.byType(InkWell).last);
+      await settle(t);
+      expect(find.byType(Dialog), findsNothing);
+      await t.tap(find.text('clip.mp4'));
+      await settle(t);
+      expect(opened, contains('download?path=clip.mp4'));
+      expect(opened, isNot(contains('dl=true')));
+      openExternalForTesting = (_) => throw 'no browser';
+      await t.tap(find.text('clip.mp4'));
+      await settle(t);
+      expect(find.byType(Notice), findsOneWidget);
+      await t.tap(find.byIcon(Icons.grid_view));
+      await settle(t);
+      await t.tap(find.text('pic.png'));
+      await settle(t);
+      expect(find.byType(Dialog), findsOneWidget);
+    });
+
     testWidgets('grid view toggle persists and restores', (t) async {
       installApi();
       await pump(t, Scaffold(body: FilesTab(project: p1)));

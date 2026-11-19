@@ -95,6 +95,20 @@ pub fn clean_rel_key(rel: &str) -> Result<String, FsError> {
     Ok(rel.to_string_lossy().replace('\\', "/"))
 }
 
+const THUMB_EXTS: &[&str] = &[
+    "png", "jpg", "jpeg", "gif", "webp", "bmp", "tif", "tiff", "mp4", "mov", "mkv", "webm", "avi",
+    "m4v", "mts", "m2ts", "mxf",
+];
+
+/// True when [crate::api] can offer a jpeg thumbnail for `path`.
+pub fn thumbable(path: &str) -> bool {
+    Path::new(path)
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(|e| THUMB_EXTS.contains(&e.to_ascii_lowercase().as_str()))
+        .unwrap_or(false)
+}
+
 /// Object key for a finished render upload. Confines `name` under Exports/ so
 /// a node-supplied path cannot escape the prefix on any blob backend.
 pub fn export_key(name: &str) -> Result<String, FsError> {

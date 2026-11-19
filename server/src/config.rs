@@ -11,6 +11,7 @@ pub struct Config {
     pub cors_origins: Vec<String>,
     pub render_workers: usize,
     pub filmcraft_cli: String,
+    pub ffmpeg: String,
     pub local_renders: bool,
     pub db_url: Option<String>,
     pub session_ttl: i64,
@@ -91,6 +92,7 @@ impl Config {
                 .collect(),
             render_workers: env_int("WFM_RENDER_WORKERS", 1).max(0) as usize,
             filmcraft_cli: env("WFM_FILMCRAFT_CLI", "filmcraft-cli"),
+            ffmpeg: env("WFM_FFMPEG", "ffmpeg"),
             local_renders: env_bool("WFM_LOCAL_RENDERS", true),
             db_url: std::env::var("WFM_DB").ok().filter(|s| !s.is_empty()),
             session_ttl: env_int("WFM_SESSION_DAYS", 7) * 86400,
@@ -136,6 +138,7 @@ impl Config {
                     c.render_workers = next(&mut i)?.parse::<usize>().map_err(|e| e.to_string())?
                 }
                 "--filmcraft-cli" => c.filmcraft_cli = next(&mut i)?,
+                "--ffmpeg" => c.ffmpeg = next(&mut i)?,
                 "--no-local-renders" => c.local_renders = false,
                 "--db" => c.db_url = Some(next(&mut i)?),
                 "--media" => c.media_kind = next(&mut i)?,

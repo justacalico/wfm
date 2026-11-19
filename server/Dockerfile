@@ -27,7 +27,7 @@ WORKDIR /src/server
 RUN cargo build --release --features postgres
 
 FROM debian:bookworm-slim
-RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates && rm -rf /var/lib/apt/lists/* \
+RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates ffmpeg && rm -rf /var/lib/apt/lists/* \
  && useradd --system --uid 10001 --create-home wfm && mkdir -p /data && chown wfm:wfm /data
 WORKDIR /app
 COPY --from=build /src/server/target/release/wfm /app/wfm

@@ -60,6 +60,7 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/projects/{id}/files/mkdir", post(mkdir))
         .route("/projects/{id}/files/move", post(move_file))
         .route("/projects/{id}/download", get(download))
+        .route("/projects/{id}/thumb", get(thumb))
         .route("/projects/{id}/locks", post(lock_acquire).delete(lock_release))
         .route("/projects/{id}/locks/release", post(lock_release))
         .route("/projects/{id}/locks/heartbeat", post(lock_heartbeat))
@@ -1084,6 +1085,7 @@ async fn delete_project(
         return db_resp(e);
     }
     let _ = s.blobs.delete_prefix(&p.dir).await;
+    let _ = s.blobs.delete_prefix(&format!("{}.thumbs", p.dir)).await;
     s.audit(
         "project",
         &session.user,
@@ -1362,6 +1364,90 @@ async fn download(
         Err(e) => return fs_resp(e),
     };
     serve_blob(&s, &blob_key(&p.dir, &key), &key, &headers, q.dl).await
+}
+
+fn thumb_key(dir: &str, rel: &str, size: u64) -> String {
+    let mut h: u64 = 0xcbf29ce484222325;
+    for b in rel.as_bytes() {
+        h = (h ^ *b as u64).wrapping_mul(0x100000001b3);
+    }
+    format!("{dir}.thumbs/{h:016x}-{size:x}.jpg")
+}
+
+async fn make_thumb(s: &Arc<AppState>, src: &str, dst: &str) -> Result<(), String> {
+    use tokio::io::AsyncWriteExt;
+    let (_, stream) = s.blobs.get(src).await?;
+    let mut reader = tokio_util::io::StreamReader::new(stream);
+    let tmp = std::env::temp_dir().join(format!("wfm-thumb-{}", rand::random::<u64>()));
+    {
+        let mut f = tokio::fs::File::create(&tmp)
+            .await
+            .map_err(|e| e.to_string())?;
+        tokio::io::copy(&mut reader, &mut f)
+            .await
+            .map_err(|e| e.to_string())?;
+        f.flush().await.map_err(|e| e.to_string())?;
+    }
+    let out = tmp.with_extension("jpg");
+    let st = tokio::time::timeout(
+        std::time::Duration::from_secs(30),
+        tokio::process::Command::new(&s.cfg.ffmpeg)
+            .arg("-y")
+            .arg("-loglevel")
+            .arg("error")
+            .arg("-i")
+            .arg(&tmp)
+            .arg("-frames:v")
+            .arg("1")
+            .arg("-vf")
+            .arg("scale=320:-2")
+            .arg("-q:v")
+            .arg("4")
+            .arg(&out)
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status(),
+    )
+    .await
+    .map_err(|_| "thumbnail timed out".to_string())?
+    .map_err(|e| e.to_string())?;
+    let _ = tokio::fs::remove_file(&tmp).await;
+    if !st.success() {
+        let _ = tokio::fs::remove_file(&out).await;
+        return Err("thumbnail failed".into());
+    }
+    let bytes = tokio::fs::read(&out).await.map_err(|e| e.to_string())?;
+    let _ = tokio::fs::remove_file(&out).await;
+    let len = bytes.len() as u64;
+    let mut cur = std::io::Cursor::new(bytes);
+    s.blobs.put(dst, len, &mut cur).await
+}
+
+async fn thumb(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Path(id): Path<String>,
+    Query(q): Query<FileQuery>,
+) -> Response {
+    let p = match read_project(&s, &session, &id).await {
+        Ok(p) => p,
+        Err(r) => return r,
+    };
+    let key = match files::clean_rel_key(&q.path) {
+        Ok(k) if files::thumbable(&k) => k,
+        _ => return err(StatusCode::NOT_FOUND, "no thumbnail"),
+    };
+    let size = match s.blobs.head(&blob_key(&p.dir, &key)).await {
+        Ok(v) => v,
+        Err(_) => return err(StatusCode::NOT_FOUND, "not found"),
+    };
+    let tk = thumb_key(&p.dir, &key, size);
+    if s.blobs.head(&tk).await.is_err() {
+        if let Err(e) = make_thumb(&s, &blob_key(&p.dir, &key), &tk).await {
+            return err(StatusCode::NOT_FOUND, &e);
+        }
+    }
+    serve_blob(&s, &tk, "thumb.jpg", &HeaderMap::new(), false).await
 }
 
 async fn serve_blob(s: &Arc<AppState>, key: &str, name: &str, headers: &HeaderMap, attachment: bool) -> Response {
