@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.21.1 - 2026-11-19
+#### Bug Fixes
+- run the update check through the server - (b430d78) - calico
+
+- - -
+
 ## v0.21.0 - 2026-11-19
 #### Features
 - make ScriptCraft and DeckCraft follow the WFM theme - (d6f1336) - calico
