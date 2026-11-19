@@ -62,6 +62,7 @@ async fn main() {
         db,
         blobs,
         logins: Mutex::new(HashMap::new()),
+        link_hits: Mutex::new(HashMap::new()),
         cancels: Mutex::new(HashSet::new()),
         inspect_cache: Mutex::new(HashMap::new()),
         chunk_uploads: Mutex::new(HashMap::new()),

@@ -227,6 +227,7 @@ mod tests {
             db: futures::executor::block_on(crate::store::sqlite::connect(":memory:")).unwrap(),
             blobs: Arc::new(crate::blobs::LocalBlobs::new(dir.join("blobs"))),
             logins: Mutex::new(HashMap::new()),
+            link_hits: Mutex::new(HashMap::new()),
             cancels: Mutex::new(HashSet::new()),
             inspect_cache: Mutex::new(HashMap::new()),
             chunk_uploads: Mutex::new(HashMap::new()),

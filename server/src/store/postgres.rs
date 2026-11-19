@@ -137,6 +137,19 @@ fn row_node(r: sqlx::postgres::PgRow) -> RenderNode {
     }
 }
 
+fn row_link(r: sqlx::postgres::PgRow) -> ProjectLink {
+    ProjectLink {
+        id: r.get("id"),
+        token_hash: r.get("token_hash"),
+        project_id: r.get("project_id"),
+        scope: r.get("scope"),
+        created_by: r.get("created_by"),
+        created_at: r.get("created_at"),
+        expires_at: r.get("expires_at"),
+        revoked: r.get::<i32, _>("revoked") != 0,
+    }
+}
+
 fn row_notification(r: sqlx::postgres::PgRow) -> Notification {
     let payload: String = r.get("payload");
     Notification {
@@ -1474,6 +1487,67 @@ impl Db for PgDb {
         }
         tx.commit().await.map_err(map_err)?;
         Ok(nodes)
+    }
+
+    async fn link_create(&self, l: &ProjectLink) -> DbResult<()> {
+        sqlx::query(
+            "INSERT INTO project_links(id,token_hash,project_id,scope,created_by,created_at,expires_at,revoked) VALUES($1,$2,$3,$4,$5,$6,$7,$8)",
+        )
+        .bind(&l.id)
+        .bind(&l.token_hash)
+        .bind(&l.project_id)
+        .bind(&l.scope)
+        .bind(&l.created_by)
+        .bind(l.created_at)
+        .bind(l.expires_at)
+        .bind(l.revoked as i32)
+        .execute(&self.pool)
+        .await
+        .map(|_| ())
+        .map_err(map_err)
+    }
+
+    async fn link_by_hash(&self, hash: &str) -> DbResult<ProjectLink> {
+        sqlx::query(
+            "SELECT id,token_hash,project_id,scope,created_by,created_at,expires_at,revoked FROM project_links WHERE token_hash=$1",
+        )
+        .bind(hash)
+        .map(row_link)
+        .fetch_one(&self.pool)
+        .await
+        .map_err(map_err)
+    }
+
+    async fn links_by_project(&self, project: &str) -> DbResult<Vec<ProjectLink>> {
+        sqlx::query(
+            "SELECT id,token_hash,project_id,scope,created_by,created_at,expires_at,revoked FROM project_links WHERE project_id=$1 ORDER BY created_at DESC",
+        )
+        .bind(project)
+        .map(row_link)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(map_err)
+    }
+
+    async fn link_revoke(&self, id: &str, project: &str) -> DbResult<bool> {
+        sqlx::query(
+            "UPDATE project_links SET revoked=1 WHERE id=$1 AND project_id=$2 AND revoked=0",
+        )
+        .bind(id)
+        .bind(project)
+        .execute(&self.pool)
+        .await
+        .map(|r| r.rows_affected() > 0)
+        .map_err(map_err)
+    }
+
+    async fn links_delete_project(&self, project: &str) -> DbResult<()> {
+        sqlx::query("DELETE FROM project_links WHERE project_id=$1")
+            .bind(project)
+            .execute(&self.pool)
+            .await
+            .map(|_| ())
+            .map_err(map_err)
     }
 }
 

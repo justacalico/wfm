@@ -880,4 +880,39 @@ class AppLocalizationsGa extends AppLocalizations {
   String notifNodeOffline(Object name) {
     return 'Chuaigh an nód rindreála $name as líne';
   }
+
+  @override
+  String get shareLinks => 'Naisc roinnte';
+
+  @override
+  String get createLink => 'Cruthaigh nasc';
+
+  @override
+  String get scopeProject => 'An tionscadal ar fad';
+
+  @override
+  String get scopeRenders => 'Rindreálacha amháin';
+
+  @override
+  String get expiryNever => 'Gan dáta éaga';
+
+  @override
+  String get expiryDay => '1 lá';
+
+  @override
+  String get expiryWeek => '7 lá';
+
+  @override
+  String get expiryMonth => '30 lá';
+
+  @override
+  String linkExpires(Object when) {
+    return 'Éagann $when';
+  }
+
+  @override
+  String get linkEmpty => 'Tada le taispeáint';
+
+  @override
+  String get linkRendersOnly => 'Rindreálacha amháin';
 }

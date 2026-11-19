@@ -91,5 +91,16 @@
   "notifShareDeclined": "{from} declined your invite to {project}",
   "notifRenderDone": "Render finished: {name} in {project}",
   "notifRenderFailed": "Render failed: {name} in {project}",
-  "notifNodeOffline": "Render node {name} went offline"
+  "notifNodeOffline": "Render node {name} went offline",
+  "shareLinks": "Share links",
+  "createLink": "Create link",
+  "scopeProject": "Whole project",
+  "scopeRenders": "Renders only",
+  "expiryNever": "Never expires",
+  "expiryDay": "1 day",
+  "expiryWeek": "7 days",
+  "expiryMonth": "30 days",
+  "linkExpires": "Expires {when}",
+  "linkEmpty": "Nothing to show",
+  "linkRendersOnly": "Renders only"
 }

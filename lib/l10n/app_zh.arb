@@ -391,5 +391,16 @@
   "notifShareDeclined": "{from} 拒绝了你的 {project} 邀请",
   "notifRenderDone": "渲染完成:{name}({project})",
   "notifRenderFailed": "渲染失败:{name}({project})",
-  "notifNodeOffline": "渲染节点 {name} 已离线"
+  "notifNodeOffline": "渲染节点 {name} 已离线",
+  "shareLinks": "分享链接",
+  "createLink": "创建链接",
+  "scopeProject": "整个项目",
+  "scopeRenders": "仅渲染成品",
+  "expiryNever": "永不过期",
+  "expiryDay": "1 天",
+  "expiryWeek": "7 天",
+  "expiryMonth": "30 天",
+  "linkExpires": "{when} 过期",
+  "linkEmpty": "暂无内容",
+  "linkRendersOnly": "仅渲染成品"
 }

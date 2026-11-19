@@ -200,6 +200,19 @@ class AutoShare {
         createdAt = j['createdAt'] ?? 0;
 }
 
+class ShareLink {
+  final String id, projectId, scope;
+  final int createdAt, expiresAt;
+  final bool revoked;
+  ShareLink.fromJson(Map<String, dynamic> j)
+      : id = j['id'] ?? '',
+        projectId = j['projectId'] ?? '',
+        scope = j['scope'] ?? 'project',
+        createdAt = j['createdAt'] ?? 0,
+        expiresAt = j['expiresAt'] ?? 0,
+        revoked = j['revoked'] ?? false;
+}
+
 class AppNotification {
   final String id, kind;
   final Map<String, dynamic> payload;
@@ -579,6 +592,26 @@ class Api {
       (j['unread'] as num?)?.toInt() ?? 0,
     );
   }
+
+  Future<Map<String, dynamic>> linkCreate(String pid, String scope,
+          {int expiresAt = 0}) async =>
+      (await post(
+              '/projects/$pid/links', {'scope': scope, 'expiresAt': expiresAt}))
+          as Map<String, dynamic>;
+
+  Future<List<ShareLink>> projectLinks(String pid) async => [
+        for (final e in (await get('/projects/$pid/links')) as List)
+          ShareLink.fromJson(e)
+      ];
+
+  Future<void> linkRevoke(String pid, String lid) =>
+      del('/projects/$pid/links/$lid');
+
+  Future<Map<String, dynamic>> linkResolve(String token) async =>
+      (await get('/link/$token')) as Map<String, dynamic>;
+
+  String linkFileUrl(String token, String path) =>
+      '$_base/api/link/$token/file?path=${Uri.encodeComponent(path)}';
 
   Future<int> notificationsUnread() async {
     final j = await get('/notifications?limit=1') as Map<String, dynamic>;

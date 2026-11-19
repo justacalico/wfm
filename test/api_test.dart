@@ -564,5 +564,44 @@ void main() {
       await api.notificationsReadAll();
       expect(lastRequest!.url.path, '/api/notifications/read-all');
     });
+
+    test('ShareLink model and endpoints', () async {
+      final l = ShareLink.fromJson({});
+      expect(l.scope, 'project');
+      expect(l.revoked, isFalse);
+      final api = Api(client({
+        'POST /api/projects/p1/links': {'id': 'l1', 'token': 'tok'},
+        'GET /api/projects/p1/links': [
+          {
+            'id': 'l1',
+            'projectId': 'p1',
+            'scope': 'renders',
+            'createdAt': 5,
+            'expiresAt': 9,
+            'revoked': false
+          }
+        ],
+        'DELETE /api/projects/p1/links/l1': {'ok': true},
+        'GET /api/link/tok': {
+          'name': 'Cut',
+          'scope': 'renders',
+          'files': [
+            {'path': 'Exports/final.mp4', 'size': 10}
+          ]
+        },
+      }));
+      final r = await api.linkCreate('p1', 'renders', expiresAt: 99);
+      expect(r['token'], 'tok');
+      expect(jsonDecode(utf8.decode(lastRequest!.bodyBytes))['expiresAt'], 99);
+      final links = await api.projectLinks('p1');
+      expect(links.single.scope, 'renders');
+      expect(links.single.expiresAt, 9);
+      await api.linkRevoke('p1', 'l1');
+      expect(lastRequest!.url.path, '/api/projects/p1/links/l1');
+      final v = await api.linkResolve('tok');
+      expect(v['name'], 'Cut');
+      expect(api.linkFileUrl('tok', 'Exports/final.mp4'),
+          contains('/api/link/tok/file?path='));
+    });
   });
 }

@@ -209,6 +209,19 @@ fn map_share(r: &rusqlite::Row) -> rusqlite::Result<ProjectShare> {
     })
 }
 
+fn map_link(r: &rusqlite::Row) -> rusqlite::Result<ProjectLink> {
+    Ok(ProjectLink {
+        id: r.get(0)?,
+        token_hash: r.get(1)?,
+        project_id: r.get(2)?,
+        scope: r.get(3)?,
+        created_by: r.get(4)?,
+        created_at: r.get(5)?,
+        expires_at: r.get(6)?,
+        revoked: r.get::<_, i64>(7)? != 0,
+    })
+}
+
 fn map_notification(r: &rusqlite::Row) -> rusqlite::Result<Notification> {
     let payload: String = r.get(2)?;
     Ok(Notification {
@@ -1623,6 +1636,82 @@ impl Db for SqliteDb {
             .await
             .map_err(dberr)
     }
+
+    async fn link_create(&self, l: &ProjectLink) -> DbResult<()> {
+        let v: Vec<String> = [
+            &l.id,
+            &l.token_hash,
+            &l.project_id,
+            &l.scope,
+            &l.created_by,
+        ]
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
+        let (created_at, expires_at, revoked) =
+            (l.created_at, l.expires_at, l.revoked as i64);
+        self.q(move |c| {
+                c.execute(
+                    "INSERT INTO project_links(id,token_hash,project_id,scope,created_by,created_at,expires_at,revoked) VALUES(?,?,?,?,?,?,?,?)",
+                    params![v[0], v[1], v[2], v[3], v[4], created_at, expires_at, revoked],
+                )
+            })
+            .await
+            .map(|_| ())
+            .map_err(dberr)
+    }
+
+    async fn link_by_hash(&self, hash: &str) -> DbResult<ProjectLink> {
+        let hash = hash.to_string();
+        self.q(move |c| {
+                c.query_row(
+                    "SELECT id,token_hash,project_id,scope,created_by,created_at,expires_at,revoked FROM project_links WHERE token_hash=?",
+                    params![hash],
+                    map_link,
+                )
+            })
+            .await
+            .map_err(dberr)
+    }
+
+    async fn links_by_project(&self, project: &str) -> DbResult<Vec<ProjectLink>> {
+        let project = project.to_string();
+        self.q(move |c| {
+                let mut st = c.prepare(
+                    "SELECT id,token_hash,project_id,scope,created_by,created_at,expires_at,revoked FROM project_links WHERE project_id=? ORDER BY created_at DESC"
+                )?;
+                let rows = st.query_map(params![project], map_link)?;
+                rows.collect::<rusqlite::Result<Vec<_>>>()
+            })
+            .await
+            .map_err(dberr)
+    }
+
+    async fn link_revoke(&self, id: &str, project: &str) -> DbResult<bool> {
+        let (id, project) = (id.to_string(), project.to_string());
+        self.q(move |c| {
+                c.execute(
+                    "UPDATE project_links SET revoked=1 WHERE id=? AND project_id=? AND revoked=0",
+                    params![id, project],
+                )
+            })
+            .await
+            .map(|n| n > 0)
+            .map_err(dberr)
+    }
+
+    async fn links_delete_project(&self, project: &str) -> DbResult<()> {
+        let project = project.to_string();
+        self.q(move |c| {
+                c.execute(
+                    "DELETE FROM project_links WHERE project_id=?",
+                    params![project],
+                )
+            })
+            .await
+            .map(|_| ())
+            .map_err(dberr)
+    }
 }
 
 #[cfg(test)]
@@ -2229,5 +2318,42 @@ mod tests {
         assert!(staff.contains(&"t1".to_string()));
         assert!(!staff.contains(&"s1".to_string()));
         assert!(!staff.contains(&"d1".to_string()));
+    }
+
+    #[tokio::test]
+    async fn project_link_lifecycle() {
+        let db = connect(":memory:").await.unwrap();
+        let l = crate::model::ProjectLink {
+            id: "l1".into(),
+            token_hash: "h1".into(),
+            project_id: "p1".into(),
+            scope: "renders".into(),
+            created_by: "u1".into(),
+            created_at: 10,
+            expires_at: 0,
+            revoked: false,
+        };
+        db.link_create(&l).await.unwrap();
+        let got = db.link_by_hash("h1").await.unwrap();
+        assert_eq!(got.scope, "renders");
+        assert_eq!(got.id, "l1");
+        let list = db.links_by_project("p1").await.unwrap();
+        assert_eq!(list.len(), 1);
+        assert!(db.links_by_project("p2").await.unwrap().is_empty());
+
+        assert!(!db.link_revoke("l1", "p2").await.unwrap());
+        assert!(db.link_revoke("l1", "p1").await.unwrap());
+        assert!(!db.link_revoke("l1", "p1").await.unwrap());
+        assert!(db.link_by_hash("h1").await.unwrap().revoked);
+
+        db.link_create(&crate::model::ProjectLink {
+            id: "l2".into(),
+            token_hash: "h2".into(),
+            ..l.clone()
+        })
+        .await
+        .unwrap();
+        db.links_delete_project("p1").await.unwrap();
+        assert!(db.links_by_project("p1").await.unwrap().is_empty());
     }
 }

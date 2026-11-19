@@ -80,6 +80,7 @@ pub struct AppState {
     pub db: Arc<dyn Db>,
     pub blobs: Arc<dyn crate::blobs::Blobs>,
     pub logins: Mutex<HashMap<IpAddr, (u32, Instant)>>,
+    pub link_hits: Mutex<HashMap<IpAddr, (u32, Instant)>>,
     pub cancels: Mutex<HashSet<String>>,
     /// Cached `project.inspect` results keyed by fcproj blob key; the value is
     /// the blob's (mtime, size) at inspect time plus the inspect payload.
@@ -251,6 +252,21 @@ pub fn login_failed(state: &AppState, ip: IpAddr) {
 
 pub fn login_ok(state: &AppState, ip: IpAddr) {
     state.logins.lock().unwrap().remove(&ip);
+}
+
+const LINK_WINDOW: Duration = Duration::from_secs(60);
+const LINK_MAX: u32 = 60;
+
+/// Anonymous share-link fetches get a flat per-IP rate limit.
+pub fn link_throttle(state: &AppState, ip: IpAddr) -> bool {
+    let mut m = state.link_hits.lock().unwrap();
+    let now = Instant::now();
+    let e = m.entry(ip).or_insert((0, now));
+    if now.duration_since(e.1) > LINK_WINDOW {
+        *e = (0, now);
+    }
+    e.0 += 1;
+    e.0 > LINK_MAX
 }
 
 /// Drop throttle entries idle longer than the window so the map cannot grow

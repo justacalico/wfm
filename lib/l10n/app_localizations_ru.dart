@@ -878,4 +878,39 @@ class AppLocalizationsRu extends AppLocalizations {
   String notifNodeOffline(Object name) {
     return 'Рендер-узел $name отключился';
   }
+
+  @override
+  String get shareLinks => 'Ссылки для просмотра';
+
+  @override
+  String get createLink => 'Создать ссылку';
+
+  @override
+  String get scopeProject => 'Весь проект';
+
+  @override
+  String get scopeRenders => 'Только рендеры';
+
+  @override
+  String get expiryNever => 'Без срока';
+
+  @override
+  String get expiryDay => '1 день';
+
+  @override
+  String get expiryWeek => '7 дней';
+
+  @override
+  String get expiryMonth => '30 дней';
+
+  @override
+  String linkExpires(Object when) {
+    return 'Истекает $when';
+  }
+
+  @override
+  String get linkEmpty => 'Нечего показать';
+
+  @override
+  String get linkRendersOnly => 'Только рендеры';
 }

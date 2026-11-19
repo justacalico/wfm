@@ -1675,6 +1675,72 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Render node {name} went offline'**
   String notifNodeOffline(Object name);
+
+  /// No description provided for @shareLinks.
+  ///
+  /// In en, this message translates to:
+  /// **'Share links'**
+  String get shareLinks;
+
+  /// No description provided for @createLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Create link'**
+  String get createLink;
+
+  /// No description provided for @scopeProject.
+  ///
+  /// In en, this message translates to:
+  /// **'Whole project'**
+  String get scopeProject;
+
+  /// No description provided for @scopeRenders.
+  ///
+  /// In en, this message translates to:
+  /// **'Renders only'**
+  String get scopeRenders;
+
+  /// No description provided for @expiryNever.
+  ///
+  /// In en, this message translates to:
+  /// **'Never expires'**
+  String get expiryNever;
+
+  /// No description provided for @expiryDay.
+  ///
+  /// In en, this message translates to:
+  /// **'1 day'**
+  String get expiryDay;
+
+  /// No description provided for @expiryWeek.
+  ///
+  /// In en, this message translates to:
+  /// **'7 days'**
+  String get expiryWeek;
+
+  /// No description provided for @expiryMonth.
+  ///
+  /// In en, this message translates to:
+  /// **'30 days'**
+  String get expiryMonth;
+
+  /// No description provided for @linkExpires.
+  ///
+  /// In en, this message translates to:
+  /// **'Expires {when}'**
+  String linkExpires(Object when);
+
+  /// No description provided for @linkEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing to show'**
+  String get linkEmpty;
+
+  /// No description provided for @linkRendersOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Renders only'**
+  String get linkRendersOnly;
 }
 
 class _AppLocalizationsDelegate
