@@ -2,6 +2,14 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.15.0 - 2026-11-19
+#### Features
+- move the sessions list into its own settings sub-page - (3bea9aa) - calico, *Devin*
+#### Bug Fixes
+- send web upload chunks as Blob slices to avoid UI-thread copies - (2035683) - calico, *Devin*
+
+- - -
+
 ## v0.14.1 - 2026-11-19
 #### Bug Fixes
 - throttle upload progress notifications - (c772198) - calico, *Devin*
