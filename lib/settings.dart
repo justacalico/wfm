@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'api.dart';
 import 'main.dart';
 import 'platform.dart';
+import 'shortcuts.dart';
 import 'util.dart';
 import 'version_check.dart';
 
@@ -214,6 +215,15 @@ class _SettingsPageState extends State<SettingsPage> {
             label: Text(l10n.changePassword),
           ),
         ),
+      ListTile(
+        dense: true,
+        contentPadding: EdgeInsets.zero,
+        leading: const Icon(Icons.keyboard_outlined, size: 18),
+        title: Text(l10n.keyboardShortcuts),
+        trailing: const Icon(Icons.chevron_right, size: 18),
+        onTap: () => Navigator.of(context)
+            .push(MaterialPageRoute(builder: (_) => const ShortcutsPage())),
+      ),
       const SizedBox(height: 16),
       if (_sessions != null) ...[
         const SizedBox(height: 16),

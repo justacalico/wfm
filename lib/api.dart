@@ -298,6 +298,36 @@ class AuditEntry {
         detail = j['detail'] ?? '';
 }
 
+class ShortcutAction {
+  final String id, label, category;
+  final List<String> menu;
+  final List<ShortcutBinding> bindings;
+  ShortcutAction.fromJson(Map<String, dynamic> j)
+      : id = j['id'] ?? '',
+        label = j['label'] ?? '',
+        category = j['category'] ?? '',
+        menu = [for (final m in (j['menu'] as List? ?? [])) '$m'],
+        bindings = [
+          for (final b in (j['shortcuts'] as List? ?? []))
+            ShortcutBinding.fromJson(b)
+        ];
+
+  List<String?> get contexts =>
+      {null, for (final b in bindings) b.panel}.toList();
+
+  String defaultKeys(String? panel) =>
+      bindings.where((b) => b.panel == panel).map((b) => b.keys).firstOrNull ??
+      '';
+}
+
+class ShortcutBinding {
+  final String keys;
+  final String? panel;
+  ShortcutBinding.fromJson(Map<String, dynamic> j)
+      : keys = j['keys'] ?? '',
+        panel = j['panel'] is String ? j['panel'] as String : null;
+}
+
 class Api {
   final uploads = UploadQueue();
   int chunkSize = 80 * 1048576;
@@ -467,6 +497,17 @@ class Api {
       '${(await post('/projects/$id/review', {
                 'status': status
               }))['status'] ?? status}';
+
+  Future<List<ShortcutAction>> shortcutCatalog() async => [
+        for (final e in (await get('/shortcuts/catalog')) as List)
+          ShortcutAction.fromJson(e)
+      ];
+
+  Future<Map<String, String>> shortcuts() async =>
+      Map<String, String>.from((await get('/shortcuts'))['bindings'] ?? {});
+
+  Future<void> saveShortcuts(Map<String, String> bindings) =>
+      put('/shortcuts', {'bindings': bindings});
 
   Future<List<ProjectGroup>> groups() async => [
         for (final e in (await get('/groups')) as List) ProjectGroup.fromJson(e)

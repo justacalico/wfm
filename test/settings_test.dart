@@ -323,7 +323,7 @@ void main() {
     var opened = '';
     openExternalForTesting = (u) => opened = u;
     installApi(extra: {'GET *': (_) => []});
-    await t.binding.setSurfaceSize(const Size(1000, 900));
+    await t.binding.setSurfaceSize(const Size(1000, 1400));
     addTearDown(() => t.binding.setSurfaceSize(null));
     await goSettings(t);
     await t.tap(find.text('View on GitLab'));

@@ -128,6 +128,8 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/renders/{id}/progress", post(render_progress))
         .route("/renders/{id}/finish", post(render_finish))
         .route("/settings", get(get_settings).put(put_settings))
+        .route("/shortcuts", get(get_shortcuts).put(put_shortcuts))
+        .route("/shortcuts/catalog", get(shortcut_catalog))
         .route("/nodes", get(list_nodes).post(create_node))
         .route("/nodes/{id}", patch(update_node).delete(delete_node))
         .route("/worker/poll", post(worker_poll))
@@ -3952,6 +3954,63 @@ async fn put_settings(
     *s.trusted.write().unwrap() = nets;
     s.audit("account", &session.user, "update_settings", "trusted_proxies", list, "")
         .await;
+    Json(json!({"ok": true})).into_response()
+}
+
+// ---------- keyboard shortcuts ----------
+
+const SHORTCUT_CATALOG: &str = include_str!("../../../filmcraft/shortcuts.json");
+
+async fn shortcut_catalog(_session: Session) -> Response {
+    (
+        [(header::CONTENT_TYPE, "application/json; charset=utf-8")],
+        SHORTCUT_CATALOG,
+    )
+        .into_response()
+}
+
+fn shortcuts_key(session: &Session) -> String {
+    format!("shortcuts:{}", session.user.id)
+}
+
+async fn get_shortcuts(State(s): State<Arc<AppState>>, session: Session) -> Response {
+    match s.db.setting_get(&shortcuts_key(&session)).await {
+        Ok(Some(v)) => (
+            [(header::CONTENT_TYPE, "application/json; charset=utf-8")],
+            v,
+        )
+            .into_response(),
+        Ok(None) => Json(json!({"bindings": {}})).into_response(),
+        Err(e) => db_resp(e),
+    }
+}
+
+#[derive(Deserialize)]
+struct ShortcutsReq {
+    bindings: serde_json::Map<String, Value>,
+}
+
+async fn put_shortcuts(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Json(req): Json<ShortcutsReq>,
+) -> Response {
+    if req.bindings.len() > 2000 {
+        return err(StatusCode::BAD_REQUEST, "too many bindings");
+    }
+    for (k, v) in &req.bindings {
+        if k.is_empty() || k.chars().count() > 300 {
+            return err(StatusCode::BAD_REQUEST, "bad action id");
+        }
+        match v {
+            Value::String(k2) if k2.chars().count() <= 100 => {}
+            _ => return err(StatusCode::BAD_REQUEST, "bad binding"),
+        }
+    }
+    let body = serde_json::to_string(&json!({"bindings": req.bindings})).unwrap_or_default();
+    if let Err(e) = s.db.setting_set(&shortcuts_key(&session), &body).await {
+        return db_resp(e);
+    }
     Json(json!({"ok": true})).into_response()
 }
 

@@ -425,4 +425,14 @@
   "notifSubmitted": "{from} 提交了 {project} 待审核",
   "notifReviewed": "{from} 已将 {project} 标记为已审核",
   "notifReturned": "{from} 将 {project} 退回草稿"
+,
+  "keyboardShortcuts": "键盘快捷键",
+  "searchShortcuts": "搜索操作",
+  "pressShortcut": "按下新的快捷键",
+  "shortcutConflict": "已被 {action} 使用",
+  "clearShortcut": "清除",
+  "unbound": "未绑定",
+  "resetToDefault": "恢复默认",
+  "resetAllShortcuts": "重置所有快捷键",
+  "resetAllShortcutsBody": "将所有快捷键恢复为默认？"
 }

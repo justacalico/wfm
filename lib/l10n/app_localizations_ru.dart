@@ -987,4 +987,34 @@ class AppLocalizationsRu extends AppLocalizations {
   String notifReturned(Object from, Object project) {
     return '$from вернул $project в черновик';
   }
+
+  @override
+  String get keyboardShortcuts => 'Сочетания клавиш';
+
+  @override
+  String get searchShortcuts => 'Поиск действий';
+
+  @override
+  String get pressShortcut => 'Нажмите новое сочетание';
+
+  @override
+  String shortcutConflict(Object action) {
+    return 'Уже используется: $action';
+  }
+
+  @override
+  String get clearShortcut => 'Очистить';
+
+  @override
+  String get unbound => 'Не назначено';
+
+  @override
+  String get resetToDefault => 'Сбросить на умолчание';
+
+  @override
+  String get resetAllShortcuts => 'Сбросить все сочетания';
+
+  @override
+  String get resetAllShortcutsBody =>
+      'Вернуть все сочетания к значениям по умолчанию?';
 }

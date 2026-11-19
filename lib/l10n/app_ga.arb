@@ -425,4 +425,14 @@
   "notifSubmitted": "Chuir {from} {project} isteach le haghaidh athbhreithnithe",
   "notifReviewed": "Mharcáil {from} {project} mar athbhreithnithe",
   "notifReturned": "Thug {from} {project} ar ais go dreacht"
+,
+  "keyboardShortcuts": "Aicearraí méarchláir",
+  "searchShortcuts": "Cuardaigh gníomhartha",
+  "pressShortcut": "Brúigh an aicearra nua",
+  "shortcutConflict": "In úsáid cheana ag {action}",
+  "clearShortcut": "Glan",
+  "unbound": "Gan cheangal",
+  "resetToDefault": "Athshocraigh go réamhshocraithe",
+  "resetAllShortcuts": "Athshocraigh gach aicearra",
+  "resetAllShortcutsBody": "Gach aicearra a chur ar ais go dtí a réamhshocrú?"
 }
