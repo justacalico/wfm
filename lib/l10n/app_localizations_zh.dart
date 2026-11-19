@@ -653,4 +653,27 @@ class AppLocalizationsZh extends AppLocalizations {
   String ownedBy(Object name) {
     return '$name 的项目';
   }
+
+  @override
+  String get selectFiles => '选择';
+
+  @override
+  String get selectAll => '全选';
+
+  @override
+  String get moveSelected => '移动所选';
+
+  @override
+  String get deleteSelected => '删除所选';
+
+  @override
+  String get downloadZip => '打包下载';
+
+  @override
+  String get destFolder => '目标文件夹';
+
+  @override
+  String selectedCount(Object n) {
+    return '已选 $n 项';
+  }
 }

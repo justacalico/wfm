@@ -319,5 +319,12 @@
   "readOnly": "只读",
   "takeOver": "接管",
   "takeOverBody": "接管项目 {name}？",
-  "ownedBy": "{name} 的项目"
+  "ownedBy": "{name} 的项目",
+  "selectFiles": "选择",
+  "selectAll": "全选",
+  "moveSelected": "移动所选",
+  "deleteSelected": "删除所选",
+  "downloadZip": "打包下载",
+  "destFolder": "目标文件夹",
+  "selectedCount": "已选 {n} 项"
 }

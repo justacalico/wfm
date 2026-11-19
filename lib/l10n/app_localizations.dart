@@ -1279,6 +1279,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'by {name}'**
   String ownedBy(Object name);
+
+  /// No description provided for @selectFiles.
+  ///
+  /// In en, this message translates to:
+  /// **'Select'**
+  String get selectFiles;
+
+  /// No description provided for @selectAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Select all'**
+  String get selectAll;
+
+  /// No description provided for @moveSelected.
+  ///
+  /// In en, this message translates to:
+  /// **'Move selected'**
+  String get moveSelected;
+
+  /// No description provided for @deleteSelected.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete selected'**
+  String get deleteSelected;
+
+  /// No description provided for @downloadZip.
+  ///
+  /// In en, this message translates to:
+  /// **'Download zip'**
+  String get downloadZip;
+
+  /// No description provided for @destFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Destination folder'**
+  String get destFolder;
+
+  /// No description provided for @selectedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{n} selected'**
+  String selectedCount(Object n);
 }
 
 class _AppLocalizationsDelegate

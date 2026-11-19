@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
-use axum::body::Body;
+use axum::body::{Body, Bytes};
 use axum::extract::{Path, Query, State};
 use axum::http::{header, HeaderMap, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
+use futures::StreamExt;
 use axum::routing::{delete, get, patch, post};
 use axum::{Json, Router};
-use futures::StreamExt;
 use serde::Deserialize;
 use serde_json::{json, Value};
 
@@ -61,6 +61,7 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/projects/{id}/files/move", post(move_file))
         .route("/projects/{id}/download", get(download))
         .route("/projects/{id}/thumb", get(thumb))
+        .route("/projects/{id}/zip", get(zip_download))
         .route("/projects/{id}/locks", post(lock_acquire).delete(lock_release))
         .route("/projects/{id}/locks/release", post(lock_release))
         .route("/projects/{id}/locks/heartbeat", post(lock_heartbeat))
@@ -1421,6 +1422,98 @@ async fn make_thumb(s: &Arc<AppState>, src: &str, dst: &str) -> Result<(), Strin
     let len = bytes.len() as u64;
     let mut cur = std::io::Cursor::new(bytes);
     s.blobs.put(dst, len, &mut cur).await
+}
+
+#[derive(Deserialize)]
+struct ZipQuery {
+    paths: String,
+}
+
+async fn collect_zip(
+    s: &Arc<AppState>,
+    dir: &str,
+    rel: &str,
+    out: &mut Vec<(String, String)>,
+) {
+    let key = blob_key(dir, rel);
+    if s.blobs.head(&key).await.is_ok() {
+        out.push((rel.to_string(), key));
+        return;
+    }
+    let mut stack = vec![key];
+    while let Some(pre) = stack.pop() {
+        if let Ok((folders, objects)) = s.blobs.list(&pre).await {
+            stack.extend(folders);
+            for o in objects {
+                let name = o.key.strip_prefix(&format!("{dir}/")).unwrap_or(&o.key);
+                out.push((name.to_string(), o.key));
+            }
+        }
+    }
+}
+
+async fn zip_download(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Path(id): Path<String>,
+    Query(q): Query<ZipQuery>,
+) -> Response {
+    let p = match read_project(&s, &session, &id).await {
+        Ok(p) => p,
+        Err(r) => return r,
+    };
+    let mut entries: Vec<(String, String)> = Vec::new();
+    for raw in q.paths.split(',') {
+        let rel = match files::clean_rel_key(raw.trim()) {
+            Ok(k) => k,
+            Err(e) => return fs_resp(e),
+        };
+        collect_zip(&s, &p.dir, &rel, &mut entries).await;
+    }
+    if entries.is_empty() {
+        return err(StatusCode::NOT_FOUND, "nothing to zip");
+    }
+    let blobs = s.blobs.clone();
+    let stream: std::pin::Pin<
+        Box<dyn futures::Stream<Item = Result<Bytes, std::io::Error>> + Send>,
+    > = Box::pin(async_stream::try_stream! {
+        let mut recs: Vec<crate::zip::Rec> = Vec::with_capacity(entries.len());
+        let mut off: u64 = 0;
+        for (name, key) in entries {
+            let size = blobs
+                .head(&key)
+                .await
+                .map_err(std::io::Error::other)?;
+            let h = crate::zip::local_header(&name, size);
+            let rec_off = off;
+            off += h.len() as u64 + size + 24;
+            yield Bytes::from(h);
+            let (_, mut data) = blobs
+                .get(&key)
+                .await
+                .map_err(|e| std::io::Error::other(e))?;
+            let mut crc = crc32fast::Hasher::new();
+            while let Some(chunk) = data.next().await {
+                let b = chunk.map_err(|e| std::io::Error::other(e))?;
+                crc.update(&b);
+                yield b;
+            }
+            let c = crc.finalize();
+            let dd = crate::zip::data_desc(c, size);
+            yield Bytes::from(dd);
+            recs.push(crate::zip::Rec { name, crc: c, size, offset: rec_off });
+        }
+        let cd_off = off;
+        yield Bytes::from(crate::zip::end(&recs, cd_off));
+    });
+    Response::builder()
+        .header(header::CONTENT_TYPE, "application/zip")
+        .header(
+            header::CONTENT_DISPOSITION,
+            format!("attachment; filename=\"{}.zip\"", p.name),
+        )
+        .body(Body::from_stream(stream))
+        .unwrap_or_else(|_| err(StatusCode::INTERNAL_SERVER_ERROR, "zip"))
 }
 
 async fn thumb(

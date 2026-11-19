@@ -659,4 +659,27 @@ class AppLocalizationsGa extends AppLocalizations {
   String ownedBy(Object name) {
     return 'le $name';
   }
+
+  @override
+  String get selectFiles => 'Roghnaigh';
+
+  @override
+  String get selectAll => 'Roghnaigh go léir';
+
+  @override
+  String get moveSelected => 'Bog na roghnaithe';
+
+  @override
+  String get deleteSelected => 'Scrios na roghnaithe';
+
+  @override
+  String get downloadZip => 'Íoslódáil zip';
+
+  @override
+  String get destFolder => 'Fillteán sprice';
+
+  @override
+  String selectedCount(Object n) {
+    return '$n roghnaithe';
+  }
 }

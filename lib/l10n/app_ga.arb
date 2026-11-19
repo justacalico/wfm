@@ -319,5 +319,12 @@
   "readOnly": "Léamh amháin",
   "takeOver": "Tóg seilbh",
   "takeOverBody": "Tóg úinéireacht {name}?",
-  "ownedBy": "le {name}"
+  "ownedBy": "le {name}",
+  "selectFiles": "Roghnaigh",
+  "selectAll": "Roghnaigh go léir",
+  "moveSelected": "Bog na roghnaithe",
+  "deleteSelected": "Scrios na roghnaithe",
+  "downloadZip": "Íoslódáil zip",
+  "destFolder": "Fillteán sprice",
+  "selectedCount": "{n} roghnaithe"
 }

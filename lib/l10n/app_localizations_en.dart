@@ -656,6 +656,29 @@ class AppLocalizationsEn extends AppLocalizations {
   String ownedBy(Object name) {
     return 'by $name';
   }
+
+  @override
+  String get selectFiles => 'Select';
+
+  @override
+  String get selectAll => 'Select all';
+
+  @override
+  String get moveSelected => 'Move selected';
+
+  @override
+  String get deleteSelected => 'Delete selected';
+
+  @override
+  String get downloadZip => 'Download zip';
+
+  @override
+  String get destFolder => 'Destination folder';
+
+  @override
+  String selectedCount(Object n) {
+    return '$n selected';
+  }
 }
 
 /// The translations for English, as used in the United Kingdom (`en_GB`).
