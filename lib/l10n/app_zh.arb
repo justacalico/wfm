@@ -381,5 +381,15 @@
       "used": {},
       "quota": {}
     }
-  }
+  },
+  "navNotifications": "通知",
+  "noNotifications": "暂无通知",
+  "markAllRead": "全部标为已读",
+  "notifShareInvite": "{from} 邀请你加入 {project}",
+  "notifShareAuto": "{from} 已将 {project} 共享给你",
+  "notifShareAccepted": "{from} 接受了你发出的 {project} 邀请",
+  "notifShareDeclined": "{from} 拒绝了你的 {project} 邀请",
+  "notifRenderDone": "渲染完成:{name}({project})",
+  "notifRenderFailed": "渲染失败:{name}({project})",
+  "notifNodeOffline": "渲染节点 {name} 已离线"
 }

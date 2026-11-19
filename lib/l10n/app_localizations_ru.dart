@@ -834,4 +834,48 @@ class AppLocalizationsRu extends AppLocalizations {
   String storageUsed(Object used, Object quota) {
     return 'Использовано $used из $quota';
   }
+
+  @override
+  String get navNotifications => 'Уведомления';
+
+  @override
+  String get noNotifications => 'Пока нет уведомлений';
+
+  @override
+  String get markAllRead => 'Отметить все прочитанными';
+
+  @override
+  String notifShareInvite(Object from, Object project) {
+    return '$from пригласил(а) вас в $project';
+  }
+
+  @override
+  String notifShareAuto(Object from, Object project) {
+    return '$from поделился(ась) с вами проектом $project';
+  }
+
+  @override
+  String notifShareAccepted(Object from, Object project) {
+    return '$from принял(а) ваше приглашение в $project';
+  }
+
+  @override
+  String notifShareDeclined(Object from, Object project) {
+    return '$from отклонил(а) ваше приглашение в $project';
+  }
+
+  @override
+  String notifRenderDone(Object name, Object project) {
+    return 'Рендер завершён: $name в $project';
+  }
+
+  @override
+  String notifRenderFailed(Object name, Object project) {
+    return 'Рендер не удался: $name в $project';
+  }
+
+  @override
+  String notifNodeOffline(Object name) {
+    return 'Рендер-узел $name отключился';
+  }
 }

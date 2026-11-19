@@ -135,6 +135,13 @@ impl AppState {
             )
             .await;
     }
+
+    pub async fn notify(&self, user_id: &str, kind: &str, payload: serde_json::Value) {
+        let _ = self
+            .db
+            .notify(user_id, kind, &payload.to_string(), Self::now())
+            .await;
+    }
 }
 
 /// Extractor: resolves the session cookie or bearer token to a user. For

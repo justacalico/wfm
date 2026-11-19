@@ -833,6 +833,50 @@ class AppLocalizationsEn extends AppLocalizations {
   String storageUsed(Object used, Object quota) {
     return '$used of $quota used';
   }
+
+  @override
+  String get navNotifications => 'Notifications';
+
+  @override
+  String get noNotifications => 'No notifications yet';
+
+  @override
+  String get markAllRead => 'Mark all read';
+
+  @override
+  String notifShareInvite(Object from, Object project) {
+    return '$from invited you to $project';
+  }
+
+  @override
+  String notifShareAuto(Object from, Object project) {
+    return '$from shared $project with you';
+  }
+
+  @override
+  String notifShareAccepted(Object from, Object project) {
+    return '$from accepted your invite to $project';
+  }
+
+  @override
+  String notifShareDeclined(Object from, Object project) {
+    return '$from declined your invite to $project';
+  }
+
+  @override
+  String notifRenderDone(Object name, Object project) {
+    return 'Render finished: $name in $project';
+  }
+
+  @override
+  String notifRenderFailed(Object name, Object project) {
+    return 'Render failed: $name in $project';
+  }
+
+  @override
+  String notifNodeOffline(Object name) {
+    return 'Render node $name went offline';
+  }
 }
 
 /// The translations for English, as used in the United Kingdom (`en_GB`).
@@ -1046,5 +1090,49 @@ class AppLocalizationsEnGb extends AppLocalizationsEn {
   @override
   String storageUsed(Object used, Object quota) {
     return '$used of $quota used';
+  }
+
+  @override
+  String get navNotifications => 'Notifications';
+
+  @override
+  String get noNotifications => 'No notifications yet';
+
+  @override
+  String get markAllRead => 'Mark all read';
+
+  @override
+  String notifShareInvite(Object from, Object project) {
+    return '$from invited you to $project';
+  }
+
+  @override
+  String notifShareAuto(Object from, Object project) {
+    return '$from shared $project with you';
+  }
+
+  @override
+  String notifShareAccepted(Object from, Object project) {
+    return '$from accepted your invite to $project';
+  }
+
+  @override
+  String notifShareDeclined(Object from, Object project) {
+    return '$from declined your invite to $project';
+  }
+
+  @override
+  String notifRenderDone(Object name, Object project) {
+    return 'Render finished: $name in $project';
+  }
+
+  @override
+  String notifRenderFailed(Object name, Object project) {
+    return 'Render failed: $name in $project';
+  }
+
+  @override
+  String notifNodeOffline(Object name) {
+    return 'Render node $name went offline';
   }
 }

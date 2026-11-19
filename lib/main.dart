@@ -4,6 +4,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'api.dart';
 import 'l10n/app_localizations.dart';
+import 'notifications.dart';
 import 'projects.dart';
 import 'shared.dart';
 import 'invite.dart';
@@ -643,17 +644,24 @@ class ShellState extends State<Shell> {
   int _page = 0;
   Project? _open;
   int _pending = 0;
+  int _unread = 0;
 
   @override
   void initState() {
     super.initState();
     refreshShared();
+    refreshNotifs();
   }
 
   Future<void> refreshShared() async {
     final v = await Api.i.shares().catchError((_) => <Share>[]);
     final n = v.where((s) => s.status == 'pending').length;
     if (mounted && n != _pending) setState(() => _pending = n);
+  }
+
+  Future<void> refreshNotifs() async {
+    final n = await Api.i.notificationsUnread().catchError((_) => _unread);
+    if (mounted && n != _unread) setState(() => _unread = n);
   }
 
   void go(int i) => setState(() {
@@ -669,6 +677,7 @@ class ShellState extends State<Shell> {
         (Icons.home_outlined, l10n.navHome),
         (Icons.movie_outlined, l10n.navProjects),
         (Icons.folder_shared_outlined, l10n.navShared),
+        (Icons.notifications_outlined, l10n.navNotifications),
         if (showManage) (Icons.manage_accounts_outlined, l10n.navManage),
         (Icons.settings_outlined, l10n.navSettings),
       ];
@@ -677,6 +686,7 @@ class ShellState extends State<Shell> {
         const HomePage(),
         const ProjectsPage(),
         const SharedPage(),
+        const NotificationsPage(),
         if (showManage) const ManagePage(),
         const SettingsPage(),
       ];
@@ -727,6 +737,11 @@ class ShellState extends State<Shell> {
                             _pending > 0) ...[
                           const SizedBox(width: 6),
                           Badge(label: Text('$_pending')),
+                        ],
+                        if (items[i].$1 == Icons.notifications_outlined &&
+                            _unread > 0) ...[
+                          const SizedBox(width: 6),
+                          Badge(label: Text('$_unread')),
                         ],
                       ]),
                       shape: const StadiumBorder(),
@@ -821,12 +836,12 @@ class HomePage extends StatelessWidget {
     final cards = <(IconData, String, String, int)>[
       (Icons.movie_outlined, l10n.cardProjects, l10n.cardProjectsSub, 1),
       if (showManage)
-        (Icons.group_outlined, l10n.cardManage, l10n.cardManageSub, 3),
+        (Icons.group_outlined, l10n.cardManage, l10n.cardManageSub, 4),
       (
         Icons.tune_outlined,
         l10n.cardSettings,
         l10n.cardSettingsSub,
-        showManage ? 4 : 3
+        showManage ? 5 : 4
       ),
     ];
     final tight = MediaQuery.sizeOf(context).width < 720;

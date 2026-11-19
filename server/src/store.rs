@@ -225,6 +225,24 @@ pub trait Db: Send + Sync {
     async fn auto_share_upsert(&self, owner: &str, invitee: &str, level: &str) -> DbResult<()>;
     async fn auto_share_delete(&self, owner: &str, id: &str) -> DbResult<bool>;
     async fn auto_shares_all(&self) -> DbResult<Vec<AutoShare>>;
+    async fn share_by_id(&self, id: &str) -> DbResult<ProjectShare>;
+
+    // notifications
+    async fn notify(&self, user: &str, kind: &str, payload: &str, ts: i64) -> DbResult<()>;
+    async fn notifications_for(
+        &self,
+        user: &str,
+        before: i64,
+        limit: i64,
+    ) -> DbResult<Vec<Notification>>;
+    async fn notifications_unread(&self, user: &str) -> DbResult<i64>;
+    async fn notification_read(&self, user: &str, id: &str, ts: i64) -> DbResult<bool>;
+    async fn notifications_read_all(&self, user: &str, ts: i64) -> DbResult<()>;
+    /// Teacher-and-above, non-disabled users.
+    async fn staff_ids(&self) -> DbResult<Vec<String>>;
+    /// Nodes past `stale_before` that have not been reported offline yet;
+    /// marks them so the report fires once.
+    async fn nodes_newly_offline(&self, stale_before: i64) -> DbResult<Vec<RenderNode>>;
 
     // key-value settings
     async fn setting_get(&self, k: &str) -> DbResult<Option<String>>;

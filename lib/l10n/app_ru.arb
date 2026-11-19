@@ -381,5 +381,15 @@
       "used": {},
       "quota": {}
     }
-  }
+  },
+  "navNotifications": "Уведомления",
+  "noNotifications": "Пока нет уведомлений",
+  "markAllRead": "Отметить все прочитанными",
+  "notifShareInvite": "{from} пригласил(а) вас в {project}",
+  "notifShareAuto": "{from} поделился(ась) с вами проектом {project}",
+  "notifShareAccepted": "{from} принял(а) ваше приглашение в {project}",
+  "notifShareDeclined": "{from} отклонил(а) ваше приглашение в {project}",
+  "notifRenderDone": "Рендер завершён: {name} в {project}",
+  "notifRenderFailed": "Рендер не удался: {name} в {project}",
+  "notifNodeOffline": "Рендер-узел {name} отключился"
 }

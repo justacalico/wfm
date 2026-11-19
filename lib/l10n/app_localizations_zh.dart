@@ -829,4 +829,48 @@ class AppLocalizationsZh extends AppLocalizations {
   String storageUsed(Object used, Object quota) {
     return '已使用 $used / $quota';
   }
+
+  @override
+  String get navNotifications => '通知';
+
+  @override
+  String get noNotifications => '暂无通知';
+
+  @override
+  String get markAllRead => '全部标为已读';
+
+  @override
+  String notifShareInvite(Object from, Object project) {
+    return '$from 邀请你加入 $project';
+  }
+
+  @override
+  String notifShareAuto(Object from, Object project) {
+    return '$from 已将 $project 共享给你';
+  }
+
+  @override
+  String notifShareAccepted(Object from, Object project) {
+    return '$from 接受了你发出的 $project 邀请';
+  }
+
+  @override
+  String notifShareDeclined(Object from, Object project) {
+    return '$from 拒绝了你的 $project 邀请';
+  }
+
+  @override
+  String notifRenderDone(Object name, Object project) {
+    return '渲染完成:$name($project)';
+  }
+
+  @override
+  String notifRenderFailed(Object name, Object project) {
+    return '渲染失败:$name($project)';
+  }
+
+  @override
+  String notifNodeOffline(Object name) {
+    return '渲染节点 $name 已离线';
+  }
 }

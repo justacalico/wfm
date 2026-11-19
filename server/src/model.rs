@@ -253,6 +253,17 @@ pub struct AutoShare {
     pub created_at: i64,
 }
 
+#[derive(Clone, Serialize)]
+pub struct Notification {
+    pub id: String,
+    pub kind: String,
+    pub payload: serde_json::Value,
+    #[serde(rename = "readAt")]
+    pub read_at: i64,
+    #[serde(rename = "createdAt")]
+    pub created_at: i64,
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct AutoShareView {
     pub id: String,

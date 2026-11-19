@@ -137,6 +137,17 @@ fn row_node(r: sqlx::postgres::PgRow) -> RenderNode {
     }
 }
 
+fn row_notification(r: sqlx::postgres::PgRow) -> Notification {
+    let payload: String = r.get("payload");
+    Notification {
+        id: r.get("id"),
+        kind: r.get("kind"),
+        payload: serde_json::from_str(&payload).unwrap_or(serde_json::Value::Null),
+        read_at: r.get("read_at"),
+        created_at: r.get("created_at"),
+    }
+}
+
 fn row_invite(r: sqlx::postgres::PgRow) -> InviteCode {
     InviteCode {
         id: r.get("id"),
@@ -983,7 +994,7 @@ impl Db for PgDb {
     }
 
     async fn node_touch(&self, id: &str, ts: i64) -> DbResult<()> {
-        sqlx::query("UPDATE render_nodes SET last_seen=$1 WHERE id=$2")
+        sqlx::query("UPDATE render_nodes SET last_seen=$1, offline_notified=0 WHERE id=$2")
             .bind(ts)
             .bind(id)
             .execute(&self.pool)
@@ -1357,6 +1368,112 @@ impl Db for PgDb {
             .fetch_all(&self.pool)
             .await
             .map_err(map_err)
+    }
+
+    async fn share_by_id(&self, id: &str) -> DbResult<ProjectShare> {
+        sqlx::query(
+            "SELECT id,project_id,inviter_id,invitee_id,level,status,created_at,responded_at FROM project_shares WHERE id=$1",
+        )
+        .bind(id)
+        .map(row_share)
+        .fetch_one(&self.pool)
+        .await
+        .map_err(map_err)
+    }
+
+    async fn notify(&self, user: &str, kind: &str, payload: &str, ts: i64) -> DbResult<()> {
+        sqlx::query(
+            "INSERT INTO notifications(id,user_id,kind,payload,read_at,created_at) VALUES($1,$2,$3,$4,0,$5)",
+        )
+        .bind(crate::model::new_id())
+        .bind(user)
+        .bind(kind)
+        .bind(payload)
+        .bind(ts)
+        .execute(&self.pool)
+        .await
+        .map(|_| ())
+        .map_err(map_err)
+    }
+
+    async fn notifications_for(
+        &self,
+        user: &str,
+        before: i64,
+        limit: i64,
+    ) -> DbResult<Vec<Notification>> {
+        let before = if before <= 0 { i64::MAX } else { before };
+        sqlx::query(
+            "SELECT id,kind,payload,read_at,created_at FROM notifications WHERE user_id=$1 AND created_at<$2 ORDER BY created_at DESC, id DESC LIMIT $3",
+        )
+        .bind(user)
+        .bind(before)
+        .bind(limit)
+        .map(row_notification)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(map_err)
+    }
+
+    async fn notifications_unread(&self, user: &str) -> DbResult<i64> {
+        sqlx::query_scalar(
+            "SELECT COUNT(*) FROM notifications WHERE user_id=$1 AND read_at=0",
+        )
+        .bind(user)
+        .fetch_one(&self.pool)
+        .await
+        .map_err(map_err)
+    }
+
+    async fn notification_read(&self, user: &str, id: &str, ts: i64) -> DbResult<bool> {
+        sqlx::query(
+            "UPDATE notifications SET read_at=$1 WHERE id=$2 AND user_id=$3 AND read_at=0",
+        )
+        .bind(ts)
+        .bind(id)
+        .bind(user)
+        .execute(&self.pool)
+        .await
+        .map(|r| r.rows_affected() > 0)
+        .map_err(map_err)
+    }
+
+    async fn notifications_read_all(&self, user: &str, ts: i64) -> DbResult<()> {
+        sqlx::query("UPDATE notifications SET read_at=$1 WHERE user_id=$2 AND read_at=0")
+            .bind(ts)
+            .bind(user)
+            .execute(&self.pool)
+            .await
+            .map(|_| ())
+            .map_err(map_err)
+    }
+
+    async fn staff_ids(&self) -> DbResult<Vec<String>> {
+        sqlx::query_scalar("SELECT id FROM users WHERE role>=3 AND disabled=0")
+            .fetch_all(&self.pool)
+            .await
+            .map_err(map_err)
+    }
+
+    async fn nodes_newly_offline(&self, stale_before: i64) -> DbResult<Vec<RenderNode>> {
+        let mut tx = self.pool.begin().await.map_err(map_err)?;
+        let nodes = sqlx::query(
+            "SELECT id,name,disabled,created_at,last_seen FROM render_nodes WHERE disabled=0 AND last_seen>0 AND last_seen<$1 AND offline_notified=0 FOR UPDATE SKIP LOCKED",
+        )
+        .bind(stale_before)
+        .map(row_node)
+        .fetch_all(&mut *tx)
+        .await
+        .map_err(map_err)?;
+        for n in &nodes {
+            sqlx::query("UPDATE render_nodes SET offline_notified=1 WHERE id=$1")
+                .bind(&n.id)
+                .execute(&mut *tx)
+                .await
+                .map_err(map_err)?;
+        }
+        tx.commit().await.map_err(map_err)?;
+        Ok(nodes)
     }
 }
 
