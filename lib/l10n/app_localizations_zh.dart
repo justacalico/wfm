@@ -35,6 +35,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get rename => '重命名';
 
   @override
+  String get fileExists => '同名文件已存在。';
+
+  @override
+  String get renameFailed => '重命名文件失败。';
+
+  @override
   String get download => '下载';
 
   @override

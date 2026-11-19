@@ -1102,12 +1102,20 @@ class _FilesTabState extends State<FilesTab> {
     final parent = e.path.contains('/')
         ? e.path.substring(0, e.path.lastIndexOf('/'))
         : '';
+    final dst = parent.isEmpty ? name : '$parent/$name';
+    if (dst.toLowerCase() == e.path.toLowerCase()) return;
     try {
-      await Api.i.move(
-          widget.project.id, e.path, parent.isEmpty ? name : '$parent/$name');
+      await Api.i.move(widget.project.id, e.path, dst);
       _load();
     } catch (err) {
-      if (mounted) snack(context, err);
+      if (mounted) {
+        snack(
+            context,
+            err is ApiException &&
+                    (err.status == 409 || err.message == 'exists')
+                ? context.l10n.fileExists
+                : context.l10n.renameFailed);
+      }
     }
   }
 

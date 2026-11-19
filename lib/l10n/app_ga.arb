@@ -8,6 +8,8 @@
   "save": "Sábháil",
   "delete": "Scrios",
   "rename": "Athainmnigh",
+  "fileExists": "Tá comhad leis an ainm sin ann cheana.",
+  "renameFailed": "Níorbh fhéidir an comhad a athainmniú.",
   "download": "Íoslódáil",
   "close": "Dún",
   "playInBrowser": "Seinm sa bhrabhsálaí",
@@ -312,7 +314,11 @@
   "connecting": "Ag ceangal…",
   "finishSetupInBrowser": "Níl cuntas riarthóra ar an bhfreastalaí seo fós. Críochnaigh an tsocrú sa bhrabhsálaí ag {url}.",
   "@finishSetupInBrowser": {
-    "placeholders": {"url": {"type": "String"}}
+    "placeholders": {
+      "url": {
+        "type": "String"
+      }
+    }
   },
   "serverUnreachable": "Ní féidir teagmháil a dhéanamh leis an bhfreastalaí: {error}",
   "@serverUnreachable": {
@@ -445,8 +451,7 @@
   "notifComment": "Rinne {from} tráchtaireacht ar {project}",
   "notifSubmitted": "Chuir {from} {project} isteach le haghaidh athbhreithnithe",
   "notifReviewed": "Mharcáil {from} {project} mar athbhreithnithe",
-  "notifReturned": "Thug {from} {project} ar ais go dreacht"
-,
+  "notifReturned": "Thug {from} {project} ar ais go dreacht",
   "editors": "Eagarthóirí",
   "filmcraftShortcuts": "Aicearraí FilmCraft",
   "searchShortcuts": "Cuardaigh gníomhartha",

@@ -3111,6 +3111,9 @@ async fn move_file(
         (Ok(a), Ok(b)) => (a, b),
         _ => return err(StatusCode::BAD_REQUEST, "bad path"),
     };
+    if fk == tk {
+        return Json(json!({"ok": true})).into_response();
+    }
     match s
         .blobs
         .rename(&blob_key(&p.dir, &fk), &blob_key(&p.dir, &tk))
@@ -3128,6 +3131,7 @@ async fn move_file(
             .await;
             Json(json!({"ok": true})).into_response()
         }
+        Err(e) if e == "exists" => err(StatusCode::CONFLICT, &e),
         Err(e) => err(StatusCode::BAD_REQUEST, &e),
     }
 }

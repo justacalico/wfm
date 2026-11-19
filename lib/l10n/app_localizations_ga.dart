@@ -35,6 +35,12 @@ class AppLocalizationsGa extends AppLocalizations {
   String get rename => 'Athainmnigh';
 
   @override
+  String get fileExists => 'Tá comhad leis an ainm sin ann cheana.';
+
+  @override
+  String get renameFailed => 'Níorbh fhéidir an comhad a athainmniú.';
+
+  @override
   String get download => 'Íoslódáil';
 
   @override

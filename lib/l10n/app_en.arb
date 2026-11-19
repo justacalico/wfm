@@ -8,6 +8,8 @@
   "save": "Save",
   "delete": "Delete",
   "rename": "Rename",
+  "fileExists": "A file with that name already exists.",
+  "renameFailed": "Couldn't rename the file.",
   "download": "Download",
   "close": "Close",
   "playInBrowser": "Play in browser",
@@ -313,7 +315,11 @@
   "connecting": "Connecting…",
   "finishSetupInBrowser": "This server has no admin account yet. Finish setup in a browser at {url}.",
   "@finishSetupInBrowser": {
-    "placeholders": {"url": {"type": "String"}}
+    "placeholders": {
+      "url": {
+        "type": "String"
+      }
+    }
   },
   "serverUnreachable": "Can't reach the server: {error}",
   "@serverUnreachable": {
@@ -445,8 +451,7 @@
   "notifComment": "{from} commented on {project}",
   "notifSubmitted": "{from} submitted {project} for review",
   "notifReviewed": "{from} marked {project} reviewed",
-  "notifReturned": "{from} returned {project} to draft"
-,
+  "notifReturned": "{from} returned {project} to draft",
   "editors": "Editors",
   "filmcraftShortcuts": "FilmCraft shortcuts",
   "searchShortcuts": "Search actions",

@@ -8,6 +8,8 @@
   "save": "保存",
   "delete": "删除",
   "rename": "重命名",
+  "fileExists": "同名文件已存在。",
+  "renameFailed": "重命名文件失败。",
   "download": "下载",
   "close": "关闭",
   "playInBrowser": "在浏览器中播放",
@@ -313,7 +315,11 @@
   "connecting": "连接中…",
   "finishSetupInBrowser": "该服务器还没有管理员账号。请在浏览器中打开 {url} 完成初始化。",
   "@finishSetupInBrowser": {
-    "placeholders": {"url": {"type": "String"}}
+    "placeholders": {
+      "url": {
+        "type": "String"
+      }
+    }
   },
   "serverUnreachable": "无法连接服务器:{error}",
   "@serverUnreachable": {
@@ -445,8 +451,7 @@
   "notifComment": "{from} 评论了 {project}",
   "notifSubmitted": "{from} 提交了 {project} 待审核",
   "notifReviewed": "{from} 已将 {project} 标记为已审核",
-  "notifReturned": "{from} 将 {project} 退回草稿"
-,
+  "notifReturned": "{from} 将 {project} 退回草稿",
   "editors": "编辑器",
   "filmcraftShortcuts": "FilmCraft 快捷键",
   "searchShortcuts": "搜索操作",
