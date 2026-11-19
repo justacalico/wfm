@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:js_interop';
+import 'dart:math' as math;
 import 'dart:typed_data';
 import 'package:flutter/widgets.dart';
 import 'package:web/web.dart' as web;
@@ -88,14 +89,7 @@ Future<void> uploadPicked(Api api, String pid, String path, PickedFile f,
     if (file == null) {
       await api.upload(pid, path, f.bytes);
     } else {
-      await api.uploadChunked(
-          pid,
-          path,
-          file.size,
-          (a, b) async => (await file.slice(a, b).arrayBuffer().toDart)
-              .toDart
-              .asUint8List(),
-          onProgress);
+      await _uploadChunked(api, pid, path, file, onProgress);
     }
     onProgress?.call(total, total);
     return;
@@ -114,6 +108,69 @@ Future<void> uploadPicked(Api api, String pid, String path, PickedFile f,
   }).toJS;
   xhr.send(file);
   await done.future;
+  _checkStatus(api, xhr);
+}
+
+/// Chunked upload that sends each `Blob.slice` straight to XHR, so chunk
+/// bytes stay in the browser and never copy into the Dart heap. Mirrors
+/// Api.uploadChunked's protocol, including halving the size on 413.
+Future<void> _uploadChunked(Api api, String pid, String path, web.File file,
+    [void Function(int sent, int total)? onProgress]) async {
+  final total = file.size;
+  final uid = await api.uploadStart(pid, path);
+  var off = 0;
+  var size = api.chunkSize;
+  try {
+    while (off < total) {
+      final end = math.min(off + size, total);
+      try {
+        final base = off;
+        await _putBlob(
+            api,
+            '${api.baseUrl}/api/uploads/$uid/chunk?offset=$off',
+            file.slice(off, end),
+            onProgress == null
+                ? null
+                : (loaded, _) => onProgress(base + loaded, total));
+        off = end;
+        onProgress?.call(off, total);
+      } on ApiException catch (e) {
+        if (e.status == 413 && size > 1048576) {
+          size ~/= 2;
+        } else {
+          rethrow;
+        }
+      }
+    }
+    await api.uploadFinish(uid);
+  } catch (_) {
+    try {
+      await api.uploadAbort(uid);
+    } catch (_) {}
+    rethrow;
+  }
+}
+
+Future<void> _putBlob(Api api, String url, web.Blob body,
+    [void Function(int loaded, int total)? onProgress]) async {
+  final done = Completer<void>();
+  final xhr = web.XMLHttpRequest();
+  xhr.open('PUT', url);
+  if (api.csrf.isNotEmpty) xhr.setRequestHeader('x-csrf-token', api.csrf);
+  if (onProgress != null) {
+    xhr.upload.onprogress = ((web.ProgressEvent e) {
+      if (e.lengthComputable) onProgress(e.loaded, e.total);
+    }).toJS;
+  }
+  xhr.onloadend = ((web.Event _) {
+    if (!done.isCompleted) done.complete();
+  }).toJS;
+  xhr.send(body);
+  await done.future;
+  _checkStatus(api, xhr);
+}
+
+void _checkStatus(Api api, web.XMLHttpRequest xhr) {
   if (xhr.status == 0) {
     throw ApiException(0, 'network error');
   }
