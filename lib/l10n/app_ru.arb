@@ -435,7 +435,8 @@
   "notifReviewed": "{from} отметил {project} проверенным",
   "notifReturned": "{from} вернул {project} в черновик"
 ,
-  "keyboardShortcuts": "Сочетания клавиш",
+  "editors": "Редакторы",
+  "filmcraftShortcuts": "Горячие клавиши FilmCraft",
   "searchShortcuts": "Поиск действий",
   "pressShortcut": "Нажмите новое сочетание",
   "shortcutConflict": "Уже используется: {action}",

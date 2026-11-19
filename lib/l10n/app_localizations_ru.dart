@@ -1009,7 +1009,10 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
-  String get keyboardShortcuts => 'Сочетания клавиш';
+  String get editors => 'Редакторы';
+
+  @override
+  String get filmcraftShortcuts => 'Горячие клавиши FilmCraft';
 
   @override
   String get searchShortcuts => 'Поиск действий';

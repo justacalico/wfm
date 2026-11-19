@@ -200,15 +200,6 @@ class _SettingsPageState extends State<SettingsPage> {
       ListTile(
         dense: true,
         contentPadding: EdgeInsets.zero,
-        leading: const Icon(Icons.keyboard_outlined, size: 18),
-        title: Text(l10n.keyboardShortcuts),
-        trailing: const Icon(Icons.chevron_right, size: 18),
-        onTap: () => Navigator.of(context)
-            .push(MaterialPageRoute(builder: (_) => const ShortcutsPage())),
-      ),
-      ListTile(
-        dense: true,
-        contentPadding: EdgeInsets.zero,
         leading: const Icon(Icons.devices_outlined, size: 18),
         title: Text(l10n.sessions),
         trailing: const Icon(Icons.chevron_right, size: 18),
@@ -216,6 +207,19 @@ class _SettingsPageState extends State<SettingsPage> {
             .push(MaterialPageRoute(builder: (_) => const SessionsPage())),
       ),
       const SizedBox(height: 16),
+      Align(
+          alignment: Alignment.centerLeft,
+          child: Text(l10n.editors,
+              style: Theme.of(context).textTheme.titleSmall)),
+      ListTile(
+        dense: true,
+        contentPadding: EdgeInsets.zero,
+        leading: const Icon(Icons.keyboard_outlined, size: 18),
+        title: Text(l10n.filmcraftShortcuts),
+        trailing: const Icon(Icons.chevron_right, size: 18),
+        onTap: () => Navigator.of(context)
+            .push(MaterialPageRoute(builder: (_) => const ShortcutsPage())),
+      ),
       if (Api.i.caps.creatable.isNotEmpty) ...[
         const SizedBox(height: 16),
         Align(

@@ -1008,7 +1008,10 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get keyboardShortcuts => 'Keyboard shortcuts';
+  String get editors => 'Editors';
+
+  @override
+  String get filmcraftShortcuts => 'FilmCraft shortcuts';
 
   @override
   String get searchShortcuts => 'Search actions';
@@ -1404,7 +1407,10 @@ class AppLocalizationsEnGb extends AppLocalizationsEn {
   }
 
   @override
-  String get keyboardShortcuts => 'Keyboard shortcuts';
+  String get editors => 'Editors';
+
+  @override
+  String get filmcraftShortcuts => 'FilmCraft shortcuts';
 
   @override
   String get searchShortcuts => 'Search actions';

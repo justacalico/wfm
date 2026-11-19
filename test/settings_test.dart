@@ -77,6 +77,8 @@ void main() {
   testWidgets('upload chunk size persists to prefs', (t) async {
     installApi(extra: {'GET *': (_) => []});
     await goSettings(t);
+    await t.ensureVisible(find.byType(DropdownButtonFormField<int>));
+    await settle(t);
     await t.tap(find.byType(DropdownButtonFormField<int>));
     await settle(t);
     await t.tap(find.text('16 MB').last);

@@ -1011,7 +1011,10 @@ class AppLocalizationsGa extends AppLocalizations {
   }
 
   @override
-  String get keyboardShortcuts => 'Aicearraí méarchláir';
+  String get editors => 'Eagarthóirí';
+
+  @override
+  String get filmcraftShortcuts => 'Aicearraí FilmCraft';
 
   @override
   String get searchShortcuts => 'Cuardaigh gníomhartha';
