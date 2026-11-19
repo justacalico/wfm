@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'api.dart';
 import 'main.dart';
-import 'util.dart';
 
 class InvitePage extends StatefulWidget {
   final String code;
