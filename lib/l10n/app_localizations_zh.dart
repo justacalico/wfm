@@ -765,4 +765,36 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get revoked => '已撤销';
+
+  @override
+  String get share => '分享';
+
+  @override
+  String get shareProject => '分享项目';
+
+  @override
+  String get send => '发送';
+
+  @override
+  String get canView => '可查看';
+
+  @override
+  String get canEdit => '可编辑';
+
+  @override
+  String get accepted => '已接受';
+
+  @override
+  String get declined => '已拒绝';
+
+  @override
+  String get accept => '接受';
+
+  @override
+  String get decline => '拒绝';
+
+  @override
+  String shareInviteFrom(Object level, Object user) {
+    return '$user 邀请你 · $level';
+  }
 }

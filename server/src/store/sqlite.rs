@@ -195,6 +195,39 @@ fn map_invite(r: &rusqlite::Row) -> rusqlite::Result<InviteCode> {
     })
 }
 
+fn map_share(r: &rusqlite::Row) -> rusqlite::Result<ProjectShare> {
+    Ok(ProjectShare {
+        id: r.get(0)?,
+        project_id: r.get(1)?,
+        inviter_id: r.get(2)?,
+        invitee_id: r.get(3)?,
+        level: r.get(4)?,
+        status: r.get(5)?,
+        created_at: r.get(6)?,
+        responded_at: r.get(7)?,
+    })
+}
+
+fn map_share_view(r: &rusqlite::Row) -> rusqlite::Result<ShareView> {
+    Ok(ShareView {
+        id: r.get(0)?,
+        project_id: r.get(1)?,
+        inviter_id: r.get(2)?,
+        invitee_id: r.get(3)?,
+        level: r.get(4)?,
+        status: r.get(5)?,
+        created_at: r.get(6)?,
+        responded_at: r.get(7)?,
+        project_name: r.get(8)?,
+        inviter_username: r.get(9)?,
+        invitee_username: r.get(10)?,
+        invitee_name: r.get(11)?,
+    })
+}
+
+const SHARE_VIEW_COLS: &str = "s.id,s.project_id,s.inviter_id,s.invitee_id,s.level,s.status,s.created_at,s.responded_at,p.name,iv.username,ie.username,ie.display_name";
+const SHARE_VIEW_JOINS: &str = "JOIN projects p ON p.id=s.project_id JOIN users iv ON iv.id=s.inviter_id JOIN users ie ON ie.id=s.invitee_id";
+
 fn map_audit(r: &rusqlite::Row<'_>) -> rusqlite::Result<AuditEntry> {
     Ok(AuditEntry {
         id: r.get(0)?,
@@ -1258,6 +1291,130 @@ impl Db for SqliteDb {
         .map(|_| ())
         .map_err(dberr)
     }
+
+    async fn share_by(&self, project: &str, invitee: &str) -> DbResult<ProjectShare> {
+        let project = project.to_string();
+        let invitee = invitee.to_string();
+        self.q(move |c| {
+                c.query_row(
+                    "SELECT id,project_id,inviter_id,invitee_id,level,status,created_at,responded_at FROM project_shares WHERE project_id=? AND invitee_id=?",
+                    params![project, invitee],
+                    map_share,
+                )
+            })
+            .await
+            .map_err(dberr)
+    }
+
+    async fn share_upsert(&self, sh: &ProjectShare) -> DbResult<()> {
+        let v: Vec<String> = [
+            &sh.id,
+            &sh.project_id,
+            &sh.inviter_id,
+            &sh.invitee_id,
+            &sh.level,
+            &sh.status,
+        ]
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
+        let (created_at, responded_at) = (sh.created_at, sh.responded_at);
+        self.q(move |c| {
+                c.execute(
+                    "INSERT INTO project_shares(id,project_id,inviter_id,invitee_id,level,status,created_at,responded_at) VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(project_id,invitee_id) DO UPDATE SET inviter_id=excluded.inviter_id,level=excluded.level,status=excluded.status,created_at=excluded.created_at,responded_at=excluded.responded_at",
+                    params![v[0], v[1], v[2], v[3], v[4], v[5], created_at, responded_at],
+                )
+            })
+            .await
+            .map(|_| ())
+            .map_err(dberr)
+    }
+
+    async fn shares_by_project(&self, project: &str) -> DbResult<Vec<ShareView>> {
+        let project = project.to_string();
+        self.q(move |c| {
+                let mut st = c.prepare(&format!(
+                    "SELECT {SHARE_VIEW_COLS} FROM project_shares s {SHARE_VIEW_JOINS} WHERE s.project_id=? ORDER BY s.created_at DESC"
+                ))?;
+                let rows = st.query_map(params![project], map_share_view)?;
+                rows.collect::<rusqlite::Result<Vec<_>>>()
+            })
+            .await
+            .map_err(dberr)
+    }
+
+    async fn shares_for_user(&self, invitee: &str) -> DbResult<Vec<ShareView>> {
+        let invitee = invitee.to_string();
+        self.q(move |c| {
+                let mut st = c.prepare(&format!(
+                    "SELECT {SHARE_VIEW_COLS} FROM project_shares s {SHARE_VIEW_JOINS} WHERE s.invitee_id=? AND s.status!='declined' ORDER BY s.created_at DESC"
+                ))?;
+                let rows = st.query_map(params![invitee], map_share_view)?;
+                rows.collect::<rusqlite::Result<Vec<_>>>()
+            })
+            .await
+            .map_err(dberr)
+    }
+
+    async fn share_respond(
+        &self,
+        id: &str,
+        invitee: &str,
+        status: &str,
+        ts: i64,
+    ) -> DbResult<bool> {
+        let id = id.to_string();
+        let invitee = invitee.to_string();
+        let status = status.to_string();
+        self.q(move |c| {
+                c.execute(
+                    "UPDATE project_shares SET status=?, responded_at=? WHERE id=? AND invitee_id=? AND status='pending'",
+                    params![status, ts, id, invitee],
+                )
+            })
+            .await
+            .map(|n| n > 0)
+            .map_err(dberr)
+    }
+
+    async fn share_set_level(&self, id: &str, project: &str, level: &str) -> DbResult<bool> {
+        let id = id.to_string();
+        let project = project.to_string();
+        let level = level.to_string();
+        self.q(move |c| {
+                c.execute(
+                    "UPDATE project_shares SET level=? WHERE id=? AND project_id=?",
+                    params![level, id, project],
+                )
+            })
+            .await
+            .map(|n| n > 0)
+            .map_err(dberr)
+    }
+
+    async fn share_delete(&self, id: &str, project: &str) -> DbResult<bool> {
+        let id = id.to_string();
+        let project = project.to_string();
+        self.q(move |c| {
+                c.execute(
+                    "DELETE FROM project_shares WHERE id=? AND project_id=?",
+                    params![id, project],
+                )
+            })
+            .await
+            .map(|n| n > 0)
+            .map_err(dberr)
+    }
+
+    async fn shares_delete_project(&self, project: &str) -> DbResult<()> {
+        let project = project.to_string();
+        self.q(move |c| {
+                c.execute("DELETE FROM project_shares WHERE project_id=?", params![project])
+            })
+            .await
+            .map(|_| ())
+            .map_err(dberr)
+    }
 }
 
 #[cfg(test)]
@@ -1560,6 +1717,69 @@ mod tests {
         assert!(!db.invite_revoke("i1", "other").await.unwrap());
         assert!(db.invite_revoke("i1", "t1").await.unwrap());
         assert!(!db.invite_use("h1", "u1", 500).await.unwrap());
+    }
+
+    #[tokio::test]
+    async fn share_lifecycle() {
+        let db = connect(":memory:").await.unwrap();
+        let u = |id: &str, role: Role| User {
+            id: id.into(),
+            username: format!("u{id}"),
+            display_name: "n".into(),
+            role,
+            role_name: String::new(),
+            student_id: String::new(),
+            note: String::new(),
+            disabled: false,
+            avatar: String::new(),
+            created_by: String::new(),
+            lineage: "/".into(),
+            created_at: 1,
+            last_login: 0,
+        };
+        db.create_user(&u("o1", Role::Teacher), "h").await.unwrap();
+        db.create_user(&u("v1", Role::Student), "h").await.unwrap();
+        db.create_project(&Project {
+            id: "p1".into(),
+            owner_id: "o1".into(),
+            name: "p1".into(),
+            display_name: "P1".into(),
+            dir: "d".into(),
+            group_id: String::new(),
+            tags: vec![],
+            created_at: 1,
+            last_activity: 1,
+            pinned: false,
+        })
+        .await
+        .unwrap();
+        let sh = ProjectShare {
+            id: "s1".into(),
+            project_id: "p1".into(),
+            inviter_id: "o1".into(),
+            invitee_id: "v1".into(),
+            level: "view".into(),
+            status: "pending".into(),
+            created_at: 1,
+            responded_at: 0,
+        };
+        db.share_upsert(&sh).await.unwrap();
+        assert_eq!(db.share_by("p1", "v1").await.unwrap().status, "pending");
+        assert_eq!(db.shares_by_project("p1").await.unwrap().len(), 1);
+        assert_eq!(db.shares_for_user("v1").await.unwrap().len(), 1);
+        assert!(!db.share_respond("s1", "other", "accepted", 2).await.unwrap());
+        assert!(db.share_respond("s1", "v1", "accepted", 2).await.unwrap());
+        assert!(!db.share_respond("s1", "v1", "declined", 3).await.unwrap());
+        assert_eq!(db.share_by("p1", "v1").await.unwrap().status, "accepted");
+        assert!(db.share_set_level("s1", "p1", "edit").await.unwrap());
+        assert_eq!(db.share_by("p1", "v1").await.unwrap().level, "edit");
+        db.share_upsert(&ProjectShare { status: "pending".into(), responded_at: 0, ..sh.clone() }).await.unwrap();
+        assert_eq!(db.share_by("p1", "v1").await.unwrap().status, "pending");
+        assert!(db.share_delete("s1", "p1").await.unwrap());
+        assert!(!db.share_delete("s1", "p1").await.unwrap());
+        db.share_upsert(&sh).await.unwrap();
+        db.shares_delete_project("p1").await.unwrap();
+        assert!(db.shares_by_project("p1").await.unwrap().is_empty());
     }
 
     #[tokio::test]

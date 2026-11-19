@@ -355,5 +355,15 @@
   "signUp": "Зарегистрироваться",
   "confirmPassword": "Подтвердите пароль",
   "passwordsMismatch": "Пароли не совпадают",
-  "revoked": "Отозвано"
+  "revoked": "Отозвано",
+  "share": "Поделиться",
+  "shareProject": "Поделиться проектом",
+  "send": "Отправить",
+  "canView": "Просмотр",
+  "canEdit": "Редактирование",
+  "accepted": "Принято",
+  "declined": "Отклонено",
+  "accept": "Принять",
+  "decline": "Отклонить",
+  "shareInviteFrom": "Приглашение от {user} · {level}"
 }

@@ -20,6 +20,7 @@ class ProjectsPage extends StatefulWidget {
 
 class _ProjectsPageState extends State<ProjectsPage> {
   List<Project>? _items;
+  List<Share> _shares = [];
   List<ProjectGroup> _groups = [];
   String _err = '';
   String? _tagFilter;
@@ -61,13 +62,44 @@ class _ProjectsPageState extends State<ProjectsPage> {
 
   Future<void> _load() async {
     try {
-      final res = await Future.wait([Api.i.projects(), Api.i.groups()]);
+      final res = await Future.wait([
+        Api.i.projects(),
+        Api.i.groups(),
+        Api.i.shares().catchError((_) => <Share>[]),
+      ]);
       setState(() {
         _items = res[0] as List<Project>;
         _groups = res[1] as List<ProjectGroup>;
+        _shares = res[2] as List<Share>;
       });
     } catch (e) {
       setState(() => _err = '$e');
+    }
+  }
+
+  Future<void> _respond(Share sh, bool accept) async {
+    try {
+      await Api.i.shareRespond(sh.id, accept);
+      _load();
+    } catch (e) {
+      if (mounted) snack(context, e);
+    }
+  }
+
+  void _openShared(Share sh) {
+    final p = Project.fromJson({
+      'id': sh.projectId,
+      'name': sh.projectName,
+      'access': sh.level,
+      'ownerId': 'x',
+      'ownerName': sh.inviterUsername,
+    });
+    final shell = context.findAncestorStateOfType<ShellState>();
+    if (shell != null) {
+      shell.openProject(p);
+    } else {
+      Navigator.of(context)
+          .push(MaterialPageRoute(builder: (_) => ProjectPage(project: p)));
     }
   }
 
@@ -416,6 +448,35 @@ class _ProjectsPageState extends State<ProjectsPage> {
                 ),
               ]),
               const SizedBox(height: 8),
+              if (_shares.isNotEmpty) ...[
+                for (final sh in _shares)
+                  Card(
+                    child: ListTile(
+                      leading: const Icon(Icons.folder_shared),
+                      title: Text(sh.projectName.isEmpty
+                          ? sh.projectId
+                          : sh.projectName),
+                      subtitle: Text(sh.status == 'pending'
+                          ? l10n.shareInviteFrom(
+                              sh.level == 'edit' ? l10n.canEdit : l10n.canView,
+                              sh.inviterUsername)
+                          : '${sh.level == 'edit' ? l10n.canEdit : l10n.canView}  ·  ${sh.inviterUsername}'),
+                      trailing: sh.status == 'pending'
+                          ? Row(mainAxisSize: MainAxisSize.min, children: [
+                              TextButton(
+                                  onPressed: () => _respond(sh, true),
+                                  child: Text(l10n.accept)),
+                              TextButton(
+                                  onPressed: () => _respond(sh, false),
+                                  child: Text(l10n.decline)),
+                            ])
+                          : const Icon(Icons.chevron_right),
+                      onTap: sh.status == 'accepted'
+                          ? () => _openShared(sh)
+                          : null,
+                    ),
+                  ),
+              ],
               Row(children: [
                 if (allTags.isNotEmpty)
                   Expanded(
@@ -521,6 +582,11 @@ class _ProjectPageState extends State<ProjectPage> {
   int _tab = 0;
   late Project _p = widget.project;
 
+  Future<void> _share() async {
+    await showDialog(
+        context: context, builder: (_) => _ShareDialog(project: _p));
+  }
+
   Future<void> _rename() async {
     final name = await promptText(context, context.l10n.renameProject,
         context.l10n.displayName, _p.displayName);
@@ -590,6 +656,13 @@ class _ProjectPageState extends State<ProjectPage> {
               label: Text(l10n.openInFilmcraft),
             ),
             const SizedBox(width: 8),
+          ],
+          if (_p.mine) ...[
+            IconButton(
+              icon: const Icon(Icons.share_outlined, size: 20),
+              tooltip: l10n.share,
+              onPressed: _share,
+            ),
             PopupMenuButton<String>(
               onSelected: (v) => v == 'rename' ? _rename() : _delete(),
               itemBuilder: (_) => [
@@ -1855,6 +1928,132 @@ class _RenderDialogState extends State<RenderDialog> {
           onPressed: canSubmit ? _submit : null,
           child: Text(_busy ? l10n.queuing : l10n.render),
         ),
+      ],
+    );
+  }
+}
+
+class _ShareDialog extends StatefulWidget {
+  final Project project;
+  const _ShareDialog({required this.project});
+  @override
+  State<_ShareDialog> createState() => _ShareDialogState();
+}
+
+class _ShareDialogState extends State<_ShareDialog> {
+  List<Share>? _shares;
+  final _user = TextEditingController();
+  String _level = 'view';
+  bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void dispose() {
+    _user.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    try {
+      final v = await Api.i.projectShares(widget.project.id);
+      setState(() => _shares = v);
+    } catch (e) {
+      setState(() => _shares = []);
+      if (mounted) snack(context, e);
+    }
+  }
+
+  Future<void> _send() async {
+    final username = _user.text.trim();
+    if (username.isEmpty || _busy) return;
+    setState(() => _busy = true);
+    try {
+      await Api.i.shareProject(widget.project.id, username, _level);
+      _user.clear();
+      await _load();
+    } catch (e) {
+      if (mounted) snack(context, e);
+    }
+    if (mounted) setState(() => _busy = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final shares = _shares;
+    return AlertDialog(
+      title: Text(l10n.shareProject),
+      content: SizedBox(
+        width: 400,
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Row(children: [
+            Expanded(
+              child: TextField(
+                controller: _user,
+                decoration:
+                    InputDecoration(labelText: l10n.username, isDense: true),
+                onSubmitted: (_) => _send(),
+              ),
+            ),
+            const SizedBox(width: 8),
+            DropdownButton<String>(
+              value: _level,
+              items: [
+                DropdownMenuItem(value: 'view', child: Text(l10n.canView)),
+                DropdownMenuItem(value: 'edit', child: Text(l10n.canEdit)),
+              ],
+              onChanged: (v) => setState(() => _level = v!),
+            ),
+            IconButton(
+                icon: const Icon(Icons.send),
+                tooltip: l10n.send,
+                onPressed: _busy ? null : _send),
+          ]),
+          const SizedBox(height: 8),
+          if (shares == null)
+            const Padding(
+                padding: EdgeInsets.all(16), child: CircularProgressIndicator())
+          else
+            for (final sh in shares)
+              ListTile(
+                dense: true,
+                leading: const Icon(Icons.person_outline),
+                title: Text(sh.inviteeName.isEmpty
+                    ? sh.inviteeUsername
+                    : sh.inviteeName),
+                subtitle: Text(
+                    '${sh.level == 'edit' ? l10n.canEdit : l10n.canView}  ·  ${sh.status == 'pending' ? l10n.pending : sh.status == 'accepted' ? l10n.accepted : l10n.declined}'),
+                trailing: PopupMenuButton<String>(
+                  icon: const Icon(Icons.more_vert, size: 20),
+                  onSelected: (v) async {
+                    try {
+                      if (v == 'revoke') {
+                        await Api.i.shareRevoke(widget.project.id, sh.id);
+                      } else {
+                        await Api.i.shareLevel(widget.project.id, sh.id, v);
+                      }
+                      _load();
+                    } catch (e) {
+                      if (context.mounted) snack(context, e);
+                    }
+                  },
+                  itemBuilder: (_) => [
+                    PopupMenuItem(value: 'view', child: Text(l10n.canView)),
+                    PopupMenuItem(value: 'edit', child: Text(l10n.canEdit)),
+                    PopupMenuItem(value: 'revoke', child: Text(l10n.revoke)),
+                  ],
+                ),
+              ),
+        ]),
+      ),
+      actions: [
+        TextButton(
+            onPressed: () => Navigator.pop(context), child: Text(l10n.ok)),
       ],
     );
   }

@@ -1495,6 +1495,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Revoked'**
   String get revoked;
+
+  /// No description provided for @share.
+  ///
+  /// In en, this message translates to:
+  /// **'Share'**
+  String get share;
+
+  /// No description provided for @shareProject.
+  ///
+  /// In en, this message translates to:
+  /// **'Share project'**
+  String get shareProject;
+
+  /// No description provided for @send.
+  ///
+  /// In en, this message translates to:
+  /// **'Send'**
+  String get send;
+
+  /// No description provided for @canView.
+  ///
+  /// In en, this message translates to:
+  /// **'Can view'**
+  String get canView;
+
+  /// No description provided for @canEdit.
+  ///
+  /// In en, this message translates to:
+  /// **'Can edit'**
+  String get canEdit;
+
+  /// No description provided for @accepted.
+  ///
+  /// In en, this message translates to:
+  /// **'Accepted'**
+  String get accepted;
+
+  /// No description provided for @declined.
+  ///
+  /// In en, this message translates to:
+  /// **'Declined'**
+  String get declined;
+
+  /// No description provided for @accept.
+  ///
+  /// In en, this message translates to:
+  /// **'Accept'**
+  String get accept;
+
+  /// No description provided for @decline.
+  ///
+  /// In en, this message translates to:
+  /// **'Decline'**
+  String get decline;
+
+  /// No description provided for @shareInviteFrom.
+  ///
+  /// In en, this message translates to:
+  /// **'Invited by {user} · {level}'**
+  String shareInviteFrom(Object level, Object user);
 }
 
 class _AppLocalizationsDelegate

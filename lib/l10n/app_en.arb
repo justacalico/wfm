@@ -355,5 +355,15 @@
   "signUp": "Sign up",
   "confirmPassword": "Confirm password",
   "passwordsMismatch": "Passwords do not match",
-  "revoked": "Revoked"
+  "revoked": "Revoked",
+  "share": "Share",
+  "shareProject": "Share project",
+  "send": "Send",
+  "canView": "Can view",
+  "canEdit": "Can edit",
+  "accepted": "Accepted",
+  "declined": "Declined",
+  "accept": "Accept",
+  "decline": "Decline",
+  "shareInviteFrom": "Invited by {user} · {level}"
 }

@@ -769,4 +769,36 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get revoked => 'Отозвано';
+
+  @override
+  String get share => 'Поделиться';
+
+  @override
+  String get shareProject => 'Поделиться проектом';
+
+  @override
+  String get send => 'Отправить';
+
+  @override
+  String get canView => 'Просмотр';
+
+  @override
+  String get canEdit => 'Редактирование';
+
+  @override
+  String get accepted => 'Принято';
+
+  @override
+  String get declined => 'Отклонено';
+
+  @override
+  String get accept => 'Принять';
+
+  @override
+  String get decline => 'Отклонить';
+
+  @override
+  String shareInviteFrom(Object level, Object user) {
+    return 'Приглашение от $user · $level';
+  }
 }
