@@ -912,6 +912,27 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get linkRendersOnly => 'Renders only';
+
+  @override
+  String get duplicate => 'Duplicate';
+
+  @override
+  String get saveCopy => 'Save a copy';
+
+  @override
+  String get useTemplate => 'Use template';
+
+  @override
+  String get template => 'Template';
+
+  @override
+  String get markTemplate => 'Mark as template';
+
+  @override
+  String get unmarkTemplate => 'Unmark template';
+
+  @override
+  String get projectDuplicated => 'Copy created';
 }
 
 /// The translations for English, as used in the United Kingdom (`en_GB`).
@@ -1205,4 +1226,25 @@ class AppLocalizationsEnGb extends AppLocalizationsEn {
 
   @override
   String get linkRendersOnly => 'Renders only';
+
+  @override
+  String get duplicate => 'Duplicate';
+
+  @override
+  String get saveCopy => 'Save a copy';
+
+  @override
+  String get useTemplate => 'Use template';
+
+  @override
+  String get template => 'Template';
+
+  @override
+  String get markTemplate => 'Mark as template';
+
+  @override
+  String get unmarkTemplate => 'Unmark template';
+
+  @override
+  String get projectDuplicated => 'Copy created';
 }

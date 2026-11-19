@@ -908,4 +908,25 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get linkRendersOnly => '仅渲染成品';
+
+  @override
+  String get duplicate => '创建副本';
+
+  @override
+  String get saveCopy => '保存副本';
+
+  @override
+  String get useTemplate => '使用模板';
+
+  @override
+  String get template => '模板';
+
+  @override
+  String get markTemplate => '标记为模板';
+
+  @override
+  String get unmarkTemplate => '取消模板标记';
+
+  @override
+  String get projectDuplicated => '已创建副本';
 }

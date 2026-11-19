@@ -102,6 +102,7 @@ pub struct Project {
     #[serde(rename = "lastActivity")]
     pub last_activity: i64,
     pub pinned: bool,
+    pub template: bool,
 }
 
 #[derive(Clone, Serialize)]
@@ -314,6 +315,7 @@ pub struct ShareView {
     pub invitee_name: String,
     pub level: String,
     pub status: String,
+    pub template: bool,
     #[serde(rename = "createdAt")]
     pub created_at: i64,
     #[serde(rename = "respondedAt")]

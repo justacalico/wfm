@@ -181,6 +181,16 @@ class _ProjectsPageState extends State<ProjectsPage> {
     }
   }
 
+  Future<void> _duplicate(Project p) async {
+    try {
+      await Api.i.duplicateProject(p.id);
+      if (mounted) snack(context, context.l10n.projectDuplicated);
+      _load();
+    } catch (e) {
+      if (mounted) snack(context, e);
+    }
+  }
+
   Widget _menu(AppLocalizations l10n, Project p) => SizedBox(
         width: 28,
         height: 28,
@@ -191,6 +201,7 @@ class _ProjectsPageState extends State<ProjectsPage> {
             'pin' => _togglePin(p),
             'tags' => _editTags(p),
             'take' => _takeOver(p),
+            'dup' => _duplicate(p),
             _ => _moveToGroup(p),
           },
           itemBuilder: (_) => [
@@ -203,6 +214,7 @@ class _ProjectsPageState extends State<ProjectsPage> {
               PopupMenuItem(value: 'tags', child: Text(l10n.editTags)),
               PopupMenuItem(value: 'group', child: Text(l10n.moveToGroup)),
             ],
+            PopupMenuItem(value: 'dup', child: Text(l10n.duplicate)),
           ],
         ),
       );
@@ -533,14 +545,25 @@ class _ProjectPageState extends State<ProjectPage> {
     if (name == null || name.isEmpty || !mounted) return;
     try {
       await Api.i.updateProject(_p.id, displayName: name);
-      setState(() => _p = Project.fromJson({
-            'id': _p.id,
-            'name': _p.name,
-            'displayName': name,
-            'groupId': _p.groupId,
-            'tags': _p.tags,
-            'createdAt': _p.createdAt
-          }));
+      setState(() => _p = _p.copyWith(displayName: name));
+    } catch (e) {
+      if (mounted) snack(context, e);
+    }
+  }
+
+  Future<void> _duplicate() async {
+    try {
+      await Api.i.duplicateProject(_p.id);
+      if (mounted) snack(context, context.l10n.projectDuplicated);
+    } catch (e) {
+      if (mounted) snack(context, e);
+    }
+  }
+
+  Future<void> _toggleTemplate() async {
+    try {
+      await Api.i.updateProject(_p.id, template: !_p.template);
+      setState(() => _p = _p.copyWith(template: !_p.template));
     } catch (e) {
       if (mounted) snack(context, e);
     }
@@ -574,7 +597,14 @@ class _ProjectPageState extends State<ProjectPage> {
       appBar: AppBar(
         leading:
             IconButton(icon: const Icon(Icons.arrow_back), onPressed: _close),
-        title: Text(_p.displayName),
+        title: Row(children: [
+          Flexible(
+              child: Text(_p.displayName, overflow: TextOverflow.ellipsis)),
+          if (_p.template) ...[
+            const SizedBox(width: 8),
+            tagChip(context, l10n.template),
+          ],
+        ]),
         actions: [
           if (!_p.editable)
             Padding(
@@ -604,12 +634,38 @@ class _ProjectPageState extends State<ProjectPage> {
               onPressed: _share,
             ),
             PopupMenuButton<String>(
-              onSelected: (v) => v == 'rename' ? _rename() : _delete(),
+              onSelected: (v) => switch (v) {
+                'rename' => _rename(),
+                'dup' => _duplicate(),
+                'tpl' => _toggleTemplate(),
+                _ => _delete(),
+              },
               itemBuilder: (_) => [
                 PopupMenuItem(value: 'rename', child: Text(l10n.rename)),
+                PopupMenuItem(value: 'dup', child: Text(l10n.duplicate)),
+                PopupMenuItem(
+                    value: 'tpl',
+                    child: Text(
+                        _p.template ? l10n.unmarkTemplate : l10n.markTemplate)),
                 PopupMenuItem(value: 'delete', child: Text(l10n.delete)),
               ],
             ),
+          ] else ...[
+            if (_p.template)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: FilledButton.tonalIcon(
+                  onPressed: _duplicate,
+                  icon: const Icon(Icons.copy_outlined, size: 16),
+                  label: Text(l10n.useTemplate),
+                ),
+              )
+            else
+              IconButton(
+                icon: const Icon(Icons.copy_outlined, size: 20),
+                tooltip: l10n.saveCopy,
+                onPressed: _duplicate,
+              ),
           ],
         ],
         bottom: PreferredSize(

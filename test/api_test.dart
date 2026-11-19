@@ -494,6 +494,37 @@ void main() {
       expect(lastRequest!.url.path, '/api/shares/s3/decline');
     });
 
+    test('duplicate and template endpoints', () async {
+      final api = Api(client({
+        'POST /api/projects/p1/duplicate': {
+          'id': 'p9',
+          'name': 'x copy',
+          'displayName': 'X (copy)',
+          'template': true
+        },
+        'PATCH /api/projects/p1': {'ok': true},
+        'GET /api/shares': [
+          {
+            'id': 's1',
+            'projectId': 'p1',
+            'level': 'edit',
+            'status': 'accepted',
+            'template': true
+          }
+        ],
+      }));
+      final p = await api.duplicateProject('p1');
+      expect(lastRequest!.url.path, '/api/projects/p1/duplicate');
+      expect(p.id, 'p9');
+      expect(p.template, isTrue);
+      await api.updateProject('p1', template: true);
+      expect(jsonDecode(utf8.decode(lastRequest!.bodyBytes))['template'], true);
+      expect((await api.shares()).first.template, isTrue);
+      expect(p.copyWith(displayName: 'N').displayName, 'N');
+      expect(p.copyWith(displayName: 'N').template, isTrue);
+      expect(p.copyWith(template: false).template, isFalse);
+    });
+
     test('AutoShare model and endpoints', () async {
       final api = Api(client({
         'GET /api/auto-shares': [

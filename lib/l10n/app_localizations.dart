@@ -1741,6 +1741,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Renders only'**
   String get linkRendersOnly;
+
+  /// No description provided for @duplicate.
+  ///
+  /// In en, this message translates to:
+  /// **'Duplicate'**
+  String get duplicate;
+
+  /// No description provided for @saveCopy.
+  ///
+  /// In en, this message translates to:
+  /// **'Save a copy'**
+  String get saveCopy;
+
+  /// No description provided for @useTemplate.
+  ///
+  /// In en, this message translates to:
+  /// **'Use template'**
+  String get useTemplate;
+
+  /// No description provided for @template.
+  ///
+  /// In en, this message translates to:
+  /// **'Template'**
+  String get template;
+
+  /// No description provided for @markTemplate.
+  ///
+  /// In en, this message translates to:
+  /// **'Mark as template'**
+  String get markTemplate;
+
+  /// No description provided for @unmarkTemplate.
+  ///
+  /// In en, this message translates to:
+  /// **'Unmark template'**
+  String get unmarkTemplate;
+
+  /// No description provided for @projectDuplicated.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy created'**
+  String get projectDuplicated;
 }
 
 class _AppLocalizationsDelegate

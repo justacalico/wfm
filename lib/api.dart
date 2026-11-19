@@ -60,7 +60,7 @@ class Project {
   final String id, name, displayName, groupId, ownerId, ownerName, access;
   final List<String> tags;
   final int createdAt, lastActivity;
-  final bool pinned;
+  final bool pinned, template;
   Project.fromJson(Map<String, dynamic> j)
       : id = j['id'] ?? '',
         name = j['name'] ?? '',
@@ -72,13 +72,28 @@ class Project {
         tags = [for (final t in (j['tags'] ?? []) as List) '$t'],
         createdAt = j['createdAt'] ?? 0,
         lastActivity = j['lastActivity'] ?? j['createdAt'] ?? 0,
-        pinned = j['pinned'] ?? false;
+        pinned = j['pinned'] ?? false,
+        template = j['template'] ?? false;
   bool get mine => access.isEmpty
       ? (ownerId.isEmpty ||
           ownerId == Api.i.user?.id ||
           (Api.i.user?.isOwner ?? false))
       : access == 'owner';
   bool get editable => mine || access == 'edit';
+  Project copyWith({String? displayName, bool? template}) => Project.fromJson({
+        'id': id,
+        'name': name,
+        'displayName': displayName ?? this.displayName,
+        'groupId': groupId,
+        'ownerId': ownerId,
+        'ownerName': ownerName,
+        'access': access,
+        'tags': tags,
+        'createdAt': createdAt,
+        'lastActivity': lastActivity,
+        'pinned': pinned,
+        'template': template ?? this.template,
+      });
 }
 
 class ProjectGroup {
@@ -174,6 +189,7 @@ class Share {
       inviteeName,
       level,
       status;
+  final bool template;
   final int createdAt;
   Share.fromJson(Map<String, dynamic> j)
       : id = j['id'] ?? '',
@@ -185,6 +201,7 @@ class Share {
         inviteeName = j['inviteeName'] ?? '',
         level = j['level'] ?? 'view',
         status = j['status'] ?? '',
+        template = j['template'] ?? false,
         createdAt = j['createdAt'] ?? 0;
 }
 
@@ -390,13 +407,18 @@ class Api {
           {String? displayName,
           String? groupId,
           List<String>? tags,
-          bool? pinned}) =>
+          bool? pinned,
+          bool? template}) =>
       patch('/projects/$id', {
         if (displayName != null) 'displayName': displayName,
         if (groupId != null) 'groupId': groupId,
         if (tags != null) 'tags': tags,
         if (pinned != null) 'pinned': pinned,
+        if (template != null) 'template': template,
       });
+
+  Future<Project> duplicateProject(String id) async =>
+      Project.fromJson(await post('/projects/$id/duplicate', {}));
 
   Future<List<ProjectGroup>> groups() async => [
         for (final e in (await get('/groups')) as List) ProjectGroup.fromJson(e)

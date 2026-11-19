@@ -402,5 +402,12 @@
   "expiryMonth": "30 天",
   "linkExpires": "{when} 过期",
   "linkEmpty": "暂无内容",
-  "linkRendersOnly": "仅渲染成品"
+  "linkRendersOnly": "仅渲染成品",
+  "duplicate": "创建副本",
+  "saveCopy": "保存副本",
+  "useTemplate": "使用模板",
+  "template": "模板",
+  "markTemplate": "标记为模板",
+  "unmarkTemplate": "取消模板标记",
+  "projectDuplicated": "已创建副本"
 }

@@ -56,6 +56,7 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/audit", get(audit))
         .route("/projects", get(list_projects).post(create_project))
         .route("/projects/{id}/take-over", post(take_over_project))
+        .route("/projects/{id}/duplicate", post(duplicate_project))
         .route(
             "/projects/{id}/shares",
             get(list_project_shares).post(create_share),
@@ -1231,6 +1232,7 @@ async fn create_project(
         created_at: AppState::now(),
         last_activity: AppState::now(),
         pinned: false,
+        template: false,
     };
     if let Err(e) = s.db.create_project(&p).await {
         let _ = s.blobs.delete_prefix(&p.dir).await;
@@ -1845,7 +1847,12 @@ async fn project_access(
     }
     if let Ok(share) = s.db.share_by(&p.id, &session.user.id).await {
         if share.status == "accepted" {
-            return Ok((p, if share.level == "edit" { "edit" } else { "view" }));
+            let level = if share.level == "edit" && !p.template {
+                "edit"
+            } else {
+                "view"
+            };
+            return Ok((p, level));
         }
     }
     let in_subtree = s
@@ -1933,6 +1940,8 @@ struct UpdateProjectReq {
     tags: Option<Vec<String>>,
     #[serde(default)]
     pinned: Option<bool>,
+    #[serde(default)]
+    template: Option<bool>,
 }
 
 async fn update_project(
@@ -1979,6 +1988,11 @@ async fn update_project(
     }
     if let Some(pin) = req.pinned {
         if let Err(e) = s.db.set_project_pinned(&id, pin).await {
+            return db_resp(e);
+        }
+    }
+    if let Some(t) = req.template {
+        if let Err(e) = s.db.set_project_template(&id, t).await {
             return db_resp(e);
         }
     }
@@ -2102,6 +2116,100 @@ async fn delete_project(
     )
     .await;
     Json(json!({"ok": true})).into_response()
+}
+
+async fn duplicate_project(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Path(id): Path<String>,
+) -> Response {
+    let src = match read_project(&s, &session, &id).await {
+        Ok(p) => p,
+        Err(r) => return r,
+    };
+    let bytes = usage_bytes(&s, &src.dir).await;
+    if quota_exceeded(&s, &session.user.id, bytes).await {
+        return err(StatusCode::PAYLOAD_TOO_LARGE, "storage quota exceeded");
+    }
+    let name = format!("{} copy", src.name.chars().take(58).collect::<String>());
+    let display: String = format!("{} (copy)", src.display_name)
+        .chars()
+        .take(100)
+        .collect();
+    let id2 = model::new_id();
+    let dir = files::rel_project_dir(&session.user.username, &session.user.id, &name, &id2);
+    for f in files::PROJECT_FOLDERS {
+        if let Err(e) = s.blobs.mkdir(&format!("{dir}/{f}")).await {
+            return err(StatusCode::INTERNAL_SERVER_ERROR, &e);
+        }
+    }
+    let mut stack = vec![src.dir.clone()];
+    let mut guard = 0usize;
+    while let Some(pre) = stack.pop() {
+        guard += 1;
+        if guard > 10000 {
+            let _ = s.blobs.delete_prefix(&dir).await;
+            return err(StatusCode::INTERNAL_SERVER_ERROR, "too many files");
+        }
+        match s.blobs.list(&pre).await {
+            Ok((folders, objects)) => {
+                stack.extend(folders);
+                for o in objects {
+                    let rel = o.key.strip_prefix(&src.dir).unwrap_or(&o.key);
+                    let dst = format!("{dir}{rel}");
+                    match s.blobs.get(&o.key).await {
+                        Ok((_, stream)) => {
+                            let mut r = tokio_util::io::StreamReader::new(stream);
+                            if let Err(e) = s.blobs.put(&dst, o.size, &mut r).await {
+                                let _ = s.blobs.delete_prefix(&dir).await;
+                                return err(StatusCode::INTERNAL_SERVER_ERROR, &e);
+                            }
+                        }
+                        Err(e) => {
+                            let _ = s.blobs.delete_prefix(&dir).await;
+                            return err(StatusCode::INTERNAL_SERVER_ERROR, &e);
+                        }
+                    }
+                }
+            }
+            Err(e) => {
+                let _ = s.blobs.delete_prefix(&dir).await;
+                return err(StatusCode::INTERNAL_SERVER_ERROR, &e);
+            }
+        }
+    }
+    let p = Project {
+        id: id2,
+        owner_id: session.user.id.clone(),
+        name,
+        display_name: display,
+        dir,
+        group_id: String::new(),
+        tags: src.tags.clone(),
+        created_at: AppState::now(),
+        last_activity: AppState::now(),
+        pinned: false,
+        template: false,
+    };
+    if let Err(e) = s.db.create_project(&p).await {
+        let _ = s.blobs.delete_prefix(&p.dir).await;
+        return db_resp(e);
+    }
+    s.audit(
+        "project",
+        &session.user,
+        if src.template {
+            "use_template"
+        } else {
+            "duplicate_project"
+        },
+        &p.display_name,
+        &format!("from {}", src.display_name),
+        "",
+    )
+    .await;
+    auto_share_apply(&s, &p, &session.user).await;
+    Json(json!(p)).into_response()
 }
 
 #[derive(Deserialize)]

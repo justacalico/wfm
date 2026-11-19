@@ -915,4 +915,25 @@ class AppLocalizationsGa extends AppLocalizations {
 
   @override
   String get linkRendersOnly => 'Rindreálacha amháin';
+
+  @override
+  String get duplicate => 'Dúbail';
+
+  @override
+  String get saveCopy => 'Sábháil cóip';
+
+  @override
+  String get useTemplate => 'Úsáid teimpléad';
+
+  @override
+  String get template => 'Teimpléad';
+
+  @override
+  String get markTemplate => 'Marcáil mar theimpléad';
+
+  @override
+  String get unmarkTemplate => 'Bain an marc teimpléid';
+
+  @override
+  String get projectDuplicated => 'Cóip cruthaithe';
 }
