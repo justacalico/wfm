@@ -150,7 +150,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get openInFilmcraft => 'Open';
+  String get editInFilmcraft => 'Edit';
 
   @override
   String get openScript => 'Script';

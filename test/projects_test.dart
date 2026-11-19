@@ -36,7 +36,7 @@ void main() {
       expect(find.text('Short Film'), findsOneWidget);
       var opened = '';
       openEditorForTesting = (u) => opened = u;
-      await t.tap(find.text('Open'));
+      await t.tap(find.text('Edit'));
       await settle(t);
       expect(opened, contains('/filmcraft/wfm.html?project=p1'));
       await t.tap(find.text('Script'));
@@ -122,7 +122,7 @@ void main() {
       expect(find.text('doc'), findsWidgets);
       var opened = '';
       openEditorForTesting = (u) => opened = u;
-      await t.tap(find.text('Open'));
+      await t.tap(find.text('Edit'));
       await settle(t);
       expect(opened, contains('/filmcraft/wfm.html?project=p1'));
       final p = await SharedPreferences.getInstance();
@@ -367,7 +367,7 @@ void main() {
       installApi();
       openEditorForTesting = (_) => throw 'no editor';
       await pump(t, const ProjectsPage());
-      await t.tap(find.text('Open'));
+      await t.tap(find.text('Edit'));
       await settle(t);
       expect(find.byType(Notice), findsOneWidget);
       await t.tap(find.text('Script'));
@@ -869,7 +869,7 @@ void main() {
       expect(opened, contains('/scriptcraft/wfm.html?project=p1'));
       await t.tap(find.byIcon(Icons.view_carousel_outlined));
       expect(opened, contains('/deckcraft/wfm.html?project=p1'));
-      await t.tap(find.text('Open'));
+      await t.tap(find.text('Edit'));
       expect(opened, contains('project=p1'));
 
       await t.tap(find.descendant(
@@ -916,7 +916,7 @@ void main() {
       await t.tap(find.byIcon(Icons.edit_note));
       await settle(t);
       expect(find.byType(Notice), findsWidgets);
-      await t.tap(find.text('Open'));
+      await t.tap(find.text('Edit'));
       await settle(t);
       expect(find.byType(Notice), findsWidgets);
       await t.tap(find.descendant(

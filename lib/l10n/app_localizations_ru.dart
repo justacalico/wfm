@@ -151,7 +151,7 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
-  String get openInFilmcraft => 'Открыть';
+  String get editInFilmcraft => 'Редактировать';
 
   @override
   String get openScript => 'Сценарий';

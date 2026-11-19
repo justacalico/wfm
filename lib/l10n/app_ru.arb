@@ -59,7 +59,7 @@
       "when": {}
     }
   },
-  "openInFilmcraft": "Открыть",
+  "editInFilmcraft": "Редактировать",
   "openScript": "Сценарий",
   "openBoards": "Раскадровка",
   "renameProject": "Переименовать проект",

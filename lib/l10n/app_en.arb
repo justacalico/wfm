@@ -59,7 +59,7 @@
       "when": {}
     }
   },
-  "openInFilmcraft": "Open",
+  "editInFilmcraft": "Edit",
   "openScript": "Script",
   "openBoards": "Storyboard",
   "renameProject": "Rename project",
