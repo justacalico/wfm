@@ -836,4 +836,48 @@ class AppLocalizationsGa extends AppLocalizations {
   String storageUsed(Object used, Object quota) {
     return '$used as $quota in úsáid';
   }
+
+  @override
+  String get navNotifications => 'Fógraí';
+
+  @override
+  String get noNotifications => 'Níl aon fhógra go fóil';
+
+  @override
+  String get markAllRead => 'Marcáil gach ceann mar léite';
+
+  @override
+  String notifShareInvite(Object from, Object project) {
+    return 'Thug $from cuireadh duit chuig $project';
+  }
+
+  @override
+  String notifShareAuto(Object from, Object project) {
+    return 'Roinn $from $project leat';
+  }
+
+  @override
+  String notifShareAccepted(Object from, Object project) {
+    return 'Ghlac $from le do chuireadh chuig $project';
+  }
+
+  @override
+  String notifShareDeclined(Object from, Object project) {
+    return 'Dhiúltaigh $from do chuireadh chuig $project';
+  }
+
+  @override
+  String notifRenderDone(Object name, Object project) {
+    return 'Críochnaíodh an rindreáil: $name i $project';
+  }
+
+  @override
+  String notifRenderFailed(Object name, Object project) {
+    return 'Theip ar an rindreáil: $name i $project';
+  }
+
+  @override
+  String notifNodeOffline(Object name) {
+    return 'Chuaigh an nód rindreála $name as líne';
+  }
 }

@@ -381,5 +381,15 @@
       "used": {},
       "quota": {}
     }
-  }
+  },
+  "navNotifications": "Fógraí",
+  "noNotifications": "Níl aon fhógra go fóil",
+  "markAllRead": "Marcáil gach ceann mar léite",
+  "notifShareInvite": "Thug {from} cuireadh duit chuig {project}",
+  "notifShareAuto": "Roinn {from} {project} leat",
+  "notifShareAccepted": "Ghlac {from} le do chuireadh chuig {project}",
+  "notifShareDeclined": "Dhiúltaigh {from} do chuireadh chuig {project}",
+  "notifRenderDone": "Críochnaíodh an rindreáil: {name} i {project}",
+  "notifRenderFailed": "Theip ar an rindreáil: {name} i {project}",
+  "notifNodeOffline": "Chuaigh an nód rindreála {name} as líne"
 }

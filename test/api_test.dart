@@ -529,5 +529,40 @@ void main() {
       expect(await api.projectUsage('p1'), 2048);
       expect(await api.accountUsage('u2'), 99);
     });
+
+    test('AppNotification model and endpoints', () async {
+      final n = AppNotification.fromJson({});
+      expect(n.id, '');
+      expect(n.kind, '');
+      expect(n.payload, isEmpty);
+      expect(n.readAt, 0);
+      final api = Api(client({
+        'GET /api/notifications': {
+          'list': [
+            {
+              'id': 'n1',
+              'kind': 'render_done',
+              'payload': {'project': 'p1'},
+              'readAt': 5,
+              'createdAt': 9
+            }
+          ],
+          'unread': 2
+        },
+        'POST /api/notifications/n1/read': {'ok': true},
+        'POST /api/notifications/read-all': {'ok': true},
+      }));
+      final (list, unread) = await api.notifications(before: 5, limit: 10);
+      expect(unread, 2);
+      expect(list.single.id, 'n1');
+      expect(list.single.payload['project'], 'p1');
+      expect(list.single.readAt, 5);
+      expect(lastRequest!.url.query, contains('before=5'));
+      expect(await api.notificationsUnread(), 2);
+      await api.notificationRead('n1');
+      expect(lastRequest!.url.path, '/api/notifications/n1/read');
+      await api.notificationsReadAll();
+      expect(lastRequest!.url.path, '/api/notifications/read-all');
+    });
   });
 }

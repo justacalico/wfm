@@ -381,5 +381,15 @@
       "used": {},
       "quota": {}
     }
-  }
+  },
+  "navNotifications": "Notifications",
+  "noNotifications": "No notifications yet",
+  "markAllRead": "Mark all read",
+  "notifShareInvite": "{from} invited you to {project}",
+  "notifShareAuto": "{from} shared {project} with you",
+  "notifShareAccepted": "{from} accepted your invite to {project}",
+  "notifShareDeclined": "{from} declined your invite to {project}",
+  "notifRenderDone": "Render finished: {name} in {project}",
+  "notifRenderFailed": "Render failed: {name} in {project}",
+  "notifNodeOffline": "Render node {name} went offline"
 }

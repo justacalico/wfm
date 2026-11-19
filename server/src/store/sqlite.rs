@@ -209,6 +209,17 @@ fn map_share(r: &rusqlite::Row) -> rusqlite::Result<ProjectShare> {
     })
 }
 
+fn map_notification(r: &rusqlite::Row) -> rusqlite::Result<Notification> {
+    let payload: String = r.get(2)?;
+    Ok(Notification {
+        id: r.get(0)?,
+        kind: r.get(1)?,
+        payload: serde_json::from_str(&payload).unwrap_or(serde_json::Value::Null),
+        read_at: r.get(3)?,
+        created_at: r.get(4)?,
+    })
+}
+
 fn map_share_view(r: &rusqlite::Row) -> rusqlite::Result<ShareView> {
     Ok(ShareView {
         id: r.get(0)?,
@@ -1062,7 +1073,7 @@ impl Db for SqliteDb {
         let id = id.to_string();
         self.q(move |c| {
                 c.execute(
-                    "UPDATE render_nodes SET last_seen=? WHERE id=?",
+                    "UPDATE render_nodes SET last_seen=?, offline_notified=0 WHERE id=?",
                     params![ts, id],
                 )
             })
@@ -1489,6 +1500,125 @@ impl Db for SqliteDb {
                     })
                 })?;
                 rows.collect::<rusqlite::Result<Vec<_>>>()
+            })
+            .await
+            .map_err(dberr)
+    }
+
+    async fn share_by_id(&self, id: &str) -> DbResult<ProjectShare> {
+        let id = id.to_string();
+        self.q(move |c| {
+                c.query_row(
+                    "SELECT id,project_id,inviter_id,invitee_id,level,status,created_at,responded_at FROM project_shares WHERE id=?",
+                    params![id],
+                    map_share,
+                )
+            })
+            .await
+            .map_err(dberr)
+    }
+
+    async fn notify(&self, user: &str, kind: &str, payload: &str, ts: i64) -> DbResult<()> {
+        let (id, user, kind, payload) = (
+            crate::model::new_id(),
+            user.to_string(),
+            kind.to_string(),
+            payload.to_string(),
+        );
+        self.q(move |c| {
+                c.execute(
+                    "INSERT INTO notifications(id,user_id,kind,payload,read_at,created_at) VALUES(?,?,?,?,0,?)",
+                    params![id, user, kind, payload, ts],
+                )
+            })
+            .await
+            .map(|_| ())
+            .map_err(dberr)
+    }
+
+    async fn notifications_for(
+        &self,
+        user: &str,
+        before: i64,
+        limit: i64,
+    ) -> DbResult<Vec<Notification>> {
+        let (user, before) = (user.to_string(), if before <= 0 { i64::MAX } else { before });
+        self.q(move |c| {
+                let mut st = c.prepare(
+                    "SELECT id,kind,payload,read_at,created_at FROM notifications WHERE user_id=? AND created_at<? ORDER BY created_at DESC, id DESC LIMIT ?"
+                )?;
+                let rows = st.query_map(params![user, before, limit], map_notification)?;
+                rows.collect::<rusqlite::Result<Vec<_>>>()
+            })
+            .await
+            .map_err(dberr)
+    }
+
+    async fn notifications_unread(&self, user: &str) -> DbResult<i64> {
+        let user = user.to_string();
+        self.q(move |c| {
+                c.query_row(
+                    "SELECT COUNT(*) FROM notifications WHERE user_id=? AND read_at=0",
+                    params![user],
+                    |r| r.get(0),
+                )
+            })
+            .await
+            .map_err(dberr)
+    }
+
+    async fn notification_read(&self, user: &str, id: &str, ts: i64) -> DbResult<bool> {
+        let (user, id) = (user.to_string(), id.to_string());
+        self.q(move |c| {
+                c.execute(
+                    "UPDATE notifications SET read_at=? WHERE id=? AND user_id=? AND read_at=0",
+                    params![ts, id, user],
+                )
+            })
+            .await
+            .map(|n| n > 0)
+            .map_err(dberr)
+    }
+
+    async fn notifications_read_all(&self, user: &str, ts: i64) -> DbResult<()> {
+        let user = user.to_string();
+        self.q(move |c| {
+                c.execute(
+                    "UPDATE notifications SET read_at=? WHERE user_id=? AND read_at=0",
+                    params![ts, user],
+                )
+            })
+            .await
+            .map(|_| ())
+            .map_err(dberr)
+    }
+
+    async fn staff_ids(&self) -> DbResult<Vec<String>> {
+        self.q(move |c| {
+                let mut st =
+                    c.prepare("SELECT id FROM users WHERE role>=3 AND disabled=0")?;
+                let rows = st.query_map([], |r| r.get(0))?;
+                rows.collect::<rusqlite::Result<Vec<_>>>()
+            })
+            .await
+            .map_err(dberr)
+    }
+
+    async fn nodes_newly_offline(&self, stale_before: i64) -> DbResult<Vec<RenderNode>> {
+        self.q(move |c| {
+                let mut st = c.prepare(
+                    "SELECT id,name,disabled,created_at,last_seen FROM render_nodes WHERE disabled=0 AND last_seen>0 AND last_seen<? AND offline_notified=0"
+                )?;
+                let nodes = st
+                    .query_map(params![stale_before], map_node)?
+                    .collect::<rusqlite::Result<Vec<_>>>()?;
+                for n in &nodes {
+                    c.execute(
+                        "UPDATE render_nodes SET offline_notified=1 WHERE id=?",
+                        params![n.id],
+                    )?;
+                }
+                Ok(nodes)
             })
             .await
             .map_err(dberr)
@@ -2013,5 +2143,91 @@ mod tests {
             .unwrap();
         assert_eq!(v.len(), 1);
         assert_eq!(v[0].ts, 300);
+    }
+
+    #[tokio::test]
+    async fn notifications_lifecycle() {
+        let db = connect(":memory:").await.unwrap();
+        db.notify("u1", "share_invite", "{\"a\":1}", 10).await.unwrap();
+        db.notify("u1", "render_done", "{\"b\":2}", 20).await.unwrap();
+        db.notify("u2", "node_offline", "{}", 30).await.unwrap();
+
+        assert_eq!(db.notifications_unread("u1").await.unwrap(), 2);
+        let v = db.notifications_for("u1", 0, 50).await.unwrap();
+        assert_eq!(v.len(), 2);
+        assert_eq!(v[0].created_at, 20);
+        assert_eq!(v[0].payload["b"], 2);
+        assert_eq!(v[1].kind, "share_invite");
+
+        let page = db
+            .notifications_for("u1", v[0].created_at, 50)
+            .await
+            .unwrap();
+        assert_eq!(page.len(), 1);
+        assert_eq!(page[0].id, v[1].id);
+
+        assert!(!db.notification_read("u2", &v[0].id, 40).await.unwrap());
+        assert!(db.notification_read("u1", &v[0].id, 40).await.unwrap());
+        assert!(!db.notification_read("u1", &v[0].id, 41).await.unwrap());
+        assert_eq!(db.notifications_unread("u1").await.unwrap(), 1);
+
+        db.notifications_read_all("u1", 50).await.unwrap();
+        assert_eq!(db.notifications_unread("u1").await.unwrap(), 0);
+
+        assert_eq!(db.share_by_id("nope").await.is_err(), true);
+        assert!(db.staff_ids().await.unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn nodes_offline_report_once() {
+        let db = connect(":memory:").await.unwrap();
+        let mut n = node("Farm-1");
+        db.node_create(&n, "h").await.unwrap();
+        assert!(db.nodes_newly_offline(100).await.unwrap().is_empty());
+
+        db.node_touch(&n.id, 50).await.unwrap();
+        let off = db.nodes_newly_offline(100).await.unwrap();
+        assert_eq!(off.len(), 1);
+        assert_eq!(off[0].name, "Farm-1");
+        assert!(db.nodes_newly_offline(100).await.unwrap().is_empty());
+
+        db.node_touch(&n.id, 500).await.unwrap();
+        let off = db.nodes_newly_offline(600).await.unwrap();
+        assert_eq!(off.len(), 1);
+
+        n.disabled = true;
+        db.node_set_disabled(&n.id, true).await.unwrap();
+        db.node_touch(&n.id, 10).await.unwrap();
+        assert!(db.nodes_newly_offline(100).await.unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn staff_ids_skips_students() {
+        let db = connect(":memory:").await.unwrap();
+        let u = |id: &str, role: Role| User {
+            id: id.into(),
+            username: format!("u{id}"),
+            display_name: "n".into(),
+            role,
+            role_name: "x".into(),
+            student_id: String::new(),
+            note: String::new(),
+            disabled: false,
+            avatar: String::new(),
+            quota_bytes: 0,
+            created_by: String::new(),
+            lineage: "/".into(),
+            created_at: 1,
+            last_login: 0,
+        };
+        db.create_user(&u("t1", Role::Teacher), "h").await.unwrap();
+        db.create_user(&u("s1", Role::Student), "h").await.unwrap();
+        let mut d = u("d1", Role::Admin);
+        d.disabled = true;
+        db.create_user(&d, "h").await.unwrap();
+        let staff = db.staff_ids().await.unwrap();
+        assert!(staff.contains(&"t1".to_string()));
+        assert!(!staff.contains(&"s1".to_string()));
+        assert!(!staff.contains(&"d1".to_string()));
     }
 }

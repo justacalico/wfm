@@ -200,6 +200,19 @@ class AutoShare {
         createdAt = j['createdAt'] ?? 0;
 }
 
+class AppNotification {
+  final String id, kind;
+  final Map<String, dynamic> payload;
+  int readAt;
+  final int createdAt;
+  AppNotification.fromJson(Map<String, dynamic> j)
+      : id = j['id'] ?? '',
+        kind = j['kind'] ?? '',
+        payload = (j['payload'] as Map?)?.cast<String, dynamic>() ?? {},
+        readAt = j['readAt'] ?? 0,
+        createdAt = j['createdAt'] ?? 0;
+}
+
 class Invite {
   final String id, role, presetUsername, presetName, usedBy;
   final int usedAt, expiresAt, createdAt;
@@ -556,6 +569,26 @@ class Api {
 
   Future<void> shareRespond(String sid, bool accept) =>
       post('/shares/$sid/${accept ? 'accept' : 'decline'}', {});
+
+  Future<(List<AppNotification>, int)> notifications(
+      {int before = 0, int limit = 50}) async {
+    final j = await get('/notifications?before=$before&limit=$limit')
+        as Map<String, dynamic>;
+    return (
+      [for (final e in (j['list'] as List? ?? [])) AppNotification.fromJson(e)],
+      (j['unread'] as num?)?.toInt() ?? 0,
+    );
+  }
+
+  Future<int> notificationsUnread() async {
+    final j = await get('/notifications?limit=1') as Map<String, dynamic>;
+    return (j['unread'] as num?)?.toInt() ?? 0;
+  }
+
+  Future<void> notificationRead(String id) =>
+      post('/notifications/$id/read', {});
+
+  Future<void> notificationsReadAll() => post('/notifications/read-all', {});
 
   Future<List<Invite>> invites() async =>
       [for (final e in (await get('/invites')) as List) Invite.fromJson(e)];

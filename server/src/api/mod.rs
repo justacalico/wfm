@@ -69,6 +69,9 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/shares/{sid}/decline", post(decline_share))
         .route("/auto-shares", get(list_auto_shares).post(add_auto_share))
         .route("/auto-shares/{id}", delete(delete_auto_share))
+        .route("/notifications", get(my_notifications))
+        .route("/notifications/read-all", post(notifications_read_all))
+        .route("/notifications/{id}/read", post(notification_read))
         .route("/projects/{id}/usage", get(project_usage))
         .route("/accounts/{id}/usage", get(account_usage))
         .route(
@@ -1275,6 +1278,23 @@ async fn auto_share_apply(s: &Arc<AppState>, p: &Project, creator: &User) {
             )
             .await;
         }
+        let from = s
+            .db
+            .user_by_id(&a.owner_id)
+            .await
+            .map(|u| u.username)
+            .unwrap_or_default();
+        s.notify(
+            &a.invitee_id,
+            if accepted { "share_auto" } else { "share_invite" },
+            json!({
+                "project": p.id,
+                "projectName": p.display_name,
+                "from": from,
+                "level": a.level,
+            }),
+        )
+        .await;
     }
 }
 
@@ -1501,6 +1521,7 @@ async fn respond_share(
     sid: &str,
     status: &str,
 ) -> Response {
+    let sh = s.db.share_by_id(sid).await.ok();
     match s
         .db
         .share_respond(sid, &session.user.id, status, AppState::now())
@@ -1520,6 +1541,28 @@ async fn respond_share(
                 &session.user.lineage,
             )
             .await;
+            if let Some(sh) = sh {
+                let name = s
+                    .db
+                    .project_by_id(&sh.project_id)
+                    .await
+                    .map(|p| p.display_name)
+                    .unwrap_or_default();
+                s.notify(
+                    &sh.inviter_id,
+                    if status == "accepted" {
+                        "share_accepted"
+                    } else {
+                        "share_declined"
+                    },
+                    json!({
+                        "project": sh.project_id,
+                        "projectName": name,
+                        "from": session.user.username,
+                    }),
+                )
+                .await;
+            }
             Json(json!({"ok": true})).into_response()
         }
         Ok(false) => err(StatusCode::NOT_FOUND, "no pending invite"),
@@ -1541,6 +1584,61 @@ async fn decline_share(
     Path(sid): Path<String>,
 ) -> Response {
     respond_share(&s, &session, &sid, "declined").await
+}
+
+#[derive(Deserialize)]
+struct NotifQuery {
+    before: Option<i64>,
+    limit: Option<i64>,
+}
+
+async fn my_notifications(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Query(q): Query<NotifQuery>,
+) -> Response {
+    let limit = q.limit.unwrap_or(50).clamp(1, 200);
+    match s
+        .db
+        .notifications_for(&session.user.id, q.before.unwrap_or(0), limit)
+        .await
+    {
+        Ok(v) => match s.db.notifications_unread(&session.user.id).await {
+            Ok(unread) => Json(json!({"list": v, "unread": unread})).into_response(),
+            Err(e) => db_resp(e),
+        },
+        Err(e) => db_resp(e),
+    }
+}
+
+async fn notification_read(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Path(id): Path<String>,
+) -> Response {
+    match s
+        .db
+        .notification_read(&session.user.id, &id, AppState::now())
+        .await
+    {
+        Ok(true) => Json(json!({"ok": true})).into_response(),
+        Ok(false) => err(StatusCode::NOT_FOUND, "no such notification"),
+        Err(e) => db_resp(e),
+    }
+}
+
+async fn notifications_read_all(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+) -> Response {
+    match s
+        .db
+        .notifications_read_all(&session.user.id, AppState::now())
+        .await
+    {
+        Ok(()) => Json(json!({"ok": true})).into_response(),
+        Err(e) => db_resp(e),
+    }
 }
 
 async fn owned_project(s: &Arc<AppState>, session: &Session, id: &str) -> Result<Project, Response> {
@@ -3067,8 +3165,8 @@ async fn render_finish(
         .db
         .lock_release(&job.project_id, "render", &job.id)
         .await;
-    if e.is_empty() {
-        if let Ok(p) = s.db.project_by_id(&job.project_id).await {
+    if let Ok(p) = s.db.project_by_id(&job.project_id).await {
+        if e.is_empty() {
             s.audit(
                 "project",
                 &session.user,
@@ -3079,6 +3177,17 @@ async fn render_finish(
             )
             .await;
         }
+        s.notify(
+            &job.user_id,
+            if e.is_empty() { "render_done" } else { "render_failed" },
+            json!({
+                "project": p.id,
+                "projectName": p.display_name,
+                "name": job.output_name,
+                "error": e,
+            }),
+        )
+        .await;
     }
     Json(json!({"ok": true})).into_response()
 }
@@ -3575,6 +3684,16 @@ async fn worker_complete(
             s.audit("project", &u, "render_done", &project.display_name, &name, "")
                 .await;
         }
+        s.notify(
+            &job.user_id,
+            "render_done",
+            json!({
+                "project": project.id,
+                "projectName": project.display_name,
+                "name": name,
+            }),
+        )
+        .await;
     }
     Json(json!({"ok": true})).into_response()
 }
@@ -3601,5 +3720,22 @@ async fn worker_fail(
         .await;
     let _ = s.db.lock_release(&job.project_id, "render", &job.id).await;
     s.cancels.lock().unwrap().remove(&id);
+    let pname = s
+        .db
+        .project_by_id(&job.project_id)
+        .await
+        .map(|p| p.display_name)
+        .unwrap_or_default();
+    s.notify(
+        &job.user_id,
+        "render_failed",
+        json!({
+            "project": job.project_id,
+            "projectName": pname,
+            "name": job.output_name,
+            "error": msg,
+        }),
+    )
+    .await;
     Json(json!({"ok": true})).into_response()
 }

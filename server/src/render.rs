@@ -276,6 +276,26 @@ pub fn spawn_janitor(state: Arc<AppState>) {
                     }
                     let _ = state.db.job_requeue_stale(now).await;
                     let _ = state.db.job_fail_stale(now).await;
+                    if let Ok(nodes) = state.db.nodes_newly_offline(now - 120).await {
+                        if !nodes.is_empty() {
+                            if let Ok(staff) = state.db.staff_ids().await {
+                                for n in nodes {
+                                    for uid in &staff {
+                                        state
+                                            .notify(
+                                                uid,
+                                                "node_offline",
+                                                serde_json::json!({
+                                                    "node": n.id,
+                                                    "name": n.name,
+                                                }),
+                                            )
+                                            .await;
+                                    }
+                                }
+                            }
+                        }
+                    }
                     crate::auth::login_prune(&state.logins);
                     // Cancel flags only matter while a job runs; purge ids
                     // whose job reached a terminal state (or vanished) so the
@@ -498,6 +518,24 @@ async fn run_job(state: &Arc<AppState>, job: &RenderJob, worker: &str) {
                 .lock_release(&job.project_id, "render", &job.id)
                 .await;
             state.cancels.lock().unwrap().remove(&job.id);
+            let pname = state
+                .db
+                .project_by_id(&job.project_id)
+                .await
+                .map(|p| p.display_name)
+                .unwrap_or_default();
+            state
+                .notify(
+                    &job.user_id,
+                    "render_failed",
+                    serde_json::json!({
+                        "project": job.project_id,
+                        "projectName": pname,
+                        "name": job.output_name,
+                        "error": e,
+                    }),
+                )
+                .await;
         }
     };
 
@@ -635,6 +673,17 @@ async fn run_job(state: &Arc<AppState>, job: &RenderJob, worker: &str) {
                     )
                     .await;
             }
+            state
+                .notify(
+                    &job.user_id,
+                    "render_done",
+                    serde_json::json!({
+                        "project": project.id,
+                        "projectName": project.display_name,
+                        "name": uploaded.join(", "),
+                    }),
+                )
+                .await;
         }
         Err(e) => {
             let _ = std::fs::remove_dir_all(&stage);

@@ -1615,6 +1615,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{used} of {quota} used'**
   String storageUsed(Object used, Object quota);
+
+  /// No description provided for @navNotifications.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications'**
+  String get navNotifications;
+
+  /// No description provided for @noNotifications.
+  ///
+  /// In en, this message translates to:
+  /// **'No notifications yet'**
+  String get noNotifications;
+
+  /// No description provided for @markAllRead.
+  ///
+  /// In en, this message translates to:
+  /// **'Mark all read'**
+  String get markAllRead;
+
+  /// No description provided for @notifShareInvite.
+  ///
+  /// In en, this message translates to:
+  /// **'{from} invited you to {project}'**
+  String notifShareInvite(Object from, Object project);
+
+  /// No description provided for @notifShareAuto.
+  ///
+  /// In en, this message translates to:
+  /// **'{from} shared {project} with you'**
+  String notifShareAuto(Object from, Object project);
+
+  /// No description provided for @notifShareAccepted.
+  ///
+  /// In en, this message translates to:
+  /// **'{from} accepted your invite to {project}'**
+  String notifShareAccepted(Object from, Object project);
+
+  /// No description provided for @notifShareDeclined.
+  ///
+  /// In en, this message translates to:
+  /// **'{from} declined your invite to {project}'**
+  String notifShareDeclined(Object from, Object project);
+
+  /// No description provided for @notifRenderDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Render finished: {name} in {project}'**
+  String notifRenderDone(Object name, Object project);
+
+  /// No description provided for @notifRenderFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Render failed: {name} in {project}'**
+  String notifRenderFailed(Object name, Object project);
+
+  /// No description provided for @notifNodeOffline.
+  ///
+  /// In en, this message translates to:
+  /// **'Render node {name} went offline'**
+  String notifNodeOffline(Object name);
 }
 
 class _AppLocalizationsDelegate
