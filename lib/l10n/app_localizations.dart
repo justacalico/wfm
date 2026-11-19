@@ -1225,6 +1225,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Delete the \"{name}\" render? Its exported files stay in the project.'**
   String deleteRenderBody(Object name);
+
+  /// No description provided for @sessions.
+  ///
+  /// In en, this message translates to:
+  /// **'Sessions'**
+  String get sessions;
+
+  /// No description provided for @currentSession.
+  ///
+  /// In en, this message translates to:
+  /// **'This session'**
+  String get currentSession;
+
+  /// No description provided for @revoke.
+  ///
+  /// In en, this message translates to:
+  /// **'Revoke'**
+  String get revoke;
+
+  /// No description provided for @revokeSessionBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign out this session?'**
+  String get revokeSessionBody;
+
+  /// No description provided for @sessionLastSeen.
+  ///
+  /// In en, this message translates to:
+  /// **'Last seen {time}'**
+  String sessionLastSeen(Object time);
 }
 
 class _AppLocalizationsDelegate

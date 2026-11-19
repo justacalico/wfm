@@ -310,5 +310,10 @@
     "placeholders": {
       "name": {}
     }
-  }
+  },
+  "sessions": "Сеансы",
+  "currentSession": "Этот сеанс",
+  "revoke": "Отозвать",
+  "revokeSessionBody": "Завершить этот сеанс?",
+  "sessionLastSeen": "Активность {time}"
 }

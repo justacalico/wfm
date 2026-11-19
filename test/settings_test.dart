@@ -62,6 +62,72 @@ void main() {
     expect(p.getInt('theme'), AppTheme.light.index);
   });
 
+  testWidgets('lists sessions and revokes them', (t) async {
+    String? deleted;
+    installApi(extra: {
+      'GET /api/sessions': (_) => [
+            {
+              'id': 'a1',
+              'ip': '10.0.0.2',
+              'ua': 'Agent/1.0',
+              'createdAt': 100,
+              'expiresAt': 999,
+              'lastSeen': 0,
+              'current': true,
+            },
+            {
+              'id': 'b2',
+              'ip': '10.0.0.9',
+              'ua': 'Agent/2.0',
+              'createdAt': 100,
+              'expiresAt': 999,
+              'lastSeen': 200,
+              'current': false,
+            },
+          ],
+      'DELETE /api/sessions/b2': (_) {
+        deleted = 'b2';
+        return {};
+      },
+      'GET *': (_) => [],
+    });
+    await goSettings(t);
+    expect(find.text('Sessions'), findsOneWidget);
+    expect(find.textContaining('This session'), findsOneWidget);
+    expect(find.text('Revoke'), findsOneWidget);
+    await t.tap(find.text('Revoke'));
+    await settle(t);
+    await t.tap(find.widgetWithText(FilledButton, 'Confirm'));
+    await settle(t);
+    expect(deleted, 'b2');
+    expect(find.textContaining('10.0.0.9'), findsNothing);
+  });
+
+  testWidgets('session revoke error keeps the row', (t) async {
+    installApi(extra: {
+      'GET /api/sessions': (_) => [
+            {
+              'id': 'b2',
+              'ip': '10.0.0.9',
+              'ua': 'Agent/2.0',
+              'createdAt': 100,
+              'expiresAt': 999,
+              'lastSeen': 200,
+              'current': false,
+            },
+          ],
+      'DELETE /api/sessions/b2': (_) => http.Response('{"error":"nope"}', 500),
+      'GET *': (_) => [],
+    });
+    await goSettings(t);
+    await t.tap(find.text('Revoke'));
+    await settle(t);
+    await t.tap(find.widgetWithText(FilledButton, 'Confirm'));
+    await settle(t);
+    expect(find.textContaining('10.0.0.9'), findsOneWidget);
+    expect(find.byType(Notice), findsOneWidget);
+  });
+
   testWidgets('owner sees and saves trusted proxies', (t) async {
     String? saved;
     installApi(extra: {

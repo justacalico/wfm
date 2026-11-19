@@ -184,7 +184,6 @@
   },
   "nodeTokenNote": "Sábháil an tóchamharc seo, ní thaispeánfar é ach uair amháin. Toscaigh an nód le:",
   "noNodes": "Níl aon nód rindreála ann. Rithfidh oibrithe áitiúla ar an bhfreastalaí i gcónaí.",
-  "lastSeen": "feicthe {when} ó shin",
   "@lastSeen": {
     "placeholders": {
       "when": {}
@@ -310,5 +309,11 @@
     "placeholders": {
       "name": {}
     }
-  }
+  },
+  "sessions": "Seisiúin",
+  "currentSession": "An seisiún seo",
+  "revoke": "Cúlghairm",
+  "revokeSessionBody": "Logáil amach an seisiún seo?",
+  "sessionLastSeen": "Feicthe go déanaí {time}",
+  "lastSeen": "feicthe {when} ó shin"
 }

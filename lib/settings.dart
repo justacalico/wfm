@@ -29,6 +29,7 @@ class _SettingsPageState extends State<SettingsPage> {
   UpdateResult _update = UpdateResult.idle;
   AppUpdate? _latest;
   String _version = '';
+  List<SessionInfo>? _sessions;
 
   @override
   void initState() {
@@ -46,6 +47,24 @@ class _SettingsPageState extends State<SettingsPage> {
     Api.i.serverVersion().then((v) {
       if (mounted) setState(() => _version = v);
     }).catchError((_) {});
+    Api.i.sessions().then((v) {
+      if (mounted) setState(() => _sessions = v);
+    }).catchError((_) {});
+  }
+
+  Future<void> _revoke(SessionInfo se) async {
+    if (!await confirm(
+        context, context.l10n.revoke, context.l10n.revokeSessionBody)) {
+      return;
+    }
+    try {
+      await Api.i.revokeSession(se.id);
+      if (mounted) {
+        setState(() => _sessions!.removeWhere((x) => x.id == se.id));
+      }
+    } catch (e) {
+      if (mounted) snack(context, e);
+    }
   }
 
   @override
@@ -135,6 +154,31 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
         ),
       const SizedBox(height: 16),
+      if (_sessions != null) ...[
+        const SizedBox(height: 16),
+        Align(
+            alignment: Alignment.centerLeft,
+            child: Text(l10n.sessions,
+                style: Theme.of(context).textTheme.titleSmall)),
+        for (final se in _sessions!)
+          ListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.devices_outlined, size: 18),
+            title: Text(se.ua.isEmpty ? '—' : se.ua,
+                overflow: TextOverflow.ellipsis),
+            subtitle: Text([
+              if (se.current) l10n.currentSession,
+              if (se.ip.isNotEmpty) se.ip,
+              if (se.lastSeen > 0)
+                l10n.sessionLastSeen(fmtAgo(l10n, se.lastSeen)),
+            ].join('  ·  ')),
+            trailing: se.current
+                ? null
+                : TextButton(
+                    onPressed: () => _revoke(se), child: Text(l10n.revoke)),
+          ),
+      ],
       AnimatedBuilder(
         animation: Listenable.merge([app.themeCtl, app.localeCtl]),
         builder: (context, _) => Column(children: [

@@ -336,6 +336,12 @@ impl Db for PgDb {
         .map_err(map_err)?;
         match row {
             Some(r) if r.get::<i64, _>("expires_at") > now => {
+                sqlx::query("UPDATE sessions SET last_seen=$1 WHERE token_hash=$2")
+                    .bind(now)
+                    .bind(token_hash)
+                    .execute(&self.pool)
+                    .await
+                    .map_err(map_err)?;
                 Ok((r.get("user_id"), r.get("csrf")))
             }
             Some(_) => {
@@ -366,6 +372,37 @@ impl Db for PgDb {
             .await
             .map(|_| ())
             .map_err(map_err)
+    }
+
+    async fn list_sessions(&self, user_id: &str) -> DbResult<Vec<SessionInfo>> {
+        let rows = sqlx::query(
+            "SELECT token_hash,ip,ua,created_at,expires_at,last_seen FROM sessions WHERE user_id=$1 ORDER BY created_at DESC",
+        )
+        .bind(user_id)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(map_err)?;
+        Ok(rows
+            .iter()
+            .map(|r| SessionInfo {
+                id: r.get("token_hash"),
+                ip: r.get("ip"),
+                ua: r.get("ua"),
+                created_at: r.get("created_at"),
+                expires_at: r.get("expires_at"),
+                last_seen: r.get("last_seen"),
+            })
+            .collect())
+    }
+
+    async fn delete_user_session(&self, user_id: &str, token_hash: &str) -> DbResult<()> {
+        sqlx::query("DELETE FROM sessions WHERE user_id=$1 AND token_hash=$2")
+            .bind(user_id)
+            .bind(token_hash)
+            .execute(&self.pool)
+            .await
+            .map_err(map_err)?;
+        Ok(())
     }
 
     async fn delete_user_sessions_except(

@@ -86,6 +86,20 @@ class FileEntry {
   bool get isDir => type == 'dir';
 }
 
+class SessionInfo {
+  final String id, ip, ua;
+  final int createdAt, expiresAt, lastSeen;
+  final bool current;
+  SessionInfo.fromJson(Map<String, dynamic> j)
+      : id = j['id'] ?? '',
+        ip = j['ip'] ?? '',
+        ua = j['ua'] ?? '',
+        createdAt = j['createdAt'] ?? 0,
+        expiresAt = j['expiresAt'] ?? 0,
+        lastSeen = j['lastSeen'] ?? 0,
+        current = j['current'] == true;
+}
+
 class RenderJob {
   final String id, status, outputName, error, worker, mode;
   final double progress;
@@ -249,6 +263,13 @@ class Api {
   }
 
   Future<Caps> roles() async => caps = Caps.fromJson(await get('/roles'));
+
+  Future<List<SessionInfo>> sessions() async => [
+        for (final s in (await get('/sessions')) as List)
+          SessionInfo.fromJson(s)
+      ];
+
+  Future<void> revokeSession(String id) => del('/sessions/$id');
 
   Future<String> serverVersion() async =>
       '${(await get('/version'))['version'] ?? ''}';

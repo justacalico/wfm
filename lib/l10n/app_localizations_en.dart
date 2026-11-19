@@ -623,6 +623,23 @@ class AppLocalizationsEn extends AppLocalizations {
   String deleteRenderBody(Object name) {
     return 'Delete the \"$name\" render? Its exported files stay in the project.';
   }
+
+  @override
+  String get sessions => 'Sessions';
+
+  @override
+  String get currentSession => 'This session';
+
+  @override
+  String get revoke => 'Revoke';
+
+  @override
+  String get revokeSessionBody => 'Sign out this session?';
+
+  @override
+  String sessionLastSeen(Object time) {
+    return 'Last seen $time';
+  }
 }
 
 /// The translations for English, as used in the United Kingdom (`en_GB`).
@@ -677,4 +694,10 @@ class AppLocalizationsEnGb extends AppLocalizationsEn {
   String deleteRenderBody(Object name) {
     return 'Delete the \"$name\" render? Its exported files stay in the project.';
   }
+
+  @override
+  String get sessions => 'Sessions';
+
+  @override
+  String get revoke => 'Revoke';
 }

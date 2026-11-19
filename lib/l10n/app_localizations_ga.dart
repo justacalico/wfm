@@ -626,4 +626,21 @@ class AppLocalizationsGa extends AppLocalizations {
   String deleteRenderBody(Object name) {
     return 'Scrios taifead rindreála “$name”? Fanfaidh na comhaid easpórtáilte sa tionscadal.';
   }
+
+  @override
+  String get sessions => 'Seisiúin';
+
+  @override
+  String get currentSession => 'An seisiún seo';
+
+  @override
+  String get revoke => 'Cúlghairm';
+
+  @override
+  String get revokeSessionBody => 'Logáil amach an seisiún seo?';
+
+  @override
+  String sessionLastSeen(Object time) {
+    return 'Feicthe go déanaí $time';
+  }
 }

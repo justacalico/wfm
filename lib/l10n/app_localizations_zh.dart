@@ -620,4 +620,21 @@ class AppLocalizationsZh extends AppLocalizations {
   String deleteRenderBody(Object name) {
     return '删除“$name”的渲染记录？导出的文件会保留在项目中。';
   }
+
+  @override
+  String get sessions => '登录设备';
+
+  @override
+  String get currentSession => '当前会话';
+
+  @override
+  String get revoke => '撤销';
+
+  @override
+  String get revokeSessionBody => '退出此会话？';
+
+  @override
+  String sessionLastSeen(Object time) {
+    return '最近活动 $time';
+  }
 }
