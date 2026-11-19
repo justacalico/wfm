@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.16.0 - 2026-11-19
+#### Features
+- show Loading media while FilmCraft restores host media - (54faf33) - calico, *Devin*
+
+- - -
+
 ## v0.15.0 - 2026-11-19
 #### Features
 - move the sessions list into its own settings sub-page - (3bea9aa) - calico, *Devin*
