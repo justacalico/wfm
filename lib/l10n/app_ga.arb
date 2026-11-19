@@ -365,5 +365,9 @@
   "declined": "Diúltaithe",
   "accept": "Glac",
   "decline": "Diúltaigh",
-  "shareInviteFrom": "Cuireadh ó {user} · {level}"
+  "shareInviteFrom": "Cuireadh ó {user} · {level}",
+  "navShared": "Roinnte liom",
+  "pendingInvites": "Cuirí ar feitheamh",
+  "sharedProjects": "Tionscadail roinnte",
+  "noShares": "Níl aon rud roinnte leat fós"
 }

@@ -65,5 +65,9 @@
   "declined": "Declined",
   "accept": "Accept",
   "decline": "Decline",
-  "shareInviteFrom": "Invited by {user} · {level}"
+  "shareInviteFrom": "Invited by {user} · {level}",
+  "navShared": "Shared with me",
+  "pendingInvites": "Pending invites",
+  "sharedProjects": "Shared projects",
+  "noShares": "Nothing shared with you yet"
 }

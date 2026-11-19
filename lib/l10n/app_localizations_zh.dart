@@ -797,4 +797,16 @@ class AppLocalizationsZh extends AppLocalizations {
   String shareInviteFrom(Object level, Object user) {
     return '$user 邀请你 · $level';
   }
+
+  @override
+  String get navShared => '与我共享';
+
+  @override
+  String get pendingInvites => '待处理邀请';
+
+  @override
+  String get sharedProjects => '共享的项目';
+
+  @override
+  String get noShares => '还没有人与你共享内容';
 }

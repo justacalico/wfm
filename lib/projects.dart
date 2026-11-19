@@ -20,7 +20,6 @@ class ProjectsPage extends StatefulWidget {
 
 class _ProjectsPageState extends State<ProjectsPage> {
   List<Project>? _items;
-  List<Share> _shares = [];
   List<ProjectGroup> _groups = [];
   String _err = '';
   String? _tagFilter;
@@ -62,44 +61,13 @@ class _ProjectsPageState extends State<ProjectsPage> {
 
   Future<void> _load() async {
     try {
-      final res = await Future.wait([
-        Api.i.projects(),
-        Api.i.groups(),
-        Api.i.shares().catchError((_) => <Share>[]),
-      ]);
+      final res = await Future.wait([Api.i.projects(), Api.i.groups()]);
       setState(() {
         _items = res[0] as List<Project>;
         _groups = res[1] as List<ProjectGroup>;
-        _shares = res[2] as List<Share>;
       });
     } catch (e) {
       setState(() => _err = '$e');
-    }
-  }
-
-  Future<void> _respond(Share sh, bool accept) async {
-    try {
-      await Api.i.shareRespond(sh.id, accept);
-      _load();
-    } catch (e) {
-      if (mounted) snack(context, e);
-    }
-  }
-
-  void _openShared(Share sh) {
-    final p = Project.fromJson({
-      'id': sh.projectId,
-      'name': sh.projectName,
-      'access': sh.level,
-      'ownerId': 'x',
-      'ownerName': sh.inviterUsername,
-    });
-    final shell = context.findAncestorStateOfType<ShellState>();
-    if (shell != null) {
-      shell.openProject(p);
-    } else {
-      Navigator.of(context)
-          .push(MaterialPageRoute(builder: (_) => ProjectPage(project: p)));
     }
   }
 
@@ -448,35 +416,6 @@ class _ProjectsPageState extends State<ProjectsPage> {
                 ),
               ]),
               const SizedBox(height: 8),
-              if (_shares.isNotEmpty) ...[
-                for (final sh in _shares)
-                  Card(
-                    child: ListTile(
-                      leading: const Icon(Icons.folder_shared),
-                      title: Text(sh.projectName.isEmpty
-                          ? sh.projectId
-                          : sh.projectName),
-                      subtitle: Text(sh.status == 'pending'
-                          ? l10n.shareInviteFrom(
-                              sh.level == 'edit' ? l10n.canEdit : l10n.canView,
-                              sh.inviterUsername)
-                          : '${sh.level == 'edit' ? l10n.canEdit : l10n.canView}  ·  ${sh.inviterUsername}'),
-                      trailing: sh.status == 'pending'
-                          ? Row(mainAxisSize: MainAxisSize.min, children: [
-                              TextButton(
-                                  onPressed: () => _respond(sh, true),
-                                  child: Text(l10n.accept)),
-                              TextButton(
-                                  onPressed: () => _respond(sh, false),
-                                  child: Text(l10n.decline)),
-                            ])
-                          : const Icon(Icons.chevron_right),
-                      onTap: sh.status == 'accepted'
-                          ? () => _openShared(sh)
-                          : null,
-                    ),
-                  ),
-              ],
               Row(children: [
                 if (allTags.isNotEmpty)
                   Expanded(

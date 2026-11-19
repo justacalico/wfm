@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'api.dart';
 import 'l10n/app_localizations.dart';
 import 'projects.dart';
+import 'shared.dart';
 import 'invite.dart';
 import 'manage.dart';
 import 'settings.dart';
@@ -641,6 +642,19 @@ class Shell extends StatefulWidget {
 class ShellState extends State<Shell> {
   int _page = 0;
   Project? _open;
+  int _pending = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    refreshShared();
+  }
+
+  Future<void> refreshShared() async {
+    final v = await Api.i.shares().catchError((_) => <Share>[]);
+    final n = v.where((s) => s.status == 'pending').length;
+    if (mounted && n != _pending) setState(() => _pending = n);
+  }
 
   void go(int i) => setState(() {
         _page = i;
@@ -654,6 +668,7 @@ class ShellState extends State<Shell> {
   List<(IconData, String)> _items(AppLocalizations l10n, bool showManage) => [
         (Icons.home_outlined, l10n.navHome),
         (Icons.movie_outlined, l10n.navProjects),
+        (Icons.folder_shared_outlined, l10n.navShared),
         if (showManage) (Icons.manage_accounts_outlined, l10n.navManage),
         (Icons.settings_outlined, l10n.navSettings),
       ];
@@ -661,6 +676,7 @@ class ShellState extends State<Shell> {
   List<Widget> _pages(bool showManage) => [
         const HomePage(),
         const ProjectsPage(),
+        const SharedPage(),
         if (showManage) const ManagePage(),
         const SettingsPage(),
       ];
@@ -703,7 +719,16 @@ class ShellState extends State<Shell> {
                     child: ListTile(
                       dense: true,
                       leading: Icon(items[i].$1, size: 20),
-                      title: Text(items[i].$2),
+                      title: Row(children: [
+                        Flexible(
+                            child: Text(items[i].$2,
+                                overflow: TextOverflow.ellipsis)),
+                        if (items[i].$1 == Icons.folder_shared_outlined &&
+                            _pending > 0) ...[
+                          const SizedBox(width: 6),
+                          Badge(label: Text('$_pending')),
+                        ],
+                      ]),
                       shape: const StadiumBorder(),
                       onTap: () {
                         go(i);
@@ -796,12 +821,12 @@ class HomePage extends StatelessWidget {
     final cards = <(IconData, String, String, int)>[
       (Icons.movie_outlined, l10n.cardProjects, l10n.cardProjectsSub, 1),
       if (showManage)
-        (Icons.group_outlined, l10n.cardManage, l10n.cardManageSub, 2),
+        (Icons.group_outlined, l10n.cardManage, l10n.cardManageSub, 3),
       (
         Icons.tune_outlined,
         l10n.cardSettings,
         l10n.cardSettingsSub,
-        showManage ? 3 : 2
+        showManage ? 4 : 3
       ),
     ];
     final tight = MediaQuery.sizeOf(context).width < 720;

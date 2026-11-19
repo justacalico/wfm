@@ -1555,6 +1555,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Invited by {user} · {level}'**
   String shareInviteFrom(Object level, Object user);
+
+  /// No description provided for @navShared.
+  ///
+  /// In en, this message translates to:
+  /// **'Shared with me'**
+  String get navShared;
+
+  /// No description provided for @pendingInvites.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending invites'**
+  String get pendingInvites;
+
+  /// No description provided for @sharedProjects.
+  ///
+  /// In en, this message translates to:
+  /// **'Shared projects'**
+  String get sharedProjects;
+
+  /// No description provided for @noShares.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing shared with you yet'**
+  String get noShares;
 }
 
 class _AppLocalizationsDelegate
