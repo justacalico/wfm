@@ -831,7 +831,11 @@ void main() {
       });
       await t.tap(find.text('Upload'));
       await settle(t);
-      expect(find.byType(Notice), findsWidgets);
+      expect(find.textContaining('full'), findsOneWidget);
+      await t.tap(find.byWidgetPredicate(
+          (w) => w is Icon && w.icon == Icons.close && w.size == 16));
+      await settle(t);
+      expect(find.textContaining('full'), findsNothing);
     });
 
     testWidgets('mkdir via dialog', (t) async {

@@ -6,6 +6,7 @@ import 'api.dart';
 import 'l10n/app_localizations.dart';
 import 'main.dart';
 import 'platform.dart';
+import 'uploads.dart';
 import 'util.dart';
 
 String? _theme(BuildContext c) =>
@@ -636,13 +637,6 @@ IconData fileIcon(FileEntry e) {
   }
 }
 
-class _Upload {
-  final String name;
-  final int size;
-  int state = 0;
-  _Upload(this.name, this.size);
-}
-
 class FilesTab extends StatefulWidget {
   final Project project;
   const FilesTab({super.key, required this.project});
@@ -654,7 +648,6 @@ class _FilesTabState extends State<FilesTab> {
   String _path = '';
   List<FileEntry>? _items;
   String _err = '';
-  bool _uploading = false;
   int _view = 0;
 
   @override
@@ -665,6 +658,7 @@ class _FilesTabState extends State<FilesTab> {
       if (v != null && mounted) setState(() => _view = v);
     });
     _load();
+    installDropHandler(_enqueue);
   }
 
   void _setView(int v) {
@@ -696,81 +690,77 @@ class _FilesTabState extends State<FilesTab> {
       if (mounted) snack(context, e);
       return;
     }
+    _enqueue(picked);
+  }
+
+  void _enqueue(List<PickedFile> picked) {
     if (picked.isEmpty || !mounted) return;
     final folder = _path.isEmpty ? 'Raw/Other' : _path;
-    final ups = [for (final f in picked) _Upload(f.name, f.size)];
-    final tick = ValueNotifier(0);
-    final l10n = context.l10n;
-    setState(() => _uploading = true);
-    unawaited(showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => PopScope(
-        canPop: false,
-        child: ValueListenableBuilder<int>(
-          valueListenable: tick,
-          builder: (ctx, _, __) {
-            final done = ups.where((u) => u.state == 2).length;
-            return AlertDialog(
-              title: Text(l10n.uploadingFiles),
-              content: SizedBox(
-                width: 360,
-                child: Column(mainAxisSize: MainAxisSize.min, children: [
-                  Row(children: [
-                    Expanded(
-                        child:
-                            LinearProgressIndicator(value: done / ups.length)),
-                    const SizedBox(width: 12),
-                    Text('$done/${ups.length}'),
-                  ]),
-                  const SizedBox(height: 10),
-                  for (final u in ups)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 5),
-                      child: Row(children: [
-                        Expanded(
-                            child: Text('${u.name}  ·  ${fmtBytes(u.size)}',
-                                overflow: TextOverflow.ellipsis)),
-                        const SizedBox(width: 10),
-                        switch (u.state) {
-                          2 => const Icon(Icons.check_circle_outline, size: 18),
-                          3 => const Icon(Icons.error_outline, size: 18),
-                          1 => const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2)),
-                          _ => const Icon(Icons.schedule, size: 16),
-                        },
-                      ]),
-                    ),
-                ]),
-              ),
-            );
-          },
-        ),
-      ),
-    ));
-    Object? error;
-    for (var i = 0; i < picked.length; i++) {
-      ups[i].state = 1;
-      tick.value++;
-      try {
-        await uploadPicked(
-            Api.i, widget.project.id, '$folder/${picked[i].name}', picked[i]);
-        ups[i].state = 2;
-      } catch (e) {
-        ups[i].state = 3;
-        error = e;
-        break;
-      }
-      tick.value++;
-    }
-    if (mounted) Navigator.of(context, rootNavigator: true).pop();
-    tick.dispose();
-    setState(() => _uploading = false);
-    if (error != null && mounted) snack(context, error);
-    _load();
+    unawaited(Api.i.uploads.enqueue([
+      for (final f in picked)
+        UploadJob(
+            widget.project.id,
+            f.name,
+            f.size,
+            (onProgress) => uploadPicked(
+                Api.i, widget.project.id, '$folder/${f.name}', f, onProgress)),
+    ]).then((_) {
+      if (mounted) _load();
+    }));
   }
+
+  Widget _progress() => AnimatedBuilder(
+        animation: Api.i.uploads,
+        builder: (c, _) {
+          final jobs = Api.i.uploads.jobs
+              .where((j) => j.pid == widget.project.id)
+              .toList();
+          if (jobs.isEmpty) return const SizedBox.shrink();
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: Column(children: [
+              for (final j in jobs)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 3),
+                  child: Row(children: [
+                    switch (j.state) {
+                      2 => const Icon(Icons.check_circle_outline, size: 16),
+                      3 => const Icon(Icons.error_outline, size: 16),
+                      _ => const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2)),
+                    },
+                    const SizedBox(width: 8),
+                    Expanded(
+                        child: Text(j.name, overflow: TextOverflow.ellipsis)),
+                    const SizedBox(width: 8),
+                    if (j.state == 1)
+                      Text(
+                          '${fmtBytes(j.sent)} / ${j.total > 0 ? fmtBytes(j.total) : '?'}',
+                          style: Theme.of(c).textTheme.labelSmall),
+                    if (j.state == 3) ...[
+                      Text(j.error?.toString() ?? '',
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontSize: 11,
+                              color: Theme.of(c).colorScheme.error)),
+                      const SizedBox(width: 4),
+                      InkWell(
+                          onTap: () => Api.i.uploads.dismiss(j),
+                          child: const Icon(Icons.close, size: 16)),
+                    ],
+                    if (j.state == 1)
+                      SizedBox(
+                          width: 120,
+                          child: LinearProgressIndicator(
+                              value: j.total > 0 ? j.sent / j.total : null)),
+                  ]),
+                ),
+            ]),
+          );
+        },
+      );
 
   Future<void> _mkdir() async {
     final name = await promptText(
@@ -833,13 +823,6 @@ class _FilesTabState extends State<FilesTab> {
             ),
           ],
           const Spacer(),
-          if (_uploading)
-            const Padding(
-                padding: EdgeInsets.only(right: 12),
-                child: SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2))),
           IconButton(
               icon: Icon(_view == 0 ? Icons.grid_view : Icons.view_list),
               tooltip: _view == 0 ? l10n.gridView : l10n.listView,
@@ -855,12 +838,13 @@ class _FilesTabState extends State<FilesTab> {
               onPressed: _load),
           if (widget.project.editable)
             FilledButton.tonalIcon(
-              onPressed: _uploading ? null : _upload,
+              onPressed: _upload,
               icon: const Icon(Icons.upload_file, size: 18),
               label: Text(l10n.upload),
             ),
         ]),
       ),
+      _progress(),
       const Divider(height: 1),
       Expanded(
         child: _err.isNotEmpty
