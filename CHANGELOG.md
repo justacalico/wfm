@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.13.1 - 2026-11-19
+#### Bug Fixes
+- read filmcraft:open names before the host crate's basename clean - (d5f8477) - calico, *Devin*
+
+- - -
+
 ## v0.13.0 - 2026-11-19
 #### Features
 - 集成 DeckCraft 故事板 - (8c56f0c) - calico
