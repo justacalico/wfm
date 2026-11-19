@@ -20,6 +20,7 @@ void main() {
   setUp(() {
     SharedPreferences.setMockInitialValues({});
     openExternalForTesting = null;
+    openEditorForTesting = null;
     pickFilesForTesting = null;
   });
 
@@ -34,8 +35,9 @@ void main() {
       await pump(t, const ProjectsPage());
       expect(find.text('Short Film'), findsOneWidget);
       var opened = '';
-      openExternalForTesting = (u) => opened = u;
+      openEditorForTesting = (u) => opened = u;
       await t.tap(find.text('Open'));
+      await settle(t);
       expect(opened, contains('/filmcraft/wfm.html?project=p1'));
       await t.tap(find.text('Short Film'));
       await settle(t);
@@ -113,8 +115,9 @@ void main() {
       expect(find.byIcon(Icons.grid_view), findsOneWidget);
       expect(find.text('doc'), findsWidgets);
       var opened = '';
-      openExternalForTesting = (u) => opened = u;
+      openEditorForTesting = (u) => opened = u;
       await t.tap(find.text('Open'));
+      await settle(t);
       expect(opened, contains('/filmcraft/wfm.html?project=p1'));
       final p = await SharedPreferences.getInstance();
       expect(p.getInt('projectsView'), 1);
@@ -356,6 +359,7 @@ void main() {
 
     testWidgets('open in filmcraft error shows snack', (t) async {
       installApi();
+      openEditorForTesting = (_) => throw 'no editor';
       await pump(t, const ProjectsPage());
       await t.tap(find.text('Open'));
       await settle(t);
@@ -838,7 +842,7 @@ void main() {
   group('ProjectPage', () {
     testWidgets('open filmcraft, rename, delete', (t) async {
       var opened = '';
-      openExternalForTesting = (u) => opened = u;
+      openEditorForTesting = (u) => opened = u;
       installApi();
       await t.pumpWidget(testApp(Scaffold(
           body: Builder(
@@ -888,6 +892,7 @@ void main() {
         'PATCH *': (_) => http.Response('{"error":"nope"}', 500),
         'DELETE *': (_) => http.Response('{"error":"nope"}', 500),
       });
+      openEditorForTesting = (_) => throw 'no editor';
       await pump(t, ProjectPage(project: p1));
       await t.tap(find.text('Open'));
       await settle(t);
@@ -1495,7 +1500,7 @@ void main() {
       var retried = 0;
       var deleted = 0;
       var opened = '';
-      openExternalForTesting = (u) => opened = u;
+      openEditorForTesting = (u) => opened = u;
       installApi(extra: {
         'POST /api/renders/r3/retry': (req) {
           retried++;

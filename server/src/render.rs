@@ -327,6 +327,11 @@ pub fn spawn_janitor(state: Arc<AppState>) {
                     for u in stale {
                         let _ = tokio::fs::remove_file(&u.tmp).await;
                     }
+                    state
+                        .handoffs
+                        .lock()
+                        .unwrap()
+                        .retain(|_, (_, exp)| *exp > now);
                 }
             }
         }

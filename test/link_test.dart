@@ -10,6 +10,7 @@ void main() {
   setUp(() {
     SharedPreferences.setMockInitialValues({});
     openExternalForTesting = null;
+    openEditorForTesting = null;
   });
   tearDown(() => openExternalForTesting = null);
 
@@ -39,6 +40,10 @@ void main() {
     expect(url, contains('/api/link/tok/file?path='));
     await t.tap(find.text('notes.txt'));
     expect(url, contains('notes.txt'));
+    openExternalForTesting = (_) => throw 'no browser';
+    await t.tap(find.text('notes.txt'));
+    await settle(t);
+    expect(find.byType(Notice), findsOneWidget);
   });
 
   testWidgets('renders scope shows note and empty state', (t) async {

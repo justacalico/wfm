@@ -601,6 +601,20 @@ class AppLocalizationsRu extends AppLocalizations {
   String get defaultOption => 'По умолчанию';
 
   @override
+  String get serverUrl => ' ';
+
+  @override
+  String get connect => '';
+
+  @override
+  String get connecting => '…';
+
+  @override
+  String finishSetupInBrowser(String url) {
+    return '    .    : $url.';
+  }
+
+  @override
   String serverUnreachable(Object error) {
     return 'Не удаётся связаться с сервером: $error';
   }

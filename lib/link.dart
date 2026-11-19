@@ -34,8 +34,13 @@ class _LinkPageState extends State<LinkPage> {
     }
   }
 
-  void _open(String path) =>
-      openExternal(Api.i.linkFileUrl(widget.token, path));
+  Future<void> _open(String path) async {
+    try {
+      await openExternal(Api.i.linkFileUrl(widget.token, path));
+    } catch (e) {
+      if (mounted) snack(context, e);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

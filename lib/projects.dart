@@ -232,9 +232,10 @@ class _ProjectsPageState extends State<ProjectsPage> {
             label: Text(l10n.render),
           ),
           TextButton.icon(
-            onPressed: () {
+            onPressed: () async {
               try {
-                openExternal(Api.i.projectUrl(p.id, theme: _theme(c)));
+                await openEditor(
+                    c, Api.i, Api.i.projectUrl(p.id, theme: _theme(c)));
               } catch (e) {
                 if (c.mounted) snack(c, e);
               }
@@ -669,9 +670,10 @@ class _ProjectPageState extends State<ProjectPage> {
             ),
           if (_p.editable) ...[
             FilledButton.tonalIcon(
-              onPressed: () {
+              onPressed: () async {
                 try {
-                  openExternal(Api.i.projectUrl(_p.id, theme: _theme(context)));
+                  await openEditor(context, Api.i,
+                      Api.i.projectUrl(_p.id, theme: _theme(context)));
                 } catch (e) {
                   if (context.mounted) snack(context, e);
                 }
@@ -922,9 +924,9 @@ class _FilesTabState extends State<FilesTab> {
     }
   }
 
-  void _zipSel() {
+  void _zipSel() async {
     try {
-      openExternal(Api.i.zipUrl(widget.project.id, _selPaths.toList()));
+      await openExternal(Api.i.zipUrl(widget.project.id, _selPaths.toList()));
     } catch (e) {
       if (mounted) snack(context, e);
     }
@@ -1178,10 +1180,10 @@ class _FilesTabState extends State<FilesTab> {
             Icon(fileIcon(e), size: h == null ? 40 : 20),
       );
 
-  void _preview(FileEntry e) {
+  void _preview(FileEntry e) async {
     if (playableMedia(e.name)) {
       try {
-        openExternal(Api.i.downloadUrl(widget.project.id, e.path));
+        await openExternal(Api.i.downloadUrl(widget.project.id, e.path));
       } catch (err) {
         if (mounted) snack(context, err);
       }
@@ -1206,17 +1208,17 @@ class _FilesTabState extends State<FilesTab> {
 
   Widget _menu(BuildContext c, AppLocalizations l10n, FileEntry e) =>
       PopupMenuButton<String>(
-        onSelected: (v) {
+        onSelected: (v) async {
           switch (v) {
             case 'zip':
               try {
-                openExternal(Api.i.zipUrl(widget.project.id, [e.path]));
+                await openExternal(Api.i.zipUrl(widget.project.id, [e.path]));
               } catch (err) {
                 if (c.mounted) snack(c, err);
               }
             case 'download':
               try {
-                openExternal(
+                await openExternal(
                     Api.i.downloadUrl(widget.project.id, e.path, dl: true));
               } catch (err) {
                 if (c.mounted) snack(c, err);
@@ -1382,8 +1384,9 @@ class _RendersTabState extends State<RendersTab> {
     final theme = _theme(context);
     try {
       final next = await Api.i.retryRender(j.id);
-      if (next.mode == 'device') {
-        openExternal(Api.i.renderUrl(widget.project.id, next.id, theme: theme));
+      if (next.mode == 'device' && mounted) {
+        await openEditor(context, Api.i,
+            Api.i.renderUrl(widget.project.id, next.id, theme: theme));
       }
       _load();
     } catch (e) {
@@ -1414,7 +1417,7 @@ class _RendersTabState extends State<RendersTab> {
           .toList();
       if (f.isEmpty) throw StateError('not found');
       f.sort((a, b) => b.size.compareTo(a.size));
-      openExternal(Api.i
+      await openExternal(Api.i
           .downloadUrl(widget.project.id, 'Exports/${f.first.name}', dl: true));
     } catch (e) {
       if (mounted) snack(context, e);
@@ -1681,8 +1684,9 @@ class _RenderDialogState extends State<RenderDialog> {
         'output': _out.text.trim().isEmpty ? 'export' : _out.text.trim(),
         'params': params,
       });
-      if (_mode == 'device') {
-        openExternal(Api.i.renderUrl(widget.project.id, job.id, theme: theme));
+      if (_mode == 'device' && mounted) {
+        await openEditor(context, Api.i,
+            Api.i.renderUrl(widget.project.id, job.id, theme: theme));
       }
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {

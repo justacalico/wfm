@@ -20,6 +20,7 @@ void main() {
   setUp(() {
     SharedPreferences.setMockInitialValues({});
     openExternalForTesting = null;
+    openEditorForTesting = null;
     pickFilesForTesting = null;
   });
 
@@ -48,6 +49,7 @@ void main() {
 
     testWidgets('download open error shows snack', (t) async {
       installApi();
+      openExternalForTesting = (_) => throw 'no browser';
       await pump(t, FilesTab(project: p1));
       await t.tap(find.byType(PopupMenuButton<String>).last);
       await settle(t);
@@ -323,7 +325,7 @@ void main() {
 
     testWidgets('device mode opens the render page', (t) async {
       String? url;
-      openExternalForTesting = (u) => url = u;
+      openEditorForTesting = (u) => url = u;
       await openDialog(t, extra: {
         'POST /api/projects/p1/renders': (_) =>
             {'id': 'r9', 'status': 'running'},
@@ -337,6 +339,7 @@ void main() {
     });
 
     testWidgets('server option hidden without render capacity', (t) async {
+      openEditorForTesting = (_) {};
       await openDialog(t, extra: {
         'GET /api/projects/p1/render-info': (_) => {
               'sequences': [

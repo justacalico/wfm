@@ -322,6 +322,31 @@ void main() {
           '/api/projects/p1/download?path=a.mp4&dl=true');
     });
 
+    test('desktop baseUrl, bearer token and handoff', () async {
+      final api = Api(client({
+        'POST /api/login': {'user': userJson, 'csrf': 'c', 'token': 'sess'},
+        'GET /api/me': {'user': userJson, 'csrf': 'c'},
+        'POST /api/logout': {'ok': true},
+        'POST /api/handoff': {'t': 'h9'},
+      }));
+      api.baseUrl = 'https://s.example';
+      await api.login('ada', 'pw');
+      expect(api.sessionToken, 'sess');
+      await api.me();
+      expect(lastRequest!.headers['authorization'], 'Bearer sess');
+      expect(api.projectUrl('p1'),
+          'https://s.example/filmcraft/wfm.html?project=p1');
+      expect(api.renderUrl('p1', 'r9'),
+          'https://s.example/filmcraft/wfm.html?project=p1&render=r9');
+      final u = await api.handoffUrl('/filmcraft/wfm.html?project=p1');
+      expect(u,
+          'https://s.example/api/handoff?t=h9&to=%2Ffilmcraft%2Fwfm.html%3Fproject%3Dp1');
+      expect(jsonDecode(lastRequest!.body)['to'],
+          '/filmcraft/wfm.html?project=p1');
+      await api.logout();
+      expect(api.sessionToken, '');
+    });
+
     test('renders', () async {
       final api = Api(client({
         'GET /api/projects/p1/renders': [

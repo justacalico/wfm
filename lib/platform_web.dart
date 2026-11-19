@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:js_interop';
 import 'dart:typed_data';
+import 'package:flutter/widgets.dart';
 import 'package:web/web.dart' as web;
 
 import 'api.dart';
@@ -10,17 +11,31 @@ class PickedFile {
   final String name;
   final Uint8List bytes;
   final web.File? file;
-  const PickedFile(this.name, this.bytes, [this.file]);
-  int get size => file?.size ?? bytes.length;
+  final String? path;
+  final int? _size;
+  const PickedFile(this.name, this.bytes, {this.file, this.path, int? size})
+      : _size = size;
+  int get size => file?.size ?? _size ?? bytes.length;
 }
 
 void Function(String url)? openExternalForTesting;
 Future<List<PickedFile>> Function()? pickFilesForTesting;
 
-void openExternal(String url) {
+Future<void> openExternal(String url) async {
   final f = openExternalForTesting;
   if (f != null) {
     f(url);
+    return;
+  }
+  web.window.open(url, '_blank');
+}
+
+void Function(String url)? openEditorForTesting;
+
+Future<void> openEditor(BuildContext context, Api api, String url) async {
+  final t = openEditorForTesting;
+  if (t != null) {
+    t(url);
     return;
   }
   web.window.open(url, '_blank');
@@ -49,7 +64,7 @@ Future<List<PickedFile>> pickFiles({String? accept}) async {
         final f = files.item(i)!;
         // Keep the File handle: uploadPicked sends it as a fetch() Blob body,
         // which the browser streams without buffering into JS memory.
-        out.add(PickedFile(f.name, Uint8List(0), f));
+        out.add(PickedFile(f.name, Uint8List(0), file: f));
       }
     }
     finish(out);
@@ -190,7 +205,7 @@ Future<void> _walk(
     (entry as web.FileSystemFileEntry)
         .file(((web.File f) => got.complete(f)).toJS);
     final f = await got.future;
-    out.add(PickedFile('$prefix${f.name}', Uint8List(0), f));
+    out.add(PickedFile('$prefix${f.name}', Uint8List(0), file: f));
     return;
   }
   if (!entry.isDirectory) return;

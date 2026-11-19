@@ -372,9 +372,9 @@ class _SettingsPageState extends State<SettingsPage> {
         }),
         trailing: _update == UpdateResult.available && _latest != null
             ? TextButton(
-                onPressed: () {
+                onPressed: () async {
                   try {
-                    openExternal(_latest!.url);
+                    await openExternal(_latest!.url);
                   } catch (e) {
                     if (context.mounted) snack(context, e);
                   }
@@ -392,9 +392,9 @@ class _SettingsPageState extends State<SettingsPage> {
         leading: const Icon(Icons.balance_outlined),
         title: Text(l10n.licenseAgpl),
         trailing: TextButton(
-          onPressed: () {
+          onPressed: () async {
             try {
-              openExternal('https://gitlab.com/HttpAnimations/wfm');
+              await openExternal('https://gitlab.com/HttpAnimations/wfm');
             } catch (e) {
               if (context.mounted) snack(context, e);
             }
