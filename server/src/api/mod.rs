@@ -11,7 +11,8 @@ use serde::Deserialize;
 use serde_json::{json, Value};
 
 use crate::auth::{
-    self, client_ip, err, login_failed, login_ok, login_throttle, AppState, NodeSession, Session,
+    self, client_ip, err, login_failed, login_ok, login_throttle, AppState, ChunkUpload,
+    NodeSession, Session,
 };
 use crate::files::{self, FsError};
 use crate::model::{self, can_manage, Project, ProjectGroup, RenderJob, RenderSpec, Role, User};
@@ -59,8 +60,15 @@ pub fn router(state: Arc<AppState>) -> Router {
             "/projects/{id}/files",
             get(list_files).put(upload_file).delete(delete_file),
         )
+        .route("/projects/{id}/files/upload", post(upload_start))
         .route("/projects/{id}/files/mkdir", post(mkdir))
         .route("/projects/{id}/files/move", post(move_file))
+        .route(
+            "/uploads/{id}",
+            get(upload_status).delete(upload_cancel),
+        )
+        .route("/uploads/{id}/chunk", put(upload_chunk))
+        .route("/uploads/{id}/complete", post(upload_complete))
         .route("/projects/{id}/download", get(download))
         .route("/projects/{id}/thumb", get(thumb))
         .route("/projects/{id}/zip", get(zip_download))
@@ -1347,6 +1355,197 @@ async fn upload_file(
     )
     .await;
     Json(json!({"ok": true, "size": written})).into_response()
+}
+
+#[derive(Deserialize)]
+struct UploadStart {
+    path: String,
+    #[serde(default, rename = "clientId")]
+    client_id: String,
+}
+
+#[derive(Deserialize)]
+struct ChunkQuery {
+    offset: u64,
+}
+
+fn chunk_upload(s: &AppState, session: &Session, uid: &str) -> Option<ChunkUpload> {
+    s.chunk_uploads
+        .lock()
+        .unwrap()
+        .get(uid)
+        .filter(|u| u.user == session.user.id)
+        .cloned()
+}
+
+async fn upload_start(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Path(id): Path<String>,
+    Json(b): Json<UploadStart>,
+) -> Response {
+    let p = match owned_project(&s, &session, &id).await {
+        Ok(p) => p,
+        Err(r) => return r,
+    };
+    let key = match files::clean_rel_key(&b.path) {
+        Ok(k) => k,
+        Err(e) => return fs_resp(e),
+    };
+    let uid = model::new_id();
+    let tmp = s.cfg.data_dir.join("tmp").join(format!("chunk-{uid}"));
+    let _ = tokio::fs::create_dir_all(tmp.parent().unwrap()).await;
+    if let Err(e) = tokio::fs::File::create(&tmp).await {
+        return err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string());
+    }
+    s.chunk_uploads.lock().unwrap().insert(
+        uid.clone(),
+        ChunkUpload {
+            project: p.id,
+            dir: p.dir,
+            display_name: p.display_name,
+            user: session.user.id,
+            key,
+            client_id: b.client_id,
+            tmp,
+            received: 0,
+            touched: AppState::now(),
+        },
+    );
+    Json(json!({"id": uid})).into_response()
+}
+
+async fn upload_status(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Path(uid): Path<String>,
+) -> Response {
+    match chunk_upload(&s, &session, &uid) {
+        Some(u) => Json(json!({"received": u.received})).into_response(),
+        None => err(StatusCode::NOT_FOUND, "unknown upload"),
+    }
+}
+
+async fn upload_chunk(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Path(uid): Path<String>,
+    Query(q): Query<ChunkQuery>,
+    headers: HeaderMap,
+    body: Body,
+) -> Response {
+    let u = match chunk_upload(&s, &session, &uid) {
+        Some(u) => u,
+        None => return err(StatusCode::NOT_FOUND, "unknown upload"),
+    };
+    if q.offset != u.received {
+        return (StatusCode::CONFLICT, Json(json!({"received": u.received})))
+            .into_response();
+    }
+    if headers
+        .get(header::CONTENT_LENGTH)
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.parse::<u64>().ok())
+        .unwrap_or(0)
+        > s.cfg.max_upload
+    {
+        return err(StatusCode::PAYLOAD_TOO_LARGE, "chunk too large");
+    }
+    let mut f = match tokio::fs::OpenOptions::new()
+        .append(true)
+        .open(&u.tmp)
+        .await
+    {
+        Ok(f) => f,
+        Err(e) => return err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
+    };
+    let mut stream = body.into_data_stream();
+    let mut n: u64 = 0;
+    let mut failed = false;
+    while let Some(c) = stream.next().await {
+        match c {
+            Ok(b) => {
+                n += b.len() as u64;
+                if n > s.cfg.max_upload
+                    || tokio::io::AsyncWriteExt::write_all(&mut f, &b)
+                        .await
+                        .is_err()
+                {
+                    failed = true;
+                    break;
+                }
+            }
+            Err(_) => {
+                failed = true;
+                break;
+            }
+        }
+    }
+    if failed {
+        let _ = f.set_len(u.received).await;
+        return err(StatusCode::PAYLOAD_TOO_LARGE, "chunk too large");
+    }
+    let mut m = s.chunk_uploads.lock().unwrap();
+    if let Some(v) = m.get_mut(&uid) {
+        v.received += n;
+        v.touched = AppState::now();
+    }
+    Json(json!({"received": u.received + n})).into_response()
+}
+
+async fn upload_complete(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Path(uid): Path<String>,
+) -> Response {
+    let u = match chunk_upload(&s, &session, &uid) {
+        Some(u) => u,
+        None => return err(StatusCode::NOT_FOUND, "unknown upload"),
+    };
+    if u.key == "project.fcproj" && !u.client_id.is_empty() {
+        match s.db.lock_get(&u.project, "edit").await {
+            Ok(l) if l.holder != u.client_id && l.expires_at > AppState::now() => {
+                return err(StatusCode::CONFLICT, "lock lost");
+            }
+            _ => {}
+        }
+    }
+    let put = async {
+        let mut f = tokio::fs::File::open(&u.tmp)
+            .await
+            .map_err(|e| e.to_string())?;
+        s.blobs.put(&blob_key(&u.dir, &u.key), u.received, &mut f).await
+    }
+    .await;
+    let _ = tokio::fs::remove_file(&u.tmp).await;
+    s.chunk_uploads.lock().unwrap().remove(&uid);
+    if let Err(e) = put {
+        return err(StatusCode::INTERNAL_SERVER_ERROR, &e);
+    }
+    s.audit(
+        "project",
+        &session.user,
+        "upload",
+        &u.display_name,
+        &u.key,
+        "",
+    )
+    .await;
+    Json(json!({"ok": true, "size": u.received})).into_response()
+}
+
+async fn upload_cancel(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Path(uid): Path<String>,
+) -> Response {
+    let u = match chunk_upload(&s, &session, &uid) {
+        Some(u) => u,
+        None => return err(StatusCode::NOT_FOUND, "unknown upload"),
+    };
+    s.chunk_uploads.lock().unwrap().remove(&uid);
+    let _ = tokio::fs::remove_file(&u.tmp).await;
+    Json(json!({"ok": true})).into_response()
 }
 
 /// Spool a request body to a temp file with a size cap. Returns the temp path

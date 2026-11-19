@@ -64,6 +64,7 @@ async fn main() {
         logins: Mutex::new(HashMap::new()),
         cancels: Mutex::new(HashSet::new()),
         inspect_cache: Mutex::new(HashMap::new()),
+        chunk_uploads: Mutex::new(HashMap::new()),
         trusted: RwLock::new(cfg.trusted_proxies.clone()),
     });
     if let Ok(Some(v)) = state.db.setting_get("trusted_proxies").await {

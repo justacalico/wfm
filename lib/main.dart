@@ -61,6 +61,8 @@ class WfmAppState extends State<WfmApp> {
       setState(() {
         themeCtl.value =
             AppTheme.values[p.getInt('theme') ?? AppTheme.system.index];
+        final mb = p.getInt('chunkMb');
+        if (mb != null) Api.i.chunkSize = mb * 1048576;
         final code = p.getString('locale');
         if (code != null && code.isNotEmpty) {
           final parts = code.split('_');

@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::net::IpAddr;
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::{Duration, Instant};
 
@@ -83,7 +84,24 @@ pub struct AppState {
     /// Cached `project.inspect` results keyed by fcproj blob key; the value is
     /// the blob's (mtime, size) at inspect time plus the inspect payload.
     pub inspect_cache: Mutex<HashMap<String, (i64, u64, serde_json::Value)>>,
+    /// In-flight chunked uploads keyed by upload id. Sessions die with the
+    /// process; the hourly janitor sweep expires idle entries and their tmp
+    /// spool files.
+    pub chunk_uploads: Mutex<HashMap<String, ChunkUpload>>,
     pub trusted: RwLock<Vec<ipnet::IpNet>>,
+}
+
+#[derive(Clone)]
+pub struct ChunkUpload {
+    pub project: String,
+    pub dir: String,
+    pub display_name: String,
+    pub user: String,
+    pub key: String,
+    pub client_id: String,
+    pub tmp: PathBuf,
+    pub received: u64,
+    pub touched: i64,
 }
 
 impl AppState {

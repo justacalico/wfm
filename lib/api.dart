@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math' as math;
 import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'uploads.dart';
@@ -172,6 +173,7 @@ class AuditEntry {
 
 class Api {
   final uploads = UploadQueue();
+  int chunkSize = 80 * 1048576;
   static Api i = Api();
   final http.Client _c;
   String csrf = '';
@@ -334,8 +336,60 @@ class Api {
           FileEntry.fromJson(e)
       ];
 
-  Future<void> upload(String pid, String path, Uint8List bytes) =>
-      putFile('/projects/$pid/files', bytes, {'path': path});
+  Future<void> upload(String pid, String path, Uint8List bytes) async {
+    if (bytes.length <= chunkSize) {
+      return putFile('/projects/$pid/files', bytes, {'path': path});
+    }
+    await uploadChunked(
+        pid, path, bytes.length, (a, b) async => bytes.sublist(a, b));
+  }
+
+  Future<String> uploadStart(String pid, String path,
+          {String clientId = ''}) async =>
+      '${(await post('/projects/$pid/files/upload', {
+            'path': path,
+            'clientId': clientId
+          }))['id']}';
+
+  Future<void> uploadChunk(String uid, int offset, Uint8List bytes) =>
+      putFile('/uploads/$uid/chunk', bytes, {'offset': '$offset'});
+
+  Future<int> uploadReceived(String uid) async =>
+      (await get('/uploads/$uid'))['received'];
+
+  Future<void> uploadFinish(String uid) => post('/uploads/$uid/complete', {});
+
+  Future<void> uploadAbort(String uid) => del('/uploads/$uid');
+
+  Future<void> uploadChunked(String pid, String path, int total,
+      Future<Uint8List> Function(int start, int end) slice,
+      [void Function(int sent, int total)? onProgress]) async {
+    final uid = await uploadStart(pid, path);
+    var off = 0;
+    var size = chunkSize;
+    try {
+      while (off < total) {
+        final end = math.min(off + size, total);
+        try {
+          await uploadChunk(uid, off, await slice(off, end));
+          off = end;
+          onProgress?.call(off, total);
+        } on ApiException catch (e) {
+          if (e.status == 413 && size > 1048576) {
+            size ~/= 2;
+          } else {
+            rethrow;
+          }
+        }
+      }
+      await uploadFinish(uid);
+    } catch (_) {
+      try {
+        await uploadAbort(uid);
+      } catch (_) {}
+      rethrow;
+    }
+  }
 
   String avatarUrl(String uid, String key) =>
       '$_base/api/users/$uid/avatar?v=${Uri.encodeComponent(key)}';

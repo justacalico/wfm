@@ -289,12 +289,14 @@ void main() {
   });
 
   testWidgets('saved theme and locale restore on boot', (t) async {
-    SharedPreferences.setMockInitialValues({'theme': 3, 'locale': 'zh'});
+    SharedPreferences.setMockInitialValues(
+        {'theme': 3, 'locale': 'zh', 'chunkMb': 16});
     installApi(extra: {'GET *': (_) => []});
     await pumpWfm(t);
     final app = t.state<WfmAppState>(find.byType(WfmApp));
     expect(app.appTheme, AppTheme.oled);
     expect(app.appLocale?.languageCode, 'zh');
+    expect(Api.i.chunkSize, 16 * 1048576);
   });
 
   testWidgets('country-coded locale serializes with underscore', (t) async {

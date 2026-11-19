@@ -333,5 +333,6 @@
   "from": "From",
   "to": "To",
   "applyFilters": "Apply filters",
-  "clearFilters": "Clear filters"
+  "clearFilters": "Clear filters",
+  "chunkSize": "Upload chunk size"
 }

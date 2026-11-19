@@ -67,10 +67,22 @@ Future<List<PickedFile>> pickFiles({String? accept}) async {
 Future<void> uploadPicked(Api api, String pid, String path, PickedFile f,
     [void Function(int sent, int total)? onProgress]) async {
   final file = f.file;
-  if (file == null) {
-    onProgress?.call(0, f.bytes.length);
-    await api.upload(pid, path, f.bytes);
-    onProgress?.call(f.bytes.length, f.bytes.length);
+  final total = file?.size ?? f.bytes.length;
+  if (file == null || total > api.chunkSize) {
+    onProgress?.call(0, total);
+    if (file == null) {
+      await api.upload(pid, path, f.bytes);
+    } else {
+      await api.uploadChunked(
+          pid,
+          path,
+          file.size,
+          (a, b) async => (await file.slice(a, b).arrayBuffer().toDart)
+              .toDart
+              .asUint8List(),
+          onProgress);
+    }
+    onProgress?.call(total, total);
     return;
   }
   const base = String.fromEnvironment('WFM_API');

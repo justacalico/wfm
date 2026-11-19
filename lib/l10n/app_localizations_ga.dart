@@ -703,4 +703,7 @@ class AppLocalizationsGa extends AppLocalizations {
 
   @override
   String get clearFilters => 'Glan na scagairí';
+
+  @override
+  String get chunkSize => 'Méid smutáin uaslódála';
 }

@@ -273,18 +273,51 @@ async function uploadMedia(path, bytes) {
   return x;
 }
 
-function uploadOnce(path, bytes) {
+function xhrPut(url, body, onUp) {
   return new Promise((resolve, reject) => {
     const x = new XMLHttpRequest();
-    x.open("PUT", API + "/projects/" + projectId + "/files?path=" + encodeURIComponent(path));
+    x.open("PUT", url);
     if (csrf) x.setRequestHeader("x-csrf-token", csrf);
-    x.upload.onprogress = (e) => { if (e.lengthComputable) uplSet(path, e.loaded / e.total); };
+    if (onUp) x.upload.onprogress = onUp;
     x.onload = () => resolve(x);
     x.onerror = () => reject(new Error("network"));
     x.timeout = 300000;
     x.ontimeout = () => reject(new Error("timeout"));
-    x.send(bytes);
+    x.send(body);
   });
+}
+
+async function uploadOnce(path, bytes) {
+  const mb = parseInt(localStorage.getItem("flutter.chunkMb") || "80", 10);
+  let size = mb * 1048576;
+  if (bytes.length <= size) {
+    return xhrPut(API + "/projects/" + projectId + "/files?path=" + encodeURIComponent(path), bytes,
+      (e) => { if (e.lengthComputable) uplSet(path, e.loaded / e.total); });
+  }
+  const st = await api("/projects/" + projectId + "/files/upload", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ path: path, clientId: clientId })
+  });
+  if (!st.ok) return { status: st.status, responseText: await st.text() };
+  const uid = (await st.json()).id;
+  let off = 0;
+  try {
+    while (off < bytes.length) {
+      const end = Math.min(off + size, bytes.length);
+      const x = await xhrPut(API + "/uploads/" + uid + "/chunk?offset=" + off,
+        bytes.subarray(off, end),
+        (e) => { if (e.lengthComputable) uplSet(path, (off + e.loaded) / bytes.length); });
+      if (x.status === 413 && size > 1048576) { size = Math.floor(size / 2); continue; }
+      if (x.status >= 400) return x;
+      off = end;
+    }
+    const fin = await api("/uploads/" + uid + "/complete", { method: "POST" });
+    return { status: fin.status, responseText: await fin.text() };
+  } catch (e) {
+    await api("/uploads/" + uid, { method: "DELETE" }).catch(() => {});
+    throw e;
+  }
 }
 
 async function handleSave(d) {

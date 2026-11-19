@@ -291,7 +291,22 @@ pub fn spawn_janitor(state: Arc<AppState>) {
                         }
                     }
                 }
-                _ = sweep.tick() => sweep_stale_dirs(&state.cfg.data_dir).await,
+                _ = sweep.tick() => {
+                    sweep_stale_dirs(&state.cfg.data_dir).await;
+                    let now = AppState::now();
+                    let stale: Vec<crate::auth::ChunkUpload> = {
+                        let mut m = state.chunk_uploads.lock().unwrap();
+                        let ids: Vec<String> = m
+                            .iter()
+                            .filter(|(_, u)| u.touched < now - 24 * 3600)
+                            .map(|(k, _)| k.clone())
+                            .collect();
+                        ids.iter().filter_map(|i| m.remove(i)).collect()
+                    };
+                    for u in stale {
+                        let _ = tokio::fs::remove_file(&u.tmp).await;
+                    }
+                }
             }
         }
     });

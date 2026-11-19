@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'api.dart';
 import 'main.dart';
 import 'platform.dart';
@@ -248,6 +249,23 @@ class _SettingsPageState extends State<SettingsPage> {
                 FocusManager.instance.primaryFocus?.unfocus();
               },
             ),
+          const SizedBox(height: 16),
+          DropdownButtonFormField<int>(
+            isExpanded: true,
+            initialValue: Api.i.chunkSize ~/ 1048576,
+            decoration: dec(l10n.chunkSize),
+            items: [
+              for (final m in [8, 16, 32, 64, 80, 128, 256, 512])
+                DropdownMenuItem(value: m, child: Text('$m MB')),
+            ],
+            onChanged: (v) {
+              if (v == null) return;
+              Api.i.chunkSize = v * 1048576;
+              SharedPreferences.getInstance()
+                  .then((p) => p.setInt('chunkMb', v));
+              FocusManager.instance.primaryFocus?.unfocus();
+            },
+          ),
         ]),
       ),
       if (u.isOwner && _proxies != null) ...[
