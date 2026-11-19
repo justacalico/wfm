@@ -1104,6 +1104,15 @@ class _FilesTabState extends State<FilesTab> {
         : '';
     final dst = parent.isEmpty ? name : '$parent/$name';
     if (dst.toLowerCase() == e.path.toLowerCase()) return;
+    if (e.type == 'file' && e.name.contains('.')) {
+      final ext = e.name.split('.').last.toLowerCase();
+      final newExt =
+          name.contains('.') ? name.split('.').last.toLowerCase() : null;
+      if (newExt != ext) {
+        if (mounted) snack(context, context.l10n.extensionLocked);
+        return;
+      }
+    }
     try {
       await Api.i.move(widget.project.id, e.path, dst);
       _load();

@@ -38,6 +38,10 @@ class AppLocalizationsGa extends AppLocalizations {
   String get fileExists => 'Tá comhad leis an ainm sin ann cheana.';
 
   @override
+  String get extensionLocked =>
+      'Bhrisfeadh athrú ar an iarmhír an comhad, mar sin tá an gníomh seo blocáilte.';
+
+  @override
   String get renameFailed => 'Níorbh fhéidir an comhad a athainmniú.';
 
   @override

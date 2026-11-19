@@ -521,15 +521,20 @@ fn chrono_ts(s: &str) -> i64 {
 
 #[cfg(test)]
 mod tests {
-    use super::{Blobs, LocalBlobs, chrono_ts};
+    use super::{chrono_ts, Blobs, LocalBlobs};
 
     #[tokio::test]
     async fn local_rename_fails_when_destination_exists() {
-        let dir = std::env::temp_dir()
-            .join(format!("wfm-blobs-rename-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("wfm-blobs-rename-{}", std::process::id()));
         let blobs = LocalBlobs::new(dir.clone());
-        blobs.put("a.txt", 0, &mut tokio::io::empty()).await.unwrap();
-        blobs.put("b.txt", 0, &mut tokio::io::empty()).await.unwrap();
+        blobs
+            .put("a.txt", 0, &mut tokio::io::empty())
+            .await
+            .unwrap();
+        blobs
+            .put("b.txt", 0, &mut tokio::io::empty())
+            .await
+            .unwrap();
         assert_eq!(blobs.rename("a.txt", "b.txt").await, Err("exists".into()));
         assert_eq!(blobs.rename("a.txt", "c.txt").await, Ok(()));
         let _ = std::fs::remove_dir_all(&dir);

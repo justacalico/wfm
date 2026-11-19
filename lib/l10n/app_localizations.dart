@@ -158,6 +158,12 @@ abstract class AppLocalizations {
   /// **'A file with that name already exists.'**
   String get fileExists;
 
+  /// No description provided for @extensionLocked.
+  ///
+  /// In en, this message translates to:
+  /// **'Changing the file extension would break the file, so this action is blocked.'**
+  String get extensionLocked;
+
   /// No description provided for @renameFailed.
   ///
   /// In en, this message translates to:

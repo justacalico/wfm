@@ -9,6 +9,7 @@
   "delete": "Delete",
   "rename": "Rename",
   "fileExists": "A file with that name already exists.",
+  "extensionLocked": "Changing the file extension would break the file, so this action is blocked.",
   "renameFailed": "Couldn't rename the file.",
   "download": "Download",
   "close": "Close",

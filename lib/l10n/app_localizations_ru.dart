@@ -38,6 +38,10 @@ class AppLocalizationsRu extends AppLocalizations {
   String get fileExists => 'Файл с таким именем уже существует.';
 
   @override
+  String get extensionLocked =>
+      'Изменение расширения повредит файл, поэтому действие заблокировано.';
+
+  @override
   String get renameFailed => 'Не удалось переименовать файл.';
 
   @override

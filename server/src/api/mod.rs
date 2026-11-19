@@ -26,6 +26,14 @@ fn blob_key(dir: &str, rel: &str) -> String {
     format!("{}/{}", dir.trim_matches('/'), rel.trim_matches('/'))
 }
 
+fn key_ext(key: &str) -> Option<String> {
+    let name = key.rsplit('/').next().unwrap_or(key);
+    if !name.contains('.') {
+        return None;
+    }
+    name.rsplit('.').next().map(|e| e.to_lowercase())
+}
+
 pub fn router(state: Arc<AppState>) -> Router {
     let api = Router::new()
         .route("/health", get(health))
@@ -226,8 +234,7 @@ async fn update_check(State(s): State<Arc<AppState>>, _session: Session) -> Resp
     }
     match fetch_update_check().await {
         Ok(v) => {
-            *s.update_check.lock().unwrap() =
-                Some((std::time::Instant::now(), v.clone()));
+            *s.update_check.lock().unwrap() = Some((std::time::Instant::now(), v.clone()));
             Json(v).into_response()
         }
         Err(e) => err(StatusCode::BAD_GATEWAY, &e),
@@ -3114,6 +3121,13 @@ async fn move_file(
     if fk == tk {
         return Json(json!({"ok": true})).into_response();
     }
+    if let Some(from_ext) = key_ext(&fk) {
+        if s.blobs.head(&blob_key(&p.dir, &fk)).await.is_ok()
+            && key_ext(&tk).as_deref() != Some(from_ext.as_str())
+        {
+            return err(StatusCode::BAD_REQUEST, "extension change is not allowed");
+        }
+    }
     match s
         .blobs
         .rename(&blob_key(&p.dir, &fk), &blob_key(&p.dir, &tk))
@@ -3451,7 +3465,15 @@ fn parse_range(v: &str, size: u64) -> Option<(u64, u64)> {
 
 #[cfg(test)]
 mod tests {
-    use super::{handoff_to, lock_kind, parse_range, parse_semver, reserved_worker_name};
+    use super::{handoff_to, key_ext, lock_kind, parse_range, parse_semver, reserved_worker_name};
+
+    #[test]
+    fn file_extensions_compare_case_insensitively() {
+        assert_eq!(key_ext("dir/KDR_9751.MOV"), Some("mov".to_string()));
+        assert_eq!(key_ext("a/b/clip.mp4"), Some("mp4".to_string()));
+        assert_eq!(key_ext("dir/noext"), None);
+        assert_eq!(key_ext("archive.tar.gz"), Some("gz".to_string()));
+    }
 
     #[test]
     fn semver_parses_tags() {
