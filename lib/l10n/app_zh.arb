@@ -326,5 +326,6 @@
   "deleteSelected": "删除所选",
   "downloadZip": "打包下载",
   "destFolder": "目标文件夹",
-  "selectedCount": "已选 {n} 项"
+  "selectedCount": "已选 {n} 项",
+  "changePhoto": "更换头像"
 }

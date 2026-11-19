@@ -12,7 +12,7 @@ class ApiException implements Exception {
 }
 
 class User {
-  final String id, username, name, role, studentId, note;
+  final String id, username, name, role, studentId, note, avatar;
   final bool disabled;
   final int createdAt, lastLogin;
   User.fromJson(Map<String, dynamic> j)
@@ -23,8 +23,10 @@ class User {
         disabled = j['disabled'] ?? false,
         studentId = j['studentId'] ?? '',
         note = j['note'] ?? '',
+        avatar = j['avatar'] ?? '',
         createdAt = j['createdAt'] ?? 0,
         lastLogin = j['lastLogin'] ?? 0;
+  bool get hasAvatar => avatar.isNotEmpty;
 
   static const ranks = {
     'student': 0,
@@ -334,6 +336,12 @@ class Api {
 
   Future<void> upload(String pid, String path, Uint8List bytes) =>
       putFile('/projects/$pid/files', bytes, {'path': path});
+
+  String avatarUrl(String uid, String key) =>
+      '$_base/api/users/$uid/avatar?v=${Uri.encodeComponent(key)}';
+
+  Future<void> uploadAvatar(Uint8List bytes) =>
+      putFile('/me/avatar', bytes, {});
 
   Future<void> mkdir(String pid, String path) =>
       post('/projects/$pid/files/mkdir', {'path': path});

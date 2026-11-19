@@ -26,13 +26,14 @@ void openExternal(String url) {
   web.window.open(url, '_blank');
 }
 
-Future<List<PickedFile>> pickFiles() async {
+Future<List<PickedFile>> pickFiles({String? accept}) async {
   final test = pickFilesForTesting;
   if (test != null) return test();
   final input = web.HTMLInputElement()
     ..type = 'file'
     ..multiple = true
     ..style.display = 'none';
+  if (accept != null) input.accept = accept;
   web.document.body?.appendChild(input);
   final done = Completer<List<PickedFile>>();
   void finish(List<PickedFile> files) {
@@ -81,6 +82,39 @@ Future<void> uploadPicked(Api api, String pid, String path, PickedFile f,
   xhr.upload.onprogress = ((web.ProgressEvent e) {
     if (e.lengthComputable) onProgress?.call(e.loaded, e.total);
   }).toJS;
+  xhr.onloadend = ((web.Event _) {
+    if (!done.isCompleted) done.complete();
+  }).toJS;
+  xhr.send(file);
+  await done.future;
+  if (xhr.status == 0) {
+    throw ApiException(0, 'network error');
+  }
+  if (xhr.status == 401) {
+    api.user = null;
+    throw ApiException(401, 'auth');
+  }
+  if (xhr.status >= 400) {
+    var msg = 'error ${xhr.status}';
+    try {
+      final b = jsonDecode(xhr.responseText);
+      if (b is Map && b['error'] != null) msg = '${b['error']}';
+    } catch (_) {}
+    throw ApiException(xhr.status, msg);
+  }
+}
+
+Future<void> uploadAvatarPicked(Api api, PickedFile f) async {
+  final file = f.file;
+  if (file == null) {
+    await api.uploadAvatar(f.bytes);
+    return;
+  }
+  const base = String.fromEnvironment('WFM_API');
+  final done = Completer<void>();
+  final xhr = web.XMLHttpRequest();
+  xhr.open('PUT', '$base/api/me/avatar');
+  if (api.csrf.isNotEmpty) xhr.setRequestHeader('x-csrf-token', api.csrf);
   xhr.onloadend = ((web.Event _) {
     if (!done.isCompleted) done.complete();
   }).toJS;

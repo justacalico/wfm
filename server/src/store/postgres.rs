@@ -76,6 +76,7 @@ fn row_user(r: sqlx::postgres::PgRow) -> User {
         student_id: r.get("student_id"),
         note: r.get("note"),
         disabled: r.get::<i32, _>("disabled") != 0,
+        avatar: r.get("avatar"),
         created_by: r.get("created_by"),
         lineage: r.get("lineage"),
         created_at: r.get("created_at"),
@@ -173,8 +174,8 @@ impl Db for PgDb {
 
     async fn create_user(&self, u: &User, pass_hash: &str) -> DbResult<()> {
         sqlx::query(
-            "INSERT INTO users(id,username,display_name,pass_hash,role,student_id,note,disabled,created_by,lineage,created_at,last_login)
-             VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)",
+            "INSERT INTO users(id,username,display_name,pass_hash,role,student_id,note,disabled,avatar,created_by,lineage,created_at,last_login)
+             VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)",
         )
         .bind(&u.id)
         .bind(&u.username)
@@ -184,6 +185,7 @@ impl Db for PgDb {
         .bind(&u.student_id)
         .bind(&u.note)
         .bind(u.disabled as i32)
+        .bind(&u.avatar)
         .bind(&u.created_by)
         .bind(&u.lineage)
         .bind(u.created_at)
@@ -196,9 +198,9 @@ impl Db for PgDb {
 
     async fn create_owner(&self, u: &User, pass_hash: &str) -> DbResult<bool> {
         sqlx::query(
-            "INSERT INTO users(id,username,display_name,pass_hash,role,student_id,note,disabled,created_by,lineage,created_at,last_login)
-             SELECT $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12
-             WHERE NOT EXISTS(SELECT 1 FROM users WHERE role=$13)",
+            "INSERT INTO users(id,username,display_name,pass_hash,role,student_id,note,disabled,avatar,created_by,lineage,created_at,last_login)
+             SELECT $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13
+             WHERE NOT EXISTS(SELECT 1 FROM users WHERE role=$14)",
         )
         .bind(&u.id)
         .bind(&u.username)
@@ -208,6 +210,7 @@ impl Db for PgDb {
         .bind(&u.student_id)
         .bind(&u.note)
         .bind(u.disabled as i32)
+        .bind(&u.avatar)
         .bind(&u.created_by)
         .bind(&u.lineage)
         .bind(u.created_at)
@@ -243,6 +246,16 @@ impl Db for PgDb {
         .await
         .map(|_| ())
         .map_err(map_err)
+    }
+
+    async fn set_user_avatar(&self, id: &str, key: &str) -> DbResult<()> {
+        sqlx::query("UPDATE users SET avatar=$1 WHERE id=$2")
+            .bind(key)
+            .bind(id)
+            .execute(&self.pool)
+            .await
+            .map(|_| ())
+            .map_err(map_err)
     }
 
     async fn set_user_disabled(&self, id: &str, disabled: bool) -> DbResult<()> {

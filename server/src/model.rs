@@ -71,6 +71,7 @@ pub struct User {
     pub student_id: String,
     pub note: String,
     pub disabled: bool,
+    pub avatar: String,
     #[serde(rename = "createdBy")]
     pub created_by: String,
     #[serde(skip)]
@@ -327,6 +328,7 @@ mod tests {
             student_id: String::new(),
             note: String::new(),
             disabled: false,
+            avatar: String::new(),
             created_by: created_by.into(),
             lineage: lineage.into(),
             created_at: 0,

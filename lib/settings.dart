@@ -107,6 +107,21 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
+  Future<void> _changeAvatar() async {
+    try {
+      final files =
+          await pickFiles(accept: 'image/png,image/jpeg,image/gif,image/webp');
+      if (files.isEmpty || !mounted) return;
+      await uploadAvatarPicked(Api.i, files.first);
+      await Api.i.me();
+      if (!mounted) return;
+      context.findAncestorStateOfType<WfmAppState>()?.userCtl.value++;
+      setState(() {});
+    } catch (e) {
+      if (mounted) snack(context, e);
+    }
+  }
+
   Future<void> _changePassword() async {
     final r = await showDialog<(String, String)>(
         context: context, builder: (_) => const _PasswordDialog());
@@ -132,7 +147,21 @@ class _SettingsPageState extends State<SettingsPage> {
         const SizedBox(height: 16),
       ],
       ListTile(
-        leading: const Icon(Icons.person_outline),
+        leading: Tooltip(
+          message: l10n.changePhoto,
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: _changeAvatar,
+            child: CircleAvatar(
+              radius: 20,
+              backgroundImage: u.hasAvatar
+                  ? NetworkImage(Api.i.avatarUrl(u.id, u.avatar))
+                  : null,
+              onBackgroundImageError: u.hasAvatar ? (_, __) {} : null,
+              child: u.hasAvatar ? null : const Icon(Icons.person_outline),
+            ),
+          ),
+        ),
         title: Text(u.name.isEmpty ? u.username : u.name),
         subtitle: Text(
             '@${u.username}${u.studentId.isNotEmpty ? '  ·  ${u.studentId}' : ''}  ·  ${u.role}'),

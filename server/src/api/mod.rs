@@ -5,7 +5,7 @@ use axum::extract::{Path, Query, State};
 use axum::http::{header, HeaderMap, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
 use futures::StreamExt;
-use axum::routing::{delete, get, patch, post};
+use axum::routing::{delete, get, patch, post, put};
 use axum::{Json, Router};
 use serde::Deserialize;
 use serde_json::{json, Value};
@@ -30,6 +30,8 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/login", post(login))
         .route("/logout", post(logout))
         .route("/me", get(me))
+        .route("/me/avatar", put(upload_avatar))
+        .route("/users/{id}/avatar", get(avatar))
         .route("/me/password", post(change_password))
         .route("/sessions", get(list_sessions))
         .route("/sessions/{id}", delete(delete_session))
@@ -169,6 +171,7 @@ async fn setup_owner(
         student_id: String::new(),
         note: String::new(),
         disabled: false,
+        avatar: String::new(),
         created_by: String::new(),
         lineage: "/".into(),
         created_at: AppState::now(),
@@ -338,6 +341,99 @@ async fn me(session: Session) -> Json<Value> {
     Json(json!({"user": session.user, "csrf": session.csrf}))
 }
 
+const AVATAR_MAX: u64 = 128 << 20;
+
+fn avatar_ext(head: &[u8]) -> Option<&'static str> {
+    if head.starts_with(b"\x89PNG") {
+        Some("png")
+    } else if head.starts_with(b"\xff\xd8\xff") {
+        Some("jpg")
+    } else if head.starts_with(b"GIF8") {
+        Some("gif")
+    } else if head.len() >= 12 && head.starts_with(b"RIFF") && &head[8..12] == b"WEBP" {
+        Some("webp")
+    } else {
+        None
+    }
+}
+
+async fn upload_avatar(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    headers: HeaderMap,
+    body: Body,
+) -> Response {
+    let len = headers
+        .get(header::CONTENT_LENGTH)
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.parse::<u64>().ok())
+        .unwrap_or(0);
+    if len > AVATAR_MAX {
+        return err(StatusCode::PAYLOAD_TOO_LARGE, "image too large");
+    }
+    let (tmp, written) = match spool_body(&s, body, AVATAR_MAX).await {
+        Ok(v) => v,
+        Err(r) => return r,
+    };
+    let out = async {
+        use tokio::io::{AsyncReadExt, AsyncSeekExt};
+        let mut f = tokio::fs::File::open(&tmp).await.map_err(|e| e.to_string())?;
+        let mut head = [0u8; 12];
+        let n = f.read(&mut head).await.map_err(|e| e.to_string())?;
+        let ext = avatar_ext(&head[..n]).ok_or_else(|| "not a png, jpeg, gif or webp image".to_string())?;
+        f.seek(std::io::SeekFrom::Start(0))
+            .await
+            .map_err(|e| e.to_string())?;
+        let key = format!("avatars/{}/{}.{}", session.user.id, model::new_id(), ext);
+        s.blobs.put(&key, written, &mut f).await?;
+        if let Err(e) = s.db.set_user_avatar(&session.user.id, &key).await {
+            let _ = s.blobs.delete(&key).await;
+            return Err(e.to_string());
+        }
+        Ok(key)
+    }
+    .await;
+    let _ = tokio::fs::remove_file(&tmp).await;
+    let key = match out {
+        Ok(k) => k,
+        Err(e) => {
+            if e.starts_with("not a png") {
+                return err(StatusCode::UNSUPPORTED_MEDIA_TYPE, &e);
+            }
+            return err(StatusCode::INTERNAL_SERVER_ERROR, &e);
+        }
+    };
+    if !session.user.avatar.is_empty() && session.user.avatar != key {
+        let _ = s.blobs.delete(&session.user.avatar).await;
+    }
+    s.audit(
+        "account",
+        &session.user,
+        "avatar",
+        &session.user.username,
+        "",
+        &session.user.lineage,
+    )
+    .await;
+    Json(json!({"ok": true, "avatar": key})).into_response()
+}
+
+async fn avatar(
+    State(s): State<Arc<AppState>>,
+    _session: Session,
+    Path(id): Path<String>,
+    headers: HeaderMap,
+) -> Response {
+    let u = match s.db.user_by_id(&id).await {
+        Ok(u) => u,
+        Err(e) => return db_resp(e),
+    };
+    if u.avatar.is_empty() {
+        return err(StatusCode::NOT_FOUND, "no avatar");
+    }
+    serve_blob(&s, &u.avatar, &u.avatar, &headers, false).await
+}
+
 #[derive(Deserialize)]
 struct PasswordReq {
     current: String,
@@ -471,6 +567,7 @@ async fn create_account(
         student_id,
         note,
         disabled: false,
+        avatar: String::new(),
         created_by: session.user.id.clone(),
         lineage: format!("{}{}/", session.user.lineage, session.user.id),
         created_at: AppState::now(),
@@ -550,6 +647,9 @@ async fn delete_account(
     }
     if let Err(e) = s.db.delete_user(&id).await {
         return db_resp(e);
+    }
+    if !target.avatar.is_empty() {
+        let _ = s.blobs.delete(&target.avatar).await;
     }
     s.audit(
         "account",
