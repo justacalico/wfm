@@ -70,7 +70,7 @@ const clientId = (() => {
   const h = [...b].map(x => x.toString(16).padStart(2, "0")).join("");
   return h.slice(0, 8) + "-" + h.slice(8, 12) + "-" + h.slice(12, 16) + "-" + h.slice(16, 20) + "-" + h.slice(20);
 })();
-let csrf = "", dirty = false, docSent = false, pending = 0, docName = "project.fcproj";
+let csrf = "", dirty = false, docSent = false, pending = 0, docName = "project.fcproj", docErrors = 0;
 const FMT_EXT = {
   h264: ".mp4", hevc: ".mp4", prores: ".mov", dnxhr: ".mov", apv: ".mp4",
   mjpeg: ".avi", "mxf-op1a": ".mxf", "mxf-opatom": ".mxf",
@@ -177,8 +177,9 @@ async function listFiles(path) {
 const MEDIA_EXT = /\.(mp4|mov|mkv|webm|avi|mts|m2ts|mxf|mp3|wav|aac|flac|ogg|oga|m4a|opus|png|jpe?g|webp|gif|tiff?|bmp|srt|vtt|dng|exr|hdr)$/i;
 
 async function sendDoc() {
+  let entries = [];
   try {
-    const entries = await listFiles("");
+    entries = await listFiles("");
     for (const d of entries.filter(e => e.type === "dir" && !e.path.startsWith("Exports"))) {
       send("Folder_" + d.path.replace(/\//g, "::"), new ArrayBuffer(0));
     }
@@ -188,9 +189,13 @@ async function sendDoc() {
     for (const m of media) {
       const r = await api("/projects/" + projectId + "/download?path=" + encodeURIComponent(m.path));
       if (r.ok) send("Media_" + m.path.replace(/\//g, "::"), await r.arrayBuffer());
+      else { docErrors++; }
     }
-  } catch (_) {}
+  } catch (_) { docErrors++; }
+  const hasDoc = entries.some(e => e.type !== "dir" && e.path === "project.fcproj");
   const r = await api("/projects/" + projectId + "/download?path=project.fcproj");
+  if (!r.ok && hasDoc) docErrors++;
+  if (docErrors) toast(docErrors + " file(s) could not be downloaded");
   const bytes = r.ok ? await r.arrayBuffer() : new ArrayBuffer(0);
   send(docName, bytes);
 }
@@ -260,6 +265,8 @@ function uploadMedia(path, bytes) {
     x.upload.onprogress = (e) => { if (e.lengthComputable) uplSet(path, e.loaded / e.total); };
     x.onload = () => resolve(x);
     x.onerror = () => reject(new Error("network"));
+    x.timeout = 300000;
+    x.ontimeout = () => reject(new Error("timeout"));
     x.send(bytes);
   });
 }
@@ -299,7 +306,7 @@ async function handleSave(d) {
   pending--;
 }
 
-let rendering = false, renderDone = false;
+let rendering = false, renderDone = false, renderOut = "";
 const fcExec = (id, params) => $("fc").contentWindow.filmcraft.execute(id, params || {});
 
 async function reportProgress(p) {
@@ -315,6 +322,16 @@ async function finishRender(error) {
   renderDone = true;
   rendering = false;
   for (let i = 0; i < 600 && pending > 0; i++) await new Promise(r => setTimeout(r, 500));
+  if (!error && pending > 0) error = "output upload did not finish";
+  if (!error && renderOut) {
+    try {
+      const r = await api("/projects/" + projectId + "/files?path=Exports");
+      const list = await r.json().catch(() => []);
+      const name = renderOut.replace(/^.*\//, "");
+      const ok = Array.isArray(list) && list.some(e => e.type !== "dir" && (e.path === "Exports/" + name || e.name === name));
+      if (!ok) error = "output missing from Exports";
+    } catch (_) {}
+  }
   try {
     await api("/renders/" + renderId + "/finish", {
       method: "POST", headers: { "content-type": "application/json" },
@@ -334,6 +351,7 @@ async function runRender() {
   try { spec = JSON.parse(job.spec || "{}"); } catch (_) { return finishRender("bad render spec"); }
   const fmt = (spec.params || {}).format || ((spec.params || {}).settings || {}).format;
   const out = (spec.output || "export") + (FMT_EXT[fmt] || ".mp4");
+  renderOut = out;
 
   overlay("Preparing the render…");
   const t0 = Date.now();
@@ -349,7 +367,7 @@ async function runRender() {
     try { res = await fcExec("media.findMissing", {}); } catch (_) {}
     const left = ((res || {}).missing || []).filter(m => m.status === "missing");
     if (res && !left.length) break;
-    if (Date.now() - t0 > 240000) break;
+    if (Date.now() - t0 > 240000) return finishRender(left.length ? "media missing" : "media check timed out");
     await new Promise(r => setTimeout(r, 500));
   }
 
