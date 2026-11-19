@@ -629,8 +629,16 @@ class Shell extends StatefulWidget {
 
 class ShellState extends State<Shell> {
   int _page = 0;
+  Project? _open;
 
-  void go(int i) => setState(() => _page = i);
+  void go(int i) => setState(() {
+        _page = i;
+        _open = null;
+      });
+
+  void openProject(Project p) => setState(() => _open = p);
+
+  void closeProject() => setState(() => _open = null);
 
   List<(IconData, String)> _items(AppLocalizations l10n, bool showManage) => [
         (Icons.home_outlined, l10n.navHome),
@@ -740,19 +748,26 @@ class ShellState extends State<Shell> {
     return LayoutBuilder(builder: (context, box) {
       if (box.maxWidth < 720) {
         return Scaffold(
-          appBar: AppBar(title: Text(_items(l10n, showManage)[_page].$2)),
+          appBar: _open == null
+              ? AppBar(title: Text(_items(l10n, showManage)[_page].$2))
+              : null,
           drawer: Drawer(
               child: SafeArea(
                   child: _navColumn(l10n,
                       onTap: () => Navigator.of(context).pop()))),
-          body: pages[_page],
+          body: _open != null
+              ? ProjectPage(project: _open!, onBack: closeProject)
+              : pages[_page],
         );
       }
       return Scaffold(
         body: Row(children: [
           SizedBox(width: 240, child: SafeArea(child: _navColumn(l10n))),
           const VerticalDivider(width: 1),
-          Expanded(child: pages[_page]),
+          Expanded(
+              child: _open != null
+                  ? ProjectPage(project: _open!, onBack: closeProject)
+                  : pages[_page]),
         ]),
       );
     });
