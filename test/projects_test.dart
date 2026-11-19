@@ -305,6 +305,34 @@ void main() {
       expect(find.byType(RenderDialog), findsOneWidget);
     });
 
+    testWidgets('status badge shows on card and row', (t) async {
+      installApi(extra: {
+        'GET /api/projects': (_) => [
+              {
+                'id': 'p1',
+                'name': 'cut',
+                'displayName': 'Cut',
+                'status': 'submitted',
+                'createdAt': 1
+              },
+              {
+                'id': 'p2',
+                'name': 'done',
+                'displayName': 'Done',
+                'status': 'reviewed',
+                'createdAt': 1
+              },
+            ],
+      });
+      await pump(t, const ProjectsPage());
+      expect(find.text('Submitted'), findsOneWidget);
+      expect(find.text('Reviewed'), findsOneWidget);
+      await t.tap(find.byIcon(Icons.view_list));
+      await settle(t);
+      expect(find.text('Submitted'), findsOneWidget);
+      expect(find.text('Reviewed'), findsOneWidget);
+    });
+
     testWidgets('card menu duplicates a project, error then ok', (t) async {
       var calls = 0;
       installApi(extra: {
@@ -974,6 +1002,85 @@ void main() {
       await settle(t);
       expect(dup, 2);
       expect(find.text('Copy created'), findsWidgets);
+    });
+
+    testWidgets('submit toggles lock and review buttons work', (t) async {
+      var review = '', submits = 0, reviews = 0;
+      installApi(extra: {
+        'GET /api/projects/p1/files': (_) => [],
+        'POST /api/projects/p1/submit': (_) => ++submits == 1
+            ? http.Response('{"error":"nope"}', 500)
+            : {'ok': true, 'status': 'submitted'},
+        'POST /api/projects/p2/review': (req) {
+          review = req.body;
+          if (++reviews == 1) {
+            return http.Response('{"error":"nope"}', 500);
+          }
+          return {
+            'ok': true,
+            'status': req.body.contains('draft') ? 'draft' : 'reviewed'
+          };
+        },
+      });
+      await pump(t, ProjectPage(project: p1));
+      expect(find.byIcon(Icons.send_outlined), findsOneWidget);
+      await t.tap(find.byIcon(Icons.send_outlined));
+      await settle(t);
+      await t.tap(find.byIcon(Icons.send_outlined));
+      await settle(t);
+      expect(find.text('Submitted'), findsWidgets);
+      expect(find.byIcon(Icons.undo_outlined), findsOneWidget);
+      expect(find.text('Read only'), findsWidgets);
+      await pump(
+          t,
+          ProjectPage(
+              project: Project.fromJson({
+            'id': 'p2',
+            'name': 'other',
+            'displayName': 'Their Cut',
+            'access': 'view',
+            'ownerId': 'x',
+            'status': 'submitted'
+          })));
+      await t.tap(find.byIcon(Icons.check_circle_outline));
+      await settle(t);
+      await t.tap(find.byIcon(Icons.check_circle_outline));
+      await settle(t);
+      expect(review, contains('reviewed'));
+      expect(find.text('Reviewed'), findsOneWidget);
+      await pump(
+          t,
+          ProjectPage(
+              project: Project.fromJson({
+            'id': 'p2',
+            'name': 'other',
+            'displayName': 'Their Cut',
+            'access': 'view',
+            'ownerId': 'x',
+            'status': 'submitted'
+          })));
+      await t.tap(find.byIcon(Icons.undo_outlined));
+      await settle(t);
+      expect(review, contains('draft'));
+    });
+
+    testWidgets('comments tab lists and posts', (t) async {
+      installApi(extra: {
+        'GET /api/projects/p1/comments': (_) => [
+              {
+                'id': 'c1',
+                'projectId': 'p1',
+                'userId': 'u2',
+                'username': 'bob',
+                'body': 'nice',
+                'createdAt': 1
+              }
+            ],
+      });
+      await pump(t, ProjectPage(project: p1));
+      await t.tap(find.text('Comments'));
+      await settle(t);
+      expect(find.text('nice'), findsOneWidget);
     });
   });
 

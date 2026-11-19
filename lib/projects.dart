@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'api.dart';
+import 'comments.dart';
 import 'l10n/app_localizations.dart';
 import 'main.dart';
 import 'platform.dart';
@@ -278,6 +279,15 @@ class _ProjectsPageState extends State<ProjectsPage> {
                     if (p.ownerName.isNotEmpty) l10n.ownedBy(p.ownerName),
                   ].join('  ·  '),
                   style: Theme.of(c).textTheme.bodySmall),
+              if (p.status != 'draft')
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: tagChip(
+                      c,
+                      p.status == 'reviewed'
+                          ? l10n.statusReviewed
+                          : l10n.statusSubmitted),
+                ),
               if (p.tags.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
@@ -321,6 +331,15 @@ class _ProjectsPageState extends State<ProjectsPage> {
                         overflow: TextOverflow.ellipsis),
                     Text(l10n.createdAgo(fmtAgo(l10n, p.createdAt)),
                         style: Theme.of(c).textTheme.bodySmall),
+                    if (p.status != 'draft')
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: tagChip(
+                            c,
+                            p.status == 'reviewed'
+                                ? l10n.statusReviewed
+                                : l10n.statusSubmitted),
+                      ),
                     if (p.tags.isNotEmpty)
                       Padding(
                         padding: const EdgeInsets.only(top: 4),
@@ -534,6 +553,15 @@ class _ProjectPageState extends State<ProjectPage> {
   int _tab = 0;
   late Project _p = widget.project;
 
+  @override
+  void didUpdateWidget(ProjectPage old) {
+    super.didUpdateWidget(old);
+    if (!identical(old.project, widget.project)) {
+      _p = widget.project;
+      _tab = 0;
+    }
+  }
+
   Future<void> _share() async {
     await showDialog(
         context: context, builder: (_) => _ShareDialog(project: _p));
@@ -564,6 +592,24 @@ class _ProjectPageState extends State<ProjectPage> {
     try {
       await Api.i.updateProject(_p.id, template: !_p.template);
       setState(() => _p = _p.copyWith(template: !_p.template));
+    } catch (e) {
+      if (mounted) snack(context, e);
+    }
+  }
+
+  Future<void> _submit() async {
+    try {
+      final st = await Api.i.submitProject(_p.id);
+      setState(() => _p = _p.copyWith(status: st));
+    } catch (e) {
+      if (mounted) snack(context, e);
+    }
+  }
+
+  Future<void> _review(String status) async {
+    try {
+      final st = await Api.i.reviewProject(_p.id, status);
+      setState(() => _p = _p.copyWith(status: st));
     } catch (e) {
       if (mounted) snack(context, e);
     }
@@ -604,6 +650,14 @@ class _ProjectPageState extends State<ProjectPage> {
             const SizedBox(width: 8),
             tagChip(context, l10n.template),
           ],
+          if (_p.status != 'draft') ...[
+            const SizedBox(width: 8),
+            tagChip(
+                context,
+                _p.status == 'reviewed'
+                    ? l10n.statusReviewed
+                    : l10n.statusSubmitted),
+          ],
         ]),
         actions: [
           if (!_p.editable)
@@ -626,6 +680,32 @@ class _ProjectPageState extends State<ProjectPage> {
               label: Text(l10n.openInFilmcraft),
             ),
             const SizedBox(width: 8),
+          ],
+          if (_p.mine && _p.status != 'reviewed')
+            IconButton(
+              icon: Icon(
+                  _p.status == 'submitted'
+                      ? Icons.undo_outlined
+                      : Icons.send_outlined,
+                  size: 20),
+              tooltip: _p.status == 'submitted'
+                  ? l10n.withdrawSubmission
+                  : l10n.submitForReview,
+              onPressed: _submit,
+            ),
+          if (!_p.mine &&
+              _p.status == 'submitted' &&
+              (Api.i.user?.isStaff ?? false)) ...[
+            IconButton(
+              icon: const Icon(Icons.check_circle_outline, size: 20),
+              tooltip: l10n.markReviewed,
+              onPressed: () => _review('reviewed'),
+            ),
+            IconButton(
+              icon: const Icon(Icons.undo_outlined, size: 20),
+              tooltip: l10n.returnToDraft,
+              onPressed: () => _review('draft'),
+            ),
           ],
           if (_p.mine) ...[
             IconButton(
@@ -684,6 +764,10 @@ class _ProjectPageState extends State<ProjectPage> {
                       value: 1,
                       icon: const Icon(Icons.rocket_launch_outlined),
                       label: Text(l10n.renders)),
+                  ButtonSegment(
+                      value: 2,
+                      icon: const Icon(Icons.comment_outlined),
+                      label: Text(l10n.comments)),
                 ],
                 selected: {_tab},
                 onSelectionChanged: (s) => setState(() => _tab = s.first),
@@ -692,7 +776,11 @@ class _ProjectPageState extends State<ProjectPage> {
           ),
         ),
       ),
-      body: _tab == 0 ? FilesTab(project: _p) : RendersTab(project: _p),
+      body: _tab == 0
+          ? FilesTab(project: _p)
+          : _tab == 1
+              ? RendersTab(project: _p)
+              : CommentsTab(project: _p),
     );
   }
 }

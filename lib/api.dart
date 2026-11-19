@@ -39,6 +39,7 @@ class User {
   };
   int get rank => ranks[role] ?? 0;
   bool get isAdmin => rank >= ranks['admin']!;
+  bool get isStaff => rank >= ranks['teacher']!;
   bool get isOwner => role == 'owner';
 }
 
@@ -61,6 +62,8 @@ class Project {
   final List<String> tags;
   final int createdAt, lastActivity;
   final bool pinned, template;
+  final String status, reviewedBy;
+  final int submittedAt;
   Project.fromJson(Map<String, dynamic> j)
       : id = j['id'] ?? '',
         name = j['name'] ?? '',
@@ -73,14 +76,19 @@ class Project {
         createdAt = j['createdAt'] ?? 0,
         lastActivity = j['lastActivity'] ?? j['createdAt'] ?? 0,
         pinned = j['pinned'] ?? false,
-        template = j['template'] ?? false;
+        template = j['template'] ?? false,
+        status = j['status'] ?? 'draft',
+        submittedAt = j['submittedAt'] ?? 0,
+        reviewedBy = j['reviewedBy'] ?? '';
   bool get mine => access.isEmpty
       ? (ownerId.isEmpty ||
           ownerId == Api.i.user?.id ||
           (Api.i.user?.isOwner ?? false))
       : access == 'owner';
-  bool get editable => mine || access == 'edit';
-  Project copyWith({String? displayName, bool? template}) => Project.fromJson({
+  bool get locked => status == 'submitted';
+  bool get editable => !locked && (mine || access == 'edit');
+  Project copyWith({String? displayName, bool? template, String? status}) =>
+      Project.fromJson({
         'id': id,
         'name': name,
         'displayName': displayName ?? this.displayName,
@@ -93,6 +101,9 @@ class Project {
         'lastActivity': lastActivity,
         'pinned': pinned,
         'template': template ?? this.template,
+        'status': status ?? this.status,
+        'submittedAt': submittedAt,
+        'reviewedBy': reviewedBy,
       });
 }
 
@@ -177,6 +188,21 @@ class RenderNode {
         disabled = j['disabled'] ?? false,
         createdAt = j['createdAt'] ?? 0,
         lastSeen = j['lastSeen'] ?? 0;
+}
+
+class ProjectComment {
+  final String id, projectId, userId, username, displayName, body;
+  final int createdAt, editedAt;
+  ProjectComment.fromJson(Map<String, dynamic> j)
+      : id = j['id'] ?? '',
+        projectId = j['projectId'] ?? '',
+        userId = j['userId'] ?? '',
+        username = j['username'] ?? '',
+        displayName = j['displayName'] ?? j['username'] ?? '',
+        body = j['body'] ?? '',
+        createdAt = j['createdAt'] ?? 0,
+        editedAt = j['editedAt'] ?? 0;
+  String get author => displayName.isEmpty ? username : displayName;
 }
 
 class Share {
@@ -419,6 +445,28 @@ class Api {
 
   Future<Project> duplicateProject(String id) async =>
       Project.fromJson(await post('/projects/$id/duplicate', {}));
+
+  Future<List<ProjectComment>> comments(String pid) async => [
+        for (final e in (await get('/projects/$pid/comments')) as List)
+          ProjectComment.fromJson(e)
+      ];
+
+  Future<void> addComment(String pid, String body) =>
+      post('/projects/$pid/comments', {'body': body});
+
+  Future<void> editComment(String pid, String cid, String body) =>
+      patch('/projects/$pid/comments/$cid', {'body': body});
+
+  Future<void> deleteComment(String pid, String cid) =>
+      del('/projects/$pid/comments/$cid');
+
+  Future<String> submitProject(String id) async =>
+      '${(await post('/projects/$id/submit', {}))['status'] ?? 'submitted'}';
+
+  Future<String> reviewProject(String id, String status) async =>
+      '${(await post('/projects/$id/review', {
+                'status': status
+              }))['status'] ?? status}';
 
   Future<List<ProjectGroup>> groups() async => [
         for (final e in (await get('/groups')) as List) ProjectGroup.fromJson(e)

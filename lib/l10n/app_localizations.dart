@@ -1783,6 +1783,96 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Copy created'**
   String get projectDuplicated;
+
+  /// No description provided for @comments.
+  ///
+  /// In en, this message translates to:
+  /// **'Comments'**
+  String get comments;
+
+  /// No description provided for @noComments.
+  ///
+  /// In en, this message translates to:
+  /// **'No comments yet'**
+  String get noComments;
+
+  /// No description provided for @writeComment.
+  ///
+  /// In en, this message translates to:
+  /// **'Write a comment'**
+  String get writeComment;
+
+  /// No description provided for @editComment.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit comment'**
+  String get editComment;
+
+  /// No description provided for @edited.
+  ///
+  /// In en, this message translates to:
+  /// **'edited'**
+  String get edited;
+
+  /// No description provided for @submitForReview.
+  ///
+  /// In en, this message translates to:
+  /// **'Submit for review'**
+  String get submitForReview;
+
+  /// No description provided for @withdrawSubmission.
+  ///
+  /// In en, this message translates to:
+  /// **'Withdraw submission'**
+  String get withdrawSubmission;
+
+  /// No description provided for @markReviewed.
+  ///
+  /// In en, this message translates to:
+  /// **'Mark reviewed'**
+  String get markReviewed;
+
+  /// No description provided for @returnToDraft.
+  ///
+  /// In en, this message translates to:
+  /// **'Return to draft'**
+  String get returnToDraft;
+
+  /// No description provided for @statusSubmitted.
+  ///
+  /// In en, this message translates to:
+  /// **'Submitted'**
+  String get statusSubmitted;
+
+  /// No description provided for @statusReviewed.
+  ///
+  /// In en, this message translates to:
+  /// **'Reviewed'**
+  String get statusReviewed;
+
+  /// No description provided for @notifComment.
+  ///
+  /// In en, this message translates to:
+  /// **'{from} commented on {project}'**
+  String notifComment(Object from, Object project);
+
+  /// No description provided for @notifSubmitted.
+  ///
+  /// In en, this message translates to:
+  /// **'{from} submitted {project} for review'**
+  String notifSubmitted(Object from, Object project);
+
+  /// No description provided for @notifReviewed.
+  ///
+  /// In en, this message translates to:
+  /// **'{from} marked {project} reviewed'**
+  String notifReviewed(Object from, Object project);
+
+  /// No description provided for @notifReturned.
+  ///
+  /// In en, this message translates to:
+  /// **'{from} returned {project} to draft'**
+  String notifReturned(Object from, Object project);
 }
 
 class _AppLocalizationsDelegate

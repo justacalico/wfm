@@ -109,5 +109,20 @@
   "template": "Template",
   "markTemplate": "Mark as template",
   "unmarkTemplate": "Unmark template",
-  "projectDuplicated": "Copy created"
+  "projectDuplicated": "Copy created",
+  "comments": "Comments",
+  "noComments": "No comments yet",
+  "writeComment": "Write a comment",
+  "editComment": "Edit comment",
+  "edited": "edited",
+  "submitForReview": "Submit for review",
+  "withdrawSubmission": "Withdraw submission",
+  "markReviewed": "Mark reviewed",
+  "returnToDraft": "Return to draft",
+  "statusSubmitted": "Submitted",
+  "statusReviewed": "Reviewed",
+  "notifComment": "{from} commented on {project}",
+  "notifSubmitted": "{from} submitted {project} for review",
+  "notifReviewed": "{from} marked {project} reviewed",
+  "notifReturned": "{from} returned {project} to draft"
 }

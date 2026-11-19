@@ -124,7 +124,7 @@ fn map_user(r: &rusqlite::Row<'_>) -> rusqlite::Result<User> {
 const USER_COLS: &str =
     "id,username,display_name,pass_hash,role,student_id,note,disabled,avatar,created_by,lineage,created_at,last_login,quota_bytes";
 
-const PROJECT_COLS: &str = "id,owner_id,name,display_name,dir,group_id,tags,created_at,last_activity,pinned,template";
+const PROJECT_COLS: &str = "id,owner_id,name,display_name,dir,group_id,tags,created_at,last_activity,pinned,template,status,submitted_at,reviewed_by";
 
 fn map_project(r: &rusqlite::Row<'_>) -> rusqlite::Result<Project> {
     Ok(Project {
@@ -139,6 +139,9 @@ fn map_project(r: &rusqlite::Row<'_>) -> rusqlite::Result<Project> {
         last_activity: r.get(8)?,
         pinned: r.get::<_, i64>(9)? != 0,
         template: r.get::<_, i64>(10)? != 0,
+        status: r.get(11)?,
+        submitted_at: r.get(12)?,
+        reviewed_by: r.get(13)?,
     })
 }
 
@@ -249,6 +252,19 @@ fn map_share_view(r: &rusqlite::Row) -> rusqlite::Result<ShareView> {
         invitee_username: r.get(10)?,
         invitee_name: r.get(11)?,
         template: r.get::<_, i64>(12)? != 0,
+    })
+}
+
+fn map_comment(r: &rusqlite::Row) -> rusqlite::Result<CommentView> {
+    Ok(CommentView {
+        id: r.get(0)?,
+        project_id: r.get(1)?,
+        user_id: r.get(2)?,
+        username: r.get(3)?,
+        display_name: r.get(4)?,
+        body: r.get(5)?,
+        created_at: r.get(6)?,
+        edited_at: r.get(7)?,
     })
 }
 
@@ -566,8 +582,8 @@ impl Db for SqliteDb {
         let p = p.clone();
         self.q(move |c| {
                 c.execute(
-                    "INSERT INTO projects(id,owner_id,name,display_name,dir,group_id,tags,created_at,last_activity,pinned,template) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
-                    params![p.id, p.owner_id, p.name, p.display_name, p.dir, p.group_id, tags_csv(&p.tags), p.created_at, p.last_activity, p.pinned, p.template],
+                    "INSERT INTO projects(id,owner_id,name,display_name,dir,group_id,tags,created_at,last_activity,pinned,template,status,submitted_at,reviewed_by) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    params![p.id, p.owner_id, p.name, p.display_name, p.dir, p.group_id, tags_csv(&p.tags), p.created_at, p.last_activity, p.pinned, p.template, p.status, p.submitted_at, p.reviewed_by],
                 )
             })
             .await
@@ -605,7 +621,7 @@ impl Db for SqliteDb {
         let (role, pat) = (actor.role as i64, format!("%/{}/%", actor.id));
         self.q(move |c| {
                 let mut st = c.prepare(&format!(
-                    "SELECT p.id,p.owner_id,p.name,p.display_name,p.dir,p.group_id,p.tags,p.created_at,p.last_activity,p.pinned,p.template FROM projects p JOIN users u ON p.owner_id=u.id WHERE u.role < ? AND u.lineage LIKE ? ORDER BY p.created_at DESC"
+                    "SELECT p.id,p.owner_id,p.name,p.display_name,p.dir,p.group_id,p.tags,p.created_at,p.last_activity,p.pinned,p.template,p.status,p.submitted_at,p.reviewed_by FROM projects p JOIN users u ON p.owner_id=u.id WHERE u.role < ? AND u.lineage LIKE ? ORDER BY p.created_at DESC"
                 ))?;
                 let rows = st.query_map(params![role, pat], map_project)?;
                 rows.collect::<rusqlite::Result<Vec<_>>>()
@@ -702,6 +718,114 @@ impl Db for SqliteDb {
             c.execute(
                 "UPDATE projects SET template=? WHERE id=?",
                 params![template as i64, id],
+            )
+        })
+        .await
+        .map(|_| ())
+        .map_err(dberr)
+    }
+
+    async fn set_project_status(
+        &self,
+        id: &str,
+        status: &str,
+        submitted_at: i64,
+        reviewed_by: &str,
+    ) -> DbResult<()> {
+        let id = id.to_string();
+        let status = status.to_string();
+        let reviewed_by = reviewed_by.to_string();
+        self.q(move |c| {
+            c.execute(
+                "UPDATE projects SET status=?,submitted_at=?,reviewed_by=? WHERE id=?",
+                params![status, submitted_at, reviewed_by, id],
+            )
+        })
+        .await
+        .map(|_| ())
+        .map_err(dberr)
+    }
+
+    async fn comment_add(
+        &self,
+        id: &str,
+        project: &str,
+        user: &str,
+        body: &str,
+        ts: i64,
+    ) -> DbResult<()> {
+        let (id, project, user, body) = (
+            id.to_string(),
+            project.to_string(),
+            user.to_string(),
+            body.to_string(),
+        );
+        self.q(move |c| {
+            c.execute(
+                "INSERT INTO project_comments(id,project_id,user_id,body,created_at) VALUES(?,?,?,?,?)",
+                params![id, project, user, body, ts],
+            )
+        })
+        .await
+        .map(|_| ())
+        .map_err(dberr)
+    }
+
+    async fn comments_for(&self, project: &str) -> DbResult<Vec<CommentView>> {
+        let project = project.to_string();
+        self.q(move |c| {
+                let mut st = c.prepare(
+                    "SELECT c.id,c.project_id,c.user_id,u.username,u.display_name,c.body,c.created_at,c.edited_at FROM project_comments c JOIN users u ON u.id=c.user_id WHERE c.project_id=? ORDER BY c.created_at"
+                )?;
+                let rows = st.query_map(params![project], map_comment)?;
+                rows.collect::<rusqlite::Result<Vec<_>>>()
+            })
+            .await
+            .map_err(dberr)
+    }
+
+    async fn comment_by_id(&self, id: &str) -> DbResult<CommentView> {
+        let id = id.to_string();
+        self.q(move |c| {
+                c.query_row(
+                    "SELECT c.id,c.project_id,c.user_id,u.username,u.display_name,c.body,c.created_at,c.edited_at FROM project_comments c JOIN users u ON u.id=c.user_id WHERE c.id=?",
+                    params![id],
+                    map_comment,
+                )
+            })
+            .await
+            .map_err(dberr)
+    }
+
+    async fn comment_edit(&self, id: &str, body: &str, ts: i64) -> DbResult<bool> {
+        let (id, body) = (id.to_string(), body.to_string());
+        self.q(move |c| {
+            c.execute(
+                "UPDATE project_comments SET body=?,edited_at=? WHERE id=?",
+                params![body, ts, id],
+            )
+        })
+        .await
+        .map(|n| n > 0)
+        .map_err(dberr)
+    }
+
+    async fn comment_delete(&self, id: &str) -> DbResult<bool> {
+        let id = id.to_string();
+        self.q(move |c| {
+            c.execute("DELETE FROM project_comments WHERE id=?", params![id])
+        })
+        .await
+        .map(|n| n > 0)
+        .map_err(dberr)
+    }
+
+    async fn comments_delete_project(&self, project: &str) -> DbResult<()> {
+        let project = project.to_string();
+        self.q(move |c| {
+            c.execute(
+                "DELETE FROM project_comments WHERE project_id=?",
+                params![project],
             )
         })
         .await
@@ -1859,6 +1983,9 @@ mod tests {
             last_activity: 1,
             pinned: false,
             template: false,
+            status: "draft".into(),
+            submitted_at: 0,
+            reviewed_by: String::new(),
         })
         .await
         .unwrap();
@@ -1909,6 +2036,9 @@ mod tests {
             last_activity: 1,
             pinned: false,
             template: false,
+            status: "draft".into(),
+            submitted_at: 0,
+            reviewed_by: String::new(),
         };
         db.create_project(&p("sp", "s")).await.unwrap();
         db.create_project(&p("xp", "x")).await.unwrap();
@@ -2071,6 +2201,9 @@ mod tests {
             last_activity: 1,
             pinned: false,
             template: false,
+            status: "draft".into(),
+            submitted_at: 0,
+            reviewed_by: String::new(),
         })
         .await
         .unwrap();
@@ -2106,6 +2239,68 @@ mod tests {
         db.share_upsert(&sh).await.unwrap();
         db.shares_delete_project("p1").await.unwrap();
         assert!(db.shares_by_project("p1").await.unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn comments_and_status() {
+        let db = connect(":memory:").await.unwrap();
+        db.create_user(&User {
+            id: "u1".into(),
+            username: "ada".into(),
+            display_name: "Ada".into(),
+            role: Role::Student,
+            role_name: String::new(),
+            student_id: String::new(),
+            note: String::new(),
+            disabled: false,
+            avatar: String::new(),
+            quota_bytes: 0,
+            created_by: String::new(),
+            lineage: "/".into(),
+            created_at: 1,
+            last_login: 0,
+        }, "h")
+        .await
+        .unwrap();
+        db.create_project(&Project {
+            id: "p1".into(),
+            owner_id: "u1".into(),
+            name: "p1".into(),
+            display_name: "P1".into(),
+            dir: "d".into(),
+            group_id: String::new(),
+            tags: vec![],
+            created_at: 1,
+            last_activity: 1,
+            pinned: false,
+            template: false,
+            status: "draft".into(),
+            submitted_at: 0,
+            reviewed_by: String::new(),
+        })
+        .await
+        .unwrap();
+        db.comment_add("c1", "p1", "u1", "hi", 10).await.unwrap();
+        db.comment_add("c2", "p1", "u1", "again", 20).await.unwrap();
+        let list = db.comments_for("p1").await.unwrap();
+        assert_eq!(list.len(), 2);
+        assert_eq!(list[0].username, "ada");
+        assert_eq!(list[0].body, "hi");
+        assert!(db.comment_edit("c1", "edited", 30).await.unwrap());
+        let c = db.comment_by_id("c1").await.unwrap();
+        assert_eq!(c.body, "edited");
+        assert_eq!(c.edited_at, 30);
+        assert!(!db.comment_edit("nope", "x", 1).await.unwrap());
+        assert!(db.comment_delete("c1").await.unwrap());
+        assert!(!db.comment_delete("c1").await.unwrap());
+        db.set_project_status("p1", "submitted", 40, "").await.unwrap();
+        let p = db.project_by_id("p1").await.unwrap();
+        assert_eq!(p.status, "submitted");
+        assert_eq!(p.submitted_at, 40);
+        db.set_project_status("p1", "reviewed", 40, "t1").await.unwrap();
+        assert_eq!(db.project_by_id("p1").await.unwrap().reviewed_by, "t1");
+        db.comments_delete_project("p1").await.unwrap();
+        assert!(db.comments_for("p1").await.unwrap().is_empty());
     }
 
     #[tokio::test]

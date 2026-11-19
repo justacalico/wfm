@@ -634,5 +634,53 @@ void main() {
       expect(api.linkFileUrl('tok', 'Exports/final.mp4'),
           contains('/api/link/tok/file?path='));
     });
+
+    test('comments and review endpoints', () async {
+      final api = Api(client({
+        'GET /api/projects/p1/comments': [
+          {
+            'id': 'c1',
+            'projectId': 'p1',
+            'userId': 'u2',
+            'username': 'bob',
+            'body': 'nice cut',
+            'createdAt': 5,
+            'editedAt': 6
+          },
+          {'id': 'c2', 'userId': 'u3', 'displayName': 'Ms T'}
+        ],
+        'POST /api/projects/p1/comments': {'ok': true},
+        'PATCH /api/projects/p1/comments/c1': {'ok': true},
+        'DELETE /api/projects/p1/comments/c1': {'ok': true},
+        'POST /api/projects/p1/submit': {'ok': true, 'status': 'submitted'},
+        'POST /api/projects/p1/review': {'ok': true, 'status': 'reviewed'},
+      }));
+      final cs = await api.comments('p1');
+      expect(cs.length, 2);
+      expect(cs[0].body, 'nice cut');
+      expect(cs[0].author, 'bob');
+      expect(cs[0].editedAt, 6);
+      expect(cs[1].author, 'Ms T');
+      await api.addComment('p1', 'hi');
+      expect(jsonDecode(utf8.decode(lastRequest!.bodyBytes))['body'], 'hi');
+      await api.editComment('p1', 'c1', 'revised');
+      expect(lastRequest!.url.path, '/api/projects/p1/comments/c1');
+      await api.deleteComment('p1', 'c1');
+      expect(await api.submitProject('p1'), 'submitted');
+      expect(lastRequest!.url.path, '/api/projects/p1/submit');
+      expect(await api.reviewProject('p1', 'reviewed'), 'reviewed');
+      expect(jsonDecode(utf8.decode(lastRequest!.bodyBytes))['status'],
+          'reviewed');
+      final p = Project.fromJson({
+        'id': 'p1',
+        'status': 'submitted',
+        'submittedAt': 1,
+        'reviewedBy': 't1'
+      });
+      expect(p.locked, isTrue);
+      expect(p.editable, isFalse);
+      expect(p.copyWith(status: 'draft').status, 'draft');
+      expect(p.copyWith(status: 'draft').locked, isFalse);
+    });
   });
 }

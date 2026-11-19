@@ -933,6 +933,59 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get projectDuplicated => 'Copy created';
+
+  @override
+  String get comments => 'Comments';
+
+  @override
+  String get noComments => 'No comments yet';
+
+  @override
+  String get writeComment => 'Write a comment';
+
+  @override
+  String get editComment => 'Edit comment';
+
+  @override
+  String get edited => 'edited';
+
+  @override
+  String get submitForReview => 'Submit for review';
+
+  @override
+  String get withdrawSubmission => 'Withdraw submission';
+
+  @override
+  String get markReviewed => 'Mark reviewed';
+
+  @override
+  String get returnToDraft => 'Return to draft';
+
+  @override
+  String get statusSubmitted => 'Submitted';
+
+  @override
+  String get statusReviewed => 'Reviewed';
+
+  @override
+  String notifComment(Object from, Object project) {
+    return '$from commented on $project';
+  }
+
+  @override
+  String notifSubmitted(Object from, Object project) {
+    return '$from submitted $project for review';
+  }
+
+  @override
+  String notifReviewed(Object from, Object project) {
+    return '$from marked $project reviewed';
+  }
+
+  @override
+  String notifReturned(Object from, Object project) {
+    return '$from returned $project to draft';
+  }
 }
 
 /// The translations for English, as used in the United Kingdom (`en_GB`).
@@ -1247,4 +1300,57 @@ class AppLocalizationsEnGb extends AppLocalizationsEn {
 
   @override
   String get projectDuplicated => 'Copy created';
+
+  @override
+  String get comments => 'Comments';
+
+  @override
+  String get noComments => 'No comments yet';
+
+  @override
+  String get writeComment => 'Write a comment';
+
+  @override
+  String get editComment => 'Edit comment';
+
+  @override
+  String get edited => 'edited';
+
+  @override
+  String get submitForReview => 'Submit for review';
+
+  @override
+  String get withdrawSubmission => 'Withdraw submission';
+
+  @override
+  String get markReviewed => 'Mark reviewed';
+
+  @override
+  String get returnToDraft => 'Return to draft';
+
+  @override
+  String get statusSubmitted => 'Submitted';
+
+  @override
+  String get statusReviewed => 'Reviewed';
+
+  @override
+  String notifComment(Object from, Object project) {
+    return '$from commented on $project';
+  }
+
+  @override
+  String notifSubmitted(Object from, Object project) {
+    return '$from submitted $project for review';
+  }
+
+  @override
+  String notifReviewed(Object from, Object project) {
+    return '$from marked $project reviewed';
+  }
+
+  @override
+  String notifReturned(Object from, Object project) {
+    return '$from returned $project to draft';
+  }
 }

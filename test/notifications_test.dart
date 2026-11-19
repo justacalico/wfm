@@ -52,13 +52,20 @@ void main() {
         notif('n6', 'render_failed',
             payload: {'name': 'final.mp4', 'projectName': 'Cut'}),
         notif('n7', 'node_offline', payload: {'name': 'farm-1'}),
-        notif('n8', 'mystery', readAt: 5),
+        notif('n8', 'comment', payload: {'from': 'ada', 'projectName': 'Cut'}),
+        notif('n9', 'submit', payload: {'from': 'bob', 'projectName': 'Cut'}),
+        notif('n10', 'review', payload: {'from': 'ada', 'projectName': 'Cut'}),
+        notif('n11', 'review',
+            payload: {'from': 'ada', 'projectName': 'Cut', 'status': 'draft'}),
+        notif('n12', 'mystery', readAt: 5),
       ];
 
   testWidgets('list renders every kind', (t) async {
     installApi(extra: {
       'GET /api/notifications': (_) => {'list': allKinds(), 'unread': 7},
     });
+    await t.binding.setSurfaceSize(const Size(1280, 2400));
+    addTearDown(() => t.binding.setSurfaceSize(null));
     await pump(t, const NotificationsPage());
     for (final s in [
       'invited you to',
@@ -68,6 +75,10 @@ void main() {
       'Render finished',
       'Render failed',
       'went offline',
+      'commented on',
+      'submitted',
+      'marked',
+      'returned',
     ]) {
       expect(find.textContaining(s), findsWidgets);
     }
@@ -90,6 +101,12 @@ void main() {
               }),
               notif('n6', 'render_failed',
                   payload: {'name': 'x', 'projectName': ''}),
+              notif('n7', 'comment',
+                  payload: {'project': 'p1', 'projectName': 'Cut'}),
+              notif('n8', 'submit',
+                  payload: {'project': 'p1', 'projectName': 'Cut'}),
+              notif('n9', 'review',
+                  payload: {'project': 'p1', 'projectName': 'Cut'}),
             ],
             'unread': 3
           },
@@ -98,6 +115,9 @@ void main() {
         return {'ok': true};
       },
       'POST /api/notifications/n5/read': (_) => {'ok': true},
+      'POST /api/notifications/n7/read': (_) => {'ok': true},
+      'POST /api/notifications/n8/read': (_) => {'ok': true},
+      'POST /api/notifications/n9/read': (_) => {'ok': true},
       'GET /api/shares': (_) => <dynamic>[],
     });
     await pumpShell(t);
@@ -118,6 +138,14 @@ void main() {
     await t.tap(find.textContaining('Render failed'));
     await settle(t);
     expect(find.byType(SharedPage), findsNothing);
+    for (final s in ['commented on', 'submitted', 'marked']) {
+      await t
+          .tap(find.widgetWithText(ListTile, 'Notifications').first)
+          .then((_) => settle(t));
+      await t.tap(find.textContaining(s).first);
+      await settle(t);
+      expect(find.byType(ProjectPage), findsOneWidget);
+    }
   });
 
   testWidgets('mark all read and read error snack', (t) async {

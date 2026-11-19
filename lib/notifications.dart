@@ -86,6 +86,14 @@ class _NotificationsPageState extends State<NotificationsPage> {
         return l10n.notifRenderFailed(name, project);
       case 'node_offline':
         return l10n.notifNodeOffline(name);
+      case 'comment':
+        return l10n.notifComment(from, project);
+      case 'submit':
+        return l10n.notifSubmitted(from, project);
+      case 'review':
+        return '${p['status']}' == 'draft'
+            ? l10n.notifReturned(from, project)
+            : l10n.notifReviewed(from, project);
       default:
         return n.kind;
     }
@@ -98,6 +106,9 @@ class _NotificationsPageState extends State<NotificationsPage> {
         'render_done' => Icons.movie_creation_outlined,
         'render_failed' => Icons.error_outline,
         'node_offline' => Icons.dns_outlined,
+        'comment' => Icons.comment_outlined,
+        'submit' => Icons.send_outlined,
+        'review' => Icons.fact_check_outlined,
         _ => Icons.notifications_outlined,
       };
 
@@ -127,7 +138,11 @@ class _NotificationsPageState extends State<NotificationsPage> {
           Navigator.of(context)
               .push(MaterialPageRoute(builder: (_) => const SharedPage()));
         }
-      case 'render_done' || 'render_failed':
+      case 'render_done' ||
+            'render_failed' ||
+            'comment' ||
+            'submit' ||
+            'review':
         if (pid.isEmpty) return;
         final p = Project.fromJson({
           'id': pid,

@@ -929,4 +929,57 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get projectDuplicated => '已创建副本';
+
+  @override
+  String get comments => '评论';
+
+  @override
+  String get noComments => '还没有评论';
+
+  @override
+  String get writeComment => '写评论';
+
+  @override
+  String get editComment => '编辑评论';
+
+  @override
+  String get edited => '已编辑';
+
+  @override
+  String get submitForReview => '提交审核';
+
+  @override
+  String get withdrawSubmission => '撤回提交';
+
+  @override
+  String get markReviewed => '标记已审核';
+
+  @override
+  String get returnToDraft => '退回草稿';
+
+  @override
+  String get statusSubmitted => '已提交';
+
+  @override
+  String get statusReviewed => '已审核';
+
+  @override
+  String notifComment(Object from, Object project) {
+    return '$from 评论了 $project';
+  }
+
+  @override
+  String notifSubmitted(Object from, Object project) {
+    return '$from 提交了 $project 待审核';
+  }
+
+  @override
+  String notifReviewed(Object from, Object project) {
+    return '$from 已将 $project 标记为已审核';
+  }
+
+  @override
+  String notifReturned(Object from, Object project) {
+    return '$from 将 $project 退回草稿';
+  }
 }

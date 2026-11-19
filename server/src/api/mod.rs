@@ -58,6 +58,16 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/projects/{id}/take-over", post(take_over_project))
         .route("/projects/{id}/duplicate", post(duplicate_project))
         .route(
+            "/projects/{id}/comments",
+            get(list_comments).post(add_comment),
+        )
+        .route(
+            "/projects/{id}/comments/{cid}",
+            patch(edit_comment).delete(delete_comment),
+        )
+        .route("/projects/{id}/submit", post(submit_project))
+        .route("/projects/{id}/review", post(review_project))
+        .route(
             "/projects/{id}/shares",
             get(list_project_shares).post(create_share),
         )
@@ -1233,6 +1243,9 @@ async fn create_project(
         last_activity: AppState::now(),
         pinned: false,
         template: false,
+        status: "draft".into(),
+        submitted_at: 0,
+        reviewed_by: String::new(),
     };
     if let Err(e) = s.db.create_project(&p).await {
         let _ = s.blobs.delete_prefix(&p.dir).await;
@@ -1877,6 +1890,9 @@ async fn edit_project(s: &Arc<AppState>, session: &Session, id: &str) -> Result<
     if level == "view" {
         return Err(err(StatusCode::FORBIDDEN, "read only"));
     }
+    if p.status == "submitted" {
+        return Err(err(StatusCode::FORBIDDEN, "submitted for review"));
+    }
     let _ = s.db.touch_project(&p.id, AppState::now()).await;
     Ok(p)
 }
@@ -2104,6 +2120,7 @@ async fn delete_project(
     }
     let _ = s.db.shares_delete_project(&id).await;
     let _ = s.db.links_delete_project(&id).await;
+    let _ = s.db.comments_delete_project(&id).await;
     let _ = s.blobs.delete_prefix(&p.dir).await;
     let _ = s.blobs.delete_prefix(&format!("{}.thumbs", p.dir)).await;
     s.audit(
@@ -2190,6 +2207,9 @@ async fn duplicate_project(
         last_activity: AppState::now(),
         pinned: false,
         template: false,
+        status: "draft".into(),
+        submitted_at: 0,
+        reviewed_by: String::new(),
     };
     if let Err(e) = s.db.create_project(&p).await {
         let _ = s.blobs.delete_prefix(&p.dir).await;
@@ -2210,6 +2230,226 @@ async fn duplicate_project(
     .await;
     auto_share_apply(&s, &p, &session.user).await;
     Json(json!(p)).into_response()
+}
+
+async fn list_comments(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Path(id): Path<String>,
+) -> Response {
+    if let Err(r) = project_access(&s, &session, &id).await {
+        return r;
+    }
+    match s.db.comments_for(&id).await {
+        Ok(v) => Json(json!(v)).into_response(),
+        Err(e) => db_resp(e),
+    }
+}
+
+#[derive(Deserialize)]
+struct CommentReq {
+    body: String,
+}
+
+fn clean_comment(body: &str) -> Result<String, Response> {
+    let b = body.trim();
+    if b.is_empty() {
+        return Err(err(StatusCode::BAD_REQUEST, "empty comment"));
+    }
+    Ok(b.chars().take(4000).collect())
+}
+
+async fn add_comment(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Path(id): Path<String>,
+    Json(req): Json<CommentReq>,
+) -> Response {
+    let p = match project_access(&s, &session, &id).await {
+        Ok((p, _)) => p,
+        Err(r) => return r,
+    };
+    let body = match clean_comment(&req.body) {
+        Ok(b) => b,
+        Err(r) => return r,
+    };
+    if let Err(e) = s
+        .db
+        .comment_add(&model::new_id(), &id, &session.user.id, &body, AppState::now())
+        .await
+    {
+        return db_resp(e);
+    }
+    if p.owner_id != session.user.id {
+        s.notify(
+            &p.owner_id,
+            "comment",
+            json!({
+                "project": p.id,
+                "projectName": p.display_name,
+                "from": session.user.username,
+            }),
+        )
+        .await;
+    }
+    Json(json!({"ok": true})).into_response()
+}
+
+async fn edit_comment(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Path((id, cid)): Path<(String, String)>,
+    Json(req): Json<CommentReq>,
+) -> Response {
+    let c = match s.db.comment_by_id(&cid).await {
+        Ok(c) if c.project_id == id => c,
+        _ => return err(StatusCode::NOT_FOUND, "no such comment"),
+    };
+    if c.user_id != session.user.id {
+        return err(StatusCode::FORBIDDEN, "not your comment");
+    }
+    if let Err(r) = project_access(&s, &session, &id).await {
+        return r;
+    }
+    let body = match clean_comment(&req.body) {
+        Ok(b) => b,
+        Err(r) => return r,
+    };
+    match s.db.comment_edit(&cid, &body, AppState::now()).await {
+        Ok(_) => Json(json!({"ok": true})).into_response(),
+        Err(e) => db_resp(e),
+    }
+}
+
+async fn delete_comment(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Path((id, cid)): Path<(String, String)>,
+) -> Response {
+    let c = match s.db.comment_by_id(&cid).await {
+        Ok(c) if c.project_id == id => c,
+        _ => return err(StatusCode::NOT_FOUND, "no such comment"),
+    };
+    let p = match fetch_project(&s, &id).await {
+        Ok(p) => p,
+        Err(r) => return r,
+    };
+    if c.user_id != session.user.id
+        && p.owner_id != session.user.id
+        && session.user.role != Role::Owner
+    {
+        return err(StatusCode::FORBIDDEN, "not your comment");
+    }
+    match s.db.comment_delete(&cid).await {
+        Ok(_) => Json(json!({"ok": true})).into_response(),
+        Err(e) => db_resp(e),
+    }
+}
+
+async fn submit_project(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Path(id): Path<String>,
+) -> Response {
+    let p = match owned_project(&s, &session, &id).await {
+        Ok(p) => p,
+        Err(r) => return r,
+    };
+    let submitted = p.status == "submitted";
+    let (status, submitted_at, action) = if submitted {
+        ("draft", 0, "project_withdraw")
+    } else {
+        ("submitted", AppState::now(), "project_submit")
+    };
+    if let Err(e) = s
+        .db
+        .set_project_status(&id, status, submitted_at, "")
+        .await
+    {
+        return db_resp(e);
+    }
+    s.audit("project", &session.user, action, &p.display_name, "", "")
+        .await;
+    if !submitted {
+        if let Ok(list) = s.db.shares_by_project(&id).await {
+            for sh in list {
+                if sh.status == "accepted" && sh.invitee_id != session.user.id {
+                    s.notify(
+                        &sh.invitee_id,
+                        "submit",
+                        json!({
+                            "project": p.id,
+                            "projectName": p.display_name,
+                            "from": session.user.username,
+                        }),
+                    )
+                    .await;
+                }
+            }
+        }
+    }
+    Json(json!({"ok": true, "status": status})).into_response()
+}
+
+#[derive(Deserialize)]
+struct ReviewReq {
+    status: String,
+}
+
+async fn review_project(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Path(id): Path<String>,
+    Json(req): Json<ReviewReq>,
+) -> Response {
+    if session.user.role < Role::Teacher {
+        return err(StatusCode::FORBIDDEN, "staff only");
+    }
+    let p = match project_access(&s, &session, &id).await {
+        Ok((p, _)) => p,
+        Err(r) => return r,
+    };
+    if p.status != "submitted" {
+        return err(StatusCode::BAD_REQUEST, "not submitted");
+    }
+    let status = req.status.trim();
+    if status != "reviewed" && status != "draft" {
+        return err(StatusCode::BAD_REQUEST, "status: reviewed|draft");
+    }
+    if let Err(e) = s
+        .db
+        .set_project_status(&id, status, p.submitted_at, &session.user.id)
+        .await
+    {
+        return db_resp(e);
+    }
+    s.audit(
+        "project",
+        &session.user,
+        if status == "reviewed" {
+            "project_review"
+        } else {
+            "project_return"
+        },
+        &p.display_name,
+        "",
+        "",
+    )
+    .await;
+    if p.owner_id != session.user.id {
+        s.notify(
+            &p.owner_id,
+            "review",
+            json!({
+                "project": p.id,
+                "projectName": p.display_name,
+                "from": session.user.username,
+                "status": status,
+            }),
+        )
+        .await;
+    }
+    Json(json!({"ok": true, "status": status})).into_response()
 }
 
 #[derive(Deserialize)]
