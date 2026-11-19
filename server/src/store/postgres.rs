@@ -1050,6 +1050,7 @@ mod tests {
             student_id: String::new(),
             note: String::new(),
             disabled: false,
+            avatar: String::new(),
             created_by: String::new(),
             lineage: "/".into(),
             created_at: 1,
