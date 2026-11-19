@@ -2,6 +2,14 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.18.0 - 2026-11-19
+#### Features
+- relative comment timestamps and author avatars - (f56d345) - calico
+- slim project cards to three actions and move render/share to the menu - (6ad4a34) - calico
+- group FilmCraft shortcuts under an Editors settings section - (e666933) - calico
+
+- - -
+
 ## v0.17.0 - 2026-11-19
 #### Features
 - default new renders to the device and reorder advanced options - (bc408d8) - calico
