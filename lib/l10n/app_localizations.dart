@@ -1255,6 +1255,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Last seen {time}'**
   String sessionLastSeen(Object time);
+
+  /// No description provided for @readOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Read only'**
+  String get readOnly;
+
+  /// No description provided for @takeOver.
+  ///
+  /// In en, this message translates to:
+  /// **'Take over'**
+  String get takeOver;
+
+  /// No description provided for @takeOverBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Take ownership of {name}?'**
+  String takeOverBody(Object name);
+
+  /// No description provided for @ownedBy.
+  ///
+  /// In en, this message translates to:
+  /// **'by {name}'**
+  String ownedBy(Object name);
 }
 
 class _AppLocalizationsDelegate

@@ -643,4 +643,20 @@ class AppLocalizationsGa extends AppLocalizations {
   String sessionLastSeen(Object time) {
     return 'Feicthe go déanaí $time';
   }
+
+  @override
+  String get readOnly => 'Léamh amháin';
+
+  @override
+  String get takeOver => 'Tóg seilbh';
+
+  @override
+  String takeOverBody(Object name) {
+    return 'Tóg úinéireacht $name?';
+  }
+
+  @override
+  String ownedBy(Object name) {
+    return 'le $name';
+  }
 }

@@ -52,7 +52,7 @@ class Caps {
 }
 
 class Project {
-  final String id, name, displayName, groupId;
+  final String id, name, displayName, groupId, ownerId, ownerName;
   final List<String> tags;
   final int createdAt, lastActivity;
   final bool pinned;
@@ -61,10 +61,16 @@ class Project {
         name = j['name'] ?? '',
         displayName = j['displayName'] ?? j['name'] ?? '',
         groupId = j['groupId'] ?? '',
+        ownerId = j['ownerId'] ?? '',
+        ownerName = j['ownerName'] ?? '',
         tags = [for (final t in (j['tags'] ?? []) as List) '$t'],
         createdAt = j['createdAt'] ?? 0,
         lastActivity = j['lastActivity'] ?? j['createdAt'] ?? 0,
         pinned = j['pinned'] ?? false;
+  bool get editable =>
+      ownerId.isEmpty ||
+      ownerId == Api.i.user?.id ||
+      (Api.i.user?.isOwner ?? false);
 }
 
 class ProjectGroup {
@@ -360,6 +366,9 @@ class Api {
       RenderJob.fromJson(await post('/projects/$pid/renders', spec));
 
   Future<void> cancelRender(String id) => post('/renders/$id/cancel', {});
+
+  Future<void> takeOverProject(String id) =>
+      post('/projects/$id/take-over', {});
 
   Future<RenderJob> retryRender(String id) async =>
       RenderJob.fromJson(await post('/renders/$id/retry', {}));

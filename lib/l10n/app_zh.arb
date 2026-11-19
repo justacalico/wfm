@@ -315,5 +315,9 @@
   "currentSession": "当前会话",
   "revoke": "撤销",
   "revokeSessionBody": "退出此会话？",
-  "sessionLastSeen": "最近活动 {time}"
+  "sessionLastSeen": "最近活动 {time}",
+  "readOnly": "只读",
+  "takeOver": "接管",
+  "takeOverBody": "接管项目 {name}？",
+  "ownedBy": "{name} 的项目"
 }

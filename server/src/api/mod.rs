@@ -43,6 +43,7 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/accounts/{id}/status", post(set_status))
         .route("/audit", get(audit))
         .route("/projects", get(list_projects).post(create_project))
+        .route("/projects/{id}/take-over", post(take_over_project))
         .route(
             "/projects/{id}",
             get(get_project).patch(update_project).delete(delete_project),
@@ -726,10 +727,45 @@ async fn audit(
 // ---------- projects ----------
 
 async fn list_projects(State(s): State<Arc<AppState>>, session: Session) -> Response {
-    match s.db.projects_by_owner(&session.user.id).await {
-        Ok(v) => Json(json!(v)).into_response(),
-        Err(e) => db_resp(e),
+    let mut v = match s.db.projects_by_owner(&session.user.id).await {
+        Ok(v) => v,
+        Err(e) => return db_resp(e),
+    };
+    if session.user.role.can_see_audit() {
+        let names: std::collections::HashMap<String, String> = s
+            .db
+            .managed_users(&session.user)
+            .await
+            .unwrap_or_default()
+            .into_iter()
+            .map(|u| {
+                (u.id, if u.display_name.is_empty() {
+                    u.username
+                } else {
+                    u.display_name
+                })
+            })
+            .collect();
+        match s.db.managed_projects(&session.user).await {
+            Ok(managed) => {
+                let mut out: Vec<_> = v
+                    .drain(..)
+                    .map(|p| serde_json::to_value(&p).unwrap_or_default())
+                    .collect();
+                for p in managed {
+                    let mut j = serde_json::to_value(&p).unwrap_or_default();
+                    j["ownerName"] = json!(names
+                        .get(&p.owner_id)
+                        .cloned()
+                        .unwrap_or_default());
+                    out.push(j);
+                }
+                return Json(json!(out)).into_response();
+            }
+            Err(e) => return db_resp(e),
+        }
     }
+    Json(json!(v)).into_response()
 }
 
 #[derive(Deserialize)]
@@ -809,12 +845,14 @@ async fn create_project(
     Json(json!(p)).into_response()
 }
 
-async fn owned_project(s: &Arc<AppState>, session: &Session, id: &str) -> Result<Project, Response> {
-    let p = s
-        .db
-        .project_by_id(id)
+async fn fetch_project(s: &Arc<AppState>, id: &str) -> Result<Project, Response> {
+    s.db.project_by_id(id)
         .await
-        .map_err(|_| err(StatusCode::NOT_FOUND, "no such project"))?;
+        .map_err(|_| err(StatusCode::NOT_FOUND, "no such project"))
+}
+
+async fn owned_project(s: &Arc<AppState>, session: &Session, id: &str) -> Result<Project, Response> {
+    let p = fetch_project(s, id).await?;
     if p.owner_id != session.user.id && session.user.role != Role::Owner {
         return Err(err(StatusCode::FORBIDDEN, "not your project"));
     }
@@ -822,8 +860,59 @@ async fn owned_project(s: &Arc<AppState>, session: &Session, id: &str) -> Result
     Ok(p)
 }
 
+async fn read_project(s: &Arc<AppState>, session: &Session, id: &str) -> Result<Project, Response> {
+    let p = fetch_project(s, id).await?;
+    if p.owner_id != session.user.id && session.user.role != Role::Owner {
+        let in_subtree = s
+            .db
+            .user_in_subtree(&session.user, &p.owner_id)
+            .await
+            .unwrap_or(false);
+        if !in_subtree {
+            return Err(err(StatusCode::FORBIDDEN, "not your project"));
+        }
+    }
+    let _ = s.db.touch_project(&p.id, AppState::now()).await;
+    Ok(p)
+}
+
+async fn take_over_project(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Path(id): Path<String>,
+) -> Response {
+    let p = match fetch_project(&s, &id).await {
+        Ok(p) => p,
+        Err(r) => return r,
+    };
+    if p.owner_id == session.user.id {
+        return err(StatusCode::BAD_REQUEST, "already your project");
+    }
+    let allowed = session.user.role == Role::Owner
+        || s.db
+            .user_in_subtree(&session.user, &p.owner_id)
+            .await
+            .unwrap_or(false);
+    if !allowed {
+        return err(StatusCode::FORBIDDEN, "not your project");
+    }
+    if let Err(e) = s.db.set_project_owner(&id, &session.user.id).await {
+        return db_resp(e);
+    }
+    s.audit(
+        "project",
+        &session.user,
+        "take_over",
+        &p.display_name,
+        &format!("from {}", p.owner_id),
+        "",
+    )
+    .await;
+    Json(json!({"ok": true})).into_response()
+}
+
 async fn get_project(State(s): State<Arc<AppState>>, session: Session, Path(id): Path<String>) -> Response {
-    match owned_project(&s, &session, &id).await {
+    match read_project(&s, &session, &id).await {
         Ok(p) => Json(json!(p)).into_response(),
         Err(r) => r,
     }
@@ -1025,7 +1114,7 @@ async fn list_files(
     Path(id): Path<String>,
     Query(q): Query<FileQuery>,
 ) -> Response {
-    let p = match owned_project(&s, &session, &id).await {
+    let p = match read_project(&s, &session, &id).await {
         Ok(p) => p,
         Err(r) => return r,
     };
@@ -1264,7 +1353,7 @@ async fn download(
     Query(q): Query<FileQuery>,
     headers: HeaderMap,
 ) -> Response {
-    let p = match owned_project(&s, &session, &id).await {
+    let p = match read_project(&s, &session, &id).await {
         Ok(p) => p,
         Err(r) => return r,
     };
@@ -1490,7 +1579,7 @@ async fn list_renders(
     Path(id): Path<String>,
     Query(q): Query<ListRendersQuery>,
 ) -> Response {
-    let _p = match owned_project(&s, &session, &id).await {
+    let _p = match read_project(&s, &session, &id).await {
         Ok(p) => p,
         Err(r) => return r,
     };
@@ -1658,7 +1747,7 @@ async fn render_info(
     session: Session,
     Path(id): Path<String>,
 ) -> Response {
-    let p = match owned_project(&s, &session, &id).await {
+    let p = match read_project(&s, &session, &id).await {
         Ok(p) => p,
         Err(r) => return r,
     };

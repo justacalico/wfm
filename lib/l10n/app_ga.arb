@@ -315,5 +315,9 @@
   "revoke": "Cúlghairm",
   "revokeSessionBody": "Logáil amach an seisiún seo?",
   "sessionLastSeen": "Feicthe go déanaí {time}",
-  "lastSeen": "feicthe {when} ó shin"
+  "lastSeen": "feicthe {when} ó shin",
+  "readOnly": "Léamh amháin",
+  "takeOver": "Tóg seilbh",
+  "takeOverBody": "Tóg úinéireacht {name}?",
+  "ownedBy": "le {name}"
 }

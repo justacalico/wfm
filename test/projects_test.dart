@@ -117,6 +117,91 @@ void main() {
       await pump(t, const ProjectsPage());
     });
 
+    testWidgets('managed project is read only and take over works', (t) async {
+      var took = false;
+      final api = installApi(extra: {
+        'GET /api/projects': (_) => [
+              {
+                'id': 'p9',
+                'name': 'p9',
+                'displayName': 'Student Work',
+                'ownerId': 's1',
+                'ownerName': 'Sam',
+                'createdAt': 1
+              }
+            ],
+        'POST /api/projects/p9/take-over': (_) {
+          took = true;
+          return {'ok': true};
+        },
+        'GET /api/projects/p9/files': (_) => [
+              {'name': 'Raw', 'path': 'Raw', 'type': 'dir'},
+              {
+                'name': 'c.mp4',
+                'path': 'Raw/c.mp4',
+                'type': 'file',
+                'size': 1,
+                'modified': 1
+              }
+            ],
+      });
+      api.user =
+          User.fromJson({'id': 'u9', 'username': 'teach', 'role': 'teacher'});
+      await pump(t, const ProjectsPage());
+      expect(find.textContaining('by Sam'), findsOneWidget);
+      expect(find.text('Render'), findsNothing);
+      expect(find.text('Read only'), findsWidgets);
+      await t.tap(find.byType(PopupMenuButton<String>).first);
+      await settle(t);
+      await t.tap(find.text('Take over'));
+      await settle(t);
+      await t.tap(find.widgetWithText(FilledButton, 'Confirm'));
+      await settle(t);
+      expect(took, isTrue);
+      await t.tap(find.text('Student Work'));
+      await settle(t);
+      expect(find.text('Read only'), findsWidgets);
+      expect(find.text('Open in FilmCraft'), findsNothing);
+    });
+
+    testWidgets('take over cancel and error', (t) async {
+      var calls = 0;
+      final api = installApi(extra: {
+        'GET /api/projects': (_) => [
+              {
+                'id': 'p9',
+                'name': 'p9',
+                'displayName': 'Student Work',
+                'ownerId': 's1',
+                'ownerName': 'Sam',
+                'createdAt': 1
+              }
+            ],
+        'POST /api/projects/p9/take-over': (_) {
+          calls++;
+          return http.Response('{"error":"nope"}', 500);
+        },
+      });
+      api.user =
+          User.fromJson({'id': 'u9', 'username': 'teach', 'role': 'teacher'});
+      await pump(t, const ProjectsPage());
+      await t.tap(find.byType(PopupMenuButton<String>).first);
+      await settle(t);
+      await t.tap(find.text('Take over'));
+      await settle(t);
+      await t.tap(find.text('Cancel'));
+      await settle(t);
+      expect(calls, 0);
+      await t.tap(find.byType(PopupMenuButton<String>).first);
+      await settle(t);
+      await t.tap(find.text('Take over'));
+      await settle(t);
+      await t.tap(find.widgetWithText(FilledButton, 'Confirm'));
+      await settle(t);
+      expect(calls, 1);
+      expect(find.byType(Notice), findsOneWidget);
+    });
+
     testWidgets('pin project sorts first', (t) async {
       final bodies = <String, String>{};
       installApi(extra: {

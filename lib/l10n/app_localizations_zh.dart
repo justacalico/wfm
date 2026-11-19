@@ -637,4 +637,20 @@ class AppLocalizationsZh extends AppLocalizations {
   String sessionLastSeen(Object time) {
     return '最近活动 $time';
   }
+
+  @override
+  String get readOnly => '只读';
+
+  @override
+  String get takeOver => '接管';
+
+  @override
+  String takeOverBody(Object name) {
+    return '接管项目 $name？';
+  }
+
+  @override
+  String ownedBy(Object name) {
+    return '$name 的项目';
+  }
 }
