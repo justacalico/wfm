@@ -1505,11 +1505,8 @@ class _RendersTabState extends State<RendersTab> {
                       subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(j.worker.isNotEmpty
-                                ? l10n.renderStatusWorker(j.status, j.worker,
-                                    fmtAgo(l10n, j.createdAt))
-                                : l10n.renderStatus(
-                                    j.status, fmtAgo(l10n, j.createdAt))),
+                            Text(l10n.renderStatus(
+                                j.status, fmtAgo(l10n, j.createdAt))),
                             if (j.active)
                               Padding(
                                 padding: const EdgeInsets.only(top: 4),

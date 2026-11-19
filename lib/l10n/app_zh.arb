@@ -110,14 +110,6 @@
   "newRender": "新建渲染",
   "render": "渲染",
   "queuing": "正在排队…",
-  "renderStatusWorker": "{status}，节点 {worker}  ·  {when}",
-  "@renderStatusWorker": {
-    "placeholders": {
-      "status": {},
-      "worker": {},
-      "when": {}
-    }
-  },
   "renderStatus": "{status}  ·  {when}",
   "@renderStatus": {
     "placeholders": {

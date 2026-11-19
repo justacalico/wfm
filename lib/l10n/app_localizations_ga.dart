@@ -252,11 +252,6 @@ class AppLocalizationsGa extends AppLocalizations {
   String get queuing => 'Á chur sa scuaine…';
 
   @override
-  String renderStatusWorker(Object status, Object worker, Object when) {
-    return '$status ar $worker  ·  $when';
-  }
-
-  @override
   String renderStatus(Object status, Object when) {
     return '$status  ·  $when';
   }
