@@ -1,0 +1,201 @@
+diff --git a/apps/deckcraft-web/src/web.rs b/apps/deckcraft-web/src/web.rs
+index 1a6c456..759420b 100644
+--- a/apps/deckcraft-web/src/web.rs
++++ b/apps/deckcraft-web/src/web.rs
+@@ -1,6 +1,7 @@
+ //! The browser shell: web `Services`, drag-and-drop, and the eframe web runner.
+ 
+ use deckcraft_engine::Session;
++use deckcraft_ui_egui::theme::Brightness;
+ use deckcraft_ui_egui::{Inbox, InboxEvent, InboxFile, Services, SlideApp};
+ use wasm_bindgen::JsCast as _;
+ 
+@@ -59,6 +60,14 @@ pub fn start() {
+                         bridge.connect(&mut services, cc.egui_ctx.clone());
+                     }
+                     let mut app = SlideApp::new(Session::new(), services);
++                    // The host page owns the theme: `&theme=` (light/dark/oled/system) picks it;
++                    // no host word follows the OS choice.
++                    app.ui.brightness = match query_param("theme").as_deref() {
++                        Some("light") => Brightness::Light,
++                        Some("dark") | Some("oled") => Brightness::Dark,
++                        _ if cc.egui_ctx.system_theme() == Some(egui::Theme::Dark) => Brightness::Dark,
++                        _ => Brightness::Light,
++                    };
+                     // In host mode the parent sends the presentation to edit; no sample meanwhile.
+                     if app_bridge.is_some() {
+                         if let Err(e) = app.start_for_host() {
+diff --git a/crates/ui-egui/src/backstage/info.rs b/crates/ui-egui/src/backstage/info.rs
+index 3ddbda1..0fbf4dc 100644
+--- a/crates/ui-egui/src/backstage/info.rs
++++ b/crates/ui-egui/src/backstage/info.rs
+@@ -225,23 +225,5 @@ pub(super) fn about(app: &mut SlideApp, ui: &mut Ui) {
+             ui.hyperlink_to("Join our community on Discord", deckcraft_engine::links::DISCORD);
+             ui.hyperlink_to("Source on GitHub", deckcraft_engine::links::GITHUB);
+         });
+-        ui.add_space(40.0);
+-        ui.vertical(|ui| {
+-            ui.set_width(340.0);
+-            heading(ui, "Appearance");
+-            let dark = app.ui.brightness == theme::Brightness::Dark;
+-            craft_ui::ComboBox::from_id_salt("backstage_appearance")
+-                .width(260.0)
+-                .selected_text(if dark { "Dark" } else { "Light" })
+-                .show_ui(ui, |ui| {
+-                    for (on, label) in [(false, "Light"), (true, "Dark")] {
+-                        if ui.selectable_label(dark == on, label).clicked() {
+-                            let _ = app.run("view.dark", json!({"on": on}));
+-                        }
+-                    }
+-                })
+-                .response
+-                .widget_info(|| egui::WidgetInfo::labeled(egui::Role::ComboBox, true, "Appearance"));
+-        });
+     });
+ }
+diff --git a/crates/ui-egui/src/backstage/tests.rs b/crates/ui-egui/src/backstage/tests.rs
+index a21cd3c..a8d4dd1 100644
+--- a/crates/ui-egui/src/backstage/tests.rs
++++ b/crates/ui-egui/src/backstage/tests.rs
+@@ -778,7 +778,6 @@ fn about_has_product_links_and_credits_without_account_controls() {
+     assert!(h.query_by_label("User Information").is_none());
+     assert!(h.query_by_label("Source on GitHub").is_some());
+     assert!(h.query_by_label("Join our community on Discord").is_some());
+-    assert!(h.query_all_by_label("Appearance").next().is_some());
+     click_on_page(&h, "Credits");
+     h.run_steps(3);
+     assert!(h.state().dialog.is_some());
+@@ -786,18 +785,3 @@ fn about_has_product_links_and_credits_without_account_controls() {
+     assert!(h.query_by_label("Models").is_some());
+ }
+ 
+-/// At the 900-point minimum window width the About columns stack and Appearance stays on the page.
+-#[test]
+-fn about_appearance_stays_on_the_page_at_minimum_width() {
+-    let mut h = Harness::builder().with_size(egui::vec2(900.0, 900.0)).build_ui_state(
+-        |ui, app: &mut SlideApp| {
+-            app.logic(ui.ctx());
+-            app.ui(ui);
+-        },
+-        new_app(),
+-    );
+-    h.state_mut().run("app.backstage", json!({"page": "about"})).unwrap();
+-    h.run_steps(3);
+-    let r = h.query_all_by_role_and_label(Role::ComboBox, "Appearance").next().expect("Appearance selector").rect();
+-    assert!(r.right() <= 900.0, "Appearance selector ends at {}, inside the window", r.right());
+-}
+diff --git a/crates/ui-egui/src/dialogs/body.rs b/crates/ui-egui/src/dialogs/body.rs
+index 932cd46..4c7ed7c 100644
+--- a/crates/ui-egui/src/dialogs/body.rs
++++ b/crates/ui-egui/src/dialogs/body.rs
+@@ -1342,10 +1342,6 @@ fn dlg_preferences(app: &mut SlideApp, ui: &mut Ui, d: &mut Dialog) -> bool {
+         d.params = json!({ "before": preferences_snapshot(app) });
+     }
+     ui.label(egui::RichText::new("General").font(theme::bold(13.0)));
+-    let mut dark = app.ui.brightness == theme::Brightness::Dark;
+-    if ui.checkbox(&mut dark, "Dark appearance").changed() {
+-        let _ = app.run("view.dark", json!({"on": dark}));
+-    }
+     // While the pointer holds the slider its value only waits in the dialog: applying it
+     // would rescale the slider under the pointer and run it to an end (#767). It applies
+     // on release, and at once from the keyboard.
+diff --git a/crates/ui-egui/src/dialogs/preferences_tests.rs b/crates/ui-egui/src/dialogs/preferences_tests.rs
+index c3a3ebf..80b7d75 100644
+--- a/crates/ui-egui/src/dialogs/preferences_tests.rs
++++ b/crates/ui-egui/src/dialogs/preferences_tests.rs
+@@ -96,13 +96,9 @@ fn options_cancel_undoes_every_editing_setting() {
+ #[test]
+ fn options_cancel_puts_the_appearance_and_scale_back() {
+     let mut h = harness();
+-    let (dark_before, scale_before) = (dark(h.state()), h.state().ui.ui_scale);
++    let scale_before = h.state().ui.ui_scale;
+     open_options(&mut h);
+ 
+-    h.query_by_label("Dark appearance").expect("the checkbox is there").click();
+-    h.run_steps(2);
+-    assert!(dark(h.state()), "the appearance applies as it is toggled");
+-
+     // Clicking the slider's middle sets it near the middle of its range, away from the default.
+     interface_size(&h).click();
+     h.run_steps(2);
+@@ -111,7 +107,7 @@ fn options_cancel_puts_the_appearance_and_scale_back() {
+ 
+     h.key_press(egui::Key::Escape);
+     h.run_steps(2);
+-    assert_eq!(dark(h.state()), dark_before, "Esc restores the appearance");
++    assert_eq!(dark(h.state()), false, "the host owns the appearance");
+     assert!((h.state().ui.ui_scale - scale_before).abs() < 1e-3, "Esc restores the size");
+     assert!(h.state().dialog.is_none(), "and the dialog closes");
+ }
+diff --git a/crates/ui-egui/src/ribbon/title_bar.rs b/crates/ui-egui/src/ribbon/title_bar.rs
+index 6c7e825..f0eeeb0 100644
+--- a/crates/ui-egui/src/ribbon/title_bar.rs
++++ b/crates/ui-egui/src/ribbon/title_bar.rs
+@@ -80,16 +80,5 @@ pub fn title_bar(app: &mut SlideApp, ui: &mut Ui) {
+         if icon_toggle(&mut right, Icon::CommentsBubble, "Comments", has_doc, app.ui.pane.as_deref() == Some("comments")).clicked() {
+             let _ = app.run("view.pane", json!({"pane": "comments", "toggle": true}));
+         }
+-        if icon_toggle(
+-            &mut right,
+-            if app.ui.brightness == theme::Brightness::Dark { Icon::Sparkle } else { Icon::Palette },
+-            "Light/Dark appearance",
+-            true,
+-            false,
+-        )
+-        .clicked()
+-        {
+-            let _ = app.run("view.dark", json!({}));
+-        }
+     });
+ }
+diff --git a/crates/ui-egui/src/ribbon/view.rs b/crates/ui-egui/src/ribbon/view.rs
+index c67f1c8..560c0de 100644
+--- a/crates/ui-egui/src/ribbon/view.rs
++++ b/crates/ui-egui/src/ribbon/view.rs
+@@ -1,4 +1,4 @@
+-use super::{Icon, SlideApp, Target, Ui, big_button, big_button_ex, group, json, rows, run, theme};
++use super::{Icon, SlideApp, Target, Ui, big_button, big_button_ex, group, json, rows, run};
+ 
+ pub(super) fn view(app: &mut SlideApp, ui: &mut Ui) {
+     use crate::ViewMode;
+@@ -89,10 +89,6 @@ pub(super) fn view(app: &mut SlideApp, ui: &mut Ui) {
+         if big_button_ex(ui, Icon::Grayscale, "Grayscale", true, false, gs).0.clicked() {
+             app.ui.grayscale = !gs;
+         }
+-        let dark = app.ui.brightness == theme::Brightness::Dark;
+-        if big_button_ex(ui, Icon::Palette, "Dark\nMode", true, false, dark).0.clicked() {
+-            let _ = app.run("view.dark", json!({}));
+-        }
+     });
+ }
+ 
+diff --git a/crates/ui-egui/src/tests.rs b/crates/ui-egui/src/tests.rs
+index d84d7d3..4d689f1 100644
+--- a/crates/ui-egui/src/tests.rs
++++ b/crates/ui-egui/src/tests.rs
+@@ -672,7 +672,7 @@ fn preferences_cancel_restores_the_settings_done_keeps_them() {
+     let change = |harness: &mut egui_kittest::Harness<'static, SlideApp>| {
+         harness.state_mut().run("app.preferences", json!({})).unwrap();
+         harness.run_steps(2);
+-        for label in ["Dark appearance", "Show smart guides", "Snap objects to grid"] {
++        for label in ["Show smart guides", "Snap objects to grid"] {
+             harness
+                 .query_all_by_role_and_label(egui::accesskit::Role::CheckBox, label)
+                 .next()
+@@ -680,7 +680,6 @@ fn preferences_cancel_restores_the_settings_done_keeps_them() {
+                 .click_accesskit();
+             harness.run_steps(2);
+         }
+-        assert_ne!(harness.state().ui.brightness, dark_before, "the dialog previews the appearance");
+         assert_ne!(harness.state().session.prefs.smart_guides, before.smart_guides);
+     };
+     let unchanged = |harness: &egui_kittest::Harness<'static, SlideApp>, how: &str| {
+@@ -710,7 +709,7 @@ fn preferences_cancel_restores_the_settings_done_keeps_them() {
+     harness.run_steps(2);
+     let s = harness.state();
+     assert!(s.dialog.is_none(), "Done closes Preferences");
+-    assert_ne!(s.ui.brightness, dark_before, "Done keeps the appearance");
++    assert_eq!(s.ui.brightness, dark_before, "the host owns the appearance");
+     assert_ne!(s.session.prefs.smart_guides, before.smart_guides, "Done keeps smart guides");
+     assert_ne!(s.session.prefs.snap_to_grid, before.snap_to_grid, "Done keeps snap to grid");
+ }

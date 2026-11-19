@@ -1,0 +1,77 @@
+diff --git a/apps/scriptcraft-web/Cargo.toml b/apps/scriptcraft-web/Cargo.toml
+index bfd8230..20b478a 100644
+--- a/apps/scriptcraft-web/Cargo.toml
++++ b/apps/scriptcraft-web/Cargo.toml
+@@ -19,6 +19,6 @@ log = { workspace = true }
+ wasm-bindgen = "0.2"
+ wasm-bindgen-futures = "0.4"
+ js-sys = "0.3"
+-web-sys = { version = "0.3", features = ["Window", "Document", "Element", "HtmlElement", "HtmlCanvasElement", "HtmlAnchorElement", "HtmlIFrameElement", "Blob", "BlobPropertyBag", "Url", "Navigator", "Location", "MessageEvent", "SpeechSynthesis", "SpeechSynthesisUtterance", "SpeechSynthesisVoice"] }
++web-sys = { version = "0.3", features = ["Window", "Document", "Element", "HtmlElement", "HtmlCanvasElement", "HtmlAnchorElement", "HtmlIFrameElement", "Blob", "BlobPropertyBag", "Url", "UrlSearchParams", "Navigator", "Location", "MessageEvent", "SpeechSynthesis", "SpeechSynthesisUtterance", "SpeechSynthesisVoice"] }
+ # The browser's file picker (an <input type=file>) for File › Open.
+ rfd = { workspace = true }
+diff --git a/apps/scriptcraft-web/src/main.rs b/apps/scriptcraft-web/src/main.rs
+index cf42d01..44e8089 100644
+--- a/apps/scriptcraft-web/src/main.rs
++++ b/apps/scriptcraft-web/src/main.rs
+@@ -385,7 +385,22 @@ mod web {
+                         } else {
+                             ScriptApp::new(Session::sample())
+                         };
+-                        app.dark = cc.egui_ctx.system_theme() == Some(egui::Theme::Dark);
++                        // The host page owns the theme: `&theme=` (light/dark/oled/system) picks
++                        // it; no host word means the OS choice, as before.
++                        let theme = web_sys::window()
++                            .and_then(|w| w.location().search().ok())
++                            .and_then(|s| web_sys::UrlSearchParams::new_with_str(&s).ok())
++                            .and_then(|p| p.get("theme"));
++                        app.dark = match theme.as_deref() {
++                            Some("light") => false,
++                            Some("dark") | Some("oled") => true,
++                            _ => cc.egui_ctx.system_theme() == Some(egui::Theme::Dark),
++                        };
++                        app.prefs.appearance.theme = if app.dark {
++                            scriptcraft_ui_egui::persist::Theme::Dark
++                        } else {
++                            scriptcraft_ui_egui::persist::Theme::Light
++                        };
+                         let files: Box<dyn FileHost> = if host_mode {
+                             wfm_listen(app.inbox.clone(), cc.egui_ctx.clone());
+                             wfm_post(&[("type", JsValue::from_str("scriptcraft:ready"))]);
+diff --git a/crates/ui-egui/src/chrome.rs b/crates/ui-egui/src/chrome.rs
+index 710ae3f..b5023e6 100644
+--- a/crates/ui-egui/src/chrome.rs
++++ b/crates/ui-egui/src/chrome.rs
+@@ -217,7 +217,6 @@ pub fn menu_bar(app: &mut ScriptApp, ui: &mut Ui) {
+                 ui.separator();
+                 check(app, ui, "Navigator", app.navigator, "ui.toggleNavigator", json!({}));
+                 check(app, ui, "Scene Numbers", app.session.script.settings.show_scene_numbers, "view.toggleSceneNumbers", json!({}));
+-                check(app, ui, "Dark Mode", app.dark, "ui.theme.toggle", json!({}));
+                 ui.separator();
+                 item(app, ui, "Zoom In", "ui.zoomIn", "Mod+=");
+                 item(app, ui, "Zoom Out", "ui.zoomOut", "Mod+-");
+@@ -452,10 +451,6 @@ pub fn toolbar(app: &mut ScriptApp, ui: &mut Ui) {
+                     app.run("ui.split", json!({}));
+                 }
+                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+-                    let (icon, tip) = if app.dark { (Icon::Sun, lang.text("Light mode")) } else { (Icon::Moon, lang.text("Dark mode")) };
+-                    if icons::button(ui, icon, lang.text(tip), false).clicked() {
+-                        app.run("ui.theme.toggle", json!({}));
+-                    }
+                     ui.add_space(6.0);
+                     if ui.small_button("+").on_hover_text(lang.text("Zoom in")).clicked() {
+                         app.run("ui.zoomIn", json!({}));
+diff --git a/crates/ui-egui/src/lib.rs b/crates/ui-egui/src/lib.rs
+index 4a09706..9086bab 100644
+--- a/crates/ui-egui/src/lib.rs
++++ b/crates/ui-egui/src/lib.rs
+@@ -88,9 +88,6 @@ pub const UI_COMMANDS: &[(&str, &str, &str, &str)] = &[
+     ("ui.view.outline", "Outline", "View", "Mod+Alt+5"),
+     ("ui.toggleStoryMap", "Story Map", "View", "Mod+Alt+M"),
+     ("ui.toggleNavigator", "Navigator", "View", "Mod+Alt+N"),
+-    ("ui.theme.toggle", "Dark Mode", "View", "Mod+Alt+D"),
+-    ("ui.theme.dark", "Dark Theme", "View", ""),
+-    ("ui.theme.light", "Light Theme", "View", ""),
+     ("ui.zoomIn", "Zoom In", "View", "Mod+="),
+     ("ui.zoomOut", "Zoom Out", "View", "Mod+-"),
+     ("ui.zoomReset", "Actual Size", "View", "Mod+0"),
