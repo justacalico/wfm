@@ -255,6 +255,24 @@
       "count": {}
     }
   },
+  "weeksAgo": "{count} 周前",
+  "@weeksAgo": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "monthsAgo": "{count} 个月前",
+  "@monthsAgo": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "yearsAgo": "{count} 年前",
+  "@yearsAgo": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "renderMode": "渲染位置",
   "renderOnDevice": "本机渲染",
   "renderOnServer": "服务器渲染",

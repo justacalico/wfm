@@ -483,6 +483,21 @@ class AppLocalizationsGa extends AppLocalizations {
   }
 
   @override
+  String weeksAgo(Object count) {
+    return '$count seacht. ó shin';
+  }
+
+  @override
+  String monthsAgo(Object count) {
+    return '$count mhí ó shin';
+  }
+
+  @override
+  String yearsAgo(Object count) {
+    return '$count bl. ó shin';
+  }
+
+  @override
   String get renderMode => 'Rindreáil ar';
 
   @override

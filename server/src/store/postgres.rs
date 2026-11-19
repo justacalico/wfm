@@ -111,6 +111,7 @@ fn row_comment(r: sqlx::postgres::PgRow) -> CommentView {
         user_id: r.get("user_id"),
         username: r.get("username"),
         display_name: r.get("display_name"),
+        avatar: r.get("avatar"),
         body: r.get("body"),
         created_at: r.get("created_at"),
         edited_at: r.get("edited_at"),
@@ -715,7 +716,7 @@ impl Db for PgDb {
 
     async fn comments_for(&self, project: &str) -> DbResult<Vec<CommentView>> {
         sqlx::query(
-            "SELECT c.id,c.project_id,c.user_id,u.username,u.display_name,c.body,c.created_at,c.edited_at FROM project_comments c JOIN users u ON u.id=c.user_id WHERE c.project_id=$1 ORDER BY c.created_at",
+            "SELECT c.id,c.project_id,c.user_id,u.username,u.display_name,c.body,c.created_at,c.edited_at,u.avatar FROM project_comments c JOIN users u ON u.id=c.user_id WHERE c.project_id=$1 ORDER BY c.created_at",
         )
         .bind(project)
         .fetch_all(&self.pool)
@@ -726,7 +727,7 @@ impl Db for PgDb {
 
     async fn comment_by_id(&self, id: &str) -> DbResult<CommentView> {
         sqlx::query(
-            "SELECT c.id,c.project_id,c.user_id,u.username,u.display_name,c.body,c.created_at,c.edited_at FROM project_comments c JOIN users u ON u.id=c.user_id WHERE c.id=$1",
+            "SELECT c.id,c.project_id,c.user_id,u.username,u.display_name,c.body,c.created_at,c.edited_at,u.avatar FROM project_comments c JOIN users u ON u.id=c.user_id WHERE c.id=$1",
         )
         .bind(id)
         .fetch_one(&self.pool)
