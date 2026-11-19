@@ -159,7 +159,8 @@ window.addEventListener("message", async (ev) => {
   else if (d.type === "filmcraft:failed") { fcFail("FilmCraft could not start: " + (d.error || "unknown error")); }
 });
 
-function send(name, bytes) {
+function send(meta, bytes) {
+  const name = "wfm:" + JSON.stringify(meta);
   $("fc").contentWindow.postMessage({ type: "filmcraft:open", name, bytes }, location.origin, [bytes instanceof ArrayBuffer ? bytes : bytes.buffer]);
 }
 
@@ -180,15 +181,15 @@ async function sendDoc() {
   let entries = [];
   try {
     entries = await listFiles("");
-    for (const d of entries.filter(e => e.type === "dir" && !e.path.startsWith("Exports"))) {
-      send("Folder_" + d.path.replace(/\//g, "::"), new ArrayBuffer(0));
+    for (const d of entries.filter(e => e.type === "dir" && e.path !== "Exports" && !e.path.startsWith("Exports/"))) {
+      send({ k: "folder", p: d.path }, new ArrayBuffer(0));
     }
     const media = entries
       .filter(e => e.type !== "dir" && !e.path.startsWith("Exports/") && !e.name.endsWith(".fcproj") && MEDIA_EXT.test(e.name))
       .sort((a, b) => (a.path < b.path ? -1 : 1));
     for (const m of media) {
       const r = await api("/projects/" + projectId + "/download?path=" + encodeURIComponent(m.path));
-      if (r.ok) send("Media_" + m.path.replace(/\//g, "::"), await r.arrayBuffer());
+      if (r.ok) send({ k: "media", p: m.path }, await r.arrayBuffer());
       else { docErrors++; }
     }
   } catch (_) { docErrors++; }
@@ -197,7 +198,7 @@ async function sendDoc() {
   if (!r.ok && hasDoc) docErrors++;
   if (docErrors) toast(docErrors + " file(s) could not be downloaded");
   const bytes = r.ok ? await r.arrayBuffer() : new ArrayBuffer(0);
-  send(docName, bytes);
+  send({ k: "doc", n: docName }, bytes);
 }
 
 function binFolders(bin, prefix, out) {
@@ -257,7 +258,16 @@ function uplRemove(path, delay) {
     if (!uplRows.size) $("upl").hidden = true;
   }, delay);
 }
-function uploadMedia(path, bytes) {
+async function uploadMedia(path, bytes) {
+  let x = await uploadOnce(path, bytes).catch(() => null);
+  if (!x || x.status >= 400) {
+    await new Promise(r => setTimeout(r, 2000));
+    x = await uploadOnce(path, bytes);
+  }
+  return x;
+}
+
+function uploadOnce(path, bytes) {
   return new Promise((resolve, reject) => {
     const x = new XMLHttpRequest();
     x.open("PUT", API + "/projects/" + projectId + "/files?path=" + encodeURIComponent(path));
@@ -275,8 +285,11 @@ async function handleSave(d) {
   let path = d.name || "export.bin";
   const media = !!(d.id && !d.id.includes("..") && !d.id.startsWith("/") && !d.id.includes("\\") && d.id.trim());
   if (media) path = d.id;
-  else if (!path.startsWith("Raw/")) {
-    path = path.toLowerCase().endsWith(".fcproj") ? "project.fcproj" : "Exports/" + path.replace(/^.*\//, "");
+  else if (path.toLowerCase().endsWith(".fcproj")) {
+    if (path === docName || d.saveAs) path = "project.fcproj";
+    else return;
+  } else if (!path.startsWith("Raw/")) {
+    path = "Exports/" + path.replace(/^.*\//, "");
   }
   pending++;
   try {
