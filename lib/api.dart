@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:http/http.dart' as http;
+import 'uploads.dart';
 
 class ApiException implements Exception {
   final int status;
@@ -168,6 +169,7 @@ class AuditEntry {
 }
 
 class Api {
+  final uploads = UploadQueue();
   static Api i = Api();
   final http.Client _c;
   String csrf = '';
