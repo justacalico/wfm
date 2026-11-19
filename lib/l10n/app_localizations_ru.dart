@@ -813,4 +813,14 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get noShares => 'С вами пока ничем не поделились';
+
+  @override
+  String get autoShares => 'Автодоступ';
+
+  @override
+  String get autoSharesHint =>
+      'Эти люди автоматически приглашаются в каждый новый проект ваших учеников.';
+
+  @override
+  String get autoShareAdd => 'Добавить';
 }

@@ -187,6 +187,18 @@ class Share {
         createdAt = j['createdAt'] ?? 0;
 }
 
+class AutoShare {
+  final String id, inviteeId, inviteeUsername, inviteeName, level;
+  final int createdAt;
+  AutoShare.fromJson(Map<String, dynamic> j)
+      : id = j['id'] ?? '',
+        inviteeId = j['inviteeId'] ?? '',
+        inviteeUsername = j['inviteeUsername'] ?? '',
+        inviteeName = j['inviteeName'] ?? '',
+        level = j['level'] ?? 'view',
+        createdAt = j['createdAt'] ?? 0;
+}
+
 class Invite {
   final String id, role, presetUsername, presetName, usedBy;
   final int usedAt, expiresAt, createdAt;
@@ -524,6 +536,16 @@ class Api {
 
   Future<List<Share>> shares() async =>
       [for (final e in (await get('/shares')) as List) Share.fromJson(e)];
+
+  Future<List<AutoShare>> autoShares() async => [
+        for (final e in (await get('/auto-shares')) as List)
+          AutoShare.fromJson(e)
+      ];
+
+  Future<void> autoShareAdd(String username, String level) =>
+      post('/auto-shares', {'username': username, 'level': level});
+
+  Future<void> autoShareDelete(String id) => del('/auto-shares/$id');
 
   Future<void> shareRespond(String sid, bool accept) =>
       post('/shares/$sid/${accept ? 'accept' : 'decline'}', {});

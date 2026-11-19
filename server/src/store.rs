@@ -221,6 +221,10 @@ pub trait Db: Send + Sync {
     async fn share_set_level(&self, id: &str, project: &str, level: &str) -> DbResult<bool>;
     async fn share_delete(&self, id: &str, project: &str) -> DbResult<bool>;
     async fn shares_delete_project(&self, project: &str) -> DbResult<()>;
+    async fn auto_shares_list(&self, owner: &str) -> DbResult<Vec<AutoShareView>>;
+    async fn auto_share_upsert(&self, owner: &str, invitee: &str, level: &str) -> DbResult<()>;
+    async fn auto_share_delete(&self, owner: &str, id: &str) -> DbResult<bool>;
+    async fn auto_shares_all(&self) -> DbResult<Vec<AutoShare>>;
 
     // key-value settings
     async fn setting_get(&self, k: &str) -> DbResult<Option<String>>;

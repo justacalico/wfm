@@ -1415,6 +1415,82 @@ impl Db for SqliteDb {
             .map(|_| ())
             .map_err(dberr)
     }
+
+    async fn auto_shares_list(&self, owner: &str) -> DbResult<Vec<AutoShareView>> {
+        let owner = owner.to_string();
+        self.q(move |c| {
+                let mut st = c.prepare(
+                    "SELECT a.id,a.invitee_id,u.username,u.display_name,a.level,a.created_at FROM auto_shares a JOIN users u ON u.id=a.invitee_id WHERE a.owner_id=? ORDER BY a.created_at DESC"
+                )?;
+                let rows = st.query_map(params![owner], |r| {
+                    Ok(AutoShareView {
+                        id: r.get(0)?,
+                        invitee_id: r.get(1)?,
+                        invitee_username: r.get(2)?,
+                        invitee_name: r.get(3)?,
+                        level: r.get(4)?,
+                        created_at: r.get(5)?,
+                    })
+                })?;
+                rows.collect::<rusqlite::Result<Vec<_>>>()
+            })
+            .await
+            .map_err(dberr)
+    }
+
+    async fn auto_share_upsert(
+        &self,
+        owner: &str,
+        invitee: &str,
+        level: &str,
+    ) -> DbResult<()> {
+        let owner = owner.to_string();
+        let invitee = invitee.to_string();
+        let level = level.to_string();
+        self.q(move |c| {
+                c.execute(
+                    "INSERT INTO auto_shares(id,owner_id,invitee_id,level,created_at) VALUES(?,?,?,?,?) ON CONFLICT(owner_id,invitee_id) DO UPDATE SET level=excluded.level",
+                    params![crate::model::new_id(), owner, invitee, level, crate::auth::AppState::now()],
+                )
+            })
+            .await
+            .map(|_| ())
+            .map_err(dberr)
+    }
+
+    async fn auto_share_delete(&self, owner: &str, id: &str) -> DbResult<bool> {
+        let owner = owner.to_string();
+        let id = id.to_string();
+        self.q(move |c| {
+                c.execute(
+                    "DELETE FROM auto_shares WHERE id=? AND owner_id=?",
+                    params![id, owner],
+                )
+            })
+            .await
+            .map(|n| n > 0)
+            .map_err(dberr)
+    }
+
+    async fn auto_shares_all(&self) -> DbResult<Vec<AutoShare>> {
+        self.q(move |c| {
+                let mut st = c.prepare(
+                    "SELECT id,owner_id,invitee_id,level,created_at FROM auto_shares"
+                )?;
+                let rows = st.query_map([], |r| {
+                    Ok(AutoShare {
+                        id: r.get(0)?,
+                        owner_id: r.get(1)?,
+                        invitee_id: r.get(2)?,
+                        level: r.get(3)?,
+                        created_at: r.get(4)?,
+                    })
+                })?;
+                rows.collect::<rusqlite::Result<Vec<_>>>()
+            })
+            .await
+            .map_err(dberr)
+    }
 }
 
 #[cfg(test)]
@@ -1780,6 +1856,46 @@ mod tests {
         db.share_upsert(&sh).await.unwrap();
         db.shares_delete_project("p1").await.unwrap();
         assert!(db.shares_by_project("p1").await.unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn auto_share_lifecycle() {
+        let db = connect(":memory:").await.unwrap();
+        let u = |id: &str| User {
+            id: id.into(),
+            username: format!("u{id}"),
+            display_name: format!("N{id}"),
+            role: Role::Student,
+            role_name: String::new(),
+            student_id: String::new(),
+            note: String::new(),
+            disabled: false,
+            avatar: String::new(),
+            created_by: String::new(),
+            lineage: "/".into(),
+            created_at: 1,
+            last_login: 0,
+        };
+        db.create_user(&u("t1"), "h").await.unwrap();
+        db.create_user(&u("a1"), "h").await.unwrap();
+        db.create_user(&u("a2"), "h").await.unwrap();
+        db.auto_share_upsert("t1", "a1", "edit").await.unwrap();
+        db.auto_share_upsert("t1", "a2", "view").await.unwrap();
+        db.auto_share_upsert("t2", "a2", "edit").await.unwrap();
+        let l = db.auto_shares_list("t1").await.unwrap();
+        assert_eq!(l.len(), 2);
+        let e = l.iter().find(|e| e.invitee_id == "a2").unwrap();
+        assert_eq!(e.invitee_username, "ua2");
+        assert_eq!(e.invitee_name, "Na2");
+        db.auto_share_upsert("t1", "a1", "view").await.unwrap();
+        let l = db.auto_shares_list("t1").await.unwrap();
+        assert_eq!(l.len(), 2);
+        assert!(l.iter().any(|e| e.invitee_id == "a1" && e.level == "view"));
+        assert_eq!(db.auto_shares_all().await.unwrap().len(), 3);
+        let id = l.iter().find(|e| e.invitee_id == "a1").unwrap().id.clone();
+        assert!(!db.auto_share_delete("t2", &id).await.unwrap());
+        assert!(db.auto_share_delete("t1", &id).await.unwrap());
+        assert_eq!(db.auto_shares_list("t1").await.unwrap().len(), 1);
     }
 
     #[tokio::test]

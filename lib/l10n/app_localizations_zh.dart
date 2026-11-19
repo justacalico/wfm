@@ -809,4 +809,13 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get noShares => '还没有人与你共享内容';
+
+  @override
+  String get autoShares => '自动共享';
+
+  @override
+  String get autoSharesHint => '你的学生创建的每个新项目都会自动邀请这些人。';
+
+  @override
+  String get autoShareAdd => '添加自动共享';
 }

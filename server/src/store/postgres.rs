@@ -183,6 +183,27 @@ fn row_share_view(r: sqlx::postgres::PgRow) -> ShareView {
 }
 
 const SHARE_VIEW_SELECT: &str = "SELECT s.id,s.project_id,s.inviter_id,s.invitee_id,s.level,s.status,s.created_at,s.responded_at,p.name AS project_name,iv.username AS inviter_username,ie.username AS invitee_username,ie.display_name AS invitee_name FROM project_shares s JOIN projects p ON p.id=s.project_id JOIN users iv ON iv.id=s.inviter_id JOIN users ie ON ie.id=s.invitee_id";
+fn row_auto_share(r: sqlx::postgres::PgRow) -> AutoShare {
+    AutoShare {
+        id: r.get("id"),
+        owner_id: r.get("owner_id"),
+        invitee_id: r.get("invitee_id"),
+        level: r.get("level"),
+        created_at: r.get("created_at"),
+    }
+}
+
+fn row_auto_share_view(r: sqlx::postgres::PgRow) -> AutoShareView {
+    AutoShareView {
+        id: r.get("id"),
+        invitee_id: r.get("invitee_id"),
+        invitee_username: r.get("invitee_username"),
+        invitee_name: r.get("invitee_name"),
+        level: r.get("level"),
+        created_at: r.get("created_at"),
+    }
+}
+
 
 fn row_audit(r: sqlx::postgres::PgRow) -> AuditEntry {
     AuditEntry {
@@ -1282,6 +1303,55 @@ impl Db for PgDb {
             .execute(&self.pool)
             .await
             .map(|_| ())
+            .map_err(map_err)
+    }
+
+    async fn auto_shares_list(&self, owner: &str) -> DbResult<Vec<AutoShareView>> {
+        sqlx::query(
+            "SELECT a.id,a.invitee_id,u.username AS invitee_username,u.display_name AS invitee_name,a.level,a.created_at FROM auto_shares a JOIN users u ON u.id=a.invitee_id WHERE a.owner_id=$1 ORDER BY a.created_at DESC",
+        )
+        .bind(owner)
+        .map(row_auto_share_view)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(map_err)
+    }
+
+    async fn auto_share_upsert(
+        &self,
+        owner: &str,
+        invitee: &str,
+        level: &str,
+    ) -> DbResult<()> {
+        sqlx::query(
+            "INSERT INTO auto_shares(id,owner_id,invitee_id,level,created_at) VALUES($1,$2,$3,$4,$5) ON CONFLICT(owner_id,invitee_id) DO UPDATE SET level=excluded.level",
+        )
+        .bind(crate::model::new_id())
+        .bind(owner)
+        .bind(invitee)
+        .bind(level)
+        .bind(crate::auth::AppState::now())
+        .execute(&self.pool)
+        .await
+        .map(|_| ())
+        .map_err(map_err)
+    }
+
+    async fn auto_share_delete(&self, owner: &str, id: &str) -> DbResult<bool> {
+        sqlx::query("DELETE FROM auto_shares WHERE id=$1 AND owner_id=$2")
+            .bind(id)
+            .bind(owner)
+            .execute(&self.pool)
+            .await
+            .map(|r| r.rows_affected() > 0)
+            .map_err(map_err)
+    }
+
+    async fn auto_shares_all(&self) -> DbResult<Vec<AutoShare>> {
+        sqlx::query("SELECT id,owner_id,invitee_id,level,created_at FROM auto_shares")
+            .map(row_auto_share)
+            .fetch_all(&self.pool)
+            .await
             .map_err(map_err)
     }
 }

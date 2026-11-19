@@ -493,5 +493,32 @@ void main() {
       await api.shareRespond('s3', false);
       expect(lastRequest!.url.path, '/api/shares/s3/decline');
     });
+
+    test('AutoShare model and endpoints', () async {
+      final api = Api(client({
+        'GET /api/auto-shares': [
+          {
+            'id': 'a1',
+            'inviteeId': 'u2',
+            'inviteeUsername': 'bob',
+            'inviteeName': 'Bob',
+            'level': 'edit',
+            'createdAt': 7
+          },
+          {'id': 'a2', 'inviteeId': 'u3'}
+        ],
+        'POST /api/auto-shares': {'ok': true},
+        'DELETE /api/auto-shares/a1': {'ok': true},
+      }));
+      final list = await api.autoShares();
+      expect(list.first.inviteeUsername, 'bob');
+      expect(list.first.level, 'edit');
+      expect(list.last.level, 'view');
+      expect(list.last.inviteeName, '');
+      await api.autoShareAdd('bob', 'view');
+      expect(jsonDecode(utf8.decode(lastRequest!.bodyBytes))['level'], 'view');
+      await api.autoShareDelete('a1');
+      expect(lastRequest!.url.path, '/api/auto-shares/a1');
+    });
   });
 }

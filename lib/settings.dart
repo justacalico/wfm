@@ -31,6 +31,7 @@ class _SettingsPageState extends State<SettingsPage> {
   AppUpdate? _latest;
   String _version = '';
   List<SessionInfo>? _sessions;
+  List<AutoShare>? _autoShares;
 
   @override
   void initState() {
@@ -51,6 +52,36 @@ class _SettingsPageState extends State<SettingsPage> {
     Api.i.sessions().then((v) {
       if (mounted) setState(() => _sessions = v);
     }).catchError((_) {});
+    if (Api.i.caps.creatable.isNotEmpty) _loadAutoShares();
+  }
+
+  void _loadAutoShares() {
+    Api.i.autoShares().then((v) {
+      if (mounted) setState(() => _autoShares = v);
+    }).catchError((_) {});
+  }
+
+  Future<void> _addAutoShare() async {
+    final r = await showDialog<(String, String)>(
+        context: context, builder: (_) => const _AutoShareDialog());
+    if (r == null || !mounted) return;
+    try {
+      await Api.i.autoShareAdd(r.$1, r.$2);
+      _loadAutoShares();
+    } catch (e) {
+      if (mounted) snack(context, e);
+    }
+  }
+
+  Future<void> _removeAutoShare(AutoShare a) async {
+    try {
+      await Api.i.autoShareDelete(a.id);
+      if (mounted) {
+        setState(() => _autoShares!.removeWhere((x) => x.id == a.id));
+      }
+    } catch (e) {
+      if (mounted) snack(context, e);
+    }
   }
 
   Future<void> _revoke(SessionInfo se) async {
@@ -208,6 +239,32 @@ class _SettingsPageState extends State<SettingsPage> {
                 : TextButton(
                     onPressed: () => _revoke(se), child: Text(l10n.revoke)),
           ),
+      ],
+      if (Api.i.caps.creatable.isNotEmpty) ...[
+        const SizedBox(height: 16),
+        Align(
+            alignment: Alignment.centerLeft,
+            child: Text(l10n.autoShares,
+                style: Theme.of(context).textTheme.titleSmall)),
+        Text(l10n.autoSharesHint, style: Theme.of(context).textTheme.bodySmall),
+        for (final a in _autoShares ?? [])
+          ListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.person_add_outlined, size: 18),
+            title:
+                Text(a.inviteeName.isEmpty ? a.inviteeUsername : a.inviteeName),
+            subtitle: Text(a.level == 'edit' ? l10n.canEdit : l10n.canView),
+            trailing: IconButton(
+                icon: const Icon(Icons.close, size: 18),
+                onPressed: () => _removeAutoShare(a)),
+          ),
+        Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+                onPressed: _addAutoShare,
+                icon: const Icon(Icons.add, size: 18),
+                label: Text(l10n.autoShareAdd))),
       ],
       AnimatedBuilder(
         animation: Listenable.merge([app.themeCtl, app.localeCtl]),
@@ -408,6 +465,67 @@ class _PasswordDialogState extends State<_PasswordDialog> {
                 ? () => Navigator.pop(context, (_cur.text, _next.text))
                 : null,
             child: Text(l10n.save)),
+      ],
+    );
+  }
+}
+
+class _AutoShareDialog extends StatefulWidget {
+  const _AutoShareDialog();
+  @override
+  State<_AutoShareDialog> createState() => _AutoShareDialogState();
+}
+
+class _AutoShareDialogState extends State<_AutoShareDialog> {
+  final _name = TextEditingController();
+  String _level = 'view';
+
+  @override
+  void dispose() {
+    _name.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    void submit() {
+      if (_name.text.trim().isNotEmpty) {
+        Navigator.pop(context, (_name.text.trim(), _level));
+      }
+    }
+
+    return AlertDialog(
+      title: Text(l10n.autoShareAdd),
+      content: SizedBox(
+        width: 320,
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          TextField(
+              controller: _name,
+              decoration: dec(l10n.username),
+              onChanged: (_) => setState(() {}),
+              onSubmitted: (_) => submit()),
+          const SizedBox(height: 8),
+          DropdownButtonFormField<String>(
+            isExpanded: true,
+            initialValue: _level,
+            decoration: dec(l10n.share),
+            items: [
+              DropdownMenuItem(value: 'view', child: Text(l10n.canView)),
+              DropdownMenuItem(value: 'edit', child: Text(l10n.canEdit)),
+            ],
+            onChanged: (v) {
+              if (v != null) setState(() => _level = v);
+            },
+          ),
+        ]),
+      ),
+      actions: [
+        TextButton(
+            onPressed: () => Navigator.pop(context), child: Text(l10n.cancel)),
+        FilledButton(
+            onPressed: _name.text.trim().isNotEmpty ? submit : null,
+            child: Text(l10n.send)),
       ],
     );
   }
