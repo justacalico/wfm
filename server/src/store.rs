@@ -199,6 +199,15 @@ pub trait Db: Send + Sync {
     ) -> DbResult<Vec<AuditEntry>>;
     async fn audit_purge(&self, before: i64) -> DbResult<()>;
 
+    // invite codes
+    async fn invite_create(&self, i: &InviteCode) -> DbResult<()>;
+    async fn invite_by_hash(&self, hash: &str) -> DbResult<InviteCode>;
+    async fn invites_by_creator(&self, uid: &str) -> DbResult<Vec<InviteCode>>;
+    /// Atomically claim a code that is unused, unrevoked and unexpired.
+    async fn invite_use(&self, hash: &str, uid: &str, ts: i64) -> DbResult<bool>;
+    async fn invite_unuse(&self, hash: &str) -> DbResult<()>;
+    async fn invite_revoke(&self, id: &str, creator: &str) -> DbResult<bool>;
+
     // key-value settings
     async fn setting_get(&self, k: &str) -> DbResult<Option<String>>;
     async fn setting_set(&self, k: &str, v: &str) -> DbResult<()>;

@@ -160,6 +160,24 @@ class RenderNode {
         lastSeen = j['lastSeen'] ?? 0;
 }
 
+class Invite {
+  final String id, role, presetUsername, presetName, usedBy;
+  final int usedAt, expiresAt, createdAt;
+  final bool revoked;
+  Invite.fromJson(Map<String, dynamic> j)
+      : id = j['id'] ?? '',
+        role = j['role'] ?? '',
+        presetUsername = j['presetUsername'] ?? '',
+        presetName = j['presetName'] ?? '',
+        usedBy = j['usedBy'] ?? '',
+        usedAt = j['usedAt'] ?? 0,
+        expiresAt = j['expiresAt'] ?? 0,
+        createdAt = j['createdAt'] ?? 0,
+        revoked = j['revoked'] == true;
+  bool expired(int now) => usedBy.isEmpty && !revoked && expiresAt <= now;
+  bool pending(int now) => usedBy.isEmpty && !revoked && expiresAt > now;
+}
+
 class AuditEntry {
   final int ts;
   final String actor, action, target, detail;
@@ -462,6 +480,27 @@ class Api {
 
   Future<void> changePassword(String current, String next) =>
       post('/me/password', {'current': current, 'next': next});
+
+  Future<List<Invite>> invites() async =>
+      [for (final e in (await get('/invites')) as List) Invite.fromJson(e)];
+
+  Future<String> inviteCreate(String role,
+          {String username = '', String name = ''}) async =>
+      '${(await post('/invites', {
+            'role': role,
+            'username': username,
+            'name': name
+          }))['code']}';
+
+  Future<void> inviteRevoke(String id) => del('/invites/$id');
+
+  Future<Map<String, dynamic>> inviteGet(String code) async =>
+      Map<String, dynamic>.from(await get('/invites/$code'));
+
+  Future<void> inviteRedeem(
+          String code, String username, String name, String password) async =>
+      _session(Map<String, dynamic>.from(await post('/invites/$code/redeem',
+          {'username': username, 'name': name, 'password': password})));
 
   Future<List<AuditEntry>> audit(
           {String scope = 'account',

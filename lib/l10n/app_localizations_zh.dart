@@ -700,4 +700,69 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get chunkSize => '上传分块大小';
+
+  @override
+  String get account => '账户';
+
+  @override
+  String get invite => '邀请';
+
+  @override
+  String get newInvite => '新建邀请';
+
+  @override
+  String get inviteReady => '邀请已创建';
+
+  @override
+  String get inviteUrl => '邀请链接';
+
+  @override
+  String get inviteCode => '邀请码';
+
+  @override
+  String get inviteEmail => '邮件内容';
+
+  @override
+  String inviteEmailBody(Object url) {
+    return '你已被邀请加入 WFM。点此注册：$url';
+  }
+
+  @override
+  String get copy => '复制';
+
+  @override
+  String get copied => '已复制';
+
+  @override
+  String get invites => '邀请';
+
+  @override
+  String get used => '已使用';
+
+  @override
+  String get expired => '已过期';
+
+  @override
+  String get pending => '待使用';
+
+  @override
+  String get usernameOptional => '用户名（可选）';
+
+  @override
+  String get nameOptional => '姓名（可选）';
+
+  @override
+  String get inviteSignup => '创建你的账户';
+
+  @override
+  String get signUp => '注册';
+
+  @override
+  String get confirmPassword => '确认密码';
+
+  @override
+  String get passwordsMismatch => '两次输入的密码不一致';
+
+  @override
+  String get revoked => '已撤销';
 }

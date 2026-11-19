@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'api.dart';
 import 'l10n/app_localizations.dart';
 import 'projects.dart';
+import 'invite.dart';
 import 'manage.dart';
 import 'settings.dart';
 
@@ -34,7 +35,8 @@ ThemeData _makeTheme(Brightness b, {bool oled = false}) => ThemeData(
     );
 
 class WfmApp extends StatefulWidget {
-  const WfmApp({super.key});
+  final Uri? uri;
+  const WfmApp({super.key, this.uri});
   @override
   State<WfmApp> createState() => WfmAppState();
 }
@@ -96,7 +98,7 @@ class WfmAppState extends State<WfmApp> {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      home: const Gate(),
+      home: Gate(uri: widget.uri),
       debugShowCheckedModeBanner: false,
     );
   }
@@ -403,7 +405,8 @@ Future<bool> confirm(BuildContext context, String title, String body) async =>
     true;
 
 class Gate extends StatefulWidget {
-  const Gate({super.key});
+  final Uri? uri;
+  const Gate({super.key, this.uri});
   @override
   State<Gate> createState() => _GateState();
 }
@@ -419,6 +422,12 @@ class _GateState extends State<Gate> {
 
   Future<Widget> _decide() async {
     try {
+      const m = '/invite/';
+      final p = widget.uri?.path ?? Uri.base.path;
+      final i = p.indexOf(m);
+      if (i >= 0 && i + m.length < p.length) {
+        return InvitePage(code: p.substring(i + m.length));
+      }
       if (await Api.i.needsSetup()) return const SetupPage();
       final u = await Api.i.me();
       if (u == null) return const LoginPage();

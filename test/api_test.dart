@@ -396,4 +396,61 @@ void main() {
       expect(lastRequest!.method, 'DELETE');
     });
   });
+  group('invites', () {
+    test('Invite model and endpoints', () async {
+      final api = Api(client({
+        'GET /api/invites': [
+          {
+            'id': 'i1',
+            'role': 'student',
+            'presetUsername': 'ann',
+            'presetName': 'Ann',
+            'usedBy': '',
+            'usedAt': 0,
+            'expiresAt': 9999999999,
+            'revoked': false,
+            'createdAt': 1
+          },
+          {
+            'id': 'i2',
+            'role': 'mod',
+            'usedBy': 'u9',
+            'usedAt': 5,
+            'expiresAt': 9999999999,
+            'createdAt': 1
+          },
+          {'id': 'i3', 'role': 'student', 'expiresAt': 1, 'createdAt': 1},
+          {
+            'id': 'i4',
+            'role': 'student',
+            'expiresAt': 9999999999,
+            'revoked': true,
+            'createdAt': 1
+          },
+        ],
+        'POST /api/invites': {'code': 'c9', 'invite': {}},
+        'DELETE /api/invites/i1': {'ok': true},
+        'GET /api/invites/c9': {'username': 'ann', 'name': 'Ann'},
+        'POST /api/invites/c9/redeem': {
+          'user': userJson,
+          'csrf': 'tok',
+          'token': 't'
+        },
+      }));
+      final inv = await api.invites();
+      expect(inv.length, 4);
+      expect(inv[0].presetUsername, 'ann');
+      expect(inv[0].pending(100), isTrue);
+      expect(inv[0].expired(100), isFalse);
+      expect(inv[2].expired(10), isTrue);
+      expect(inv[2].pending(10), isFalse);
+      expect(inv[3].pending(100), isFalse);
+      expect(await api.inviteCreate('student', username: 'u', name: 'n'), 'c9');
+      expect(jsonDecode(utf8.decode(lastRequest!.bodyBytes))['username'], 'u');
+      await api.inviteRevoke('i1');
+      expect(await api.inviteGet('c9'), {'username': 'ann', 'name': 'Ann'});
+      await api.inviteRedeem('c9', 'ann', 'Ann', 'password1');
+      expect(api.user!.username, 'ada');
+    });
+  });
 }

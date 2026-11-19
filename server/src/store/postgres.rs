@@ -136,6 +136,22 @@ fn row_node(r: sqlx::postgres::PgRow) -> RenderNode {
     }
 }
 
+fn row_invite(r: sqlx::postgres::PgRow) -> InviteCode {
+    InviteCode {
+        id: r.get("id"),
+        code_hash: r.get("code_hash"),
+        created_by: r.get("created_by"),
+        role: r.get("role"),
+        preset_username: r.get("preset_username"),
+        preset_name: r.get("preset_name"),
+        used_by: r.get("used_by"),
+        used_at: r.get("used_at"),
+        expires_at: r.get("expires_at"),
+        revoked: r.get::<i32, _>("revoked") != 0,
+        created_at: r.get("created_at"),
+    }
+}
+
 fn row_audit(r: sqlx::postgres::PgRow) -> AuditEntry {
     AuditEntry {
         id: r.get("id"),
@@ -1039,6 +1055,82 @@ impl Db for PgDb {
             .await
             .map(|_| ())
             .map_err(map_err)
+    }
+
+    async fn invite_create(&self, i: &InviteCode) -> DbResult<()> {
+        sqlx::query(
+            "INSERT INTO invite_codes(id,code_hash,created_by,role,preset_username,preset_name,used_by,used_at,expires_at,revoked,created_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)",
+        )
+        .bind(&i.id)
+        .bind(&i.code_hash)
+        .bind(&i.created_by)
+        .bind(&i.role)
+        .bind(&i.preset_username)
+        .bind(&i.preset_name)
+        .bind(&i.used_by)
+        .bind(i.used_at)
+        .bind(i.expires_at)
+        .bind(i.revoked as i32)
+        .bind(i.created_at)
+        .execute(&self.pool)
+        .await
+        .map(|_| ())
+        .map_err(map_err)
+    }
+
+    async fn invite_by_hash(&self, hash: &str) -> DbResult<InviteCode> {
+        sqlx::query("SELECT * FROM invite_codes WHERE code_hash=$1")
+            .bind(hash)
+            .fetch_one(&self.pool)
+            .await
+            .map(|r| row_invite(r))
+            .map_err(map_err)
+    }
+
+    async fn invites_by_creator(&self, uid: &str) -> DbResult<Vec<InviteCode>> {
+        let rows = sqlx::query(
+            "SELECT * FROM invite_codes WHERE created_by=$1 ORDER BY created_at DESC",
+        )
+        .bind(uid)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(map_err)?;
+        Ok(rows.into_iter().map(row_invite).collect())
+    }
+
+    async fn invite_use(&self, hash: &str, uid: &str, ts: i64) -> DbResult<bool> {
+        sqlx::query(
+            "UPDATE invite_codes SET used_by=$1, used_at=$2 WHERE code_hash=$3 AND used_by='' AND revoked=0 AND expires_at>$4",
+        )
+        .bind(uid)
+        .bind(ts)
+        .bind(hash)
+        .bind(ts)
+        .execute(&self.pool)
+        .await
+        .map(|r| r.rows_affected() > 0)
+        .map_err(map_err)
+    }
+
+    async fn invite_unuse(&self, hash: &str) -> DbResult<()> {
+        sqlx::query("UPDATE invite_codes SET used_by='', used_at=0 WHERE code_hash=$1")
+            .bind(hash)
+            .execute(&self.pool)
+            .await
+            .map(|_| ())
+            .map_err(map_err)
+    }
+
+    async fn invite_revoke(&self, id: &str, creator: &str) -> DbResult<bool> {
+        sqlx::query(
+            "UPDATE invite_codes SET revoked=1 WHERE id=$1 AND created_by=$2 AND used_by=''",
+        )
+        .bind(id)
+        .bind(creator)
+        .execute(&self.pool)
+        .await
+        .map(|r| r.rows_affected() > 0)
+        .map_err(map_err)
     }
 
     async fn setting_get(&self, k: &str) -> DbResult<Option<String>> {

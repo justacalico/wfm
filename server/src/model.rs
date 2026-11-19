@@ -200,6 +200,29 @@ pub struct RenderNode {
 }
 
 #[derive(Clone, Serialize)]
+pub struct InviteCode {
+    pub id: String,
+    #[serde(skip)]
+    pub code_hash: String,
+    #[serde(rename = "createdBy")]
+    pub created_by: String,
+    pub role: String,
+    #[serde(rename = "presetUsername")]
+    pub preset_username: String,
+    #[serde(rename = "presetName")]
+    pub preset_name: String,
+    #[serde(rename = "usedBy")]
+    pub used_by: String,
+    #[serde(rename = "usedAt")]
+    pub used_at: i64,
+    #[serde(rename = "expiresAt")]
+    pub expires_at: i64,
+    pub revoked: bool,
+    #[serde(rename = "createdAt")]
+    pub created_at: i64,
+}
+
+#[derive(Clone, Serialize)]
 pub struct AuditEntry {
     pub id: i64,
     pub ts: i64,
