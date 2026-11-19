@@ -365,5 +365,9 @@
   "declined": "已拒绝",
   "accept": "接受",
   "decline": "拒绝",
-  "shareInviteFrom": "{user} 邀请你 · {level}"
+  "shareInviteFrom": "{user} 邀请你 · {level}",
+  "navShared": "与我共享",
+  "pendingInvites": "待处理邀请",
+  "sharedProjects": "共享的项目",
+  "noShares": "还没有人与你共享内容"
 }

@@ -801,4 +801,16 @@ class AppLocalizationsRu extends AppLocalizations {
   String shareInviteFrom(Object level, Object user) {
     return 'Приглашение от $user · $level';
   }
+
+  @override
+  String get navShared => 'Мне открыли доступ';
+
+  @override
+  String get pendingInvites => 'Ожидающие приглашения';
+
+  @override
+  String get sharedProjects => 'Общие проекты';
+
+  @override
+  String get noShares => 'С вами пока ничем не поделились';
 }

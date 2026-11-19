@@ -800,6 +800,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String shareInviteFrom(Object level, Object user) {
     return 'Invited by $user · $level';
   }
+
+  @override
+  String get navShared => 'Shared with me';
+
+  @override
+  String get pendingInvites => 'Pending invites';
+
+  @override
+  String get sharedProjects => 'Shared projects';
+
+  @override
+  String get noShares => 'Nothing shared with you yet';
 }
 
 /// The translations for English, as used in the United Kingdom (`en_GB`).
@@ -981,4 +993,16 @@ class AppLocalizationsEnGb extends AppLocalizationsEn {
   String shareInviteFrom(Object level, Object user) {
     return 'Invited by $user · $level';
   }
+
+  @override
+  String get navShared => 'Shared with me';
+
+  @override
+  String get pendingInvites => 'Pending invites';
+
+  @override
+  String get sharedProjects => 'Shared projects';
+
+  @override
+  String get noShares => 'Nothing shared with you yet';
 }

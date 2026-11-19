@@ -803,4 +803,16 @@ class AppLocalizationsGa extends AppLocalizations {
   String shareInviteFrom(Object level, Object user) {
     return 'Cuireadh ó $user · $level';
   }
+
+  @override
+  String get navShared => 'Roinnte liom';
+
+  @override
+  String get pendingInvites => 'Cuirí ar feitheamh';
+
+  @override
+  String get sharedProjects => 'Tionscadail roinnte';
+
+  @override
+  String get noShares => 'Níl aon rud roinnte leat fós';
 }

@@ -365,5 +365,9 @@
   "declined": "Отклонено",
   "accept": "Принять",
   "decline": "Отклонить",
-  "shareInviteFrom": "Приглашение от {user} · {level}"
+  "shareInviteFrom": "Приглашение от {user} · {level}",
+  "navShared": "Мне открыли доступ",
+  "pendingInvites": "Ожидающие приглашения",
+  "sharedProjects": "Общие проекты",
+  "noShares": "С вами пока ничем не поделились"
 }
