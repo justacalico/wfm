@@ -480,6 +480,21 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String weeksAgo(Object count) {
+    return '$count 周前';
+  }
+
+  @override
+  String monthsAgo(Object count) {
+    return '$count 个月前';
+  }
+
+  @override
+  String yearsAgo(Object count) {
+    return '$count 年前';
+  }
+
+  @override
   String get renderMode => '渲染位置';
 
   @override

@@ -85,9 +85,17 @@ class _CommentsTabState extends State<CommentsTab> {
     final canDel = own || widget.project.mine || (Api.i.user?.isOwner ?? false);
     return Card(
       child: ListTile(
+        leading: CircleAvatar(
+          radius: 16,
+          backgroundImage: c.avatar.isNotEmpty
+              ? NetworkImage(Api.i.avatarUrl(c.userId, c.avatar))
+              : null,
+          onBackgroundImageError: c.avatar.isNotEmpty ? (_, __) {} : null,
+          child: c.avatar.isNotEmpty ? null : const Icon(Icons.person_outline),
+        ),
         title: Text(c.body),
         subtitle: Text(
-            '${c.author}  ·  ${fmtTime(l10n, c.createdAt)}${c.editedAt > 0 ? '  ·  ${l10n.edited}' : ''}'),
+            '${c.author}  ·  ${fmtAgo(l10n, c.createdAt)}${c.editedAt > 0 ? '  ·  ${l10n.edited}' : ''}'),
         trailing: (own || canDel)
             ? PopupMenuButton<String>(
                 onSelected: (v) => v == 'edit' ? _edit(c) : _delete(c),

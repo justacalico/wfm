@@ -35,7 +35,9 @@ void main() {
     expect(fmtAgo(l10n, now - 120), l10n.minutesAgo(2));
     expect(fmtAgo(l10n, now - 3600 * 3), l10n.hoursAgo(3));
     expect(fmtAgo(l10n, now - 86400 * 5), l10n.daysAgo(5));
-    expect(fmtAgo(l10n, now - 86400 * 40), isNot(l10n.daysAgo(40)));
+    expect(fmtAgo(l10n, now - 86400 * 40), l10n.weeksAgo(5));
+    expect(fmtAgo(l10n, now - 86400 * 100), l10n.monthsAgo(3));
+    expect(fmtAgo(l10n, now - 86400 * 800), l10n.yearsAgo(2));
   });
 
   test('extOf', () {

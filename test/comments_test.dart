@@ -10,13 +10,15 @@ Map<String, Object> comment(String id,
         {String userId = 'u1',
         String body = 'hi',
         int createdAt = 1,
-        int editedAt = 0}) =>
+        int editedAt = 0,
+        String avatar = ''}) =>
     {
       'id': id,
       'projectId': 'p1',
       'userId': userId,
       'username': 'u$userId',
       'displayName': '',
+      'avatar': avatar,
       'body': body,
       'createdAt': createdAt,
       'editedAt': editedAt,
@@ -35,7 +37,11 @@ void main() {
     installApi(extra: {
       'GET /api/projects/p1/comments': (_) => [
             comment('c1', body: 'first'),
-            comment('c2', userId: 'u2', body: 'teacher note', editedAt: 9),
+            comment('c2',
+                userId: 'u2',
+                body: 'teacher note',
+                editedAt: 9,
+                avatar: 'avatars/u2/x.png'),
           ],
       'POST /api/projects/p1/comments': (req) {
         posted = req.body;

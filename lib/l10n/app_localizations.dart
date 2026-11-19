@@ -950,6 +950,24 @@ abstract class AppLocalizations {
   /// **'{count}d ago'**
   String daysAgo(Object count);
 
+  /// No description provided for @weeksAgo.
+  ///
+  /// In en, this message translates to:
+  /// **'{count}w ago'**
+  String weeksAgo(Object count);
+
+  /// No description provided for @monthsAgo.
+  ///
+  /// In en, this message translates to:
+  /// **'{count}mo ago'**
+  String monthsAgo(Object count);
+
+  /// No description provided for @yearsAgo.
+  ///
+  /// In en, this message translates to:
+  /// **'{count}y ago'**
+  String yearsAgo(Object count);
+
   /// No description provided for @renderMode.
   ///
   /// In en, this message translates to:

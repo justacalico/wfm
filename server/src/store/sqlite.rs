@@ -262,6 +262,7 @@ fn map_comment(r: &rusqlite::Row) -> rusqlite::Result<CommentView> {
         user_id: r.get(2)?,
         username: r.get(3)?,
         display_name: r.get(4)?,
+        avatar: r.get(8)?,
         body: r.get(5)?,
         created_at: r.get(6)?,
         edited_at: r.get(7)?,
@@ -792,7 +793,7 @@ impl Db for SqliteDb {
         let project = project.to_string();
         self.q(move |c| {
                 let mut st = c.prepare(
-                    "SELECT c.id,c.project_id,c.user_id,u.username,u.display_name,c.body,c.created_at,c.edited_at FROM project_comments c JOIN users u ON u.id=c.user_id WHERE c.project_id=? ORDER BY c.created_at"
+                    "SELECT c.id,c.project_id,c.user_id,u.username,u.display_name,c.body,c.created_at,c.edited_at,u.avatar FROM project_comments c JOIN users u ON u.id=c.user_id WHERE c.project_id=? ORDER BY c.created_at"
                 )?;
                 let rows = st.query_map(params![project], map_comment)?;
                 rows.collect::<rusqlite::Result<Vec<_>>>()
@@ -805,7 +806,7 @@ impl Db for SqliteDb {
         let id = id.to_string();
         self.q(move |c| {
                 c.query_row(
-                    "SELECT c.id,c.project_id,c.user_id,u.username,u.display_name,c.body,c.created_at,c.edited_at FROM project_comments c JOIN users u ON u.id=c.user_id WHERE c.id=?",
+                    "SELECT c.id,c.project_id,c.user_id,u.username,u.display_name,c.body,c.created_at,c.edited_at,u.avatar FROM project_comments c JOIN users u ON u.id=c.user_id WHERE c.id=?",
                     params![id],
                     map_comment,
                 )

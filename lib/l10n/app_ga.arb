@@ -254,6 +254,24 @@
       "count": {}
     }
   },
+  "weeksAgo": "{count} seacht. ó shin",
+  "@weeksAgo": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "monthsAgo": "{count} mhí ó shin",
+  "@monthsAgo": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "yearsAgo": "{count} bl. ó shin",
+  "@yearsAgo": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "renderMode": "Rindreáil ar",
   "renderOnDevice": "An gléas seo",
   "renderOnServer": "Freastalaí",

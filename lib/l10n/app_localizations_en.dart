@@ -482,6 +482,21 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String weeksAgo(Object count) {
+    return '${count}w ago';
+  }
+
+  @override
+  String monthsAgo(Object count) {
+    return '${count}mo ago';
+  }
+
+  @override
+  String yearsAgo(Object count) {
+    return '${count}y ago';
+  }
+
+  @override
   String get renderMode => 'Render on';
 
   @override

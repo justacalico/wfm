@@ -120,6 +120,7 @@ pub struct CommentView {
     pub username: String,
     #[serde(rename = "displayName")]
     pub display_name: String,
+    pub avatar: String,
     pub body: String,
     #[serde(rename = "createdAt")]
     pub created_at: i64,

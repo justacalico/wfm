@@ -191,7 +191,7 @@ class RenderNode {
 }
 
 class ProjectComment {
-  final String id, projectId, userId, username, displayName, body;
+  final String id, projectId, userId, username, displayName, avatar, body;
   final int createdAt, editedAt;
   ProjectComment.fromJson(Map<String, dynamic> j)
       : id = j['id'] ?? '',
@@ -199,6 +199,7 @@ class ProjectComment {
         userId = j['userId'] ?? '',
         username = j['username'] ?? '',
         displayName = j['displayName'] ?? j['username'] ?? '',
+        avatar = j['avatar'] ?? '',
         body = j['body'] ?? '',
         createdAt = j['createdAt'] ?? 0,
         editedAt = j['editedAt'] ?? 0;

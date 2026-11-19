@@ -189,7 +189,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                       child: ListTile(
                         leading: Icon(_icon(n)),
                         title: Text(_text(l10n, n)),
-                        subtitle: Text(fmtTime(l10n, n.createdAt)),
+                        subtitle: Text(fmtAgo(l10n, n.createdAt)),
                         trailing: n.readAt == 0
                             ? const Icon(Icons.circle,
                                 size: 10, color: Colors.redAccent)

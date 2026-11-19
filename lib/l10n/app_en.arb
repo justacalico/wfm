@@ -255,6 +255,24 @@
       "count": {}
     }
   },
+  "weeksAgo": "{count}w ago",
+  "@weeksAgo": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "monthsAgo": "{count}mo ago",
+  "@monthsAgo": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "yearsAgo": "{count}y ago",
+  "@yearsAgo": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "renderMode": "Render on",
   "renderOnDevice": "This device",
   "renderOnServer": "Server",

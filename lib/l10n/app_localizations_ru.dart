@@ -483,6 +483,21 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
+  String weeksAgo(Object count) {
+    return '$count нед. назад';
+  }
+
+  @override
+  String monthsAgo(Object count) {
+    return '$count мес. назад';
+  }
+
+  @override
+  String yearsAgo(Object count) {
+    return '$count г. назад';
+  }
+
+  @override
   String get renderMode => 'Где рендерить';
 
   @override

@@ -26,7 +26,9 @@ String fmtAgo(AppLocalizations l10n, int ts) {
   if (d.inHours < 1) return l10n.minutesAgo(d.inMinutes);
   if (d.inDays < 1) return l10n.hoursAgo(d.inHours);
   if (d.inDays < 30) return l10n.daysAgo(d.inDays);
-  return fmtTime(l10n, ts);
+  if (d.inDays < 63) return l10n.weeksAgo(d.inDays ~/ 7);
+  if (d.inDays < 365) return l10n.monthsAgo(d.inDays ~/ 30);
+  return l10n.yearsAgo(d.inDays ~/ 365);
 }
 
 bool validUsername(String s) =>
