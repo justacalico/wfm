@@ -187,7 +187,7 @@ class _ShortcutsPageState extends State<ShortcutsPage> {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.keyboardShortcuts), actions: [
+      appBar: AppBar(title: Text(l10n.filmcraftShortcuts), actions: [
         IconButton(
             tooltip: l10n.resetAllShortcuts,
             icon: const Icon(Icons.restore),

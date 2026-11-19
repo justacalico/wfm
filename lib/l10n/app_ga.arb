@@ -435,7 +435,8 @@
   "notifReviewed": "Mharcáil {from} {project} mar athbhreithnithe",
   "notifReturned": "Thug {from} {project} ar ais go dreacht"
 ,
-  "keyboardShortcuts": "Aicearraí méarchláir",
+  "editors": "Eagarthóirí",
+  "filmcraftShortcuts": "Aicearraí FilmCraft",
   "searchShortcuts": "Cuardaigh gníomhartha",
   "pressShortcut": "Brúigh an aicearra nua",
   "shortcutConflict": "In úsáid cheana ag {action}",

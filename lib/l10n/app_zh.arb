@@ -435,7 +435,8 @@
   "notifReviewed": "{from} 已将 {project} 标记为已审核",
   "notifReturned": "{from} 将 {project} 退回草稿"
 ,
-  "keyboardShortcuts": "键盘快捷键",
+  "editors": "编辑器",
+  "filmcraftShortcuts": "FilmCraft 快捷键",
   "searchShortcuts": "搜索操作",
   "pressShortcut": "按下新的快捷键",
   "shortcutConflict": "已被 {action} 使用",

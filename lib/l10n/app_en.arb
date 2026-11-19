@@ -435,7 +435,8 @@
   "notifReviewed": "{from} marked {project} reviewed",
   "notifReturned": "{from} returned {project} to draft"
 ,
-  "keyboardShortcuts": "Keyboard shortcuts",
+  "editors": "Editors",
+  "filmcraftShortcuts": "FilmCraft shortcuts",
   "searchShortcuts": "Search actions",
   "pressShortcut": "Press the new shortcut",
   "shortcutConflict": "Already used by {action}",

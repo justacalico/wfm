@@ -1004,7 +1004,10 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get keyboardShortcuts => '键盘快捷键';
+  String get editors => '编辑器';
+
+  @override
+  String get filmcraftShortcuts => 'FilmCraft 快捷键';
 
   @override
   String get searchShortcuts => '搜索操作';

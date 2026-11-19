@@ -1910,11 +1910,17 @@ abstract class AppLocalizations {
   /// **'{from} returned {project} to draft'**
   String notifReturned(Object from, Object project);
 
-  /// No description provided for @keyboardShortcuts.
+  /// No description provided for @editors.
   ///
   /// In en, this message translates to:
-  /// **'Keyboard shortcuts'**
-  String get keyboardShortcuts;
+  /// **'Editors'**
+  String get editors;
+
+  /// No description provided for @filmcraftShortcuts.
+  ///
+  /// In en, this message translates to:
+  /// **'FilmCraft shortcuts'**
+  String get filmcraftShortcuts;
 
   /// No description provided for @searchShortcuts.
   ///
