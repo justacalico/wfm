@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.19.0 - 2026-11-19
+#### Features
+- in-app media preview modal for files - (078a0d4) - calico
+
+- - -
+
 ## v0.18.0 - 2026-11-19
 #### Features
 - relative comment timestamps and author avatars - (f56d345) - calico
