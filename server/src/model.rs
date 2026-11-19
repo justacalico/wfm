@@ -239,6 +239,32 @@ pub struct ProjectShare {
     pub responded_at: i64,
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct AutoShare {
+    pub id: String,
+    #[serde(rename = "ownerId")]
+    pub owner_id: String,
+    #[serde(rename = "inviteeId")]
+    pub invitee_id: String,
+    pub level: String,
+    #[serde(rename = "createdAt")]
+    pub created_at: i64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct AutoShareView {
+    pub id: String,
+    #[serde(rename = "inviteeId")]
+    pub invitee_id: String,
+    #[serde(rename = "inviteeUsername")]
+    pub invitee_username: String,
+    #[serde(rename = "inviteeName")]
+    pub invitee_name: String,
+    pub level: String,
+    #[serde(rename = "createdAt")]
+    pub created_at: i64,
+}
+
 #[derive(Clone, Serialize)]
 pub struct ShareView {
     pub id: String,

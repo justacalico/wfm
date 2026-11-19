@@ -815,4 +815,14 @@ class AppLocalizationsGa extends AppLocalizations {
 
   @override
   String get noShares => 'Níl aon rud roinnte leat fós';
+
+  @override
+  String get autoShares => 'Uath-roinnt';
+
+  @override
+  String get autoSharesHint =>
+      'Tugtar cuireadh do na daoine seo chuig gach tionscadal nua a chruthaíonn do mhic léinn.';
+
+  @override
+  String get autoShareAdd => 'Cuir uath-roinnt leis';
 }

@@ -812,6 +812,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get noShares => 'Nothing shared with you yet';
+
+  @override
+  String get autoShares => 'Auto-share';
+
+  @override
+  String get autoSharesHint =>
+      'These people are invited to every new project your students create.';
+
+  @override
+  String get autoShareAdd => 'Add auto-share';
 }
 
 /// The translations for English, as used in the United Kingdom (`en_GB`).
@@ -1005,4 +1015,14 @@ class AppLocalizationsEnGb extends AppLocalizationsEn {
 
   @override
   String get noShares => 'Nothing shared with you yet';
+
+  @override
+  String get autoShares => 'Auto-share';
+
+  @override
+  String get autoSharesHint =>
+      'These people are invited to every new project your students create.';
+
+  @override
+  String get autoShareAdd => 'Add auto-share';
 }

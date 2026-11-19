@@ -1579,6 +1579,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Nothing shared with you yet'**
   String get noShares;
+
+  /// No description provided for @autoShares.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-share'**
+  String get autoShares;
+
+  /// No description provided for @autoSharesHint.
+  ///
+  /// In en, this message translates to:
+  /// **'These people are invited to every new project your students create.'**
+  String get autoSharesHint;
+
+  /// No description provided for @autoShareAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'Add auto-share'**
+  String get autoShareAdd;
 }
 
 class _AppLocalizationsDelegate

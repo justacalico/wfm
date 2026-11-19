@@ -369,5 +369,8 @@
   "navShared": "Roinnte liom",
   "pendingInvites": "Cuirí ar feitheamh",
   "sharedProjects": "Tionscadail roinnte",
-  "noShares": "Níl aon rud roinnte leat fós"
+  "noShares": "Níl aon rud roinnte leat fós",
+  "autoShares": "Uath-roinnt",
+  "autoSharesHint": "Tugtar cuireadh do na daoine seo chuig gach tionscadal nua a chruthaíonn do mhic léinn.",
+  "autoShareAdd": "Cuir uath-roinnt leis"
 }

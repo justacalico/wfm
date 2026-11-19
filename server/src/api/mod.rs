@@ -16,8 +16,8 @@ use crate::auth::{
 };
 use crate::files::{self, FsError};
 use crate::model::{
-    self, can_manage, InviteCode, Project, ProjectGroup, ProjectShare, RenderJob, RenderSpec,
-    Role, User,
+    self, can_manage, lineage_has, InviteCode, Project, ProjectGroup, ProjectShare, RenderJob,
+    RenderSpec, Role, User,
 };
 use crate::render;
 use crate::store::{AuditFilter, DbError, LockOutcome};
@@ -67,6 +67,8 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/shares", get(list_my_shares))
         .route("/shares/{sid}/accept", post(accept_share))
         .route("/shares/{sid}/decline", post(decline_share))
+        .route("/auto-shares", get(list_auto_shares).post(add_auto_share))
+        .route("/auto-shares/{id}", delete(delete_auto_share))
         .route(
             "/projects/{id}",
             get(get_project).patch(update_project).delete(delete_project),
@@ -1217,7 +1219,47 @@ async fn create_project(
         "",
     )
     .await;
+    auto_share_apply(&s, &p, &session.user).await;
     Json(json!(p)).into_response()
+}
+
+async fn auto_share_apply(s: &Arc<AppState>, p: &Project, creator: &User) {
+    let lists = match s.db.auto_shares_all().await {
+        Ok(v) => v,
+        Err(_) => return,
+    };
+    let now = AppState::now();
+    for a in lists {
+        if a.invitee_id == creator.id {
+            continue;
+        }
+        let accepted = a.owner_id == creator.id
+            || lineage_has(&creator.lineage, &a.owner_id);
+        let sh = ProjectShare {
+            id: model::new_id(),
+            project_id: p.id.clone(),
+            inviter_id: a.owner_id.clone(),
+            invitee_id: a.invitee_id.clone(),
+            level: a.level.clone(),
+            status: if accepted { "accepted".into() } else { "pending".into() },
+            created_at: now,
+            responded_at: if accepted { now } else { 0 },
+        };
+        if s.db.share_upsert(&sh).await.is_err() {
+            continue;
+        }
+        if let Ok(invitee) = s.db.user_by_id(&a.invitee_id).await {
+            s.audit(
+                "project",
+                creator,
+                "share_invite",
+                &invitee.username,
+                &format!("auto {} level={}", p.display_name, a.level),
+                &p.id,
+            )
+            .await;
+        }
+    }
 }
 
 async fn fetch_project(s: &Arc<AppState>, id: &str) -> Result<Project, Response> {
@@ -1362,6 +1404,77 @@ async fn delete_share(
 async fn list_my_shares(State(s): State<Arc<AppState>>, session: Session) -> Response {
     match s.db.shares_for_user(&session.user.id).await {
         Ok(v) => Json(json!(v)).into_response(),
+        Err(e) => db_resp(e),
+    }
+}
+
+async fn list_auto_shares(State(s): State<Arc<AppState>>, session: Session) -> Response {
+    if session.user.role < Role::Teacher {
+        return err(StatusCode::FORBIDDEN, "teachers only");
+    }
+    match s.db.auto_shares_list(&session.user.id).await {
+        Ok(v) => Json(json!(v)).into_response(),
+        Err(e) => db_resp(e),
+    }
+}
+
+async fn add_auto_share(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Json(req): Json<ShareReq>,
+) -> Response {
+    if session.user.role < Role::Teacher {
+        return err(StatusCode::FORBIDDEN, "teachers only");
+    }
+    if req.level != "view" && req.level != "edit" {
+        return err(StatusCode::BAD_REQUEST, "level must be view or edit");
+    }
+    let invitee = match s.db.user_by_name(&req.username.trim()).await {
+        Ok((u, _)) => u,
+        Err(_) => return err(StatusCode::NOT_FOUND, "unknown user"),
+    };
+    if invitee.id == session.user.id {
+        return err(StatusCode::BAD_REQUEST, "cannot share with yourself");
+    }
+    if invitee.disabled {
+        return err(StatusCode::BAD_REQUEST, "user is disabled");
+    }
+    match s
+        .db
+        .auto_share_upsert(&session.user.id, &invitee.id, &req.level)
+        .await
+    {
+        Ok(()) => {
+            s.audit(
+                "settings",
+                &session.user,
+                "auto_share_add",
+                &invitee.username,
+                &format!("level={}", req.level),
+                "",
+            )
+            .await;
+            Json(json!({"ok": true})).into_response()
+        }
+        Err(e) => db_resp(e),
+    }
+}
+
+async fn delete_auto_share(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Path(id): Path<String>,
+) -> Response {
+    if session.user.role < Role::Teacher {
+        return err(StatusCode::FORBIDDEN, "teachers only");
+    }
+    match s.db.auto_share_delete(&session.user.id, &id).await {
+        Ok(true) => {
+            s.audit("settings", &session.user, "auto_share_remove", &id, "", "")
+                .await;
+            Json(json!({"ok": true})).into_response()
+        }
+        Ok(false) => err(StatusCode::NOT_FOUND, "unknown auto-share"),
         Err(e) => db_resp(e),
     }
 }

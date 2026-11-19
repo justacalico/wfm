@@ -369,5 +369,8 @@
   "navShared": "Shared with me",
   "pendingInvites": "Pending invites",
   "sharedProjects": "Shared projects",
-  "noShares": "Nothing shared with you yet"
+  "noShares": "Nothing shared with you yet",
+  "autoShares": "Auto-share",
+  "autoSharesHint": "These people are invited to every new project your students create.",
+  "autoShareAdd": "Add auto-share"
 }

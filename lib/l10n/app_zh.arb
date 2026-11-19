@@ -369,5 +369,8 @@
   "navShared": "与我共享",
   "pendingInvites": "待处理邀请",
   "sharedProjects": "共享的项目",
-  "noShares": "还没有人与你共享内容"
+  "noShares": "还没有人与你共享内容",
+  "autoShares": "自动共享",
+  "autoSharesHint": "你的学生创建的每个新项目都会自动邀请这些人。",
+  "autoShareAdd": "添加自动共享"
 }

@@ -196,6 +196,8 @@ void main() {
 
   testWidgets('proxies edits survive a rebuild', (t) async {
     installApi(extra: {'GET *': (_) => []});
+    await t.binding.setSurfaceSize(const Size(1000, 1200));
+    addTearDown(() => t.binding.setSurfaceSize(null));
     await goSettings(t);
     await t.enterText(find.byType(TextField).last, '192.168.1.1, 10.0.0.0/8');
     // Switching theme rebuilds the page; a build()-scoped controller
@@ -402,6 +404,88 @@ void main() {
       expect(find.byType(Scaffold), findsWidgets);
       await t.pumpWidget(const SizedBox());
     }
+  });
+
+  testWidgets('auto-share list add and remove', (t) async {
+    var added = false, removed = false, addFail = true;
+    installApi(extra: {
+      'GET /api/auto-shares': (_) => [
+            {
+              'id': 'a1',
+              'inviteeId': 'u2',
+              'inviteeUsername': 'bob',
+              'inviteeName': '',
+              'level': 'edit',
+              'createdAt': 1
+            },
+            {
+              'id': 'a2',
+              'inviteeId': 'u3',
+              'inviteeUsername': 'carol',
+              'inviteeName': '',
+              'level': 'view',
+              'createdAt': 1
+            }
+          ],
+      'POST /api/auto-shares': (_) {
+        if (addFail) return http.Response('{"error":"nope"}', 400);
+        added = true;
+        return {'ok': true};
+      },
+      'DELETE /api/auto-shares/a1': (_) {
+        removed = true;
+        return {'ok': true};
+      },
+      'DELETE /api/auto-shares/a2': (_) =>
+          http.Response('{"error":"nope"}', 400),
+    });
+    await t.binding.setSurfaceSize(const Size(1000, 1000));
+    addTearDown(() => t.binding.setSurfaceSize(null));
+    await goSettings(t);
+    expect(find.text('Auto-share'), findsOneWidget);
+    expect(find.text('bob'), findsOneWidget);
+    expect(find.text('Can edit'), findsOneWidget);
+    await t.tap(find.text('Add auto-share'));
+    await settle(t);
+    await t.enterText(
+        find.descendant(
+            of: find.byType(AlertDialog), matching: find.byType(TextField)),
+        'dave');
+    await t.tap(find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.byType(DropdownButtonFormField<String>)));
+    await settle(t);
+    await t.tap(find.text('Can edit').last);
+    await settle(t);
+    await t.tap(find.text('Send'));
+    await settle(t);
+    expect(added, isFalse);
+    expect(find.byType(Notice), findsOneWidget);
+    addFail = false;
+    await t.tap(find.text('Add auto-share'));
+    await settle(t);
+    await t.enterText(
+        find.descendant(
+            of: find.byType(AlertDialog), matching: find.byType(TextField)),
+        'dave');
+    await t.testTextInput.receiveAction(TextInputAction.done);
+    await settle(t);
+    expect(added, isTrue);
+    await t.tap(find.byIcon(Icons.close).at(1));
+    await settle(t);
+    expect(find.byType(Notice), findsWidgets);
+    await t.tap(find.byIcon(Icons.close).first);
+    await settle(t);
+    expect(removed, isTrue);
+  });
+
+  testWidgets('auto-share hidden for students', (t) async {
+    installApi(extra: {
+      'GET /api/roles': (_) =>
+          {'creatable': <dynamic>[], 'canManage': false, 'canAudit': false},
+    });
+    await goSettings(t);
+    expect(find.text('Auto-share'), findsNothing);
   });
 
   testWidgets('update check without factory uses real checker', (t) async {
