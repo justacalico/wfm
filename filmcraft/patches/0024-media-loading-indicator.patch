@@ -1,0 +1,83 @@
+diff --git a/apps/filmcraft-web/src/host.rs b/apps/filmcraft-web/src/host.rs
+index a920eab..4a98dfa 100644
+--- a/apps/filmcraft-web/src/host.rs
++++ b/apps/filmcraft-web/src/host.rs
+@@ -50,6 +50,7 @@
+ 
+ use std::cell::RefCell;
+ use std::rc::Rc;
++use std::sync::atomic::Ordering;
+ 
+ use craft_web_host::web::{FileData, Host};
+ use craft_web_host::Mode;
+@@ -57,6 +58,7 @@ use serde_json::{Value, json};
+ use wasm_bindgen::closure::Closure;
+ use wasm_bindgen::{JsCast as _, JsValue};
+ use filmcraft_engine::Session;
++use filmcraft_ui_egui::panels::project::MEDIA_SYNC;
+ 
+ use crate::hostmode::{MAX_OPEN_BYTES, PROJECT_OPEN_MAX, is_project, is_save_as, media_ref, open_name, open_size_ok, project_open_ok, shortcut_bindings, wfm_meta};
+ 
+@@ -444,7 +446,11 @@ fn restore_bins() {
+     if folders.is_empty() && files.is_empty() {
+         return;
+     }
++    MEDIA_SYNC.fetch_add(1, Ordering::Relaxed);
++    crate::repaint();
+     wasm_bindgen_futures::spawn_local(async move {
++        // Drops on every exit path, so a failed import can't leave the marker on.
++        let _loading = MediaSyncGuard;
+         for dirs in folders.iter().chain(files.iter().map(|(_, d)| d)) {
+             let dirs = dirs.clone();
+             let r = crate::import::on_ui(move |w, _| {
+@@ -479,6 +485,16 @@ fn restore_bins() {
+     });
+ }
+ 
++/// Clears [`MEDIA_SYNC`], the media panel's "Loading media…" marker, when the restore pass
++/// ends on any path, then repaints so the real item count replaces it.
++struct MediaSyncGuard;
++impl Drop for MediaSyncGuard {
++    fn drop(&mut self) {
++        MEDIA_SYNC.fetch_sub(1, Ordering::Relaxed);
++        crate::repaint();
++    }
++}
++
+ /// The bin under `root` matching the folder chain `dirs`, created piece by piece when
+ /// missing: the id of the deepest bin (the root's own id for an empty chain).
+ fn bin_for(
+diff --git a/crates/ui-egui/src/panels/project.rs b/crates/ui-egui/src/panels/project.rs
+index 5fc6e56..384e801 100644
+--- a/crates/ui-egui/src/panels/project.rs
++++ b/crates/ui-egui/src/panels/project.rs
+@@ -11,6 +11,8 @@
+ //! The views are drawn by `project_views`, the dialogs (Metadata Display…, view presets, Freeform
+ //! View Options…, Save Arrangement…) by `project_dialogs`.
+ 
++use std::sync::atomic::{AtomicUsize, Ordering};
++
+ use egui::{Align2, Color32, Rect, Sense, Stroke, pos2, vec2};
+ use filmcraft_engine::project_panel::{FontSize, ViewMode};
+ use filmcraft_project::{BinId, ItemId, ItemKind};
+@@ -23,6 +25,11 @@ use crate::theme::Tokens;
+ 
+ pub use crate::panels::project_views::{item_icon, media_badge};
+ 
++/// Host media still being listed/imported on project open (the web app's `restore_bins`
++/// pass): >0 while it runs, and the count line reads "Loading media…" rather than showing
++/// the 0 of a project whose media is still arriving.
++pub static MEDIA_SYNC: AtomicUsize = AtomicUsize::new(0);
++
+ /// A bin opened in its own tab of the Project panel, or in a floating panel.
+ #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+ #[serde(default, rename_all = "camelCase")]
+@@ -448,7 +455,7 @@ fn body(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect, v: &View, actions
+     let filter = app.ui.project_search.to_ascii_lowercase();
+     let total = count_items(app, v.bin);
+     let sel = app.session.state.project_selection.len();
+-    let count = if sel > 0 { tlf!("{sel} of {total} items selected", sel, total) } else { tlf!("{total} items", total) };
++    let count = if MEDIA_SYNC.load(Ordering::Relaxed) > 0 { tl!("Loading media…").to_string() } else if sel > 0 { tlf!("{sel} of {total} items selected", sel, total) } else { tlf!("{total} items", total) };
+     ui.painter().text(pos2(row.max.x, row.center().y - 1.0), Align2::RIGHT_CENTER, &count, Tokens::ui(fs - 1.0), t.text_dim);
+     app.auto.add(&format!("{pre}.count"), Rect::from_min_max(pos2(row.max.x - 160.0, row.min.y), row.max), &count);
+ 
