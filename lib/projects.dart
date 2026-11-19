@@ -237,8 +237,15 @@ class _ProjectsPageState extends State<ProjectsPage> {
       child: Card(
         clipBehavior: Clip.antiAlias,
         child: InkWell(
-          onTap: () => Navigator.of(c)
-              .push(MaterialPageRoute(builder: (_) => ProjectPage(project: p))),
+          onTap: () {
+            final shell = c.findAncestorStateOfType<ShellState>();
+            if (shell != null) {
+              shell.openProject(p);
+            } else {
+              Navigator.of(c).push(
+                  MaterialPageRoute(builder: (_) => ProjectPage(project: p)));
+            }
+          },
           child: Padding(
             padding: const EdgeInsets.all(16),
             child:
@@ -279,8 +286,15 @@ class _ProjectsPageState extends State<ProjectsPage> {
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: () => Navigator.of(c)
-            .push(MaterialPageRoute(builder: (_) => ProjectPage(project: p))),
+        onTap: () {
+          final shell = c.findAncestorStateOfType<ShellState>();
+          if (shell != null) {
+            shell.openProject(p);
+          } else {
+            Navigator.of(c).push(
+                MaterialPageRoute(builder: (_) => ProjectPage(project: p)));
+          }
+        },
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: Row(children: [
@@ -497,7 +511,8 @@ Widget tagChip(BuildContext context, String t) {
 
 class ProjectPage extends StatefulWidget {
   final Project project;
-  const ProjectPage({super.key, required this.project});
+  final VoidCallback? onBack;
+  const ProjectPage({super.key, required this.project, this.onBack});
   @override
   State<ProjectPage> createState() => _ProjectPageState();
 }
@@ -525,6 +540,14 @@ class _ProjectPageState extends State<ProjectPage> {
     }
   }
 
+  void _close() {
+    if (widget.onBack != null) {
+      widget.onBack!();
+    } else {
+      Navigator.of(context).maybePop();
+    }
+  }
+
   Future<void> _delete() async {
     if (!await confirm(context, context.l10n.deleteProject,
         context.l10n.deleteProjectBody(_p.displayName))) {
@@ -532,7 +555,7 @@ class _ProjectPageState extends State<ProjectPage> {
     }
     try {
       await Api.i.deleteProject(_p.id);
-      if (mounted) Navigator.of(context).pop();
+      if (mounted) _close();
     } catch (e) {
       if (mounted) snack(context, e);
     }
@@ -543,6 +566,8 @@ class _ProjectPageState extends State<ProjectPage> {
     final l10n = context.l10n;
     return Scaffold(
       appBar: AppBar(
+        leading:
+            IconButton(icon: const Icon(Icons.arrow_back), onPressed: _close),
         title: Text(_p.displayName),
         actions: [
           if (!_p.editable)

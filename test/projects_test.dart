@@ -40,6 +40,59 @@ void main() {
       await t.tap(find.text('Short Film'));
       await settle(t);
       expect(find.byType(ProjectPage), findsOneWidget);
+      await t.tap(find.descendant(
+          of: find.byType(AppBar), matching: find.byIcon(Icons.arrow_back)));
+      await t.pumpAndSettle();
+      expect(find.byType(ProjectPage), findsNothing);
+    });
+
+    testWidgets('project opens inside the shell and back returns', (t) async {
+      installApi();
+      await t.binding.setSurfaceSize(const Size(1280, 800));
+      await t.pumpWidget(const WfmApp());
+      await settle(t);
+      await t
+          .tap(find.widgetWithText(ListTile, 'Projects').first)
+          .then((_) => settle(t));
+      await t.tap(find.text('Short Film'));
+      await settle(t);
+      expect(find.byType(ProjectPage), findsOneWidget);
+      final back = find.descendant(
+          of: find.byType(AppBar), matching: find.byIcon(Icons.arrow_back));
+      expect(back, findsOneWidget);
+      await t.tap(back);
+      await settle(t);
+      expect(find.byType(ProjectPage), findsNothing);
+      expect(find.text('Short Film'), findsOneWidget);
+      await t.tap(find.byIcon(Icons.view_list));
+      await settle(t);
+      await t.tap(find.text('Short Film'));
+      await settle(t);
+      expect(find.byType(ProjectPage), findsOneWidget);
+      await t.binding.setSurfaceSize(const Size(800, 600));
+    });
+
+    testWidgets('narrow layout opens a project and keeps the drawer',
+        (t) async {
+      installApi();
+      await t.binding.setSurfaceSize(const Size(400, 800));
+      await t.pumpWidget(const WfmApp());
+      await settle(t);
+      await t.tap(find.byIcon(Icons.menu));
+      await settle(t);
+      await t
+          .tap(find.widgetWithText(ListTile, 'Projects').first)
+          .then((_) => settle(t));
+      await t.tap(find.text('Short Film'));
+      await settle(t);
+      expect(find.byType(ProjectPage), findsOneWidget);
+      await t.flingFrom(const Offset(0, 300), const Offset(300, 0), 1000);
+      await settle(t);
+      expect(find.byIcon(Icons.logout), findsOneWidget);
+      await t.tap(find.text('Settings'));
+      await settle(t);
+      expect(find.byType(ProjectPage), findsNothing);
+      await t.binding.setSurfaceSize(const Size(800, 600));
     });
 
     testWidgets('list view toggle persists and restores', (t) async {
