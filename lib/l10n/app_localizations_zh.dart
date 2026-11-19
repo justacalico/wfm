@@ -153,6 +153,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get openInFilmcraft => '打开';
 
   @override
+  String get openScript => '剧本';
+
+  @override
   String get renameProject => '重命名项目';
 
   @override

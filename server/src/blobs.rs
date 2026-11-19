@@ -22,9 +22,19 @@ pub struct BlobObject {
 /// for development and tiny installs.
 #[async_trait]
 pub trait Blobs: Send + Sync {
-    async fn put(&self, key: &str, len: u64, reader: &mut (dyn AsyncRead + Send + Unpin)) -> Result<(), String>;
+    async fn put(
+        &self,
+        key: &str,
+        len: u64,
+        reader: &mut (dyn AsyncRead + Send + Unpin),
+    ) -> Result<(), String>;
     async fn get(&self, key: &str) -> Result<(u64, ByteStream), String>;
-    async fn get_range(&self, key: &str, start: u64, end: u64) -> Result<(u64, u64, ByteStream), String>;
+    async fn get_range(
+        &self,
+        key: &str,
+        start: u64,
+        end: u64,
+    ) -> Result<(u64, u64, ByteStream), String>;
     async fn head(&self, key: &str) -> Result<u64, String>;
     async fn list(&self, prefix: &str) -> Result<(Vec<String>, Vec<BlobObject>), String>;
     async fn delete(&self, key: &str) -> Result<(), String>;
@@ -50,11 +60,7 @@ impl LocalBlobs {
     }
 }
 
-async fn file_stream(
-    mut f: tokio::fs::File,
-    start: u64,
-    len: u64,
-) -> Result<ByteStream, String> {
+async fn file_stream(mut f: tokio::fs::File, start: u64, len: u64) -> Result<ByteStream, String> {
     use tokio::io::{AsyncReadExt, AsyncSeekExt};
     if start > 0 {
         f.seek(std::io::SeekFrom::Start(start))
@@ -68,13 +74,22 @@ async fn file_stream(
 
 #[async_trait]
 impl Blobs for LocalBlobs {
-    async fn put(&self, key: &str, _len: u64, reader: &mut (dyn AsyncRead + Send + Unpin)) -> Result<(), String> {
+    async fn put(
+        &self,
+        key: &str,
+        _len: u64,
+        reader: &mut (dyn AsyncRead + Send + Unpin),
+    ) -> Result<(), String> {
         let p = self.path(key)?;
         if let Some(parent) = p.parent() {
-            tokio::fs::create_dir_all(parent).await.map_err(|e| e.to_string())?;
+            tokio::fs::create_dir_all(parent)
+                .await
+                .map_err(|e| e.to_string())?;
         }
         let tmp = p.with_extension(format!("wfm-up-{}", &crate::model::new_id()[..8]));
-        let mut f = tokio::fs::File::create(&tmp).await.map_err(|e| e.to_string())?;
+        let mut f = tokio::fs::File::create(&tmp)
+            .await
+            .map_err(|e| e.to_string())?;
         let res = tokio::io::copy(reader, &mut f).await;
         drop(f);
         if let Err(e) = res {
@@ -86,15 +101,24 @@ impl Blobs for LocalBlobs {
 
     async fn get(&self, key: &str) -> Result<(u64, ByteStream), String> {
         let p = self.path(key)?;
-        let meta = tokio::fs::metadata(&p).await.map_err(|_| "not found".to_string())?;
+        let meta = tokio::fs::metadata(&p)
+            .await
+            .map_err(|_| "not found".to_string())?;
         let f = tokio::fs::File::open(&p).await.map_err(|e| e.to_string())?;
         let len = meta.len();
         Ok((len, file_stream(f, 0, len).await?))
     }
 
-    async fn get_range(&self, key: &str, start: u64, end: u64) -> Result<(u64, u64, ByteStream), String> {
+    async fn get_range(
+        &self,
+        key: &str,
+        start: u64,
+        end: u64,
+    ) -> Result<(u64, u64, ByteStream), String> {
         let p = self.path(key)?;
-        let meta = tokio::fs::metadata(&p).await.map_err(|_| "not found".to_string())?;
+        let meta = tokio::fs::metadata(&p)
+            .await
+            .map_err(|_| "not found".to_string())?;
         let size = meta.len();
         let end = end.min(size.saturating_sub(1));
         if start > end || size == 0 {
@@ -120,7 +144,11 @@ impl Blobs for LocalBlobs {
         };
         let mut folders = Vec::new();
         let mut objects = Vec::new();
-        if tokio::fs::metadata(&dir).await.map(|m| m.is_dir()).unwrap_or(false) {
+        if tokio::fs::metadata(&dir)
+            .await
+            .map(|m| m.is_dir())
+            .unwrap_or(false)
+        {
             let mut entries = tokio::fs::read_dir(&dir).await.map_err(|e| e.to_string())?;
             while let Some(e) = entries.next_entry().await.map_err(|e| e.to_string())? {
                 let name = e.file_name().to_string_lossy().to_string();
@@ -156,9 +184,9 @@ impl Blobs for LocalBlobs {
     async fn delete(&self, key: &str) -> Result<(), String> {
         let p = self.path(key)?;
         match tokio::fs::metadata(&p).await {
-            Ok(m) if m.is_dir() => {
-                tokio::fs::remove_dir_all(&p).await.map_err(|e| e.to_string())
-            }
+            Ok(m) if m.is_dir() => tokio::fs::remove_dir_all(&p)
+                .await
+                .map_err(|e| e.to_string()),
             Ok(_) => tokio::fs::remove_file(&p).await.map_err(|e| e.to_string()),
             Err(_) => Err("not found".into()),
         }
@@ -166,8 +194,14 @@ impl Blobs for LocalBlobs {
 
     async fn delete_prefix(&self, prefix: &str) -> Result<(), String> {
         let p = self.path(prefix)?;
-        if tokio::fs::metadata(&p).await.map(|m| m.is_dir()).unwrap_or(false) {
-            tokio::fs::remove_dir_all(&p).await.map_err(|e| e.to_string())?;
+        if tokio::fs::metadata(&p)
+            .await
+            .map(|m| m.is_dir())
+            .unwrap_or(false)
+        {
+            tokio::fs::remove_dir_all(&p)
+                .await
+                .map_err(|e| e.to_string())?;
         }
         Ok(())
     }
@@ -182,14 +216,20 @@ impl Blobs for LocalBlobs {
             return Err("exists".into());
         }
         if let Some(p) = dst.parent() {
-            tokio::fs::create_dir_all(p).await.map_err(|e| e.to_string())?;
+            tokio::fs::create_dir_all(p)
+                .await
+                .map_err(|e| e.to_string())?;
         }
-        tokio::fs::rename(&src, &dst).await.map_err(|e| e.to_string())
+        tokio::fs::rename(&src, &dst)
+            .await
+            .map_err(|e| e.to_string())
     }
 
     async fn mkdir(&self, key_prefix: &str) -> Result<(), String> {
         let p = self.path(key_prefix)?;
-        tokio::fs::create_dir_all(p).await.map_err(|e| e.to_string())
+        tokio::fs::create_dir_all(p)
+            .await
+            .map_err(|e| e.to_string())
     }
 }
 
@@ -213,14 +253,8 @@ impl S3Blobs {
             region: region.to_string(),
             endpoint: endpoint.to_string(),
         };
-        let creds = s3::creds::Credentials::new(
-            Some(access),
-            Some(secret),
-            None,
-            None,
-            None,
-        )
-        .map_err(|e| format!("s3 credentials: {e}"))?;
+        let creds = s3::creds::Credentials::new(Some(access), Some(secret), None, None, None)
+            .map_err(|e| format!("s3 credentials: {e}"))?;
         let bucket = s3::Bucket::new(bucket_name, region, creds)
             .map_err(|e| format!("s3 bucket: {e}"))?
             .with_path_style();
@@ -271,7 +305,12 @@ fn s3_err(e: impl std::fmt::Display) -> String {
 
 #[async_trait]
 impl Blobs for S3Blobs {
-    async fn put(&self, key: &str, len: u64, reader: &mut (dyn AsyncRead + Send + Unpin)) -> Result<(), String> {
+    async fn put(
+        &self,
+        key: &str,
+        len: u64,
+        reader: &mut (dyn AsyncRead + Send + Unpin),
+    ) -> Result<(), String> {
         self.bucket
             .put_object_stream(reader, self.key(key))
             .await
@@ -295,7 +334,12 @@ impl Blobs for S3Blobs {
         Ok((len, Box::pin(stream)))
     }
 
-    async fn get_range(&self, key: &str, start: u64, end: u64) -> Result<(u64, u64, ByteStream), String> {
+    async fn get_range(
+        &self,
+        key: &str,
+        start: u64,
+        end: u64,
+    ) -> Result<(u64, u64, ByteStream), String> {
         let total = self.head(key).await?;
         // Bridge get_object_range_to_writer into a byte stream so large
         // ranges are not buffered in memory.
@@ -314,7 +358,11 @@ impl Blobs for S3Blobs {
     }
 
     async fn head(&self, key: &str) -> Result<u64, String> {
-        let (obj, _code) = self.bucket.head_object(self.key(key)).await.map_err(s3_err)?;
+        let (obj, _code) = self
+            .bucket
+            .head_object(self.key(key))
+            .await
+            .map_err(s3_err)?;
         Ok(obj.content_length.unwrap_or(0) as u64)
     }
 
@@ -362,7 +410,10 @@ impl Blobs for S3Blobs {
 
     async fn delete(&self, key: &str) -> Result<(), String> {
         if self.bucket.head_object(self.key(key)).await.is_ok() {
-            self.bucket.delete_object(self.key(key)).await.map_err(s3_err)?;
+            self.bucket
+                .delete_object(self.key(key))
+                .await
+                .map_err(s3_err)?;
             return Ok(());
         }
         self.delete_prefix(key).await
@@ -370,11 +421,7 @@ impl Blobs for S3Blobs {
 
     async fn delete_prefix(&self, prefix: &str) -> Result<(), String> {
         let p = format!("{}/", self.key(prefix.trim_matches('/')));
-        let results = self
-            .bucket
-            .list(p, None)
-            .await
-            .map_err(s3_err)?;
+        let results = self.bucket.list(p, None).await.map_err(s3_err)?;
         for page in results {
             for o in page.contents {
                 let _ = self.bucket.delete_object(o.key).await;
@@ -392,7 +439,10 @@ impl Blobs for S3Blobs {
                 .copy_object_internal(&self.key(from), &self.key(to))
                 .await
                 .map_err(s3_err)?;
-            self.bucket.delete_object(self.key(from)).await.map_err(s3_err)?;
+            self.bucket
+                .delete_object(self.key(from))
+                .await
+                .map_err(s3_err)?;
             return Ok(());
         }
         let results = self
@@ -499,7 +549,10 @@ pub async fn connect(cfg: &crate::config::Config) -> Result<Arc<dyn Blobs>, Stri
             .await?,
         )),
         _ => {
-            let root = cfg.media_path.clone().unwrap_or_else(|| cfg.data_dir.join("media"));
+            let root = cfg
+                .media_path
+                .clone()
+                .unwrap_or_else(|| cfg.data_dir.join("media"));
             std::fs::create_dir_all(&root).map_err(|e| e.to_string())?;
             Ok(Arc::new(LocalBlobs::new(root)))
         }

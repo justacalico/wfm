@@ -153,6 +153,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get openInFilmcraft => 'Open';
 
   @override
+  String get openScript => 'Script';
+
+  @override
   String get renameProject => 'Rename project';
 
   @override

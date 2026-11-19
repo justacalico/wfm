@@ -5,7 +5,9 @@ use sqlx::postgres::PgPoolOptions;
 use sqlx::{PgPool, Row};
 
 use crate::model::*;
-use crate::store::{migration_files, migration_sql, AuditFilter, Db, DbError, DbResult, LockOutcome};
+use crate::store::{
+    migration_files, migration_sql, AuditFilter, Db, DbError, DbResult, LockOutcome,
+};
 
 pub struct PgDb {
     pool: PgPool,
@@ -31,13 +33,11 @@ async fn run_migrations(pool: &PgPool) -> Result<(), String> {
 
     for file in migration_files("postgres") {
         let sql = migration_sql(&file).ok_or_else(|| format!("migration {file} unreadable"))?;
-        let applied: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM wfm_migrations WHERE name=$1",
-        )
-        .bind(&file)
-        .fetch_one(pool)
-        .await
-        .map_err(|e| e.to_string())?;
+        let applied: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM wfm_migrations WHERE name=$1")
+            .bind(&file)
+            .fetch_one(pool)
+            .await
+            .map_err(|e| e.to_string())?;
         if applied > 0 {
             continue;
         }
@@ -247,7 +247,6 @@ fn row_auto_share_view(r: sqlx::postgres::PgRow) -> AutoShareView {
     }
 }
 
-
 fn row_audit(r: sqlx::postgres::PgRow) -> AuditEntry {
     AuditEntry {
         id: r.get("id"),
@@ -455,13 +454,11 @@ impl Db for PgDb {
     }
 
     async fn session_user(&self, token_hash: &str, now: i64) -> DbResult<(String, String)> {
-        let row = sqlx::query(
-            "SELECT user_id,csrf,expires_at FROM sessions WHERE token_hash=$1",
-        )
-        .bind(token_hash)
-        .fetch_optional(&self.pool)
-        .await
-        .map_err(map_err)?;
+        let row = sqlx::query("SELECT user_id,csrf,expires_at FROM sessions WHERE token_hash=$1")
+            .bind(token_hash)
+            .fetch_optional(&self.pool)
+            .await
+            .map_err(map_err)?;
         match row {
             Some(r) if r.get::<i64, _>("expires_at") > now => {
                 sqlx::query("UPDATE sessions SET last_seen=$1 WHERE token_hash=$2")
@@ -533,11 +530,7 @@ impl Db for PgDb {
         Ok(())
     }
 
-    async fn delete_user_sessions_except(
-        &self,
-        user_id: &str,
-        token_hash: &str,
-    ) -> DbResult<()> {
+    async fn delete_user_sessions_except(&self, user_id: &str, token_hash: &str) -> DbResult<()> {
         sqlx::query("DELETE FROM sessions WHERE user_id=$1 AND token_hash<>$2")
             .bind(user_id)
             .bind(token_hash)
@@ -687,17 +680,15 @@ impl Db for PgDb {
         submitted_at: i64,
         reviewed_by: &str,
     ) -> DbResult<()> {
-        sqlx::query(
-            "UPDATE projects SET status=$1,submitted_at=$2,reviewed_by=$3 WHERE id=$4",
-        )
-        .bind(status)
-        .bind(submitted_at)
-        .bind(reviewed_by)
-        .bind(id)
-        .execute(&self.pool)
-        .await
-        .map(|_| ())
-        .map_err(map_err)
+        sqlx::query("UPDATE projects SET status=$1,submitted_at=$2,reviewed_by=$3 WHERE id=$4")
+            .bind(status)
+            .bind(submitted_at)
+            .bind(reviewed_by)
+            .bind(id)
+            .execute(&self.pool)
+            .await
+            .map(|_| ())
+            .map_err(map_err)
     }
 
     async fn comment_add(
@@ -917,30 +908,26 @@ impl Db for PgDb {
         holder: &str,
         expires: i64,
     ) -> DbResult<bool> {
-        sqlx::query(
-            "UPDATE locks SET expires_at=$1 WHERE project_id=$2 AND kind=$3 AND holder=$4",
-        )
-        .bind(expires)
-        .bind(project_id)
-        .bind(kind)
-        .bind(holder)
-        .execute(&self.pool)
-        .await
-        .map(|r| r.rows_affected() > 0)
-        .map_err(map_err)
+        sqlx::query("UPDATE locks SET expires_at=$1 WHERE project_id=$2 AND kind=$3 AND holder=$4")
+            .bind(expires)
+            .bind(project_id)
+            .bind(kind)
+            .bind(holder)
+            .execute(&self.pool)
+            .await
+            .map(|r| r.rows_affected() > 0)
+            .map_err(map_err)
     }
 
     async fn lock_release(&self, project_id: &str, kind: &str, holder: &str) -> DbResult<()> {
-        sqlx::query(
-            "DELETE FROM locks WHERE project_id=$1 AND kind=$2 AND holder=$3",
-        )
-        .bind(project_id)
-        .bind(kind)
-        .bind(holder)
-        .execute(&self.pool)
-        .await
-        .map(|_| ())
-        .map_err(map_err)
+        sqlx::query("DELETE FROM locks WHERE project_id=$1 AND kind=$2 AND holder=$3")
+            .bind(project_id)
+            .bind(kind)
+            .bind(holder)
+            .execute(&self.pool)
+            .await
+            .map(|_| ())
+            .map_err(map_err)
     }
 
     async fn clean_locks(&self, now: i64) -> DbResult<()> {
@@ -980,7 +967,12 @@ impl Db for PgDb {
             .map_err(map_err)
     }
 
-    async fn jobs_by_project(&self, project_id: &str, offset: i64, limit: i64) -> DbResult<Vec<RenderJob>> {
+    async fn jobs_by_project(
+        &self,
+        project_id: &str,
+        offset: i64,
+        limit: i64,
+    ) -> DbResult<Vec<RenderJob>> {
         sqlx::query(
             "SELECT * FROM render_jobs WHERE project_id=$1 ORDER BY created_at DESC LIMIT $2 OFFSET $3",
         )
@@ -1003,13 +995,11 @@ impl Db for PgDb {
     }
 
     async fn job_next_queued(&self) -> DbResult<Option<RenderJob>> {
-        sqlx::query(
-            "SELECT * FROM render_jobs WHERE status='queued' ORDER BY created_at LIMIT 1",
-        )
-        .fetch_optional(&self.pool)
-        .await
-        .map(|r| r.map(row_job))
-        .map_err(map_err)
+        sqlx::query("SELECT * FROM render_jobs WHERE status='queued' ORDER BY created_at LIMIT 1")
+            .fetch_optional(&self.pool)
+            .await
+            .map(|r| r.map(row_job))
+            .map_err(map_err)
     }
 
     async fn job_claim(&self, id: &str, worker: &str, lease_until: i64) -> DbResult<bool> {
@@ -1113,14 +1103,12 @@ impl Db for PgDb {
     }
 
     async fn node_by_token(&self, token_hash: &str) -> DbResult<RenderNode> {
-        sqlx::query(
-            "SELECT * FROM render_nodes WHERE token_hash=$1 AND disabled=0",
-        )
-        .bind(token_hash)
-        .fetch_one(&self.pool)
-        .await
-        .map(|r| row_node(r))
-        .map_err(map_err)
+        sqlx::query("SELECT * FROM render_nodes WHERE token_hash=$1 AND disabled=0")
+            .bind(token_hash)
+            .fetch_one(&self.pool)
+            .await
+            .map(|r| row_node(r))
+            .map_err(map_err)
     }
 
     async fn node_list(&self) -> DbResult<Vec<RenderNode>> {
@@ -1209,7 +1197,11 @@ impl Db for PgDb {
         let mut sql = "SELECT * FROM audit WHERE scope=$1".to_string();
         let mut n = 1;
         if subtree_user_id.is_some() {
-            sql.push_str(&format!(" AND (lineage LIKE ${} OR actor_id=${})", n + 1, n + 2));
+            sql.push_str(&format!(
+                " AND (lineage LIKE ${} OR actor_id=${})",
+                n + 1,
+                n + 2
+            ));
             n += 2;
         }
         if !f.action.is_empty() {
@@ -1228,7 +1220,11 @@ impl Db for PgDb {
             n += 1;
             sql.push_str(&format!(" AND ts<=${n}"));
         }
-        sql.push_str(&format!(" ORDER BY id DESC LIMIT ${} OFFSET ${}", n + 1, n + 2));
+        sql.push_str(&format!(
+            " ORDER BY id DESC LIMIT ${} OFFSET ${}",
+            n + 1,
+            n + 2
+        ));
         let mut q = sqlx::query(&sql).bind(scope);
         if let Some(uid) = subtree_user_id {
             q = q.bind(format!("%/{uid}/%")).bind(uid);
@@ -1294,13 +1290,12 @@ impl Db for PgDb {
     }
 
     async fn invites_by_creator(&self, uid: &str) -> DbResult<Vec<InviteCode>> {
-        let rows = sqlx::query(
-            "SELECT * FROM invite_codes WHERE created_by=$1 ORDER BY created_at DESC",
-        )
-        .bind(uid)
-        .fetch_all(&self.pool)
-        .await
-        .map_err(map_err)?;
+        let rows =
+            sqlx::query("SELECT * FROM invite_codes WHERE created_by=$1 ORDER BY created_at DESC")
+                .bind(uid)
+                .fetch_all(&self.pool)
+                .await
+                .map_err(map_err)?;
         Ok(rows.into_iter().map(row_invite).collect())
     }
 
@@ -1348,13 +1343,15 @@ impl Db for PgDb {
     }
 
     async fn setting_set(&self, k: &str, v: &str) -> DbResult<()> {
-        sqlx::query("INSERT INTO wfm_settings(k,v) VALUES($1,$2) ON CONFLICT(k) DO UPDATE SET v=excluded.v")
-            .bind(k)
-            .bind(v)
-            .execute(&self.pool)
-            .await
-            .map(|_| ())
-            .map_err(map_err)
+        sqlx::query(
+            "INSERT INTO wfm_settings(k,v) VALUES($1,$2) ON CONFLICT(k) DO UPDATE SET v=excluded.v",
+        )
+        .bind(k)
+        .bind(v)
+        .execute(&self.pool)
+        .await
+        .map(|_| ())
+        .map_err(map_err)
     }
 
     async fn share_by(&self, project: &str, invitee: &str) -> DbResult<ProjectShare> {
@@ -1470,12 +1467,7 @@ impl Db for PgDb {
         .map_err(map_err)
     }
 
-    async fn auto_share_upsert(
-        &self,
-        owner: &str,
-        invitee: &str,
-        level: &str,
-    ) -> DbResult<()> {
+    async fn auto_share_upsert(&self, owner: &str, invitee: &str, level: &str) -> DbResult<()> {
         sqlx::query(
             "INSERT INTO auto_shares(id,owner_id,invitee_id,level,created_at) VALUES($1,$2,$3,$4,$5) ON CONFLICT(owner_id,invitee_id) DO UPDATE SET level=excluded.level",
         )
@@ -1554,26 +1546,22 @@ impl Db for PgDb {
     }
 
     async fn notifications_unread(&self, user: &str) -> DbResult<i64> {
-        sqlx::query_scalar(
-            "SELECT COUNT(*) FROM notifications WHERE user_id=$1 AND read_at=0",
-        )
-        .bind(user)
-        .fetch_one(&self.pool)
-        .await
-        .map_err(map_err)
+        sqlx::query_scalar("SELECT COUNT(*) FROM notifications WHERE user_id=$1 AND read_at=0")
+            .bind(user)
+            .fetch_one(&self.pool)
+            .await
+            .map_err(map_err)
     }
 
     async fn notification_read(&self, user: &str, id: &str, ts: i64) -> DbResult<bool> {
-        sqlx::query(
-            "UPDATE notifications SET read_at=$1 WHERE id=$2 AND user_id=$3 AND read_at=0",
-        )
-        .bind(ts)
-        .bind(id)
-        .bind(user)
-        .execute(&self.pool)
-        .await
-        .map(|r| r.rows_affected() > 0)
-        .map_err(map_err)
+        sqlx::query("UPDATE notifications SET read_at=$1 WHERE id=$2 AND user_id=$3 AND read_at=0")
+            .bind(ts)
+            .bind(id)
+            .bind(user)
+            .execute(&self.pool)
+            .await
+            .map(|r| r.rows_affected() > 0)
+            .map_err(map_err)
     }
 
     async fn notifications_read_all(&self, user: &str, ts: i64) -> DbResult<()> {
@@ -1727,9 +1715,7 @@ mod tests {
         };
         let nname = format!("Node{suffix}");
         db.node_create(&node(&nname), "h1").await.unwrap();
-        let dup = db
-            .node_create(&node(&nname.to_lowercase()), "h2")
-            .await;
+        let dup = db.node_create(&node(&nname.to_lowercase()), "h2").await;
         assert!(matches!(dup, Err(DbError::Conflict)));
     }
 }

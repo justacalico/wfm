@@ -4,9 +4,9 @@ use axum::body::{Body, Bytes};
 use axum::extract::{Path, Query, State};
 use axum::http::{header, HeaderMap, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
-use futures::StreamExt;
 use axum::routing::{delete, get, patch, post, put};
 use axum::{Json, Router};
+use futures::StreamExt;
 use serde::Deserialize;
 use serde_json::{json, Value};
 
@@ -16,8 +16,8 @@ use crate::auth::{
 };
 use crate::files::{self, FsError};
 use crate::model::{
-    self, can_manage, lineage_has, InviteCode, Project, ProjectGroup, ProjectLink,
-    ProjectShare, RenderJob, RenderSpec, Role, User,
+    self, can_manage, lineage_has, InviteCode, Project, ProjectGroup, ProjectLink, ProjectShare,
+    RenderJob, RenderSpec, Role, User,
 };
 use crate::render;
 use crate::store::{AuditFilter, DbError, LockOutcome};
@@ -49,10 +49,7 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/accounts/{id}/password", post(reset_password))
         .route("/accounts/{id}/status", post(set_status))
         .route("/invites", get(list_invites).post(create_invite))
-        .route(
-            "/invites/{id}",
-            get(invite_preview).delete(revoke_invite),
-        )
+        .route("/invites/{id}", get(invite_preview).delete(revoke_invite))
         .route("/invites/{id}/redeem", post(redeem_invite))
         .route("/audit", get(audit))
         .route("/projects", get(list_projects).post(create_project))
@@ -84,10 +81,7 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/notifications", get(my_notifications))
         .route("/notifications/read-all", post(notifications_read_all))
         .route("/notifications/{id}/read", post(notification_read))
-        .route(
-            "/projects/{id}/links",
-            get(list_links).post(create_link),
-        )
+        .route("/projects/{id}/links", get(list_links).post(create_link))
         .route("/projects/{id}/links/{lid}", delete(revoke_link))
         .route("/link/{token}", get(link_resolve))
         .route("/link/{token}/file", get(link_file))
@@ -95,13 +89,12 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/accounts/{id}/usage", get(account_usage))
         .route(
             "/projects/{id}",
-            get(get_project).patch(update_project).delete(delete_project),
+            get(get_project)
+                .patch(update_project)
+                .delete(delete_project),
         )
         .route("/groups", get(list_groups).post(create_group))
-        .route(
-            "/groups/{id}",
-            patch(rename_group).delete(delete_group),
-        )
+        .route("/groups/{id}", patch(rename_group).delete(delete_group))
         .route(
             "/projects/{id}/files",
             get(list_files).put(upload_file).delete(delete_file),
@@ -109,19 +102,22 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/projects/{id}/files/upload", post(upload_start))
         .route("/projects/{id}/files/mkdir", post(mkdir))
         .route("/projects/{id}/files/move", post(move_file))
-        .route(
-            "/uploads/{id}",
-            get(upload_status).delete(upload_cancel),
-        )
+        .route("/uploads/{id}", get(upload_status).delete(upload_cancel))
         .route("/uploads/{id}/chunk", put(upload_chunk))
         .route("/uploads/{id}/complete", post(upload_complete))
         .route("/projects/{id}/download", get(download))
         .route("/projects/{id}/thumb", get(thumb))
         .route("/projects/{id}/zip", get(zip_download))
-        .route("/projects/{id}/locks", post(lock_acquire).delete(lock_release))
+        .route(
+            "/projects/{id}/locks",
+            post(lock_acquire).delete(lock_release),
+        )
         .route("/projects/{id}/locks/release", post(lock_release))
         .route("/projects/{id}/locks/heartbeat", post(lock_heartbeat))
-        .route("/projects/{id}/renders", get(list_renders).post(create_render))
+        .route(
+            "/projects/{id}/renders",
+            get(list_renders).post(create_render),
+        )
         .route("/projects/{id}/render-info", get(render_info))
         .route("/renders/{id}/cancel", post(cancel_render))
         .route("/renders/{id}/retry", post(retry_render))
@@ -199,7 +195,10 @@ async fn setup_owner(
         return err(StatusCode::BAD_REQUEST, "invalid username");
     }
     if !model::valid_password(&req.password) {
-        return err(StatusCode::BAD_REQUEST, "password must be at least 8 characters");
+        return err(
+            StatusCode::BAD_REQUEST,
+            "password must be at least 8 characters",
+        );
     }
     let name = req.name.trim();
     if name.is_empty() || name.len() > 64 {
@@ -256,10 +255,9 @@ async fn setup_owner(
     let csrf = model::new_token();
     let expires = AppState::now() + s.cfg.session_ttl;
     let ip = client_ip(&s, &parts).to_string();
-    if let Err(e) = s
-        .db
-        .create_session(&model::token_hash(&token), &u.id, &csrf, expires, &ip, "")
-        .await
+    if let Err(e) =
+        s.db.create_session(&model::token_hash(&token), &u.id, &csrf, expires, &ip, "")
+            .await
     {
         return db_resp(e);
     }
@@ -332,9 +330,8 @@ async fn session_response(
         .chars()
         .take(200)
         .collect::<String>();
-    if let Err(e) = s
-        .db
-        .create_session(
+    if let Err(e) =
+        s.db.create_session(
             &model::token_hash(&token),
             &user.id,
             &csrf,
@@ -402,11 +399,10 @@ async fn handoff_redeem(
     parts: axum::http::request::Parts,
     Query(q): Query<HandoffQuery>,
 ) -> Response {
-    let to = q
-        .to
-        .as_deref()
-        .and_then(handoff_to)
-        .unwrap_or_else(|| "/".to_string());
+    let to =
+        q.to.as_deref()
+            .and_then(handoff_to)
+            .unwrap_or_else(|| "/".to_string());
     let hit = s.handoffs.lock().unwrap().remove(&q.t);
     let Some((uid, exp)) = hit else {
         return err(StatusCode::UNAUTHORIZED, "expired link");
@@ -418,10 +414,9 @@ async fn handoff_redeem(
     let csrf = model::new_token();
     let expires = AppState::now() + s.cfg.session_ttl;
     let ip = client_ip(&s, &parts).to_string();
-    if let Err(e) = s
-        .db
-        .create_session(&model::token_hash(&token), &uid, &csrf, expires, &ip, "")
-        .await
+    if let Err(e) =
+        s.db.create_session(&model::token_hash(&token), &uid, &csrf, expires, &ip, "")
+            .await
     {
         return db_resp(e);
     }
@@ -521,10 +516,13 @@ async fn upload_avatar(
     };
     let out = async {
         use tokio::io::{AsyncReadExt, AsyncSeekExt};
-        let mut f = tokio::fs::File::open(&tmp).await.map_err(|e| e.to_string())?;
+        let mut f = tokio::fs::File::open(&tmp)
+            .await
+            .map_err(|e| e.to_string())?;
         let mut head = [0u8; 12];
         let n = f.read(&mut head).await.map_err(|e| e.to_string())?;
-        let ext = avatar_ext(&head[..n]).ok_or_else(|| "not a png, jpeg, gif or webp image".to_string())?;
+        let ext = avatar_ext(&head[..n])
+            .ok_or_else(|| "not a png, jpeg, gif or webp image".to_string())?;
         f.seek(std::io::SeekFrom::Start(0))
             .await
             .map_err(|e| e.to_string())?;
@@ -590,7 +588,10 @@ async fn change_password(
     Json(req): Json<PasswordReq>,
 ) -> Response {
     if !model::valid_password(&req.next) {
-        return err(StatusCode::BAD_REQUEST, "password must be at least 8 characters");
+        return err(
+            StatusCode::BAD_REQUEST,
+            "password must be at least 8 characters",
+        );
     }
     let (_, hash) = match s.db.user_by_name(&session.user.username).await {
         Ok(v) => v,
@@ -606,10 +607,9 @@ async fn change_password(
     if let Err(e) = s.db.set_password(&session.user.id, &h).await {
         return db_resp(e);
     }
-    let _ = s
-        .db
-        .delete_user_sessions_except(&session.user.id, &session.token_hash)
-        .await;
+    let _ =
+        s.db.delete_user_sessions_except(&session.user.id, &session.token_hash)
+            .await;
     s.audit(
         "account",
         &session.user,
@@ -640,12 +640,15 @@ async fn roles(session: Session) -> Json<Value> {
     }))
 }
 
-async fn require_manager(s: &Arc<AppState>, session: &Session, target_id: &str) -> Result<User, Response> {
-    let t = s
-        .db
-        .user_by_id(target_id)
-        .await
-        .map_err(|_| err(StatusCode::NOT_FOUND, "no such account"))?;
+async fn require_manager(
+    s: &Arc<AppState>,
+    session: &Session,
+    target_id: &str,
+) -> Result<User, Response> {
+    let t =
+        s.db.user_by_id(target_id)
+            .await
+            .map_err(|_| err(StatusCode::NOT_FOUND, "no such account"))?;
     if !can_manage(&session.user, &t) {
         return Err(err(StatusCode::FORBIDDEN, "cannot manage this account"));
     }
@@ -690,7 +693,10 @@ async fn create_account(
         return err(StatusCode::BAD_REQUEST, "invalid username");
     }
     if !model::valid_password(&req.password) {
-        return err(StatusCode::BAD_REQUEST, "password must be at least 8 characters");
+        return err(
+            StatusCode::BAD_REQUEST,
+            "password must be at least 8 characters",
+        );
     }
     let name = req.name.trim();
     if name.is_empty() || name.len() > 64 {
@@ -839,8 +845,7 @@ async fn invite_preview(
     }
     match s.db.invite_by_hash(&model::token_hash(&code)).await {
         Ok(i) if i.used_by.is_empty() && !i.revoked && i.expires_at > AppState::now() => {
-            Json(json!({"username": i.preset_username, "name": i.preset_name}))
-                .into_response()
+            Json(json!({"username": i.preset_username, "name": i.preset_name})).into_response()
         }
         Ok(_) => err(StatusCode::GONE, "invite expired"),
         Err(_) => {
@@ -905,7 +910,10 @@ async fn redeem_invite(
         return err(StatusCode::BAD_REQUEST, "invalid name");
     }
     if !model::valid_password(&req.password) {
-        return err(StatusCode::BAD_REQUEST, "password must be at least 8 characters");
+        return err(
+            StatusCode::BAD_REQUEST,
+            "password must be at least 8 characters",
+        );
     }
     if s.db.user_by_name(&username).await.is_ok() {
         return err(StatusCode::CONFLICT, "username taken");
@@ -972,7 +980,10 @@ async fn reset_password(
         Err(r) => return r,
     };
     if !model::valid_password(&req.password) {
-        return err(StatusCode::BAD_REQUEST, "password must be at least 8 characters");
+        return err(
+            StatusCode::BAD_REQUEST,
+            "password must be at least 8 characters",
+        );
     }
     let h = match auth::hash_password(&req.password) {
         Ok(h) => h,
@@ -1227,20 +1238,22 @@ async fn list_projects(State(s): State<Arc<AppState>>, session: Session) -> Resp
         Err(e) => return db_resp(e),
     };
     if session.user.role.can_see_audit() {
-        let names: std::collections::HashMap<String, String> = s
-            .db
-            .managed_users(&session.user)
-            .await
-            .unwrap_or_default()
-            .into_iter()
-            .map(|u| {
-                (u.id, if u.display_name.is_empty() {
-                    u.username
-                } else {
-                    u.display_name
+        let names: std::collections::HashMap<String, String> =
+            s.db.managed_users(&session.user)
+                .await
+                .unwrap_or_default()
+                .into_iter()
+                .map(|u| {
+                    (
+                        u.id,
+                        if u.display_name.is_empty() {
+                            u.username
+                        } else {
+                            u.display_name
+                        },
+                    )
                 })
-            })
-            .collect();
+                .collect();
         match s.db.managed_projects(&session.user).await {
             Ok(managed) => {
                 let mut out: Vec<_> = v
@@ -1249,10 +1262,7 @@ async fn list_projects(State(s): State<Arc<AppState>>, session: Session) -> Resp
                     .collect();
                 for p in managed {
                     let mut j = serde_json::to_value(&p).unwrap_or_default();
-                    j["ownerName"] = json!(names
-                        .get(&p.owner_id)
-                        .cloned()
-                        .unwrap_or_default());
+                    j["ownerName"] = json!(names.get(&p.owner_id).cloned().unwrap_or_default());
                     out.push(j);
                 }
                 return Json(json!(out)).into_response();
@@ -1289,7 +1299,10 @@ async fn create_project(
         }
     };
     if name.starts_with('.') || name.starts_with('-') {
-        return err(StatusCode::BAD_REQUEST, "project name cannot start with . or -");
+        return err(
+            StatusCode::BAD_REQUEST,
+            "project name cannot start with . or -",
+        );
     }
     let display = if req.display_name.trim().is_empty() {
         name.clone()
@@ -1355,15 +1368,18 @@ async fn auto_share_apply(s: &Arc<AppState>, p: &Project, creator: &User) {
         if a.invitee_id == creator.id {
             continue;
         }
-        let accepted = a.owner_id == creator.id
-            || lineage_has(&creator.lineage, &a.owner_id);
+        let accepted = a.owner_id == creator.id || lineage_has(&creator.lineage, &a.owner_id);
         let sh = ProjectShare {
             id: model::new_id(),
             project_id: p.id.clone(),
             inviter_id: a.owner_id.clone(),
             invitee_id: a.invitee_id.clone(),
             level: a.level.clone(),
-            status: if accepted { "accepted".into() } else { "pending".into() },
+            status: if accepted {
+                "accepted".into()
+            } else {
+                "pending".into()
+            },
             created_at: now,
             responded_at: if accepted { now } else { 0 },
         };
@@ -1381,15 +1397,18 @@ async fn auto_share_apply(s: &Arc<AppState>, p: &Project, creator: &User) {
             )
             .await;
         }
-        let from = s
-            .db
-            .user_by_id(&a.owner_id)
-            .await
-            .map(|u| u.username)
-            .unwrap_or_default();
+        let from =
+            s.db.user_by_id(&a.owner_id)
+                .await
+                .map(|u| u.username)
+                .unwrap_or_default();
         s.notify(
             &a.invitee_id,
-            if accepted { "share_auto" } else { "share_invite" },
+            if accepted {
+                "share_auto"
+            } else {
+                "share_invite"
+            },
             json!({
                 "project": p.id,
                 "projectName": p.display_name,
@@ -1618,12 +1637,7 @@ async fn delete_auto_share(
     }
 }
 
-async fn respond_share(
-    s: &Arc<AppState>,
-    session: &Session,
-    sid: &str,
-    status: &str,
-) -> Response {
+async fn respond_share(s: &Arc<AppState>, session: &Session, sid: &str, status: &str) -> Response {
     let sh = s.db.share_by_id(sid).await.ok();
     match s
         .db
@@ -1645,12 +1659,11 @@ async fn respond_share(
             )
             .await;
             if let Some(sh) = sh {
-                let name = s
-                    .db
-                    .project_by_id(&sh.project_id)
-                    .await
-                    .map(|p| p.display_name)
-                    .unwrap_or_default();
+                let name =
+                    s.db.project_by_id(&sh.project_id)
+                        .await
+                        .map(|p| p.display_name)
+                        .unwrap_or_default();
                 s.notify(
                     &sh.inviter_id,
                     if status == "accepted" {
@@ -1778,19 +1791,17 @@ async fn revoke_link(
 }
 
 async fn link_valid(s: &Arc<AppState>, token: &str) -> Result<(ProjectLink, Project), Response> {
-    let l = s
-        .db
-        .link_by_hash(&model::token_hash(token))
-        .await
-        .map_err(|_| err(StatusCode::NOT_FOUND, "no such link"))?;
+    let l =
+        s.db.link_by_hash(&model::token_hash(token))
+            .await
+            .map_err(|_| err(StatusCode::NOT_FOUND, "no such link"))?;
     if l.revoked || (l.expires_at > 0 && l.expires_at < AppState::now()) {
         return Err(err(StatusCode::NOT_FOUND, "no such link"));
     }
-    let p = s
-        .db
-        .project_by_id(&l.project_id)
-        .await
-        .map_err(|_| err(StatusCode::NOT_FOUND, "no such link"))?;
+    let p =
+        s.db.project_by_id(&l.project_id)
+            .await
+            .map_err(|_| err(StatusCode::NOT_FOUND, "no such link"))?;
     Ok((l, p))
 }
 
@@ -1907,10 +1918,7 @@ async fn notification_read(
     }
 }
 
-async fn notifications_read_all(
-    State(s): State<Arc<AppState>>,
-    session: Session,
-) -> Response {
+async fn notifications_read_all(State(s): State<Arc<AppState>>, session: Session) -> Response {
     match s
         .db
         .notifications_read_all(&session.user.id, AppState::now())
@@ -1921,7 +1929,11 @@ async fn notifications_read_all(
     }
 }
 
-async fn owned_project(s: &Arc<AppState>, session: &Session, id: &str) -> Result<Project, Response> {
+async fn owned_project(
+    s: &Arc<AppState>,
+    session: &Session,
+    id: &str,
+) -> Result<Project, Response> {
     let p = fetch_project(s, id).await?;
     if p.owner_id != session.user.id && session.user.role != Role::Owner {
         return Err(err(StatusCode::FORBIDDEN, "not your project"));
@@ -1949,11 +1961,10 @@ async fn project_access(
             return Ok((p, level));
         }
     }
-    let in_subtree = s
-        .db
-        .user_in_subtree(&session.user, &p.owner_id)
-        .await
-        .unwrap_or(false);
+    let in_subtree =
+        s.db.user_in_subtree(&session.user, &p.owner_id)
+            .await
+            .unwrap_or(false);
     if in_subtree {
         return Ok((p, "view"));
     }
@@ -2013,7 +2024,11 @@ async fn take_over_project(
     Json(json!({"ok": true})).into_response()
 }
 
-async fn get_project(State(s): State<Arc<AppState>>, session: Session, Path(id): Path<String>) -> Response {
+async fn get_project(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Path(id): Path<String>,
+) -> Response {
     match project_access(&s, &session, &id).await {
         Ok((p, level)) => {
             let _ = s.db.touch_project(&p.id, AppState::now()).await;
@@ -2076,10 +2091,9 @@ async fn update_project(
         None => p.group_id.clone(),
     };
     let tags = model::norm_tags(req.tags.as_deref().unwrap_or(&p.tags));
-    if let Err(e) = s
-        .db
-        .update_project(&id, &name, &group_id, &model::tags_csv(&tags))
-        .await
+    if let Err(e) =
+        s.db.update_project(&id, &name, &group_id, &model::tags_csv(&tags))
+            .await
     {
         return db_resp(e);
     }
@@ -2103,11 +2117,10 @@ async fn owned_group(
     session: &Session,
     id: &str,
 ) -> Result<ProjectGroup, Response> {
-    let g = s
-        .db
-        .group_by_id(id)
-        .await
-        .map_err(|_| err(StatusCode::NOT_FOUND, "no such group"))?;
+    let g =
+        s.db.group_by_id(id)
+            .await
+            .map_err(|_| err(StatusCode::NOT_FOUND, "no such group"))?;
     if g.owner_id != session.user.id && session.user.role != Role::Owner {
         return Err(err(StatusCode::FORBIDDEN, "not your group"));
     }
@@ -2354,9 +2367,14 @@ async fn add_comment(
         Ok(b) => b,
         Err(r) => return r,
     };
-    if let Err(e) = s
-        .db
-        .comment_add(&model::new_id(), &id, &session.user.id, &body, AppState::now())
+    if let Err(e) =
+        s.db.comment_add(
+            &model::new_id(),
+            &id,
+            &session.user.id,
+            &body,
+            AppState::now(),
+        )
         .await
     {
         return db_resp(e);
@@ -2442,11 +2460,7 @@ async fn submit_project(
     } else {
         ("submitted", AppState::now(), "project_submit")
     };
-    if let Err(e) = s
-        .db
-        .set_project_status(&id, status, submitted_at, "")
-        .await
-    {
+    if let Err(e) = s.db.set_project_status(&id, status, submitted_at, "").await {
         return db_resp(e);
     }
     s.audit("project", &session.user, action, &p.display_name, "", "")
@@ -2497,10 +2511,9 @@ async fn review_project(
     if status != "reviewed" && status != "draft" {
         return err(StatusCode::BAD_REQUEST, "status: reviewed|draft");
     }
-    if let Err(e) = s
-        .db
-        .set_project_status(&id, status, p.submitted_at, &session.user.id)
-        .await
+    if let Err(e) =
+        s.db.set_project_status(&id, status, p.submitted_at, &session.user.id)
+            .await
     {
         return db_resp(e);
     }
@@ -2600,7 +2613,11 @@ async fn list_files(
                     modified: o.modified,
                 }
             }));
-            out.sort_by(|a, b| (b.kind == "dir").cmp(&(a.kind == "dir")).then(a.name.cmp(&b.name)));
+            out.sort_by(|a, b| {
+                (b.kind == "dir")
+                    .cmp(&(a.kind == "dir"))
+                    .then(a.name.cmp(&b.name))
+            });
             Json(json!(out)).into_response()
         }
         Err(e) => err(StatusCode::INTERNAL_SERVER_ERROR, &e),
@@ -2662,8 +2679,7 @@ async fn account_usage(
 ) -> Response {
     match require_manager(&s, &session, &id).await {
         Ok(t) => {
-            let bytes =
-                usage_bytes(&s, &format!("{}/{}", t.username, t.id)).await;
+            let bytes = usage_bytes(&s, &format!("{}/{}", t.username, t.id)).await;
             Json(json!({"bytes": bytes})).into_response()
         }
         Err(r) => r,
@@ -2710,10 +2726,10 @@ async fn upload_file(
         Err(r) => return r,
     };
     let put = async {
-        let mut f = tokio::fs::File::open(&tmp).await.map_err(|e| e.to_string())?;
-        s.blobs
-            .put(&blob_key(&p.dir, &key), written, &mut f)
+        let mut f = tokio::fs::File::open(&tmp)
             .await
+            .map_err(|e| e.to_string())?;
+        s.blobs.put(&blob_key(&p.dir, &key), written, &mut f).await
     }
     .await;
     let _ = tokio::fs::remove_file(&tmp).await;
@@ -2814,8 +2830,7 @@ async fn upload_chunk(
         None => return err(StatusCode::NOT_FOUND, "unknown upload"),
     };
     if q.offset != u.received {
-        return (StatusCode::CONFLICT, Json(json!({"received": u.received})))
-            .into_response();
+        return (StatusCode::CONFLICT, Json(json!({"received": u.received}))).into_response();
     }
     if headers
         .get(header::CONTENT_LENGTH)
@@ -2896,7 +2911,9 @@ async fn upload_complete(
         let mut f = tokio::fs::File::open(&u.tmp)
             .await
             .map_err(|e| e.to_string())?;
-        s.blobs.put(&blob_key(&u.dir, &u.key), u.received, &mut f).await
+        s.blobs
+            .put(&blob_key(&u.dir, &u.key), u.received, &mut f)
+            .await
     }
     .await;
     let _ = tokio::fs::remove_file(&u.tmp).await;
@@ -2932,10 +2949,20 @@ async fn upload_cancel(
 
 /// Spool a request body to a temp file with a size cap. Returns the temp path
 /// and bytes written; the caller moves or deletes the file.
-async fn spool_body(s: &AppState, body: Body, max: u64) -> Result<(std::path::PathBuf, u64), Response> {
-    let tmp = s.cfg.data_dir.join("tmp").join(format!("up-{}", model::new_id()));
+async fn spool_body(
+    s: &AppState,
+    body: Body,
+    max: u64,
+) -> Result<(std::path::PathBuf, u64), Response> {
+    let tmp = s
+        .cfg
+        .data_dir
+        .join("tmp")
+        .join(format!("up-{}", model::new_id()));
     let _ = tokio::fs::create_dir_all(tmp.parent().unwrap()).await;
-    let mut f = tokio::fs::File::create(&tmp).await.map_err(|e| fs_resp(e.into()))?;
+    let mut f = tokio::fs::File::create(&tmp)
+        .await
+        .map_err(|e| fs_resp(e.into()))?;
     let mut stream = body.into_data_stream();
     let mut written: u64 = 0;
     let mut failed: Option<Response> = None;
@@ -3010,13 +3037,28 @@ async fn move_file(
         Ok(p) => p,
         Err(r) => return r,
     };
-    let (fk, tk) = match (files::clean_rel_key(&req.from), files::clean_rel_key(&req.to)) {
+    let (fk, tk) = match (
+        files::clean_rel_key(&req.from),
+        files::clean_rel_key(&req.to),
+    ) {
         (Ok(a), Ok(b)) => (a, b),
         _ => return err(StatusCode::BAD_REQUEST, "bad path"),
     };
-    match s.blobs.rename(&blob_key(&p.dir, &fk), &blob_key(&p.dir, &tk)).await {
+    match s
+        .blobs
+        .rename(&blob_key(&p.dir, &fk), &blob_key(&p.dir, &tk))
+        .await
+    {
         Ok(()) => {
-            s.audit("project", &session.user, "move", &p.display_name, &format!("{} -> {}", req.from, req.to), "").await;
+            s.audit(
+                "project",
+                &session.user,
+                "move",
+                &p.display_name,
+                &format!("{} -> {}", req.from, req.to),
+                "",
+            )
+            .await;
             Json(json!({"ok": true})).into_response()
         }
         Err(e) => err(StatusCode::BAD_REQUEST, &e),
@@ -3039,7 +3081,15 @@ async fn delete_file(
     };
     match s.blobs.delete(&blob_key(&p.dir, &key)).await {
         Ok(()) => {
-            s.audit("project", &session.user, "delete_file", &p.display_name, &q.path, "").await;
+            s.audit(
+                "project",
+                &session.user,
+                "delete_file",
+                &p.display_name,
+                &q.path,
+                "",
+            )
+            .await;
             Json(json!({"ok": true})).into_response()
         }
         Err(e) if e == "not found" => err(StatusCode::NOT_FOUND, &e),
@@ -3127,12 +3177,7 @@ struct ZipQuery {
     paths: String,
 }
 
-async fn collect_zip(
-    s: &Arc<AppState>,
-    dir: &str,
-    rel: &str,
-    out: &mut Vec<(String, String)>,
-) {
+async fn collect_zip(s: &Arc<AppState>, dir: &str, rel: &str, out: &mut Vec<(String, String)>) {
     let key = blob_key(dir, rel);
     if s.blobs.head(&key).await.is_ok() {
         out.push((rel.to_string(), key));
@@ -3241,7 +3286,13 @@ async fn thumb(
     serve_blob(&s, &tk, "thumb.jpg", &HeaderMap::new(), false).await
 }
 
-async fn serve_blob(s: &Arc<AppState>, key: &str, name: &str, headers: &HeaderMap, attachment: bool) -> Response {
+async fn serve_blob(
+    s: &Arc<AppState>,
+    key: &str,
+    name: &str,
+    headers: &HeaderMap,
+    attachment: bool,
+) -> Response {
     let size = match s.blobs.head(key).await {
         Ok(v) => v,
         Err(_) => return err(StatusCode::NOT_FOUND, "not found"),
@@ -3262,14 +3313,23 @@ async fn serve_blob(s: &Arc<AppState>, key: &str, name: &str, headers: &HeaderMa
         Ok(v) => v,
         Err(e) => return err(StatusCode::NOT_FOUND, &e),
     };
-    let mime = mime_guess::from_path(name).first_or_octet_stream().to_string();
+    let mime = mime_guess::from_path(name)
+        .first_or_octet_stream()
+        .to_string();
     let len = end.saturating_sub(start) + 1;
-    let status = if partial { StatusCode::PARTIAL_CONTENT } else { StatusCode::OK };
+    let status = if partial {
+        StatusCode::PARTIAL_CONTENT
+    } else {
+        StatusCode::OK
+    };
     let mut r = Response::new(Body::from_stream(stream));
     *r.status_mut() = status;
     let h = r.headers_mut();
     h.insert(header::CONTENT_TYPE, HeaderValue::from_str(&mime).unwrap());
-    h.insert(header::CONTENT_LENGTH, HeaderValue::from_str(&len.to_string()).unwrap());
+    h.insert(
+        header::CONTENT_LENGTH,
+        HeaderValue::from_str(&len.to_string()).unwrap(),
+    );
     h.insert(header::ACCEPT_RANGES, HeaderValue::from_static("bytes"));
     if partial {
         h.insert(
@@ -3281,7 +3341,13 @@ async fn serve_blob(s: &Arc<AppState>, key: &str, name: &str, headers: &HeaderMa
         let fname = name.rsplit('/').next().unwrap_or(name);
         let safe: String = fname
             .chars()
-            .map(|c| if c.is_ascii_alphanumeric() || "._- ".contains(c) { c } else { '_' })
+            .map(|c| {
+                if c.is_ascii_alphanumeric() || "._- ".contains(c) {
+                    c
+                } else {
+                    '_'
+                }
+            })
             .collect();
         h.insert(
             header::CONTENT_DISPOSITION,
@@ -3377,7 +3443,7 @@ async fn lock_acquire(
         Err(r) => return r,
     };
     let kind = match req.kind.as_str() {
-        "edit" | "render" => req.kind.clone(),
+        "edit" | "render" | "docs" => req.kind.clone(),
         _ => return err(StatusCode::BAD_REQUEST, "bad lock kind"),
     };
     if req.client_id.is_empty() || req.client_id.len() > 64 {
@@ -3503,8 +3569,7 @@ async fn server_render_capacity(s: &Arc<AppState>) -> bool {
         return true;
     }
     let fresh = AppState::now() - 120;
-    s.db
-        .node_list()
+    s.db.node_list()
         .await
         .map(|ns| ns.iter().any(|n| !n.disabled && n.last_seen > fresh))
         .unwrap_or(false)
@@ -3580,13 +3645,21 @@ async fn create_render(
         id: model::new_id(),
         project_id: id.clone(),
         user_id: session.user.id.clone(),
-        status: if device { "running".into() } else { "queued".into() },
+        status: if device {
+            "running".into()
+        } else {
+            "queued".into()
+        },
         mode: req.mode.clone(),
         spec,
         output_name: output,
         progress: 0.0,
         error: String::new(),
-        worker: if device { "device".into() } else { String::new() },
+        worker: if device {
+            "device".into()
+        } else {
+            String::new()
+        },
         attempts: 0,
         created_at: AppState::now(),
         finished_at: 0,
@@ -3601,14 +3674,12 @@ async fn create_render(
         };
     }
     if device {
-        let _ = s
-            .db
-            .job_progress(&job.id, &job.worker, 0.0, AppState::now() + 90)
-            .await;
+        let _ =
+            s.db.job_progress(&job.id, &job.worker, 0.0, AppState::now() + 90)
+                .await;
     }
-    let _ = s
-        .db
-        .lock_acquire(
+    let _ =
+        s.db.lock_acquire(
             &id,
             "render",
             &job.id,
@@ -3661,11 +3732,7 @@ async fn render_info(
             }
         }
     }
-    let dir = s
-        .cfg
-        .data_dir
-        .join("inspect")
-        .join(model::new_id());
+    let dir = s.cfg.data_dir.join("inspect").join(model::new_id());
     if tokio::fs::create_dir_all(&dir).await.is_err() {
         return err(StatusCode::INTERNAL_SERVER_ERROR, "stage failed");
     }
@@ -3759,10 +3826,9 @@ async fn render_progress(
     let canceled = s.cancels.lock().unwrap().contains(&id);
     if !canceled {
         let p = req["progress"].as_f64().unwrap_or(0.0).clamp(0.0, 1.0);
-        let _ = s
-            .db
-            .job_progress(&id, &job.worker, p, AppState::now() + 90)
-            .await;
+        let _ =
+            s.db.job_progress(&id, &job.worker, p, AppState::now() + 90)
+                .await;
     }
     Json(json!({"ok": true, "canceled": canceled})).into_response()
 }
@@ -3782,16 +3848,17 @@ async fn render_finish(
     if job.status != "running" {
         return Json(json!({"ok": true})).into_response();
     }
-    let e = req["error"].as_str().unwrap_or("").chars().take(500).collect::<String>();
+    let e = req["error"]
+        .as_str()
+        .unwrap_or("")
+        .chars()
+        .take(500)
+        .collect::<String>();
     let status = if e.is_empty() { "done" } else { "failed" };
-    let _ = s
-        .db
-        .job_finish(&id, &job.worker, status, &e, AppState::now())
-        .await;
-    let _ = s
-        .db
-        .lock_release(&job.project_id, "render", &job.id)
-        .await;
+    let _ =
+        s.db.job_finish(&id, &job.worker, status, &e, AppState::now())
+            .await;
+    let _ = s.db.lock_release(&job.project_id, "render", &job.id).await;
     if let Ok(p) = s.db.project_by_id(&job.project_id).await {
         if e.is_empty() {
             s.audit(
@@ -3806,7 +3873,11 @@ async fn render_finish(
         }
         s.notify(
             &job.user_id,
-            if e.is_empty() { "render_done" } else { "render_failed" },
+            if e.is_empty() {
+                "render_done"
+            } else {
+                "render_failed"
+            },
             json!({
                 "project": p.id,
                 "projectName": p.display_name,
@@ -3824,11 +3895,10 @@ async fn device_render_job(
     session: &Session,
     id: &str,
 ) -> Result<RenderJob, Response> {
-    let job = s
-        .db
-        .job_by_id(id)
-        .await
-        .map_err(|_| err(StatusCode::NOT_FOUND, "no such render"))?;
+    let job =
+        s.db.job_by_id(id)
+            .await
+            .map_err(|_| err(StatusCode::NOT_FOUND, "no such render"))?;
     if job.mode != "device" {
         return Err(err(StatusCode::BAD_REQUEST, "not a device render"));
     }
@@ -3857,10 +3927,9 @@ async fn cancel_render(
     if job.status == "running" {
         s.cancels.lock().unwrap().insert(id.clone());
     }
-    let _ = s
-        .db
-        .job_finish(&id, &job.worker, "canceled", "", AppState::now())
-        .await;
+    let _ =
+        s.db.job_finish(&id, &job.worker, "canceled", "", AppState::now())
+            .await;
     let _ = s.db.lock_release(&job.project_id, "render", &job.id).await;
     s.audit(
         "project",
@@ -3918,13 +3987,21 @@ async fn retry_render(
         id: model::new_id(),
         project_id: job.project_id.clone(),
         user_id: session.user.id.clone(),
-        status: if device { "running".into() } else { "queued".into() },
+        status: if device {
+            "running".into()
+        } else {
+            "queued".into()
+        },
         mode: job.mode.clone(),
         spec,
         output_name: job.output_name.clone(),
         progress: 0.0,
         error: String::new(),
-        worker: if device { "device".into() } else { String::new() },
+        worker: if device {
+            "device".into()
+        } else {
+            String::new()
+        },
         attempts: 0,
         created_at: AppState::now(),
         finished_at: 0,
@@ -3939,14 +4016,12 @@ async fn retry_render(
         };
     }
     if device {
-        let _ = s
-            .db
-            .job_progress(&next.id, &next.worker, 0.0, AppState::now() + 90)
-            .await;
+        let _ =
+            s.db.job_progress(&next.id, &next.worker, 0.0, AppState::now() + 90)
+                .await;
     }
-    let _ = s
-        .db
-        .lock_acquire(
+    let _ =
+        s.db.lock_acquire(
             &job.project_id,
             "render",
             &next.id,
@@ -4044,8 +4119,15 @@ async fn put_settings(
         return db_resp(e);
     }
     *s.trusted.write().unwrap() = nets;
-    s.audit("account", &session.user, "update_settings", "trusted_proxies", list, "")
-        .await;
+    s.audit(
+        "account",
+        &session.user,
+        "update_settings",
+        "trusted_proxies",
+        list,
+        "",
+    )
+    .await;
     Json(json!({"ok": true})).into_response()
 }
 
@@ -4244,11 +4326,10 @@ async fn worker_job_guard(
     node: &NodeSession,
     id: &str,
 ) -> Result<RenderJob, Response> {
-    let job = s
-        .db
-        .job_by_id(id)
-        .await
-        .map_err(|_| err(StatusCode::NOT_FOUND, "no such job"))?;
+    let job =
+        s.db.job_by_id(id)
+            .await
+            .map_err(|_| err(StatusCode::NOT_FOUND, "no such job"))?;
     if job.worker != node.node.name {
         return Err(err(StatusCode::FORBIDDEN, "not your job"));
     }
@@ -4300,14 +4381,12 @@ async fn worker_progress(
         Ok(j) => j,
         Err(r) => return r,
     };
-    let canceled =
-        job.status == "canceled" || s.cancels.lock().unwrap().contains(&id);
+    let canceled = job.status == "canceled" || s.cancels.lock().unwrap().contains(&id);
     if canceled {
         return Json(json!({"ok": true, "canceled": true})).into_response();
     }
-    let _ = s
-        .db
-        .job_progress(
+    let _ =
+        s.db.job_progress(
             &id,
             &job.worker,
             req.progress.clamp(0.0, 1.0),
@@ -4349,8 +4428,12 @@ async fn worker_complete(
         Err(r) => return r,
     };
     let put = async {
-        let mut f = tokio::fs::File::open(&tmp).await.map_err(|e| e.to_string())?;
-        s.blobs.put(&blob_key(&project.dir, &key), len, &mut f).await
+        let mut f = tokio::fs::File::open(&tmp)
+            .await
+            .map_err(|e| e.to_string())?;
+        s.blobs
+            .put(&blob_key(&project.dir, &key), len, &mut f)
+            .await
     }
     .await;
     let _ = tokio::fs::remove_file(&tmp).await;
@@ -4358,15 +4441,21 @@ async fn worker_complete(
         return err(StatusCode::INTERNAL_SERVER_ERROR, &e);
     }
     if q.done {
-        let _ = s
-            .db
-            .job_finish(&id, &job.worker, "done", "", AppState::now())
-            .await;
+        let _ =
+            s.db.job_finish(&id, &job.worker, "done", "", AppState::now())
+                .await;
         let _ = s.db.lock_release(&job.project_id, "render", &job.id).await;
         s.cancels.lock().unwrap().remove(&id);
         if let Ok(u) = s.db.user_by_id(&job.user_id).await {
-            s.audit("project", &u, "render_done", &project.display_name, &name, "")
-                .await;
+            s.audit(
+                "project",
+                &u,
+                "render_done",
+                &project.display_name,
+                &name,
+                "",
+            )
+            .await;
         }
         s.notify(
             &job.user_id,
@@ -4398,18 +4487,16 @@ async fn worker_fail(
         Err(r) => return r,
     };
     let msg: String = req.error.chars().take(500).collect();
-    let _ = s
-        .db
-        .job_finish(&id, &job.worker, "failed", &msg, AppState::now())
-        .await;
+    let _ =
+        s.db.job_finish(&id, &job.worker, "failed", &msg, AppState::now())
+            .await;
     let _ = s.db.lock_release(&job.project_id, "render", &job.id).await;
     s.cancels.lock().unwrap().remove(&id);
-    let pname = s
-        .db
-        .project_by_id(&job.project_id)
-        .await
-        .map(|p| p.display_name)
-        .unwrap_or_default();
+    let pname =
+        s.db.project_by_id(&job.project_id)
+            .await
+            .map(|p| p.display_name)
+            .unwrap_or_default();
     s.notify(
         &job.user_id,
         "render_failed",

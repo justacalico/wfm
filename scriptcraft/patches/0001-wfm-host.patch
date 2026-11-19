@@ -1,0 +1,119 @@
+diff --git a/apps/scriptcraft-web/Cargo.toml b/apps/scriptcraft-web/Cargo.toml
+index db9345c..bfd8230 100644
+--- a/apps/scriptcraft-web/Cargo.toml
++++ b/apps/scriptcraft-web/Cargo.toml
+@@ -19,6 +19,6 @@ log = { workspace = true }
+ wasm-bindgen = "0.2"
+ wasm-bindgen-futures = "0.4"
+ js-sys = "0.3"
+-web-sys = { version = "0.3", features = ["Window", "Document", "Element", "HtmlElement", "HtmlCanvasElement", "HtmlAnchorElement", "HtmlIFrameElement", "Blob", "BlobPropertyBag", "Url", "Navigator", "SpeechSynthesis", "SpeechSynthesisUtterance", "SpeechSynthesisVoice"] }
++web-sys = { version = "0.3", features = ["Window", "Document", "Element", "HtmlElement", "HtmlCanvasElement", "HtmlAnchorElement", "HtmlIFrameElement", "Blob", "BlobPropertyBag", "Url", "Navigator", "Location", "MessageEvent", "SpeechSynthesis", "SpeechSynthesisUtterance", "SpeechSynthesisVoice"] }
+ # The browser's file picker (an <input type=file>) for File › Open.
+ rfd = { workspace = true }
+diff --git a/apps/scriptcraft-web/src/main.rs b/apps/scriptcraft-web/src/main.rs
+index aa0c0ab..cf42d01 100644
+--- a/apps/scriptcraft-web/src/main.rs
++++ b/apps/scriptcraft-web/src/main.rs
+@@ -65,6 +65,68 @@ mod web {
+         Ok(())
+     }
+ 
++    /// WFM host mode (`?project=` in the URL): the wrapping page owns the document. It posts
++    /// `scriptcraft:open` with the doc bytes; saves post `scriptcraft:save` back for it to store.
++    fn wfm_host() -> bool {
++        web_sys::window().and_then(|w| w.location().search().ok()).is_some_and(|s| s.contains("project="))
++    }
++
++    fn wfm_post(fields: &[(&str, JsValue)]) {
++        let Some(w) = web_sys::window() else { return };
++        let Ok(Some(parent)) = w.parent() else { return };
++        let msg = js_sys::Object::new();
++        for (k, v) in fields {
++            let _ = js_sys::Reflect::set(&msg, &JsValue::from_str(k), v);
++        }
++        let origin = w.location().origin().unwrap_or_else(|_| "*".into());
++        let _ = parent.post_message(&msg, &origin);
++    }
++
++    struct WfmFiles;
++
++    impl FileHost for WfmFiles {
++        fn open(&self, _inbox: Inbox) {
++            wfm_post(&[("type", JsValue::from_str("scriptcraft:pull"))]);
++        }
++
++        fn save(&self, name: &str, bytes: Vec<u8>) {
++            wfm_post(&[
++                ("type", JsValue::from_str("scriptcraft:save")),
++                ("name", JsValue::from_str(name)),
++                ("data", JsValue::from_str(&scriptcraft_engine::b64::encode(&bytes))),
++            ]);
++        }
++    }
++
++    fn wfm_listen(inbox: Inbox, ctx: egui::Context) {
++        let Some(w) = web_sys::window() else { return };
++        let cb = Closure::<dyn FnMut(web_sys::MessageEvent)>::new(move |ev: web_sys::MessageEvent| {
++            let data = ev.data();
++            if get(&data, "type").as_string().as_deref() != Some("scriptcraft:open") {
++                return;
++            }
++            let name = get(&data, "name").as_string().unwrap_or_else(|| "script.fountain".to_string());
++            let bytes = get(&data, "bytes").dyn_into::<js_sys::Uint8Array>().map(|a| a.to_vec()).unwrap_or_default();
++            if let Ok(mut q) = inbox.lock() {
++                q.push((name, bytes));
++            }
++            ctx.request_repaint();
++        });
++        let _ = w.add_event_listener_with_callback("message", cb.as_ref().unchecked_ref());
++        cb.forget();
++    }
++
++    thread_local! {
++        static LAST_DIRTY: std::cell::Cell<Option<bool>> = const { std::cell::Cell::new(None) };
++    }
++
++    fn wfm_dirty(dirty: bool) {
++        if LAST_DIRTY.with(|d| d.replace(Some(dirty))) == Some(dirty) {
++            return;
++        }
++        wfm_post(&[("type", JsValue::from_str("scriptcraft:dirty")), ("dirty", JsValue::from_bool(dirty))]);
++    }
++
+     /// Printing in the browser: the PDF loads in a hidden frame and the browser's own print window
+     /// opens on it, where the printer and copies are chosen. If the frame can't print (some
+     /// browsers block printing PDFs in frames), the PDF opens in a new tab instead.
+@@ -287,6 +349,9 @@ mod web {
+     impl eframe::App for WebApp {
+         fn logic(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+             self.0.logic(ctx);
++            if wfm_host() {
++                wfm_dirty(self.0.session.dirty);
++            }
+         }
+         fn raw_input_hook(&mut self, _ctx: &egui::Context, raw: &mut egui::RawInput) {
+             self.0.raw_input_hook(raw);
+@@ -314,9 +379,21 @@ mod web {
+                     canvas,
+                     eframe::WebOptions::default(),
+                     Box::new(|cc| {
+-                        let mut app = ScriptApp::new(Session::sample());
++                        let host_mode = wfm_host();
++                        let mut app = if host_mode {
++                            ScriptApp::new(Session::new(scriptcraft_engine::doc::Script::new()))
++                        } else {
++                            ScriptApp::new(Session::sample())
++                        };
+                         app.dark = cc.egui_ctx.system_theme() == Some(egui::Theme::Dark);
+-                        app.host = Some(Box::new(BrowserFiles { ctx: cc.egui_ctx.clone() }));
++                        let files: Box<dyn FileHost> = if host_mode {
++                            wfm_listen(app.inbox.clone(), cc.egui_ctx.clone());
++                            wfm_post(&[("type", JsValue::from_str("scriptcraft:ready"))]);
++                            Box::new(WfmFiles)
++                        } else {
++                            Box::new(BrowserFiles { ctx: cc.egui_ctx.clone() })
++                        };
++                        app.host = Some(files);
+                         app.speaker = Some(Box::new(BrowserSpeech::new(cc.egui_ctx.clone())));
+                         app.printer = Some(Box::new(BrowserPrint::new()));
+                         Ok(Box::new(WebApp(app)))

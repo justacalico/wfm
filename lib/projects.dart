@@ -221,7 +221,7 @@ class _ProjectsPageState extends State<ProjectsPage> {
       );
 
   Widget _actions(BuildContext c, AppLocalizations l10n, Project p) =>
-      Row(mainAxisSize: MainAxisSize.min, children: [
+      Wrap(children: [
         if (!p.editable)
           Text(l10n.readOnly, style: Theme.of(c).textTheme.labelSmall),
         if (p.editable) ...[
@@ -242,6 +242,18 @@ class _ProjectsPageState extends State<ProjectsPage> {
             },
             icon: const Icon(Icons.open_in_new, size: 16),
             label: Text(l10n.openInFilmcraft),
+          ),
+          TextButton.icon(
+            onPressed: () async {
+              try {
+                await openEditor(
+                    c, Api.i, Api.i.scriptUrl(p.id, theme: _theme(c)));
+              } catch (e) {
+                if (c.mounted) snack(c, e);
+              }
+            },
+            icon: const Icon(Icons.edit_note, size: 16),
+            label: Text(l10n.openScript),
           ),
         ],
       ]);
@@ -682,6 +694,18 @@ class _ProjectPageState extends State<ProjectPage> {
               label: Text(l10n.openInFilmcraft),
             ),
             const SizedBox(width: 8),
+            IconButton(
+              onPressed: () async {
+                try {
+                  await openEditor(context, Api.i,
+                      Api.i.scriptUrl(_p.id, theme: _theme(context)));
+                } catch (e) {
+                  if (context.mounted) snack(context, e);
+                }
+              },
+              icon: const Icon(Icons.edit_note, size: 20),
+              tooltip: l10n.openScript,
+            ),
           ],
           if (_p.mine && _p.status != 'reviewed')
             IconButton(

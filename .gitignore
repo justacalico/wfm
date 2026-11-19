@@ -48,6 +48,7 @@ app.*.map.json
 .widget_preview/
 target/
 filmcraft/dist/
+scriptcraft/dist/
 *.db
 *.db-*
 .env

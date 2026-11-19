@@ -374,6 +374,12 @@ abstract class AppLocalizations {
   /// **'Open'**
   String get openInFilmcraft;
 
+  /// No description provided for @openScript.
+  ///
+  /// In en, this message translates to:
+  /// **'Script'**
+  String get openScript;
+
   /// No description provided for @renameProject.
   ///
   /// In en, this message translates to:

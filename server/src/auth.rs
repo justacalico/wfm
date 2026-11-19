@@ -4,7 +4,6 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::{Duration, Instant};
 
-use rand_core::OsRng;
 use argon2::password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString};
 use argon2::Argon2;
 use axum::extract::FromRequestParts;
@@ -12,6 +11,7 @@ use axum::http::request::Parts;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::Json;
+use rand_core::OsRng;
 use serde_json::json;
 use subtle::ConstantTimeEq;
 
@@ -375,7 +375,10 @@ mod tests {
             v4(10, 0, 0, 1)
         );
         // missing header
-        assert_eq!(forwarded_ip(v4(10, 0, 0, 1), None, &trusted), v4(10, 0, 0, 1));
+        assert_eq!(
+            forwarded_ip(v4(10, 0, 0, 1), None, &trusted),
+            v4(10, 0, 0, 1)
+        );
     }
 
     #[test]

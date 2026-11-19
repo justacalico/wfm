@@ -60,6 +60,7 @@
     }
   },
   "openInFilmcraft": "打开",
+  "openScript": "剧本",
   "renameProject": "重命名项目",
   "displayName": "显示名称",
   "deleteProject": "删除项目",

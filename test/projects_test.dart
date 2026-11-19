@@ -39,6 +39,9 @@ void main() {
       await t.tap(find.text('Open'));
       await settle(t);
       expect(opened, contains('/filmcraft/wfm.html?project=p1'));
+      await t.tap(find.text('Script'));
+      await settle(t);
+      expect(opened, contains('/scriptcraft/wfm.html?project=p1'));
       await t.tap(find.text('Short Film'));
       await settle(t);
       expect(find.byType(ProjectPage), findsOneWidget);
@@ -364,6 +367,9 @@ void main() {
       await t.tap(find.text('Open'));
       await settle(t);
       expect(find.byType(Notice), findsOneWidget);
+      await t.tap(find.text('Script'));
+      await settle(t);
+      expect(find.byType(Notice), findsWidgets);
     });
 
     testWidgets('empty and error states', (t) async {
@@ -853,6 +859,8 @@ void main() {
       await settle(t);
       await t.tap(find.text('open'));
       await settle(t);
+      await t.tap(find.byIcon(Icons.edit_note));
+      expect(opened, contains('/scriptcraft/wfm.html?project=p1'));
       await t.tap(find.text('Open'));
       expect(opened, contains('project=p1'));
 
@@ -894,9 +902,12 @@ void main() {
       });
       openEditorForTesting = (_) => throw 'no editor';
       await pump(t, ProjectPage(project: p1));
-      await t.tap(find.text('Open'));
+      await t.tap(find.byIcon(Icons.edit_note));
       await settle(t);
       expect(find.byType(Notice), findsOneWidget);
+      await t.tap(find.text('Open'));
+      await settle(t);
+      expect(find.byType(Notice), findsWidgets);
       await t.tap(find.descendant(
           of: find.byType(AppBar),
           matching: find.byType(PopupMenuButton<String>)));
