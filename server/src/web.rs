@@ -207,6 +207,7 @@ mod tests {
                 cors_origins: vec![],
                 render_workers: 0,
                 filmcraft_cli: String::new(),
+                ffmpeg: String::new(),
                 local_renders: false,
                 db_url: None,
                 session_ttl: 86400,

@@ -350,6 +350,9 @@ class Api {
 
   Future<RenderInfo> renderInfo(String pid) async =>
       RenderInfo.fromJson(await get('/projects/$pid/render-info'));
+  String thumbUrl(String pid, String path) =>
+      '$_base/api/projects/$pid/thumb?path=${Uri.encodeComponent(path)}';
+
   String downloadUrl(String pid, String path, {bool dl = false}) =>
       '$_base/api/projects/$pid/download?path=${Uri.encodeComponent(path)}${dl ? '&dl=true' : ''}';
 

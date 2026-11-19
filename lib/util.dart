@@ -39,6 +39,45 @@ bool validPassword(String s) => s.length >= 8 && s.length <= 256;
 
 bool validDisplayName(String s) => s.trim().isNotEmpty && s.trim().length <= 64;
 
+const _thumbExts = {
+  'png',
+  'jpg',
+  'jpeg',
+  'gif',
+  'webp',
+  'bmp',
+  'tif',
+  'tiff',
+  'mp4',
+  'mov',
+  'mkv',
+  'webm',
+  'avi',
+  'm4v',
+  'mts',
+  'm2ts',
+  'mxf',
+};
+
+bool thumbable(String name) => _thumbExts.contains(extOf(name));
+
+bool playableMedia(String name) => switch (extOf(name)) {
+      'mp4' ||
+      'mov' ||
+      'webm' ||
+      'm4v' ||
+      'mp3' ||
+      'wav' ||
+      'aac' ||
+      'ogg' ||
+      'oga' ||
+      'm4a' ||
+      'opus' ||
+      'flac' =>
+        true,
+      _ => false,
+    };
+
 String extOf(String name) {
   final i = name.lastIndexOf('.');
   return i < 0 ? '' : name.substring(i + 1).toLowerCase();
