@@ -333,5 +333,6 @@
   "from": "Ó",
   "to": "Go dtí",
   "applyFilters": "Cuir scagairí i bhfeidhm",
-  "clearFilters": "Glan na scagairí"
+  "clearFilters": "Glan na scagairí",
+  "chunkSize": "Méid smutáin uaslódála"
 }

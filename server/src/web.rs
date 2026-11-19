@@ -229,6 +229,7 @@ mod tests {
             logins: Mutex::new(HashMap::new()),
             cancels: Mutex::new(HashSet::new()),
             inspect_cache: Mutex::new(HashMap::new()),
+            chunk_uploads: Mutex::new(HashMap::new()),
             trusted: RwLock::new(vec![]),
         })
     }

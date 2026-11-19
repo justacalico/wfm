@@ -700,6 +700,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get clearFilters => 'Clear filters';
+
+  @override
+  String get chunkSize => 'Upload chunk size';
 }
 
 /// The translations for English, as used in the United Kingdom (`en_GB`).
@@ -781,4 +784,7 @@ class AppLocalizationsEnGb extends AppLocalizationsEn {
 
   @override
   String get clearFilters => 'Clear filters';
+
+  @override
+  String get chunkSize => 'Upload chunk size';
 }

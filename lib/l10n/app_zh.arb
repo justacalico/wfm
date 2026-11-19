@@ -333,5 +333,6 @@
   "from": "开始",
   "to": "结束",
   "applyFilters": "应用筛选",
-  "clearFilters": "清除筛选"
+  "clearFilters": "清除筛选",
+  "chunkSize": "上传分块大小"
 }

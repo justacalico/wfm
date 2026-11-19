@@ -234,6 +234,83 @@ void main() {
       expect(lastRequest!.url.queryParameters['path'], 'a.txt');
     });
 
+    test('chunked upload flow', () async {
+      final chunks = <List<int>>[];
+      String? startPath;
+      final api = Api(FakeClient({
+        'POST /api/projects/p1/files/upload': (req) {
+          startPath = jsonDecode(req.body)['path'];
+          return {'id': 'u1'};
+        },
+        'PUT /api/uploads/u1/chunk': (req) {
+          chunks.add(req.bodyBytes);
+          return {'received': 0};
+        },
+        'GET /api/uploads/u1': (req) => {'received': 4},
+        'POST /api/uploads/u1/complete': (req) => {'ok': true},
+      }));
+      api.chunkSize = 4;
+      await api.upload('p1', 'a.bin', Uint8List.fromList([1, 2, 3, 4, 5, 6]));
+      expect(startPath, 'a.bin');
+      expect(chunks, [
+        [1, 2, 3, 4],
+        [5, 6]
+      ]);
+      expect(await api.uploadReceived('u1'), 4);
+      final prog = <List<int>>[];
+      await api.uploadChunked('p1', 'b.bin', 6,
+          (a, b) async => Uint8List(b - a), (s, t) => prog.add([s, t]));
+      expect(prog.last, [6, 6]);
+    });
+
+    test('chunked upload 413 stepdown and aborts', () async {
+      final sizes = <int>[];
+      var aborts = 0;
+      final api = Api(FakeClient({
+        'POST *': (req) => {'id': 'u1'},
+        'PUT *': (req) {
+          sizes.add(req.bodyBytes.length);
+          return req.bodyBytes.length > 1048576
+              ? http.Response('{"error":"too large"}', 413)
+              : {'ok': true};
+        },
+        'DELETE *': (req) {
+          aborts++;
+          return {'ok': true};
+        },
+      }));
+      api.chunkSize = 2 * 1048576;
+      await api.uploadChunked(
+          'p1', 'a', 3 * 1048576, (a, b) async => Uint8List(b - a));
+      expect(sizes, [2 * 1048576, 1048576, 1048576, 1048576]);
+      expect(aborts, 0);
+      final api2 = Api(FakeClient({
+        'POST *': (req) => {'id': 'u2'},
+        'PUT *': (_) => http.Response('{"error":"too large"}', 413),
+        'DELETE *': (req) {
+          aborts++;
+          return {'ok': true};
+        },
+      }));
+      api2.chunkSize = 4;
+      await expectLater(
+          api2.upload('p1', 'b', Uint8List.fromList([1, 2, 3, 4, 5])),
+          throwsA(isA<ApiException>()));
+      expect(aborts, 1);
+      final api3 = Api(FakeClient({
+        'POST *': (req) => {'id': 'u3'},
+        'PUT *': (_) => http.Response('{"error":"boom"}', 500),
+        'DELETE *': (req) {
+          aborts++;
+          return {'ok': true};
+        },
+      }));
+      api3.chunkSize = 2;
+      await expectLater(api3.upload('p1', 'c', Uint8List.fromList([1, 2, 3])),
+          throwsA(isA<ApiException>()));
+      expect(aborts, 2);
+    });
+
     test('urls', () {
       final api = Api(client({}));
       expect(api.projectUrl('p1'), '/filmcraft/wfm.html?project=p1');

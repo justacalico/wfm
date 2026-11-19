@@ -73,6 +73,18 @@ void main() {
     expect(p.getInt('theme'), AppTheme.dark.index);
   });
 
+  testWidgets('upload chunk size persists to prefs', (t) async {
+    installApi(extra: {'GET *': (_) => []});
+    await goSettings(t);
+    await t.tap(find.byType(DropdownButtonFormField<int>));
+    await settle(t);
+    await t.tap(find.text('16 MB').last);
+    await settle(t);
+    expect(Api.i.chunkSize, 16 * 1048576);
+    final p = await SharedPreferences.getInstance();
+    expect(p.getInt('chunkMb'), 16);
+  });
+
   testWidgets('narrow settings uses popup theme and inline password',
       (t) async {
     installApi(extra: {'GET *': (_) => []});
@@ -170,6 +182,9 @@ void main() {
       },
       'GET *': (_) => [],
     });
+    t.view.physicalSize = const Size(800, 1400);
+    t.view.devicePixelRatio = 1.0;
+    addTearDown(t.view.reset);
     await goSettings(t);
     expect(find.text('Trusted proxies'), findsOneWidget);
     await t.enterText(find.byType(TextField).last, '192.168.1.1, 10.0.0.0/8');
@@ -198,6 +213,9 @@ void main() {
       'PUT /api/settings': (_) => http.Response('{"error":"bad list"}', 400),
       'GET *': (_) => [],
     });
+    t.view.physicalSize = const Size(800, 1400);
+    t.view.devicePixelRatio = 1.0;
+    addTearDown(t.view.reset);
     await goSettings(t);
     await t.enterText(find.byType(TextField).last, 'bad');
     await t.testTextInput.receiveAction(TextInputAction.done);

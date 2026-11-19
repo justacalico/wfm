@@ -1363,6 +1363,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Clear filters'**
   String get clearFilters;
+
+  /// No description provided for @chunkSize.
+  ///
+  /// In en, this message translates to:
+  /// **'Upload chunk size'**
+  String get chunkSize;
 }
 
 class _AppLocalizationsDelegate

@@ -697,4 +697,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get clearFilters => '清除筛选';
+
+  @override
+  String get chunkSize => '上传分块大小';
 }

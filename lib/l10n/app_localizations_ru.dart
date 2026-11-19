@@ -701,4 +701,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get clearFilters => 'Сбросить фильтры';
+
+  @override
+  String get chunkSize => 'Размер части загрузки';
 }
