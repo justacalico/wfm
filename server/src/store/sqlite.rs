@@ -117,11 +117,12 @@ fn map_user(r: &rusqlite::Row<'_>) -> rusqlite::Result<User> {
         lineage: r.get(10)?,
         created_at: r.get(11)?,
         last_login: r.get(12)?,
+        quota_bytes: r.get(13)?,
     })
 }
 
 const USER_COLS: &str =
-    "id,username,display_name,pass_hash,role,student_id,note,disabled,avatar,created_by,lineage,created_at,last_login";
+    "id,username,display_name,pass_hash,role,student_id,note,disabled,avatar,created_by,lineage,created_at,last_login,quota_bytes";
 
 const PROJECT_COLS: &str = "id,owner_id,name,display_name,dir,group_id,tags,created_at,last_activity,pinned";
 
@@ -273,11 +274,11 @@ impl Db for SqliteDb {
         let (u, h) = (u.clone(), pass_hash.to_string());
         self.q(move |c| {
                 c.execute(
-                    &format!("INSERT INTO users({USER_COLS}) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)"),
+                    &format!("INSERT INTO users({USER_COLS}) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)"),
                     params![
                         u.id, u.username, u.display_name, h, u.role as i64, u.student_id,
                         u.note, u.disabled as i64, u.avatar, u.created_by, u.lineage, u.created_at,
-                        u.last_login
+                        u.last_login, u.quota_bytes
                     ],
                 )
                 .map(|_| ())
@@ -290,11 +291,11 @@ impl Db for SqliteDb {
         let (u, h) = (u.clone(), pass_hash.to_string());
         self.q(move |c| {
                 c.execute(
-                    &format!("INSERT INTO users({USER_COLS}) SELECT ?,?,?,?,?,?,?,?,?,?,?,?,? WHERE NOT EXISTS(SELECT 1 FROM users WHERE role=?)"),
+                    &format!("INSERT INTO users({USER_COLS}) SELECT ?,?,?,?,?,?,?,?,?,?,?,?,?,? WHERE NOT EXISTS(SELECT 1 FROM users WHERE role=?)"),
                     params![
                         u.id, u.username, u.display_name, h, u.role as i64, u.student_id,
                         u.note, u.disabled as i64, u.avatar, u.created_by, u.lineage, u.created_at,
-                        u.last_login, Role::Owner as i64
+                        u.last_login, u.quota_bytes, Role::Owner as i64
                     ],
                 )
             })
@@ -317,13 +318,14 @@ impl Db for SqliteDb {
         let u = u.clone();
         self.q(move |c| {
                 c.execute(
-                    "UPDATE users SET username=?, display_name=?, role=?, student_id=?, note=? WHERE id=?",
+                    "UPDATE users SET username=?, display_name=?, role=?, student_id=?, note=?, quota_bytes=? WHERE id=?",
                     params![
                         u.username,
                         u.display_name,
                         u.role as i64,
                         u.student_id,
                         u.note,
+                        u.quota_bytes,
                         u.id
                     ],
                 )
@@ -1511,6 +1513,7 @@ mod tests {
             note: String::new(),
             disabled: false,
             avatar: String::new(),
+            quota_bytes: 0,
             created_by: String::new(),
             lineage: "/".into(),
             created_at: 1,
@@ -1647,6 +1650,7 @@ mod tests {
             note: String::new(),
             disabled: false,
             avatar: String::new(),
+            quota_bytes: 0,
             created_by: String::new(),
             lineage: lineage.into(),
             created_at: 1,
@@ -1696,6 +1700,7 @@ mod tests {
             note: String::new(),
             disabled: false,
             avatar: String::new(),
+            quota_bytes: 0,
             created_by: String::new(),
             lineage: "/".into(),
             created_at: 1,
@@ -1722,6 +1727,7 @@ mod tests {
             note: String::new(),
             disabled: false,
             avatar: String::new(),
+            quota_bytes: 0,
             created_by: String::new(),
             lineage: "/".into(),
             created_at: 1,
@@ -1746,6 +1752,7 @@ mod tests {
             note: String::new(),
             disabled: false,
             avatar: String::new(),
+            quota_bytes: 0,
             created_by: String::new(),
             lineage: "/".into(),
             created_at: 1,
@@ -1808,6 +1815,7 @@ mod tests {
             note: String::new(),
             disabled: false,
             avatar: String::new(),
+            quota_bytes: 0,
             created_by: String::new(),
             lineage: "/".into(),
             created_at: 1,
@@ -1871,6 +1879,7 @@ mod tests {
             note: String::new(),
             disabled: false,
             avatar: String::new(),
+            quota_bytes: 0,
             created_by: String::new(),
             lineage: "/".into(),
             created_at: 1,

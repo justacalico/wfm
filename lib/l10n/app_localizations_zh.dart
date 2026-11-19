@@ -818,4 +818,15 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get autoShareAdd => '添加自动共享';
+
+  @override
+  String get quotaMb => '存储配额（MB）';
+
+  @override
+  String get quotaMbHint => '留空表示不限制';
+
+  @override
+  String storageUsed(Object used, Object quota) {
+    return '已使用 $used / $quota';
+  }
 }

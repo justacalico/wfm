@@ -823,4 +823,15 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get autoShareAdd => 'Добавить';
+
+  @override
+  String get quotaMb => 'Квота хранилища (МБ)';
+
+  @override
+  String get quotaMbHint => 'Оставьте пустым для безлимита';
+
+  @override
+  String storageUsed(Object used, Object quota) {
+    return 'Использовано $used из $quota';
+  }
 }

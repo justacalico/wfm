@@ -520,5 +520,14 @@ void main() {
       await api.autoShareDelete('a1');
       expect(lastRequest!.url.path, '/api/auto-shares/a1');
     });
+
+    test('storage usage endpoints', () async {
+      final api = Api(client({
+        'GET /api/projects/p1/usage': {'bytes': 2048},
+        'GET /api/accounts/u2/usage': {'bytes': 99},
+      }));
+      expect(await api.projectUsage('p1'), 2048);
+      expect(await api.accountUsage('u2'), 99);
+    });
   });
 }

@@ -314,6 +314,10 @@ void main() {
           body = req.body;
           return userJson;
         },
+        'GET /api/accounts/u1/usage': (_) => {'bytes': 1048576},
+        'GET /api/accounts': (_) => [
+              {...userJson, 'quotaBytes': 104857600}
+            ],
       });
       await pump(t, const AccountsTab());
       await t.tap(find.byIcon(Icons.edit_outlined).first);
@@ -327,11 +331,13 @@ void main() {
       await settle(t);
       await t.enterText(find.byType(TextField).at(2), 'S99');
       await t.enterText(find.byType(TextField).at(3), 'hi');
+      expect(find.text('1.0 MB of 100 MB used'), findsOneWidget);
       await t.tap(find.text('Save'));
       await settle(t);
       expect(body, contains('"username":"ada2"'));
       expect(body, contains('"role":"mod"'));
       expect(body, contains('S99'));
+      expect(body, contains('"quotaBytes":104857600'));
     });
 
     testWidgets('edit account cancel, error, and hidden role', (t) async {

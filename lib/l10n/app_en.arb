@@ -372,5 +372,14 @@
   "noShares": "Nothing shared with you yet",
   "autoShares": "Auto-share",
   "autoSharesHint": "These people are invited to every new project your students create.",
-  "autoShareAdd": "Add auto-share"
+  "autoShareAdd": "Add auto-share",
+  "quotaMb": "Storage quota (MB)",
+  "quotaMbHint": "Leave empty for unlimited",
+  "storageUsed": "{used} of {quota} used",
+  "@storageUsed": {
+    "placeholders": {
+      "used": {},
+      "quota": {}
+    }
+  }
 }

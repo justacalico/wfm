@@ -789,6 +789,17 @@ void main() {
   });
 
   group('FilesTab', () {
+    testWidgets('usage shows in header and with quota', (t) async {
+      final api = installApi(extra: {
+        'GET /api/projects/p1/usage': (_) => {'bytes': 2048},
+      });
+      await pump(t, Scaffold(body: FilesTab(project: p1)));
+      expect(find.text('2.0 KB'), findsOneWidget);
+      api.user = User.fromJson({...userJson, 'quotaBytes': 4194304});
+      await pump(t, Scaffold(body: FilesTab(project: p1)));
+      expect(find.text('2.0 KB of 4.0 MB used'), findsOneWidget);
+    });
+
     testWidgets('browse, crumbs, file menu actions', (t) async {
       var opened = '';
       openExternalForTesting = (u) => opened = u;

@@ -372,5 +372,14 @@
   "noShares": "还没有人与你共享内容",
   "autoShares": "自动共享",
   "autoSharesHint": "你的学生创建的每个新项目都会自动邀请这些人。",
-  "autoShareAdd": "添加自动共享"
+  "autoShareAdd": "添加自动共享",
+  "quotaMb": "存储配额（MB）",
+  "quotaMbHint": "留空表示不限制",
+  "storageUsed": "已使用 {used} / {quota}",
+  "@storageUsed": {
+    "placeholders": {
+      "used": {},
+      "quota": {}
+    }
+  }
 }

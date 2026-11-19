@@ -372,5 +372,14 @@
   "noShares": "Níl aon rud roinnte leat fós",
   "autoShares": "Uath-roinnt",
   "autoSharesHint": "Tugtar cuireadh do na daoine seo chuig gach tionscadal nua a chruthaíonn do mhic léinn.",
-  "autoShareAdd": "Cuir uath-roinnt leis"
+  "autoShareAdd": "Cuir uath-roinnt leis",
+  "quotaMb": "Cuóta stórála (MB)",
+  "quotaMbHint": "Fág folamh le haghaidh gan teorainn",
+  "storageUsed": "{used} as {quota} in úsáid",
+  "@storageUsed": {
+    "placeholders": {
+      "used": {},
+      "quota": {}
+    }
+  }
 }

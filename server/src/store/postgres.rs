@@ -81,6 +81,7 @@ fn row_user(r: sqlx::postgres::PgRow) -> User {
         lineage: r.get("lineage"),
         created_at: r.get("created_at"),
         last_login: r.get("last_login"),
+        quota_bytes: r.get("quota_bytes"),
     }
 }
 
@@ -243,8 +244,8 @@ impl Db for PgDb {
 
     async fn create_user(&self, u: &User, pass_hash: &str) -> DbResult<()> {
         sqlx::query(
-            "INSERT INTO users(id,username,display_name,pass_hash,role,student_id,note,disabled,avatar,created_by,lineage,created_at,last_login)
-             VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)",
+            "INSERT INTO users(id,username,display_name,pass_hash,role,student_id,note,disabled,avatar,created_by,lineage,created_at,last_login,quota_bytes)
+             VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)",
         )
         .bind(&u.id)
         .bind(&u.username)
@@ -259,6 +260,7 @@ impl Db for PgDb {
         .bind(&u.lineage)
         .bind(u.created_at)
         .bind(u.last_login)
+        .bind(u.quota_bytes)
         .execute(&self.pool)
         .await
         .map(|_| ())
@@ -267,9 +269,9 @@ impl Db for PgDb {
 
     async fn create_owner(&self, u: &User, pass_hash: &str) -> DbResult<bool> {
         sqlx::query(
-            "INSERT INTO users(id,username,display_name,pass_hash,role,student_id,note,disabled,avatar,created_by,lineage,created_at,last_login)
-             SELECT $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13
-             WHERE NOT EXISTS(SELECT 1 FROM users WHERE role=$14)",
+            "INSERT INTO users(id,username,display_name,pass_hash,role,student_id,note,disabled,avatar,created_by,lineage,created_at,last_login,quota_bytes)
+             SELECT $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14
+             WHERE NOT EXISTS(SELECT 1 FROM users WHERE role=$15)",
         )
         .bind(&u.id)
         .bind(&u.username)
@@ -284,6 +286,7 @@ impl Db for PgDb {
         .bind(&u.lineage)
         .bind(u.created_at)
         .bind(u.last_login)
+        .bind(u.quota_bytes)
         .bind(Role::Owner as i32)
         .execute(&self.pool)
         .await
@@ -303,13 +306,14 @@ impl Db for PgDb {
 
     async fn update_user(&self, u: &User) -> DbResult<()> {
         sqlx::query(
-            "UPDATE users SET username=$1, display_name=$2, role=$3, student_id=$4, note=$5 WHERE id=$6",
+            "UPDATE users SET username=$1, display_name=$2, role=$3, student_id=$4, note=$5, quota_bytes=$6 WHERE id=$7",
         )
         .bind(&u.username)
         .bind(&u.display_name)
         .bind(u.role as i32)
         .bind(&u.student_id)
         .bind(&u.note)
+        .bind(u.quota_bytes)
         .bind(&u.id)
         .execute(&self.pool)
         .await
