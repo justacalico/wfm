@@ -680,4 +680,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String selectedCount(Object n) {
     return 'Выбрано: $n';
   }
+
+  @override
+  String get changePhoto => 'Изменить фото';
 }

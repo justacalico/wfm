@@ -679,6 +679,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String selectedCount(Object n) {
     return '$n selected';
   }
+
+  @override
+  String get changePhoto => 'Change photo';
 }
 
 /// The translations for English, as used in the United Kingdom (`en_GB`).
@@ -739,4 +742,7 @@ class AppLocalizationsEnGb extends AppLocalizationsEn {
 
   @override
   String get revoke => 'Revoke';
+
+  @override
+  String get changePhoto => 'Change photo';
 }

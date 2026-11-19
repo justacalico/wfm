@@ -26,5 +26,6 @@
     }
   },
   "sessions": "Sessions",
-  "revoke": "Revoke"
+  "revoke": "Revoke",
+  "changePhoto": "Change photo"
 }

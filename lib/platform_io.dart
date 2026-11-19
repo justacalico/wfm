@@ -21,7 +21,7 @@ void openExternal(String url) {
   throw UnsupportedError('openExternal is only supported in the web build');
 }
 
-Future<List<PickedFile>> pickFiles() {
+Future<List<PickedFile>> pickFiles({String? accept}) {
   final f = pickFilesForTesting;
   if (f != null) return f();
   throw UnsupportedError('pickFiles is only supported in the web build');
@@ -35,5 +35,8 @@ Future<void> uploadPicked(Api api, String pid, String path, PickedFile f,
   await api.upload(pid, path, f.bytes);
   onProgress?.call(f.bytes.length, f.bytes.length);
 }
+
+Future<void> uploadAvatarPicked(Api api, PickedFile f) =>
+    api.uploadAvatar(f.bytes);
 
 void installDropHandler(void Function(List<PickedFile>) onDrop) {}

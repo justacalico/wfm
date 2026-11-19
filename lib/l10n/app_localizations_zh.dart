@@ -676,4 +676,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String selectedCount(Object n) {
     return '已选 $n 项';
   }
+
+  @override
+  String get changePhoto => '更换头像';
 }

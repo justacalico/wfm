@@ -326,5 +326,6 @@
   "deleteSelected": "Delete selected",
   "downloadZip": "Download zip",
   "destFolder": "Destination folder",
-  "selectedCount": "{n} selected"
+  "selectedCount": "{n} selected",
+  "changePhoto": "Change photo"
 }

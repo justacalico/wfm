@@ -326,5 +326,6 @@
   "deleteSelected": "Scrios na roghnaithe",
   "downloadZip": "Íoslódáil zip",
   "destFolder": "Fillteán sprice",
-  "selectedCount": "{n} roghnaithe"
+  "selectedCount": "{n} roghnaithe",
+  "changePhoto": "Athraigh grianghraf"
 }

@@ -682,4 +682,7 @@ class AppLocalizationsGa extends AppLocalizations {
   String selectedCount(Object n) {
     return '$n roghnaithe';
   }
+
+  @override
+  String get changePhoto => 'Athraigh grianghraf';
 }

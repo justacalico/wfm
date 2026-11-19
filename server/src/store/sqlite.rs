@@ -112,15 +112,16 @@ fn map_user(r: &rusqlite::Row<'_>) -> rusqlite::Result<User> {
         student_id: r.get(5)?,
         note: r.get(6)?,
         disabled: r.get::<_, i64>(7)? != 0,
-        created_by: r.get(8)?,
-        lineage: r.get(9)?,
-        created_at: r.get(10)?,
-        last_login: r.get(11)?,
+        avatar: r.get(8)?,
+        created_by: r.get(9)?,
+        lineage: r.get(10)?,
+        created_at: r.get(11)?,
+        last_login: r.get(12)?,
     })
 }
 
 const USER_COLS: &str =
-    "id,username,display_name,pass_hash,role,student_id,note,disabled,created_by,lineage,created_at,last_login";
+    "id,username,display_name,pass_hash,role,student_id,note,disabled,avatar,created_by,lineage,created_at,last_login";
 
 const PROJECT_COLS: &str = "id,owner_id,name,display_name,dir,group_id,tags,created_at,last_activity,pinned";
 
@@ -223,10 +224,10 @@ impl Db for SqliteDb {
         let (u, h) = (u.clone(), pass_hash.to_string());
         self.q(move |c| {
                 c.execute(
-                    &format!("INSERT INTO users({USER_COLS}) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)"),
+                    &format!("INSERT INTO users({USER_COLS}) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)"),
                     params![
                         u.id, u.username, u.display_name, h, u.role as i64, u.student_id,
-                        u.note, u.disabled as i64, u.created_by, u.lineage, u.created_at,
+                        u.note, u.disabled as i64, u.avatar, u.created_by, u.lineage, u.created_at,
                         u.last_login
                     ],
                 )
@@ -240,10 +241,10 @@ impl Db for SqliteDb {
         let (u, h) = (u.clone(), pass_hash.to_string());
         self.q(move |c| {
                 c.execute(
-                    &format!("INSERT INTO users({USER_COLS}) SELECT ?,?,?,?,?,?,?,?,?,?,?,? WHERE NOT EXISTS(SELECT 1 FROM users WHERE role=?)"),
+                    &format!("INSERT INTO users({USER_COLS}) SELECT ?,?,?,?,?,?,?,?,?,?,?,?,? WHERE NOT EXISTS(SELECT 1 FROM users WHERE role=?)"),
                     params![
                         u.id, u.username, u.display_name, h, u.role as i64, u.student_id,
-                        u.note, u.disabled as i64, u.created_by, u.lineage, u.created_at,
+                        u.note, u.disabled as i64, u.avatar, u.created_by, u.lineage, u.created_at,
                         u.last_login, Role::Owner as i64
                     ],
                 )
@@ -280,6 +281,13 @@ impl Db for SqliteDb {
             })
             .await
             .map(|_| ())
+            .map_err(dberr)
+    }
+
+    async fn set_user_avatar(&self, id: &str, key: &str) -> DbResult<()> {
+        let (id, key) = (id.to_string(), key.to_string());
+        self.q(move |c| c.execute("UPDATE users SET avatar=? WHERE id=?", params![key, id]).map(|_| ()))
+            .await
             .map_err(dberr)
     }
 
@@ -1132,6 +1140,7 @@ mod tests {
             student_id: String::new(),
             note: String::new(),
             disabled: false,
+            avatar: String::new(),
             created_by: String::new(),
             lineage: "/".into(),
             created_at: 1,
@@ -1267,6 +1276,7 @@ mod tests {
             student_id: String::new(),
             note: String::new(),
             disabled: false,
+            avatar: String::new(),
             created_by: String::new(),
             lineage: lineage.into(),
             created_at: 1,
@@ -1315,6 +1325,7 @@ mod tests {
             student_id: String::new(),
             note: String::new(),
             disabled: false,
+            avatar: String::new(),
             created_by: String::new(),
             lineage: "/".into(),
             created_at: 1,
@@ -1329,6 +1340,30 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn set_user_avatar_round_trips() {
+        let db = connect(":memory:").await.unwrap();
+        let u = User {
+            id: "u".into(),
+            username: "u".into(),
+            display_name: "n".into(),
+            role: Role::Student,
+            role_name: "student".into(),
+            student_id: String::new(),
+            note: String::new(),
+            disabled: false,
+            avatar: String::new(),
+            created_by: String::new(),
+            lineage: "/".into(),
+            created_at: 1,
+            last_login: 0,
+        };
+        db.create_user(&u, "h").await.unwrap();
+        assert!(db.user_by_id("u").await.unwrap().avatar.is_empty());
+        db.set_user_avatar("u", "avatars/u/x.png").await.unwrap();
+        assert_eq!(db.user_by_id("u").await.unwrap().avatar, "avatars/u/x.png");
+    }
+
+    #[tokio::test]
     async fn list_and_delete_own_sessions() {
         let db = connect(":memory:").await.unwrap();
         let u = User {
@@ -1340,6 +1375,7 @@ mod tests {
             student_id: String::new(),
             note: String::new(),
             disabled: false,
+            avatar: String::new(),
             created_by: String::new(),
             lineage: "/".into(),
             created_at: 1,

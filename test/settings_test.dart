@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:typed_data';
+import 'package:wfm/api.dart';
 import 'package:wfm/main.dart';
 import 'package:wfm/platform.dart';
 import 'package:wfm/version_check.dart';
@@ -25,6 +27,37 @@ void main() {
     await t.tap(find.widgetWithText(ListTile, 'Settings').first);
     await settle(t);
   }
+
+  testWidgets('avatar upload picks a file and refreshes the user', (t) async {
+    final withAvatar = {...userJson, 'avatar': 'avatars/u1/x.png'};
+    installApi(extra: {
+      'GET /api/me': (_) => {'csrf': 'tok', 'user': withAvatar},
+      'PUT /api/me/avatar': (_) => {'ok': true, 'avatar': 'avatars/u1/x.png'},
+    });
+    pickFilesForTesting = () async => [
+          PickedFile('me.png', Uint8List.fromList(const [137, 80, 78, 71]))
+        ];
+    await goSettings(t);
+    expect(find.byType(CircleAvatar), findsWidgets);
+    await t.tap(find.byTooltip('Change photo'));
+    await settle(t);
+    expect(Api.i.user!.avatar, 'avatars/u1/x.png');
+  });
+
+  testWidgets('avatar upload errors snack and cancelled picks do nothing',
+      (t) async {
+    installApi(extra: {
+      'PUT /api/me/avatar': (_) => http.Response('{"error":"nope"}', 500),
+    });
+    pickFilesForTesting = () async => [PickedFile('me.png', Uint8List(4))];
+    await goSettings(t);
+    await t.tap(find.byTooltip('Change photo'));
+    await settle(t);
+    expect(find.byType(Notice), findsWidgets);
+    pickFilesForTesting = () async => [];
+    await t.tap(find.byTooltip('Change photo'));
+    await settle(t);
+  });
 
   testWidgets('shows user line, language and theme pickers', (t) async {
     installApi(extra: {'GET *': (_) => []});

@@ -326,5 +326,6 @@
   "deleteSelected": "Удалить выбранное",
   "downloadZip": "Скачать zip",
   "destFolder": "Папка назначения",
-  "selectedCount": "Выбрано: {n}"
+  "selectedCount": "Выбрано: {n}",
+  "changePhoto": "Изменить фото"
 }

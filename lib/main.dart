@@ -42,6 +42,7 @@ class WfmApp extends StatefulWidget {
 class WfmAppState extends State<WfmApp> {
   final themeCtl = ValueNotifier<AppTheme>(AppTheme.system);
   final localeCtl = ValueNotifier<Locale?>(null);
+  final userCtl = ValueNotifier(0);
   final navKey = GlobalKey<NavigatorState>();
 
   AppTheme get appTheme => themeCtl.value;
@@ -696,9 +697,22 @@ class ShellState extends State<Shell> {
       ),
       const Divider(height: 1),
       ListTile(
-        leading: CircleAvatar(
-            radius: 16,
-            child: Text(initials, style: const TextStyle(fontSize: 12))),
+        leading: ValueListenableBuilder(
+            valueListenable:
+                context.findAncestorStateOfType<WfmAppState>()!.userCtl,
+            builder: (c, v, w) {
+              final me = Api.i.user;
+              return CircleAvatar(
+                  radius: 16,
+                  backgroundImage: me != null && me.hasAvatar
+                      ? NetworkImage(Api.i.avatarUrl(me.id, me.avatar))
+                      : null,
+                  onBackgroundImageError:
+                      me != null && me.hasAvatar ? (_, __) {} : null,
+                  child: me != null && me.hasAvatar
+                      ? null
+                      : Text(initials, style: const TextStyle(fontSize: 12)));
+            }),
         title: Text(u.name.isEmpty ? u.username : u.name,
             overflow: TextOverflow.ellipsis),
         subtitle: Text(u.role, style: const TextStyle(fontSize: 11)),
