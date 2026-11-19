@@ -263,6 +263,7 @@ mod tests {
             inspect_cache: Mutex::new(HashMap::new()),
             chunk_uploads: Mutex::new(HashMap::new()),
             handoffs: Mutex::new(HashMap::new()),
+            update_check: Mutex::new(None),
             trusted: RwLock::new(vec![]),
         })
     }

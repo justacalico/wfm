@@ -1,5 +1,4 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'api.dart';
 
 class Version implements Comparable<Version> {
   final int major, minor, patch;
@@ -33,36 +32,18 @@ class AppUpdate {
 }
 
 class UpdateChecker {
-  static const projectPath = 'HttpAnimations/wfm';
-  static const defaultApi =
-      'https://gitlab.com/api/v4/projects/HttpAnimations%2Fwfm/releases';
-  static const releasesPage =
-      'https://gitlab.com/HttpAnimations/wfm/-/releases';
-
-  final http.Client client;
-  final String apiUrl, pageUrl;
-  const UpdateChecker(this.client,
-      {this.apiUrl = defaultApi, this.pageUrl = releasesPage});
+  final Api api;
+  const UpdateChecker(this.api);
 
   static UpdateChecker Function()? factoryForTesting;
 
-  Future<AppUpdate?> check(String current) async {
-    final r = await client
-        .get(Uri.parse('$apiUrl?per_page=100&order_by=released_at&sort=desc'));
-    if (r.statusCode != 200) throw Exception('releases: ${r.statusCode}');
-    final now = Version.tryParse(current);
-    Version? best;
-    String? bestTag;
-    for (final e in jsonDecode(r.body) as List) {
-      final tag = '${(e as Map)['tag_name'] ?? ''}';
-      final v = Version.tryParse(tag);
-      if (v != null && (best == null || v.compareTo(best) > 0)) {
-        best = v;
-        bestTag = tag;
-      }
-    }
-    if (best == null || bestTag == null) return null;
-    if (now != null && best.compareTo(now) <= 0) return null;
-    return AppUpdate('$best', bestTag, '$pageUrl/$bestTag');
+  /// The server proxies the releases feed and does the version compare, so
+  /// this only renders `{latest, tag, url}` or reports up-to-date.
+  Future<AppUpdate?> check() async {
+    final j = await api.get('/update-check');
+    if (j['upToDate'] == true) return null;
+    final latest = '${j['latest'] ?? ''}';
+    if (latest.isEmpty) return null;
+    return AppUpdate(latest, '${j['tag'] ?? ''}', '${j['url'] ?? ''}');
   }
 }

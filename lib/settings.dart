@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'api.dart';
 import 'main.dart';
@@ -108,9 +107,9 @@ class _SettingsPageState extends State<SettingsPage> {
     if (_update == UpdateResult.checking) return;
     setState(() => _update = UpdateResult.checking);
     try {
-      final checker = UpdateChecker.factoryForTesting?.call() ??
-          UpdateChecker(http.Client());
-      final u = await checker.check(_version);
+      final checker =
+          UpdateChecker.factoryForTesting?.call() ?? UpdateChecker(Api.i);
+      final u = await checker.check();
       if (mounted) {
         setState(() {
           _latest = u;

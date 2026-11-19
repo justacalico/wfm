@@ -348,10 +348,10 @@ void main() {
   });
 
   testWidgets('update check up to date', (t) async {
-    installApi(extra: {'GET *': (_) => []});
-    UpdateChecker.factoryForTesting = () => UpdateChecker(
-        _StaticClient((_) async => http.Response('[]', 200)),
-        apiUrl: 'https://x');
+    installApi(extra: {
+      'GET /api/update-check': (_) => {'upToDate': true},
+      'GET *': (_) => []
+    });
     await t.binding.setSurfaceSize(const Size(1000, 900));
     addTearDown(() => t.binding.setSurfaceSize(null));
     await goSettings(t);
@@ -385,12 +385,11 @@ void main() {
   testWidgets('update available opens release', (t) async {
     var opened = '';
     openExternalForTesting = (u) => opened = u;
-    installApi(extra: {'GET *': (_) => []});
-    UpdateChecker.factoryForTesting = () => UpdateChecker(
-        _StaticClient(
-            (_) async => http.Response('[{"tag_name":"v9.9.9"}]', 200)),
-        apiUrl: 'https://x',
-        pageUrl: 'https://page');
+    installApi(extra: {
+      'GET /api/update-check': (_) =>
+          {'latest': '9.9.9', 'tag': 'v9.9.9', 'url': 'https://page/v9.9.9'},
+      'GET *': (_) => []
+    });
     await t.binding.setSurfaceSize(const Size(1000, 900));
     addTearDown(() => t.binding.setSurfaceSize(null));
     await goSettings(t);
@@ -403,12 +402,11 @@ void main() {
   });
 
   testWidgets('view release without browser shows snack', (t) async {
-    installApi(extra: {'GET *': (_) => []});
-    UpdateChecker.factoryForTesting = () => UpdateChecker(
-        _StaticClient(
-            (_) async => http.Response('[{"tag_name":"v9.9.9"}]', 200)),
-        apiUrl: 'https://x',
-        pageUrl: 'https://page');
+    installApi(extra: {
+      'GET /api/update-check': (_) =>
+          {'latest': '9.9.9', 'tag': 'v9.9.9', 'url': 'https://page/v9.9.9'},
+      'GET *': (_) => []
+    });
     await t.binding.setSurfaceSize(const Size(1000, 900));
     addTearDown(() => t.binding.setSurfaceSize(null));
     openExternalForTesting = (_) => throw 'no browser';
@@ -421,10 +419,10 @@ void main() {
   });
 
   testWidgets('update check failure', (t) async {
-    installApi(extra: {'GET *': (_) => []});
-    UpdateChecker.factoryForTesting = () => UpdateChecker(
-        _StaticClient((_) async => http.Response('x', 500)),
-        apiUrl: 'https://x');
+    installApi(extra: {
+      'GET /api/update-check': (_) => http.Response('x', 502),
+      'GET *': (_) => []
+    });
     await t.binding.setSurfaceSize(const Size(1000, 900));
     addTearDown(() => t.binding.setSurfaceSize(null));
     await goSettings(t);
@@ -539,15 +537,4 @@ void main() {
     await settle(t, 60);
     expect(find.text('Update check failed'), findsOneWidget);
   });
-}
-
-class _StaticClient extends http.BaseClient {
-  final Future<http.Response> Function(http.BaseRequest) f;
-  _StaticClient(this.f);
-  @override
-  Future<http.StreamedResponse> send(http.BaseRequest request) async {
-    final r = await f(request);
-    return http.StreamedResponse(Stream.value(r.bodyBytes), r.statusCode,
-        headers: r.headers, request: request);
-  }
 }
