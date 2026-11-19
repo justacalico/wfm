@@ -341,6 +341,9 @@ class Api {
   Future<void> move(String pid, String from, String to) =>
       post('/projects/$pid/files/move', {'from': from, 'to': to});
 
+  String zipUrl(String pid, List<String> paths) =>
+      '$_base/api/projects/$pid/zip?paths=${paths.map(Uri.encodeComponent).join(',')}';
+
   Future<void> deleteFile(String pid, String path) =>
       del('/projects/$pid/files', {'path': path});
 

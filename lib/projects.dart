@@ -649,6 +649,8 @@ class _FilesTabState extends State<FilesTab> {
   List<FileEntry>? _items;
   String _err = '';
   int _view = 0;
+  bool _sel = false;
+  final _selPaths = <String>{};
 
   @override
   void initState() {
@@ -673,6 +675,68 @@ class _FilesTabState extends State<FilesTab> {
       setState(() => _items = f);
     } catch (e) {
       setState(() => _err = '$e');
+    }
+  }
+
+  void _toggleSel(FileEntry e) {
+    setState(() {
+      _selPaths.contains(e.path)
+          ? _selPaths.remove(e.path)
+          : _selPaths.add(e.path);
+    });
+  }
+
+  void _exitSel() {
+    setState(() {
+      _sel = false;
+      _selPaths.clear();
+    });
+  }
+
+  Future<void> _bulkDelete() async {
+    final l10n = context.l10n;
+    if (!await confirm(
+        context, l10n.deleteSelected, l10n.selectedCount(_selPaths.length))) {
+      return;
+    }
+    for (final p in _selPaths.toList()) {
+      try {
+        await Api.i.deleteFile(widget.project.id, p);
+      } catch (e) {
+        if (mounted) snack(context, e);
+        break;
+      }
+    }
+    if (mounted) {
+      _exitSel();
+      _load();
+    }
+  }
+
+  Future<void> _bulkMove() async {
+    final dest = await promptText(context, context.l10n.moveSelected,
+        context.l10n.destFolder, _path.isEmpty ? 'Raw' : _path);
+    if (dest == null || dest.isEmpty || !mounted) return;
+    for (final p in _selPaths.toList()) {
+      final name = p.contains('/') ? p.split('/').last : p;
+      try {
+        await Api.i.move(widget.project.id, p, '$dest/$name');
+      } catch (e) {
+        if (mounted) snack(context, e);
+        break;
+      }
+    }
+    if (mounted) {
+      _exitSel();
+      _load();
+    }
+  }
+
+  void _zipSel() {
+    try {
+      openExternal(Api.i.zipUrl(widget.project.id, _selPaths.toList()));
+    } catch (e) {
+      if (mounted) snack(context, e);
     }
   }
 
@@ -810,39 +874,71 @@ class _FilesTabState extends State<FilesTab> {
     return Column(children: [
       Padding(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-        child: Row(children: [
-          InkWell(
-              onTap: () => _go(''),
-              child: const Icon(Icons.home_outlined, size: 20)),
-          for (var i = 0; i < crumbs.length; i++) ...[
-            const Icon(Icons.chevron_right, size: 18),
-            InkWell(
-              onTap: () => _go(crumbs.sublist(0, i + 1).join('/')),
-              child: Text(crumbs[i],
-                  style: const TextStyle(fontWeight: FontWeight.w600)),
-            ),
-          ],
-          const Spacer(),
-          IconButton(
-              icon: Icon(_view == 0 ? Icons.grid_view : Icons.view_list),
-              tooltip: _view == 0 ? l10n.gridView : l10n.listView,
-              onPressed: () => _setView(_view == 0 ? 1 : 0)),
-          if (widget.project.editable)
-            IconButton(
-                icon: const Icon(Icons.create_new_folder_outlined),
-                tooltip: l10n.newFolder,
-                onPressed: _mkdir),
-          IconButton(
-              icon: const Icon(Icons.refresh),
-              tooltip: l10n.refresh,
-              onPressed: _load),
-          if (widget.project.editable)
-            FilledButton.tonalIcon(
-              onPressed: _upload,
-              icon: const Icon(Icons.upload_file, size: 18),
-              label: Text(l10n.upload),
-            ),
-        ]),
+        child: _sel
+            ? Row(children: [
+                IconButton(
+                    icon: const Icon(Icons.select_all),
+                    tooltip: l10n.selectAll,
+                    onPressed: () => setState(() {
+                          for (final e in _items ?? []) {
+                            _selPaths.add(e.path);
+                          }
+                        })),
+                Text(l10n.selectedCount(_selPaths.length)),
+                const Spacer(),
+                IconButton(
+                    icon: const Icon(Icons.download),
+                    tooltip: l10n.downloadZip,
+                    onPressed: _selPaths.isEmpty ? null : _zipSel),
+                if (widget.project.editable) ...[
+                  IconButton(
+                      icon: const Icon(Icons.drive_file_move_outline),
+                      tooltip: l10n.moveSelected,
+                      onPressed: _selPaths.isEmpty ? null : _bulkMove),
+                  IconButton(
+                      icon: const Icon(Icons.delete_outline),
+                      tooltip: l10n.deleteSelected,
+                      onPressed: _selPaths.isEmpty ? null : _bulkDelete),
+                ],
+                IconButton(icon: const Icon(Icons.close), onPressed: _exitSel),
+              ])
+            : Row(children: [
+                InkWell(
+                    onTap: () => _go(''),
+                    child: const Icon(Icons.home_outlined, size: 20)),
+                for (var i = 0; i < crumbs.length; i++) ...[
+                  const Icon(Icons.chevron_right, size: 18),
+                  InkWell(
+                    onTap: () => _go(crumbs.sublist(0, i + 1).join('/')),
+                    child: Text(crumbs[i],
+                        style: const TextStyle(fontWeight: FontWeight.w600)),
+                  ),
+                ],
+                const Spacer(),
+                IconButton(
+                    icon: const Icon(Icons.checklist),
+                    tooltip: l10n.selectFiles,
+                    onPressed: () => setState(() => _sel = true)),
+                IconButton(
+                    icon: Icon(_view == 0 ? Icons.grid_view : Icons.view_list),
+                    tooltip: _view == 0 ? l10n.gridView : l10n.listView,
+                    onPressed: () => _setView(_view == 0 ? 1 : 0)),
+                if (widget.project.editable)
+                  IconButton(
+                      icon: const Icon(Icons.create_new_folder_outlined),
+                      tooltip: l10n.newFolder,
+                      onPressed: _mkdir),
+                IconButton(
+                    icon: const Icon(Icons.refresh),
+                    tooltip: l10n.refresh,
+                    onPressed: _load),
+                if (widget.project.editable)
+                  FilledButton.tonalIcon(
+                    onPressed: _upload,
+                    icon: const Icon(Icons.upload_file, size: 18),
+                    label: Text(l10n.upload),
+                  ),
+              ]),
       ),
       _progress(),
       const Divider(height: 1),
@@ -911,6 +1007,12 @@ class _FilesTabState extends State<FilesTab> {
       PopupMenuButton<String>(
         onSelected: (v) {
           switch (v) {
+            case 'zip':
+              try {
+                openExternal(Api.i.zipUrl(widget.project.id, [e.path]));
+              } catch (err) {
+                if (c.mounted) snack(c, err);
+              }
             case 'download':
               try {
                 openExternal(
@@ -925,7 +1027,9 @@ class _FilesTabState extends State<FilesTab> {
           }
         },
         itemBuilder: (_) => [
-          if (!e.isDir)
+          if (e.isDir)
+            PopupMenuItem(value: 'zip', child: Text(l10n.downloadZip))
+          else
             PopupMenuItem(value: 'download', child: Text(l10n.download)),
           if (widget.project.editable) ...[
             PopupMenuItem(value: 'rename', child: Text(l10n.rename)),
@@ -935,35 +1039,44 @@ class _FilesTabState extends State<FilesTab> {
       );
 
   Widget _tile(BuildContext c, AppLocalizations l10n, FileEntry e) => ListTile(
-        leading: SizedBox(
-            width: 40,
-            height: 40,
-            child: e.isDir || !thumbable(e.name)
-                ? Icon(fileIcon(e))
-                : ClipRRect(
-                    borderRadius: BorderRadius.circular(4),
-                    child: _thumb(e, h: 40, w: 40))),
+        leading: _sel
+            ? Checkbox(
+                value: _selPaths.contains(e.path),
+                onChanged: (_) => _toggleSel(e))
+            : SizedBox(
+                width: 40,
+                height: 40,
+                child: e.isDir || !thumbable(e.name)
+                    ? Icon(fileIcon(e))
+                    : ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: _thumb(e, h: 40, w: 40))),
         title: Text(e.name),
         subtitle: e.isDir
             ? null
             : Text('${fmtBytes(e.size)}  ·  ${fmtAgo(l10n, e.modified)}'),
-        onTap: e.isDir
-            ? () => _go(e.path)
-            : (thumbable(e.name) || playableMedia(e.name))
-                ? () => _preview(e)
-                : null,
-        trailing:
-            e.isDir && !widget.project.editable ? null : _menu(c, l10n, e),
+        onTap: _sel
+            ? () => _toggleSel(e)
+            : e.isDir
+                ? () => _go(e.path)
+                : (thumbable(e.name) || playableMedia(e.name))
+                    ? () => _preview(e)
+                    : null,
+        trailing: _sel || (e.isDir && !widget.project.editable)
+            ? null
+            : _menu(c, l10n, e),
       );
 
   Widget _cell(BuildContext c, AppLocalizations l10n, FileEntry e) => Card(
         clipBehavior: Clip.antiAlias,
         child: InkWell(
-          onTap: e.isDir
-              ? () => _go(e.path)
-              : (thumbable(e.name) || playableMedia(e.name))
-                  ? () => _preview(e)
-                  : null,
+          onTap: _sel
+              ? () => _toggleSel(e)
+              : e.isDir
+                  ? () => _go(e.path)
+                  : (thumbable(e.name) || playableMedia(e.name))
+                      ? () => _preview(e)
+                      : null,
           child: Padding(
             padding: const EdgeInsets.fromLTRB(12, 4, 4, 10),
             child:
@@ -971,7 +1084,15 @@ class _FilesTabState extends State<FilesTab> {
               Row(children: [
                 Icon(fileIcon(e)),
                 const Spacer(),
-                if (!e.isDir || widget.project.editable) _menu(c, l10n, e),
+                if (_sel)
+                  SizedBox(
+                      width: 28,
+                      height: 28,
+                      child: Checkbox(
+                          value: _selPaths.contains(e.path),
+                          onChanged: (_) => _toggleSel(e)))
+                else if (!e.isDir || widget.project.editable)
+                  _menu(c, l10n, e),
               ]),
               if (!e.isDir && thumbable(e.name))
                 Expanded(

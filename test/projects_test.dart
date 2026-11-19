@@ -718,6 +718,113 @@ void main() {
       await settle(t);
     });
 
+    testWidgets('selection mode: bulk move, zip and delete', (t) async {
+      var opened = '';
+      var moved = 0;
+      var deleted = 0;
+      openExternalForTesting = (u) => opened = u;
+      installApi(extra: {
+        'POST /api/projects/p1/files/move': (_) {
+          moved++;
+          return {'ok': true};
+        },
+        'DELETE /api/projects/p1/files': (_) {
+          deleted++;
+          return {'ok': true};
+        },
+      });
+      await pump(t, Scaffold(body: FilesTab(project: p1)));
+      await t.tap(find.byIcon(Icons.checklist));
+      await settle(t);
+      expect(find.byType(Checkbox), findsWidgets);
+      await t.tap(find.byIcon(Icons.select_all));
+      await settle(t);
+      expect(find.text('5 selected'), findsOneWidget);
+      await t.tap(find.byIcon(Icons.download));
+      await settle(t);
+      expect(opened, contains('/api/projects/p1/zip?paths='));
+      await t.tap(find.byIcon(Icons.drive_file_move_outline));
+      await settle(t);
+      await t.enterText(find.byType(TextField).last, 'Audio');
+      await t.tap(find.text('OK'));
+      await settle(t);
+      expect(moved, 5);
+      await t.tap(find.byIcon(Icons.checklist));
+      await settle(t);
+      await t.tap(find.byType(Checkbox).first);
+      await settle(t);
+      await t.tap(find.text('clip.mp4'));
+      await settle(t);
+      expect(find.text('2 selected'), findsOneWidget);
+      await t.tap(find.text('clip.mp4'));
+      await settle(t);
+      expect(find.text('1 selected'), findsOneWidget);
+      await t.tap(find.byIcon(Icons.delete_outline));
+      await settle(t);
+      await t.tap(find.text('Cancel'));
+      await settle(t);
+      expect(deleted, 0);
+      await t.tap(find.byIcon(Icons.delete_outline));
+      await settle(t);
+      await t.tap(find.text('Confirm'));
+      await settle(t);
+      expect(deleted, 1);
+    });
+
+    testWidgets('folder menu offers zip download', (t) async {
+      var opened = '';
+      openExternalForTesting = (u) => opened = u;
+      installApi();
+      await pump(t, Scaffold(body: FilesTab(project: p1)));
+      await t.tap(find.byType(PopupMenuButton<String>).first);
+      await settle(t);
+      await t.tap(find.text('Download zip'));
+      await settle(t);
+      expect(opened, contains('/api/projects/p1/zip?paths=Raw'));
+      openExternalForTesting = (_) => throw 'no browser';
+      await t.tap(find.byType(PopupMenuButton<String>).first);
+      await settle(t);
+      await t.tap(find.text('Download zip'));
+      await settle(t);
+      expect(find.byType(Notice), findsOneWidget);
+    });
+
+    testWidgets('selection errors and grid toggles', (t) async {
+      openExternalForTesting = (_) => throw 'no browser';
+      installApi(extra: {
+        'POST /api/projects/p1/files/move': (_) =>
+            http.Response('{"error":"mv"}', 500),
+        'DELETE /api/projects/p1/files': (_) =>
+            http.Response('{"error":"del"}', 500),
+      });
+      await pump(t, Scaffold(body: FilesTab(project: p1)));
+      await t.tap(find.byIcon(Icons.grid_view));
+      await settle(t);
+      await t.tap(find.byIcon(Icons.checklist));
+      await settle(t);
+      await t.tap(find.text('clip.mp4'));
+      await settle(t);
+      expect(find.text('1 selected'), findsOneWidget);
+      await t.tap(find.byType(Checkbox).last);
+      await settle(t);
+      await t.tap(find.byIcon(Icons.download));
+      await settle(t);
+      expect(find.byType(Notice), findsWidgets);
+      await t.tap(find.byIcon(Icons.drive_file_move_outline));
+      await settle(t);
+      await t.tap(find.text('OK'));
+      await settle(t);
+      await t.tap(find.byIcon(Icons.checklist));
+      await settle(t);
+      await t.tap(find.text('clip.mp4'));
+      await settle(t);
+      await t.tap(find.byIcon(Icons.delete_outline));
+      await settle(t);
+      await t.tap(find.text('Confirm'));
+      await settle(t);
+      expect(find.byType(Notice), findsWidgets);
+    });
+
     testWidgets('image preview dialog and video opens inline', (t) async {
       var opened = '';
       openExternalForTesting = (u) => opened = u;

@@ -319,5 +319,12 @@
   "readOnly": "Только чтение",
   "takeOver": "Перехватить",
   "takeOverBody": "Стать владельцем {name}?",
-  "ownedBy": "владелец {name}"
+  "ownedBy": "владелец {name}",
+  "selectFiles": "Выбрать",
+  "selectAll": "Выбрать все",
+  "moveSelected": "Переместить выбранное",
+  "deleteSelected": "Удалить выбранное",
+  "downloadZip": "Скачать zip",
+  "destFolder": "Папка назначения",
+  "selectedCount": "Выбрано: {n}"
 }

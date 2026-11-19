@@ -319,5 +319,12 @@
   "readOnly": "Read only",
   "takeOver": "Take over",
   "takeOverBody": "Take ownership of {name}?",
-  "ownedBy": "by {name}"
+  "ownedBy": "by {name}",
+  "selectFiles": "Select",
+  "selectAll": "Select all",
+  "moveSelected": "Move selected",
+  "deleteSelected": "Delete selected",
+  "downloadZip": "Download zip",
+  "destFolder": "Destination folder",
+  "selectedCount": "{n} selected"
 }

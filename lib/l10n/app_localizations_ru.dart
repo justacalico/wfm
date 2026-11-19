@@ -657,4 +657,27 @@ class AppLocalizationsRu extends AppLocalizations {
   String ownedBy(Object name) {
     return 'владелец $name';
   }
+
+  @override
+  String get selectFiles => 'Выбрать';
+
+  @override
+  String get selectAll => 'Выбрать все';
+
+  @override
+  String get moveSelected => 'Переместить выбранное';
+
+  @override
+  String get deleteSelected => 'Удалить выбранное';
+
+  @override
+  String get downloadZip => 'Скачать zip';
+
+  @override
+  String get destFolder => 'Папка назначения';
+
+  @override
+  String selectedCount(Object n) {
+    return 'Выбрано: $n';
+  }
 }

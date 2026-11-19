@@ -7,6 +7,7 @@ mod model;
 mod render;
 mod store;
 mod web;
+mod zip;
 mod worker;
 
 use std::collections::{HashMap, HashSet};
