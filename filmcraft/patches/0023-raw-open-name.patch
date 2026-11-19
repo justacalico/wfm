@@ -1,0 +1,110 @@
+diff --git a/apps/filmcraft-web/src/host.rs b/apps/filmcraft-web/src/host.rs
+index 61243f1..a920eab 100644
+--- a/apps/filmcraft-web/src/host.rs
++++ b/apps/filmcraft-web/src/host.rs
+@@ -51,8 +51,11 @@
+ use std::cell::RefCell;
+ use std::rc::Rc;
+ 
+-use craft_web_host::web::{FileData, Host, Message};
++use craft_web_host::web::{FileData, Host};
++use craft_web_host::Mode;
+ use serde_json::{Value, json};
++use wasm_bindgen::closure::Closure;
++use wasm_bindgen::{JsCast as _, JsValue};
+ use filmcraft_engine::Session;
+ 
+ use crate::hostmode::{MAX_OPEN_BYTES, PROJECT_OPEN_MAX, is_project, is_save_as, media_ref, open_name, open_size_ok, project_open_ok, shortcut_bindings, wfm_meta};
+@@ -98,6 +101,8 @@ pub struct Bridge {
+     /// The document file the host knows: the project it opened here, and every file it was
+     /// sent with `saveAs: true`.
+     host_document: Rc<RefCell<Option<String>>>,
++    /// The app's canvas: in page mode `filmcraft:open` arrives as a `CustomEvent` on it.
++    canvas: web_sys::EventTarget,
+ }
+ 
+ impl Bridge {
+@@ -105,7 +110,12 @@ impl Bridge {
+     /// `data-host="page"` on the canvas, an unframed `?host=parent` page (it stays the normal app
+     /// with downloads), or a parent on another origin.
+     pub fn connect(canvas: &web_sys::HtmlCanvasElement) -> Option<Self> {
+-        Some(Self { host: Rc::new(Host::connect(APP, canvas)?), written: Rc::default(), host_document: Rc::default() })
++        Some(Self {
++            host: Rc::new(Host::connect(APP, canvas)?),
++            written: Rc::default(),
++            host_document: Rc::default(),
++            canvas: canvas.clone().into(),
++        })
+     }
+ 
+     /// Install the bridge: hear the host's files, and hand the app's writes to it instead of
+@@ -202,14 +212,65 @@ impl Bridge {
+     }
+ 
+     /// Hear `filmcraft:open` and open or import the file like one the user picked or dropped.
++    /// The crate's `Host::listen` isn't used for opens: it runs the name through
++    /// `craft_web_host::file_name`, which takes a basename — a `wfm:` metadata name carries
++    /// `/`-delimited project paths and download URLs, so the JSON would be cut at the last `/`
++    /// before `deliver_open` could parse it. The same listener checks as the crate's (same-origin
++    /// parent, this app's message type, a real payload) read the raw name here instead.
+     fn listen(&self) {
+         let bridge = self.clone();
+-        self.host.listen(move |message| {
+-            if let Message::Open { name, data } = message {
+-                deliver_open(&bridge, &name, &data);
++        match self.host.mode() {
++            Mode::Parent => {
++                let Some(window) = web_sys::window() else { return };
++                let Ok(Some(parent)) = window.parent() else { return };
++                let Ok(origin) = window.location().origin() else { return };
++                let on_message = Closure::<dyn Fn(web_sys::MessageEvent)>::new(move |event: web_sys::MessageEvent| {
++                    if event.origin() != origin || !event.source().is_some_and(|s| js_sys::Object::is(&s, &parent)) {
++                        return;
++                    }
++                    if let Some((name, data)) = open_message(&event.data()) {
++                        deliver_open(&bridge, &name, &data);
++                    }
++                });
++                if window.add_event_listener_with_callback("message", on_message.as_ref().unchecked_ref()).is_ok() {
++                    on_message.forget();
++                }
+             }
+-        });
++            Mode::Page => {
++                let on_event = Closure::<dyn Fn(web_sys::CustomEvent)>::new(move |event: web_sys::CustomEvent| {
++                    if let Some((name, data)) = open_message(&event.detail()) {
++                        deliver_open(&bridge, &name, &data);
++                    }
++                });
++                if self.canvas.add_event_listener_with_callback("filmcraft:open", on_event.as_ref().unchecked_ref()).is_ok() {
++                    on_event.forget();
++                }
++            }
++        }
++    }
++}
++
++/// A `filmcraft:open` message as the host sent it: the raw `name` (a `wfm:` metadata name
++/// survives whole — the crate's `file_name` cleaning is the basename cut this bypasses) and its
++/// `file` or `bytes` payload, `None` when either is missing.
++fn open_message(data: &JsValue) -> Option<(String, FileData)> {
++    if js_sys::Reflect::get(data, &"type".into()).ok()?.as_string().as_deref() != Some("filmcraft:open") {
++        return None;
++    }
++    let name = js_sys::Reflect::get(data, &"name".into()).ok().and_then(|v| v.as_string()).unwrap_or_default();
++    let file = js_sys::Reflect::get(data, &"file".into()).ok()?;
++    if let Some(blob) = file.dyn_ref::<web_sys::Blob>() {
++        return Some((name, FileData::Blob(blob.clone())));
+     }
++    let bytes = js_sys::Reflect::get(data, &"bytes".into()).ok()?;
++    let data = if let Some(array) = bytes.dyn_ref::<js_sys::Uint8Array>() {
++        FileData::Bytes(array.clone())
++    } else if bytes.is_instance_of::<js_sys::ArrayBuffer>() {
++        FileData::Bytes(js_sys::Uint8Array::new(&bytes))
++    } else {
++        return None;
++    };
++    Some((name, data))
+ }
+ 
+ /// Handle a `filmcraft:open` payload: checked, then opened or imported like a file the user
