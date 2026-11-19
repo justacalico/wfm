@@ -23,6 +23,21 @@ void main() {
     expect(notified, greaterThan(3));
   });
 
+  test('progress notifications are throttled, completion still lands',
+      () async {
+    final q = UploadQueue();
+    var notified = 0;
+    q.addListener(() => notified++);
+    await q.enqueue([
+      UploadJob('p', 'a.bin', 100, (p) async {
+        for (var i = 1; i <= 100; i++) {
+          p(i, 100);
+        }
+      }),
+    ]);
+    expect(notified, lessThan(50));
+  });
+
   test('failed jobs stay until dismissed', () async {
     final q = UploadQueue();
     await q.enqueue([
