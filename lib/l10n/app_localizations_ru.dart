@@ -38,6 +38,12 @@ class AppLocalizationsRu extends AppLocalizations {
   String get download => 'Скачать';
 
   @override
+  String get close => 'Закрыть';
+
+  @override
+  String get playInBrowser => 'Открыть в браузере';
+
+  @override
   String get create => 'Создать';
 
   @override

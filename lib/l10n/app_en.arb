@@ -9,6 +9,8 @@
   "delete": "Delete",
   "rename": "Rename",
   "download": "Download",
+  "close": "Close",
+  "playInBrowser": "Play in browser",
   "create": "Create",
   "refresh": "Refresh",
   "uploadingFiles": "Uploading files",

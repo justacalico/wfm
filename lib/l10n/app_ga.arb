@@ -9,6 +9,8 @@
   "delete": "Scrios",
   "rename": "Athainmnigh",
   "download": "Íoslódáil",
+  "close": "Dún",
+  "playInBrowser": "Seinm sa bhrabhsálaí",
   "create": "Cruthaigh",
   "refresh": "Athnuaigh",
   "uploadingFiles": "Comhaid á n-uaslódáil",

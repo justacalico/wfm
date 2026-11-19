@@ -38,6 +38,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get download => '下载';
 
   @override
+  String get close => '关闭';
+
+  @override
+  String get playInBrowser => '在浏览器中播放';
+
+  @override
   String get create => '创建';
 
   @override

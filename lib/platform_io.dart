@@ -108,6 +108,21 @@ Future<void> uploadAvatarPicked(Api api, PickedFile f) async {
 
 void installDropHandler(void Function(List<PickedFile>) onDrop) {}
 
+Widget Function(String url, bool audio)? mediaPlayerForTesting;
+
+/// Inline media player for the preview modal. Native builds have no media
+/// element, so the fallback offers an external-open button instead.
+Widget mediaPlayer(String url,
+    {required bool audio, required String openLabel}) {
+  final t = mediaPlayerForTesting;
+  if (t != null) return t(url, audio);
+  return Center(
+      child: TextButton.icon(
+          onPressed: () => openExternal(url),
+          icon: const Icon(Icons.play_circle_outline, size: 40),
+          label: Text(openLabel)));
+}
+
 /// Full-window page hosting the platform webview pointed at the handoff URL.
 // coverage:ignore-start
 class EditorPage extends StatelessWidget {

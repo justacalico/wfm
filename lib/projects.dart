@@ -7,6 +7,7 @@ import 'api.dart';
 import 'comments.dart';
 import 'l10n/app_localizations.dart';
 import 'main.dart';
+import 'media_preview.dart';
 import 'platform.dart';
 import 'uploads.dart';
 import 'util.dart';
@@ -1217,31 +1218,8 @@ class _FilesTabState extends State<FilesTab> {
             Icon(fileIcon(e), size: h == null ? 40 : 20),
       );
 
-  void _preview(FileEntry e) async {
-    if (playableMedia(e.name)) {
-      try {
-        await openExternal(Api.i.downloadUrl(widget.project.id, e.path));
-      } catch (err) {
-        if (mounted) snack(context, err);
-      }
-      return;
-    }
-    showDialog(
-        context: context,
-        builder: (ctx) => Dialog(
-              child: InkWell(
-                  onTap: () => Navigator.of(ctx).pop(),
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 640),
-                    child: Image.network(
-                        Api.i.downloadUrl(widget.project.id, e.path),
-                        fit: BoxFit.contain,
-                        errorBuilder: (_, __, ___) => const Padding(
-                            padding: EdgeInsets.all(24),
-                            child: Icon(Icons.broken_image_outlined))),
-                  )),
-            ));
-  }
+  void _preview(FileEntry e) =>
+      MediaPreview.show(context, widget.project.id, e);
 
   Widget _menu(BuildContext c, AppLocalizations l10n, FileEntry e) =>
       PopupMenuButton<String>(
