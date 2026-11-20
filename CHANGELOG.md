@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.33.0 - 2026-11-20
+#### Features
+- 空状态补充提示文案 - (1904a83) - calico
+
+- - -
+
 ## v0.32.0 - 2026-11-20
 #### Features
 - 卡片按钮改为动词优先标签 - (4aa67c6) - calico
