@@ -205,7 +205,7 @@ diff --git a/crates/ui-egui/src/backstage/tests.rs b/crates/ui-egui/src/backstag
 index a8d4dd1..ba0dbf5 100644
 --- a/crates/ui-egui/src/backstage/tests.rs
 +++ b/crates/ui-egui/src/backstage/tests.rs
-@@ -89,10 +89,12 @@ fn page_ids_round_trip_and_unknown_ids_are_refused() {
+@@ -89,10 +89,16 @@ fn page_ids_round_trip_and_unknown_ids_are_refused() {
      assert_eq!(Page::parse("about"), Some(Page::About));
      assert_eq!(Page::parse("share"), None);
      assert_eq!(Page::parse(""), None);
@@ -216,7 +216,11 @@ index a8d4dd1..ba0dbf5 100644
 -    assert_eq!(entries(true).0.len(), 9);
 +    assert_eq!(entries(true, false).0.len(), 9);
 +    let (hosted_top, _) = entries(true, true);
-+    assert_eq!(hosted_top, vec![Nav::Page(Page::Home), Nav::Page(Page::Info), Nav::Save, Nav::Page(Page::SaveAs), Nav::Page(Page::Print), Nav::Page(Page::Export)], "a hosted page owns new, open and close");
++    assert_eq!(
++        hosted_top,
++        vec![Nav::Page(Page::Home), Nav::Page(Page::Info), Nav::Save, Nav::Page(Page::SaveAs), Nav::Page(Page::Print), Nav::Page(Page::Export)],
++        "a hosted page owns new, open and close"
++    );
      assert_eq!(split_path("/home/me/Talk.pptx"), ("Talk.pptx".into(), "/home/me".into()));
      assert_eq!(format_bytes(512), "512 bytes");
      assert_eq!(format_bytes(33_485), "32.7 KB");
