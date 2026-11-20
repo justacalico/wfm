@@ -418,6 +418,24 @@ void main() {
       expect(find.text('nope'), findsOneWidget);
       expect(find.byType(FloatingActionButton), findsNothing);
     });
+
+    testWidgets('narrow layout moves actions below the user line', (t) async {
+      installApi();
+      t.view.physicalSize = const Size(420, 900);
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.reset);
+      await pump(t, const AccountsTab());
+      final tile = t.widget<ListTile>(find.byType(ListTile).first);
+      expect(tile.trailing, isNull);
+      expect(find.byIcon(Icons.edit_outlined), findsWidgets);
+      expect(find.byIcon(Icons.key), findsWidgets);
+      expect(find.byIcon(Icons.delete_outline), findsWidgets);
+      await t.tap(find.byIcon(Icons.edit_outlined).first);
+      await settle(t);
+      expect(find.text('Edit account'), findsOneWidget);
+      await t.tap(find.text('Cancel'));
+      await settle(t);
+    });
   });
 
   group('AuditTab', () {
