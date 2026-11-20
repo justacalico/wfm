@@ -117,8 +117,11 @@ class CraftRunner {
           return SyncResult();
         }));
       }
+      final doc =
+          p.joinAll([checkoutDir.path, ...craftDocPath(craft).split('/')]);
+      await Directory(p.dirname(doc)).create(recursive: true);
       process = await _spawn(exe, [
-        p.joinAll([checkoutDir.path, ...craftDocPath(craft).split('/')])
+        doc
       ], {
         'WFM_RUN_ID': runId,
         'WFM_PROJECT': projectId,
