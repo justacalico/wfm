@@ -1,0 +1,277 @@
+diff --git a/apps/filmcraft-web/src/fs.rs b/apps/filmcraft-web/src/fs.rs
+index a8b58c8..1b3afbd 100644
+--- a/apps/filmcraft-web/src/fs.rs
++++ b/apps/filmcraft-web/src/fs.rs
+@@ -32,7 +32,9 @@ pub const CACHE_BUDGET: usize = 384 << 20;
+ const WHOLE_FILE_MAX: u64 = 256 << 20;
+ 
+ enum Entry {
+-    Blob { id: u32, size: u64 },
++    /// `local`: the bytes exist only on this machine (picked or dropped). Host pages refuse to
++    /// read them: a project item pointing at one could play here and break everywhere else.
++    Blob { id: u32, size: u64, local: bool },
+     /// A host's file that stayed on the server: chunks arrive over HTTP range fetches.
+     Remote { id: u32, size: u64 },
+     Mem(Arc<[u8]>),
+@@ -93,6 +95,16 @@ fn free_path(fs: &Fs, clean: &str) -> String {
+ }
+ 
+ pub fn register_blob(name: &str, blob: web_sys::Blob) -> String {
++    register_entry(name, blob, true)
++}
++
++/// A blob the host itself sent over `filmcraft:open`: trusted like a [`register_remote`] entry,
++/// since its bytes arrived with the document rather than from this machine's disk.
++pub fn register_host_blob(name: &str, blob: web_sys::Blob) -> String {
++    register_entry(name, blob, false)
++}
++
++fn register_entry(name: &str, blob: web_sys::Blob, local: bool) -> String {
+     let size = blob.size() as u64;
+     let clean: String = name.chars().map(|c| if c == '/' || c == '\\' { '_' } else { c }).collect();
+     FS.with(|fs| {
+@@ -101,7 +113,7 @@ pub fn register_blob(name: &str, blob: web_sys::Blob) -> String {
+         let id = fs.next_id;
+         fs.next_id += 1;
+         fs.blobs.insert(id, blob);
+-        fs.entries.insert(path.clone(), Entry::Blob { id, size });
++        fs.entries.insert(path.clone(), Entry::Blob { id, size, local });
+         fs.recount();
+         path
+     })
+@@ -201,7 +213,7 @@ pub async fn sleep(ms: i32) {
+ /// Load `[a, b)` of a registered Blob into the chunk cache (import prewarm: container index).
+ pub async fn prefetch(path: &str, a: u64, b: u64) {
+     let Some((id, size)) = FS.with(|fs| match fs.borrow().entries.get(path) {
+-        Some(Entry::Blob { id, size }) | Some(Entry::Remote { id, size }) => Some((*id, *size)),
++        Some(Entry::Blob { id, size, .. }) | Some(Entry::Remote { id, size }) => Some((*id, *size)),
+         _ => None,
+     }) else {
+         return;
+@@ -420,9 +432,13 @@ pub struct WebServices;
+ impl WebServices {
+     fn entry_reader(path: &str) -> io::Result<SharedReader> {
+         FS.with(|fs| match fs.borrow().entries.get(path) {
+-            Some(Entry::Blob { id, size }) | Some(Entry::Remote { id, size }) => {
++            Some(Entry::Blob { id, size, local }) => {
++                if !crate::hostmode::read_ok(crate::host::in_host(), *local) {
++                    return Err(not_found(path));
++                }
+                 Ok(Arc::new(BlobReader { id: *id, size: *size }) as SharedReader)
+             }
++            Some(Entry::Remote { id, size }) => Ok(Arc::new(BlobReader { id: *id, size: *size }) as SharedReader),
+             Some(Entry::Mem(b)) => Ok(Arc::new(MemReader(b.clone())) as SharedReader),
+             None => Err(not_found(path)),
+         })
+diff --git a/apps/filmcraft-web/src/host.rs b/apps/filmcraft-web/src/host.rs
+index 852259a..efce111 100644
+--- a/apps/filmcraft-web/src/host.rs
++++ b/apps/filmcraft-web/src/host.rs
+@@ -82,6 +82,14 @@ pub fn installed() -> bool {
+     BRIDGE.with(|b| b.borrow().is_some())
+ }
+ 
++/// Set when [`Bridge::connect`] finds a host, before [`install`] runs. Startup code that
++/// must not offer local-file input in host mode (drop handlers, pickers) checks this.
++pub fn in_host() -> bool {
++    HOSTED.load(Ordering::Relaxed)
++}
++
++static HOSTED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
++
+ /// Hand a file the user imported to the host (under `folder` in the project), when a bridge
+ /// is installed.
+ pub fn post_media(path: &str, blob: web_sys::Blob, folder: &str) {
+@@ -112,8 +120,10 @@ impl Bridge {
+     /// `data-host="page"` on the canvas, an unframed `?host=parent` page (it stays the normal app
+     /// with downloads), or a parent on another origin.
+     pub fn connect(canvas: &web_sys::HtmlCanvasElement) -> Option<Self> {
++        let host = Host::connect(APP, canvas)?;
++        HOSTED.store(true, Ordering::Relaxed);
+         Some(Self {
+-            host: Rc::new(Host::connect(APP, canvas)?),
++            host: Rc::new(host),
+             written: Rc::default(),
+             host_document: Rc::default(),
+             canvas: canvas.clone().into(),
+@@ -306,10 +316,10 @@ fn deliver_open(bridge: &Bridge, name0: &str, data: &FileData) {
+                 let clean: String = p.chars().map(|c| if c == '/' || c == '\\' { '_' } else { c }).collect();
+                 let Some(blob) = blob_from_bytes(array) else { return rejected_open("couldn't wrap the bytes in a Blob".to_string()) };
+                 wasm_bindgen_futures::spawn_local(async move {
+-                    let path = crate::fs::register_blob(&clean, blob.clone());
++                    let path = crate::fs::register_host_blob(&clean, blob.clone());
+                     let mut paths = vec![path.clone()];
+                     if let Some(base) = p.rsplit('/').next().filter(|b| *b != clean) {
+-                        paths.push(crate::fs::register_blob(base, blob));
++                        paths.push(crate::fs::register_host_blob(base, blob));
+                     }
+                     RESTORED.with(|r| r.borrow_mut().push((paths, dirs)));
+                     crate::import::prewarm(&path, len).await;
+@@ -384,7 +394,7 @@ fn deliver_open(bridge: &Bridge, name0: &str, data: &FileData) {
+         let Some(blob) = blob_from_bytes(array) else { return rejected_open("couldn't wrap the bytes in a Blob".to_string()) };
+         let file = file.to_string();
+         wasm_bindgen_futures::spawn_local(async move {
+-            let path = crate::fs::register_blob(&file, blob);
++            let path = crate::fs::register_host_blob(&file, blob);
+             RESTORED.with(|r| r.borrow_mut().push((vec![path.clone()], dirs)));
+             crate::import::prewarm(&path, len).await;
+         });
+diff --git a/apps/filmcraft-web/src/hostmode.rs b/apps/filmcraft-web/src/hostmode.rs
+index 96f69f5..d737820 100644
+--- a/apps/filmcraft-web/src/hostmode.rs
++++ b/apps/filmcraft-web/src/hostmode.rs
+@@ -95,3 +95,12 @@ pub fn shortcut_bindings(meta: &serde_json::Value) -> Vec<(String, String, Optio
+         })
+         .unwrap_or_default()
+ }
++
++/// May an entry be read, given whether the page is hosted and whether the entry's bytes exist
++/// only on this machine (`local`)? In a host page a locally picked or dropped file has no bytes
++/// anywhere else: an item pointing at it would play here and break on reopen and on the server's
++/// renders, so local entries read as missing there. Host-sent blobs and `media-ref` remotes are
++/// not local and stay readable.
++pub fn read_ok(hosted: bool, local: bool) -> bool {
++    !(hosted && local)
++}
+diff --git a/apps/filmcraft-web/src/import.rs b/apps/filmcraft-web/src/import.rs
+index fa0897d..74039aa 100644
+--- a/apps/filmcraft-web/src/import.rs
++++ b/apps/filmcraft-web/src/import.rs
+@@ -104,7 +104,12 @@ pub(crate) async fn import_path(path: String, bin: u64) -> Result<Value, String>
+ }
+ 
+ /// Import browser files (no copies): returns `{items, errors, paths}`.
++/// In a host page the machine's files never enter the project: the registered Blob would
++/// read as missing anyway, so the whole batch refuses up front.
+ pub async fn import_files(files: Vec<web_sys::File>) -> Value {
++    if crate::host::in_host() {
++        return json!({"items": [], "errors": ["local files cannot be imported here"], "paths": []});
++    }
+     // Capture once per batch: navigation while prewarming must not redirect pending imports.
+     let bin = on_ui(|w, _| w.app.import_bin().0).await;
+     let folder = crate::host::bin_folder(filmcraft_engine::project::BinId(bin)).await;
+@@ -136,8 +141,12 @@ pub async fn import_files(files: Vec<web_sys::File>) -> Value {
+     json!({"items": items, "errors": errors, "paths": paths})
+ }
+ 
+-/// Open a `.fcproj` file picked or dropped by the user.
++/// Open a `.fcproj` file picked or dropped by the user. A hosted page's document comes from
++/// the host: a local project file is refused.
+ pub async fn open_project_file(file: web_sys::File) -> Result<Value, String> {
++    if crate::host::in_host() {
++        return Err("local files cannot be opened here".into());
++    }
+     let buf = JsFuture::from(file.array_buffer()).await.map_err(|e| format!("{e:?}"))?;
+     open_project_bytes(format!("/projects/{}", file.name()), js_sys::Uint8Array::new(&buf).to_vec()).await
+ }
+@@ -166,7 +175,7 @@ pub async fn open_project_bytes(path: String, bytes: Vec<u8>) -> Result<Value, S
+ pub async fn import_blob(name: String, blob: web_sys::Blob) {
+     let bin = on_ui(|w, _| w.app.import_bin().0).await;
+     let size = blob.size() as u64;
+-    let path = fs::register_blob(&name, blob);
++    let path = fs::register_host_blob(&name, blob);
+     prewarm(&path, size).await;
+     match import_path(path, bin).await {
+         Ok(v) => {
+@@ -180,7 +189,11 @@ pub async fn import_blob(name: String, blob: web_sys::Blob) {
+ }
+ 
+ /// Handle files from a picker or a drop: projects open, everything else is imported.
++/// In a host page local files do nothing: they could play only in this tab.
+ pub fn take_files(files: Vec<web_sys::File>) {
++    if crate::host::in_host() {
++        return;
++    }
+     wasm_bindgen_futures::spawn_local(async move {
+         let (projects, media): (Vec<_>, Vec<_>) = files.into_iter().partition(|f| f.name().to_ascii_lowercase().ends_with(".fcproj"));
+         for p in projects {
+@@ -197,6 +210,9 @@ pub fn take_files(files: Vec<web_sys::File>) {
+ /// Files a picker returned: imported, or with a relink hint, the first one is registered under
+ /// `/files/<name>` and the hint's command runs on it (#111).
+ fn picked(files: Vec<web_sys::File>, relink: Option<RelinkHint>) {
++    if crate::host::in_host() {
++        return;
++    }
+     let Some(hint) = relink else { return take_files(files) };
+     let Some(f) = files.into_iter().next() else { return };
+     wasm_bindgen_futures::spawn_local(async move {
+@@ -275,8 +291,12 @@ fn pick_then(exts: &[&str], multiple: bool, relink: Option<RelinkHint>) {
+     input.click();
+ }
+ 
+-/// Drop files anywhere on the page to import them (or open a project).
++/// Drop files anywhere on the page to import them (or open a project). A hosted page takes its
++/// files only from the host, so no drop listeners are installed at all there.
+ pub fn install_drop_handlers() -> Result<(), JsValue> {
++    if crate::host::in_host() {
++        return Ok(());
++    }
+     let w = web_sys::window().ok_or("no window")?;
+     let over = Closure::<dyn FnMut(web_sys::DragEvent)>::new(|e: web_sys::DragEvent| e.prevent_default());
+     w.add_event_listener_with_callback_and_bool("dragover", over.as_ref().unchecked_ref(), true)?;
+@@ -296,13 +316,19 @@ pub fn install_drop_handlers() -> Result<(), JsValue> {
+ /// Wire the UI's file dialogs to the browser.
+ pub fn install_hooks(app: &mut FilmcraftApp) {
+     // Pickers are asynchronous: the dialog hook starts the picker and returns nothing; the files
+-    // are imported when the user has chosen them.
+-    app.hooks.pick_files = Some(Box::new(|exts: &[&str]| {
+-        pick(exts, true);
++    // are imported when the user has chosen them. Host pages keep the hooks so the UI asks for
++    // no local files; a pick that never happens imports nothing.
++    let local = !crate::host::in_host();
++    app.hooks.pick_files = Some(Box::new(move |exts: &[&str]| {
++        if local {
++            pick(exts, true);
++        }
+         Vec::new()
+     }));
+-    app.hooks.pick_open_project = Some(Box::new(|| {
+-        pick(&["fcproj"], false);
++    app.hooks.pick_open_project = Some(Box::new(move || {
++        if local {
++            pick(&["fcproj"], false);
++        }
+         None
+     }));
+     // Saving writes the file in memory and offers it as a download (`fs::WebServices`).
+@@ -313,8 +339,8 @@ pub fn install_hooks(app: &mut FilmcraftApp) {
+     }));
+     // Link Media ▸ Locate…, Attach Proxies, Reconnect Full Resolution: the picker is async, so the
+     // hint's command runs once the user has chosen (#111).
+-    app.hooks.pick_file_for_relink = Some(Box::new(|exts: &[&str], hint: Option<RelinkHint>| {
+-        if hint.is_some() {
++    app.hooks.pick_file_for_relink = Some(Box::new(move |exts: &[&str], hint: Option<RelinkHint>| {
++        if local && hint.is_some() {
+             pick_then(exts, false, hint);
+         }
+         None
+diff --git a/apps/filmcraft-web/tests/it/hostmode.rs b/apps/filmcraft-web/tests/it/hostmode.rs
+index daf23fc..a539e33 100644
+--- a/apps/filmcraft-web/tests/it/hostmode.rs
++++ b/apps/filmcraft-web/tests/it/hostmode.rs
+@@ -4,7 +4,7 @@
+ #[path = "../../src/hostmode.rs"]
+ mod rules;
+ 
+-use rules::{DEFAULT_OPEN_NAME, MAX_OPEN_BYTES, PROJECT_OPEN_MAX, is_project, is_save_as, media_ref, open_name, open_size_ok, project_open_ok, shortcut_bindings, wfm_meta};
++use rules::{DEFAULT_OPEN_NAME, MAX_OPEN_BYTES, PROJECT_OPEN_MAX, is_project, is_save_as, media_ref, open_name, open_size_ok, project_open_ok, read_ok, shortcut_bindings, wfm_meta};
+ 
+ #[test]
+ fn open_names_fall_back_to_the_default_and_lose_path_separators() {
+@@ -88,3 +88,16 @@ fn shortcut_bindings_parse_the_key_map() {
+     assert!(shortcut_bindings(&serde_json::json!({"k": "shortcuts"})).is_empty());
+     assert!(shortcut_bindings(&serde_json::json!({"k": "shortcuts", "b": "x"})).is_empty());
+ }
++
++#[test]
++fn host_pages_read_only_host_sent_media() {
++    // A picked or dropped blob is local: in a host page `file.import` (and every other command
++    // that reads it: captions, image sequences, relink) sees the path as missing, since its
++    // bytes would exist in this tab only. Outside a host it reads as before.
++    assert!(!read_ok(true, true));
++    assert!(read_ok(false, true));
++    // Host-sent media is not local: `media-ref` remotes and `filmcraft:open` blobs stay
++    // readable in host mode and out.
++    assert!(read_ok(true, false));
++    assert!(read_ok(false, false));
++}
