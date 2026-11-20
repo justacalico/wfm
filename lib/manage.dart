@@ -36,10 +36,42 @@ class AccountsTab extends StatefulWidget {
   State<AccountsTab> createState() => _AccountsTabState();
 }
 
+/// The managed-users subtree as `(user, depth)` rows: direct children of `meId`
+/// at depth 0, their children nested under them while `expanded` holds the
+/// parent's id. Accounts whose creator left the tree surface at the top level.
+List<(User, int)> accountTree(
+    List<User> users, String meId, Set<String> expanded) {
+  final byParent = <String, List<User>>{};
+  final ids = <String>{};
+  for (final u in users) {
+    byParent.putIfAbsent(u.createdBy, () => []).add(u);
+    ids.add(u.id);
+  }
+  final out = <(User, int)>[];
+  final seen = <String>{};
+  void walk(String parent, int depth) {
+    for (final u in byParent[parent] ?? const <User>[]) {
+      if (!seen.add(u.id)) continue;
+      out.add((u, depth));
+      if (expanded.contains(u.id)) walk(u.id, depth + 1);
+    }
+  }
+
+  walk(meId, 0);
+  for (final u in users) {
+    if (seen.contains(u.id) || ids.contains(u.createdBy)) continue;
+    seen.add(u.id);
+    out.add((u, 0));
+    if (expanded.contains(u.id)) walk(u.id, 1);
+  }
+  return out;
+}
+
 class _AccountsTabState extends State<AccountsTab> {
   List<User>? _users;
   String _err = '';
   List<Invite> _invites = [];
+  final _expanded = <String>{};
 
   @override
   void initState() {
@@ -146,83 +178,113 @@ class _AccountsTabState extends State<AccountsTab> {
           ? const Center(child: CircularProgressIndicator())
           : users.isEmpty
               ? Center(child: Text(l10n.noAccounts))
-              : ListView.builder(
-                  itemCount: users.length +
-                      (_invites.isEmpty ? 0 : _invites.length + 1),
-                  itemBuilder: (c, i) {
-                    if (i >= users.length) {
-                      final j = i - users.length;
-                      if (j == 0) {
-                        return Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-                          child: Text(l10n.invites,
-                              style: Theme.of(context).textTheme.titleSmall),
+              : Builder(builder: (c) {
+                  final rows =
+                      accountTree(users, Api.i.user?.id ?? '', _expanded);
+                  final kids = <String, int>{};
+                  for (final u in users) {
+                    kids[u.createdBy] = (kids[u.createdBy] ?? 0) + 1;
+                  }
+                  return ListView.builder(
+                    itemCount: rows.length +
+                        (_invites.isEmpty ? 0 : _invites.length + 1),
+                    itemBuilder: (c, i) {
+                      if (i >= rows.length) {
+                        final j = i - rows.length;
+                        if (j == 0) {
+                          return Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+                            child: Text(l10n.invites,
+                                style: Theme.of(context).textTheme.titleSmall),
+                          );
+                        }
+                        final inv = _invites[j - 1];
+                        final now =
+                            DateTime.now().millisecondsSinceEpoch ~/ 1000;
+                        final status = inv.revoked
+                            ? l10n.revoked
+                            : inv.usedBy.isNotEmpty
+                                ? l10n.used
+                                : inv.expired(now)
+                                    ? l10n.expired
+                                    : l10n.pending;
+                        return ListTile(
+                          leading: const Icon(Icons.link),
+                          title: Text(
+                              '${inv.role}${inv.presetUsername.isNotEmpty ? "  ·  ${inv.presetUsername}" : ""}'),
+                          subtitle: Text(
+                              '$status  ·  ${fmtTime(l10n, inv.expiresAt)}'),
+                          trailing: inv.pending(now)
+                              ? IconButton(
+                                  icon: const Icon(Icons.delete_outline),
+                                  tooltip: l10n.revoke,
+                                  onPressed: () => _revoke(inv))
+                              : null,
                         );
                       }
-                      final inv = _invites[j - 1];
-                      final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-                      final status = inv.revoked
-                          ? l10n.revoked
-                          : inv.usedBy.isNotEmpty
-                              ? l10n.used
-                              : inv.expired(now)
-                                  ? l10n.expired
-                                  : l10n.pending;
+                      final (u, depth) = rows[i];
+                      final nk = kids[u.id] ?? 0;
                       return ListTile(
-                        leading: const Icon(Icons.link),
+                        contentPadding:
+                            EdgeInsets.only(left: 16.0 + depth * 28, right: 8),
+                        leading: Row(mainAxisSize: MainAxisSize.min, children: [
+                          SizedBox(
+                            width: 28,
+                            child: nk == 0
+                                ? null
+                                : IconButton(
+                                    iconSize: 20,
+                                    padding: EdgeInsets.zero,
+                                    icon: Icon(_expanded.contains(u.id)
+                                        ? Icons.expand_more
+                                        : Icons.chevron_right),
+                                    onPressed: () => setState(() =>
+                                        _expanded.contains(u.id)
+                                            ? _expanded.remove(u.id)
+                                            : _expanded.add(u.id))),
+                          ),
+                          CircleAvatar(
+                              child: Text(
+                                  u.username.substring(0, 1).toUpperCase())),
+                        ]),
                         title: Text(
-                            '${inv.role}${inv.presetUsername.isNotEmpty ? "  ·  ${inv.presetUsername}" : ""}'),
-                        subtitle:
-                            Text('$status  ·  ${fmtTime(l10n, inv.expiresAt)}'),
-                        trailing: inv.pending(now)
-                            ? IconButton(
-                                icon: const Icon(Icons.delete_outline),
-                                tooltip: l10n.revoke,
-                                onPressed: () => _revoke(inv))
-                            : null,
+                            '${u.name.isEmpty ? u.username : u.name}  ·  ${u.role}${u.disabled ? l10n.disabledSuffix : ""}'),
+                        subtitle: Text(l10n.userLine(
+                            '${u.username}${u.studentId.isNotEmpty ? " · ${u.studentId}" : ""}${u.note.isNotEmpty ? " · ${u.note}" : ""}',
+                            fmtAgo(l10n, u.lastLogin))),
+                        trailing:
+                            Row(mainAxisSize: MainAxisSize.min, children: [
+                          IconButton(
+                              icon: const Icon(Icons.edit_outlined),
+                              tooltip: l10n.editAccount,
+                              onPressed: () => _edit(u)),
+                          IconButton(
+                              icon: const Icon(Icons.key),
+                              tooltip: l10n.resetPassword,
+                              onPressed: () => _reset(u)),
+                          IconButton(
+                            icon: Icon(u.disabled
+                                ? Icons.play_circle_outline
+                                : Icons.block),
+                            tooltip: u.disabled ? l10n.enable : l10n.disable,
+                            onPressed: () async {
+                              try {
+                                await Api.i.setDisabled(u.id, !u.disabled);
+                                _load();
+                              } catch (e) {
+                                if (context.mounted) snack(context, e);
+                              }
+                            },
+                          ),
+                          IconButton(
+                              icon: const Icon(Icons.delete_outline),
+                              tooltip: l10n.delete,
+                              onPressed: () => _delete(u)),
+                        ]),
                       );
-                    }
-                    final u = users[i];
-                    return ListTile(
-                      leading: CircleAvatar(
-                          child:
-                              Text(u.username.substring(0, 1).toUpperCase())),
-                      title: Text(
-                          '${u.name.isEmpty ? u.username : u.name}  ·  ${u.role}${u.disabled ? l10n.disabledSuffix : ""}'),
-                      subtitle: Text(l10n.userLine(
-                          '${u.username}${u.studentId.isNotEmpty ? " · ${u.studentId}" : ""}${u.note.isNotEmpty ? " · ${u.note}" : ""}',
-                          fmtAgo(l10n, u.lastLogin))),
-                      trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-                        IconButton(
-                            icon: const Icon(Icons.edit_outlined),
-                            tooltip: l10n.editAccount,
-                            onPressed: () => _edit(u)),
-                        IconButton(
-                            icon: const Icon(Icons.key),
-                            tooltip: l10n.resetPassword,
-                            onPressed: () => _reset(u)),
-                        IconButton(
-                          icon: Icon(u.disabled
-                              ? Icons.play_circle_outline
-                              : Icons.block),
-                          tooltip: u.disabled ? l10n.enable : l10n.disable,
-                          onPressed: () async {
-                            try {
-                              await Api.i.setDisabled(u.id, !u.disabled);
-                              _load();
-                            } catch (e) {
-                              if (context.mounted) snack(context, e);
-                            }
-                          },
-                        ),
-                        IconButton(
-                            icon: const Icon(Icons.delete_outline),
-                            tooltip: l10n.delete,
-                            onPressed: () => _delete(u)),
-                      ]),
-                    );
-                  },
-                ),
+                    },
+                  );
+                }),
     );
   }
 }

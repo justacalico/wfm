@@ -459,6 +459,27 @@ impl Db for SqliteDb {
             .map_err(dberr)
     }
 
+    async fn visible_users(&self, actor: &User) -> DbResult<Vec<User>> {
+        // Classmates only exist for students: a sentinel parent matches nothing for
+        // anyone else (created_by is never empty on a real account except the seed owner).
+        let (role, sub, lin, sib, sid) = (
+            actor.role as i64,
+            format!("%/{}/%", actor.id),
+            format!("/{}/", actor.lineage.trim_matches('/')),
+            if actor.role == crate::model::Role::Student { actor.created_by.clone() } else { String::new() },
+            actor.id.clone(),
+        );
+        self.q(move |c| {
+                let mut st = c.prepare(&format!(
+                    "SELECT {USER_COLS} FROM users WHERE id<>? AND ((role<? AND lineage LIKE ?) OR ? LIKE '%/'||id||'/%' OR (role=? AND created_by=? AND created_by<>'')) ORDER BY created_at"
+                ))?;
+                let rows = st.query_map(params![sid, role, sub, lin, Role::Student as i64, sib], map_user)?;
+                rows.collect::<rusqlite::Result<Vec<_>>>()
+            })
+            .await
+            .map_err(dberr)
+    }
+
     async fn create_session(
         &self,
         token_hash: &str,
