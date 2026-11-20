@@ -1,0 +1,252 @@
+diff --git a/crates/ui-egui/src/app.rs b/crates/ui-egui/src/app.rs
+index deb7f04..7b39262 100644
+--- a/crates/ui-egui/src/app.rs
++++ b/crates/ui-egui/src/app.rs
+@@ -180,7 +180,11 @@ impl SlideApp {
+     }
+ 
+     /// Opens the File tab's view on `page` (keeping its state when it is already open).
++    /// A hosted page owns the file lifecycle: there is no File tab to open.
+     pub fn open_backstage(&mut self, page: backstage::Page) {
++        if self.in_host {
++            return;
++        }
+         let key = self.docs_key();
+         match &mut self.backstage {
+             Some(b) => b.go(page),
+@@ -198,6 +202,11 @@ impl SlideApp {
+     /// Keeps the File tab's view in step with the open presentations: it closes when one is
+     /// opened, created or closed (the result shows), and it is the start screen when none is open.
+     fn sync_backstage(&mut self) {
++        if self.in_host {
++            // A hosted page owns the file lifecycle: the File tab's view is never shown.
++            self.backstage = None;
++            return;
++        }
+         let key = self.docs_key();
+         let has_doc = self.session.active().is_some();
+         let stale = self.backstage.as_ref().is_some_and(|b| b.docs != key);
+diff --git a/crates/ui-egui/src/app/commands.rs b/crates/ui-egui/src/app/commands.rs
+index 1d2b7b4..30ca5ea 100644
+--- a/crates/ui-egui/src/app/commands.rs
++++ b/crates/ui-egui/src/app/commands.rs
+@@ -36,6 +36,9 @@ impl SlideApp {
+     pub fn run(&mut self, id: &str, params: Value) -> Result<Value, String> {
+         let r = if self.in_host && HOST_FILE_COMMANDS.contains(&id) {
+             Err("the page keeps this presentation's files".to_string())
++        } else if self.in_host && id == "view.dark" {
++            // The host page owns the theme (`?theme=`): nothing inside may change it.
++            Err("the page picks the theme".to_string())
+         } else if UI_COMMANDS.iter().any(|c| c.0 == id) {
+             self.run_ui(id, &params)
+         } else if id == "file.save" && self.services.host_save.is_some() && params.get("path").is_none() {
+@@ -160,6 +163,10 @@ impl SlideApp {
+             }
+             "view.pane" => {
+                 let pane = p.get("pane").and_then(Value::as_str).map(String::from);
++                // A hosted page has no Design Ideas: the pane does not exist there.
++                if self.in_host && pane.as_deref() == Some("designer") {
++                    return Err("the page has no Design Ideas".into());
++                }
+                 self.ui.pane =
+                     if pane.is_some() && pane == self.ui.pane && p.get("toggle").and_then(Value::as_bool).unwrap_or(false) { None } else { pane };
+                 if let Some(tab) = p.get("tab").and_then(Value::as_str) {
+diff --git a/crates/ui-egui/src/app/files.rs b/crates/ui-egui/src/app/files.rs
+index e50dccd..114df21 100644
+--- a/crates/ui-egui/src/app/files.rs
++++ b/crates/ui-egui/src/app/files.rs
+@@ -552,12 +552,21 @@ impl SlideApp {
+     /// outline, a damaged file opened as a repaired copy) is untitled, and its first Save is a new
+     /// file. The first presentation that opens takes the place of the empty one host mode started
+     /// with ([`Self::start_for_host`]), if that one is still open, untitled and unchanged; later
+-    /// files open beside the others.
++    /// files open beside the others. A name with no bytes, or a name on bytes that are not a
++    /// readable presentation, instead names that empty presentation: the page has no usable file
++    /// yet, so the first Save creates the one it asked for.
+     pub fn open_from_host(&mut self, name: Option<&str>, bytes: &[u8]) {
+         let blank = self.host_start.filter(|&uid| self.session.documents().iter().any(|d| d.uid == uid && d.path.is_none() && !d.is_dirty()));
+         let before = self.session.documents().len();
+         let shown = name.unwrap_or("Presentation");
+         let named = name.is_some_and(|n| is_presentation_name(&n.to_ascii_lowercase()));
++        // The page may have no file yet: it sends a name with no bytes, and the presentation
++        // host mode started with becomes that file, so its first Save lands where the page
++        // looks instead of making a "Presentation1.deckcraft" nobody asks for again.
++        if bytes.is_empty() {
++            self.name_blank_host_doc(blank, name);
++            return;
++        }
+         let opened = deckcraft_engine::cmd::file::loaded_file(shown, bytes).and_then(|mut f| {
+             // `file.adopt` keeps the path only for a native file; a name the page didn't send
+             // for a presentation must not become one.
+@@ -567,6 +576,10 @@ impl SlideApp {
+         });
+         if let Err(e) = opened {
+             self.notify(e.to_string());
++            // A file the page sent but could not be read gets the same treatment: the new
++            // presentation takes its name, so a Save repairs the file instead of orphaning
++            // the work under another name.
++            self.name_blank_host_doc(blank, name);
+         }
+         self.drain_requests();
+         if self.session.documents().len() <= before {
+@@ -583,6 +596,18 @@ impl SlideApp {
+         }
+     }
+ 
++    /// The empty presentation host mode started with takes a file `name` the page sent but has
++    /// no usable bytes for (a missing file, or one that is not a readable presentation): Save
++    /// then creates that file instead of a new one the page never looks at.
++    fn name_blank_host_doc(&mut self, blank: Option<u64>, name: Option<&str>) {
++        let Some(name) = name.filter(|n| is_presentation_name(&n.to_ascii_lowercase())) else {
++            return;
++        };
++        if let Some(d) = self.session.active_mut().filter(|d| Some(d.uid) == blank) {
++            d.path = Some(name.to_string());
++        }
++    }
++
+     /// Host mode (`?host=parent`) starts with an empty presentation instead of the sample, for
+     /// the first file the page sends to take its place ([`Self::open_from_host`]).
+     pub fn start_for_host(&mut self) -> Result<(), String> {
+diff --git a/crates/ui-egui/src/backstage/tests.rs b/crates/ui-egui/src/backstage/tests.rs
+index 684af40..ff43b1e 100644
+--- a/crates/ui-egui/src/backstage/tests.rs
++++ b/crates/ui-egui/src/backstage/tests.rs
+@@ -428,12 +428,10 @@ fn host_close_prompt_keeps_the_presentation_when_the_save_fails() {
+     }
+ }
+ 
+-/// Framed by a page that keeps the files, Save As › Save under the presentation's own name goes
+-/// back to the slide once the page has the file. The bug this prevents: that save leaves the
+-/// file and the dirty flag as they were, so the Save As page stayed open and a second click sent
+-/// the file again.
++/// Framed by a page that keeps the files, there is no File tab: Save As runs as the command and
++/// hands the page a new .deckcraft file without leaving the slide.
+ #[test]
+-fn host_save_as_under_the_same_name_returns_to_the_slide() {
++fn host_save_as_makes_a_new_file_without_leaving_the_slide() {
+     let got: Rc<RefCell<Vec<(String, bool)>>> = Default::default();
+     let saves = got.clone();
+     let services = Services {
+@@ -449,12 +447,10 @@ fn host_save_as_under_the_same_name_returns_to_the_slide() {
+     let deck = deckcraft_engine::cmd::file::save_bytes(&Session::with_new().doc().unwrap().doc, "pptx").unwrap();
+     app.open_from_host(Some("deck.pptx"), &deck);
+     let mut h = harness(app);
+-    h.state_mut().run("app.backstage", json!({"page": "saveAs"})).unwrap();
++    h.state_mut().run("app.saveAsDialog", json!({})).unwrap();
+     h.run_steps(3);
+-    click_on_page(&h, "Save");
+-    h.run_steps(3);
+-    assert_eq!(*got.borrow(), [("deck.pptx".to_string(), true)]);
+-    assert!(h.state().backstage.is_none(), "the save returns to the slide");
++    assert_eq!(*got.borrow(), [("deck.deckcraft".to_string(), true)]);
++    assert!(h.state().backstage.is_none(), "host mode has no Backstage to leave to");
+ }
+ 
+ /// Info shows the presentation's counts and properties, and edits them through file.properties.
+@@ -790,4 +786,3 @@ fn about_has_product_links_and_credits_without_account_controls() {
+     assert!(h.query_by_label("Contributors").is_some());
+     assert!(h.query_by_label("Models").is_some());
+ }
+-
+diff --git a/crates/ui-egui/src/host_save_tests.rs b/crates/ui-egui/src/host_save_tests.rs
+index 7c249e2..035db82 100644
+--- a/crates/ui-egui/src/host_save_tests.rs
++++ b/crates/ui-egui/src/host_save_tests.rs
+@@ -237,3 +237,46 @@ fn a_hosted_drop_inserts_media_but_never_opens_a_file() {
+     app.open_or_insert_bytes("a.png", &png);
+     assert!(app.status.is_none_or(|(m, _)| !m.contains("keeps")), "media still inserts");
+ }
++
++/// The page's file may not exist yet: an open carrying a name and no bytes leaves the empty
++/// presentation host mode started with, now under that name, so the first Save creates the
++/// file the page asks for instead of a "Presentation1.deckcraft" it never looks at.
++#[test]
++fn a_name_with_no_bytes_names_the_empty_presentation() {
++    let (mut app, got) = host_app(false);
++    app.open_from_host(Some("boards.deckcraft"), &[]);
++    assert_eq!(app.session.documents().len(), 1);
++    assert_eq!(path(&app).as_deref(), Some("boards.deckcraft"));
++    assert!(!app.session.active().unwrap().is_dirty(), "naming alone is not an edit");
++    edit(&mut app);
++    app.save();
++    assert_eq!(calls(&got), [("boards.deckcraft".to_string(), false)], "Save writes the page's file");
++}
++
++/// A name on bytes that are not a readable presentation names the empty presentation the same
++/// way, so a Save repairs the file instead of orphaning the work under another name.
++#[test]
++fn an_unreadable_file_still_names_the_empty_presentation() {
++    let (mut app, got) = host_app(false);
++    app.open_from_host(Some("boards.deckcraft"), b"not a presentation");
++    assert_eq!(app.session.documents().len(), 1);
++    assert_eq!(path(&app).as_deref(), Some("boards.deckcraft"));
++    edit(&mut app);
++    app.save();
++    assert_eq!(calls(&got), [("boards.deckcraft".to_string(), false)]);
++}
++
++/// A hosted page has no File tab: the Backstage never opens, the theme is the page's, and the
++/// Design Ideas pane does not exist.
++#[test]
++fn a_hosted_app_has_no_backstage_theme_switch_or_design_ideas() {
++    let (mut app, _got) = host_app(false);
++    app.open_from_host(Some("deck.pptx"), &pptx(1));
++    app.open_backstage(crate::backstage::Page::Home);
++    assert!(app.backstage.is_none(), "the File tab's view is a no-op in host mode");
++    app.run("app.backstage", json!({"page": "home"})).unwrap();
++    assert!(app.backstage.is_none());
++    assert!(app.run("view.dark", json!({})).is_err(), "the page picks the theme");
++    assert!(app.run("view.pane", json!({"pane": "designer"})).is_err(), "the page has no Design Ideas");
++    assert!(app.ui.pane.is_none());
++}
+diff --git a/crates/ui-egui/src/ribbon.rs b/crates/ui-egui/src/ribbon.rs
+index 7916940..a33ab67 100644
+--- a/crates/ui-egui/src/ribbon.rs
++++ b/crates/ui-egui/src/ribbon.rs
+@@ -133,7 +133,8 @@ pub fn show(app: &mut SlideApp, ui: &mut Ui) {
+         // PowerPoint.
+         let mut x = rect.min.x + 12.0;
+         let y = rect.min.y + 2.0;
+-        {
++        // A hosted page owns the file lifecycle: there is no File tab and no Backstage.
++        if !app.in_host {
+             let w = ui.fonts_mut(|f| f.layout_no_wrap("File".to_string(), theme::font(13.0), t.text).size().x) + 18.0;
+             let r = Rect::from_min_size(pos2(x, y), vec2(w, 24.0));
+             let resp = ui.interact(r, ui.scope_id().with("tab_file"), Sense::click());
+diff --git a/crates/ui-egui/src/ribbon/design.rs b/crates/ui-egui/src/ribbon/design.rs
+index 7a81c98..e6b09ae 100644
+--- a/crates/ui-egui/src/ribbon/design.rs
++++ b/crates/ui-egui/src/ribbon/design.rs
+@@ -155,9 +155,11 @@ pub(super) fn design(app: &mut SlideApp, ui: &mut Ui) {
+         });
+         big(app, ui, Icon::FormatBackground, "Format\nBackground", "view.pane", json!({"pane": "background"}));
+     });
+-    group(ui, |ui| {
+-        big(app, ui, Icon::DesignIdeas, "Design\nIdeas", "view.pane", json!({"pane": "designer"}));
+-    });
++    if !app.in_host {
++        group(ui, |ui| {
++            big(app, ui, Icon::DesignIdeas, "Design\nIdeas", "view.pane", json!({"pane": "designer"}));
++        });
++    }
+ }
+ 
+ pub fn paint_theme_tile(p: &egui::Painter, r: Rect, th: &deckcraft_model::Theme) {
+diff --git a/crates/ui-egui/src/ribbon/home.rs b/crates/ui-egui/src/ribbon/home.rs
+index 267f161..163924a 100644
+--- a/crates/ui-egui/src/ribbon/home.rs
++++ b/crates/ui-egui/src/ribbon/home.rs
+@@ -468,7 +468,9 @@ pub(super) fn home(app: &mut SlideApp, ui: &mut Ui) {
+         // Also under Arrange, but that is disabled until something is selected (#132).
+         big(app, ui, Icon::SelectionPane, "Selection\nPane", "view.pane", json!({"pane": "selection"}));
+     });
+-    group(ui, |ui| {
+-        big(app, ui, Icon::DesignIdeas, "Design\nIdeas", "view.pane", json!({"pane": "designer"}));
+-    });
++    if !app.in_host {
++        group(ui, |ui| {
++            big(app, ui, Icon::DesignIdeas, "Design\nIdeas", "view.pane", json!({"pane": "designer"}));
++        });
++    }
+ }
