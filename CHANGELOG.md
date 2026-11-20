@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.31.1 - 2026-11-20
+#### Bug Fixes
+- 渲染媒体暂存名与客户端注册名一致 - (5ffccb0) - calico
+
+- - -
+
 ## v0.31.0 - 2026-11-20
 #### Features
 - FilmCraft 打开后实时同步项目媒体列表 - (c9e3345) - calico
