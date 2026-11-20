@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:typed_data';
@@ -132,14 +133,15 @@ class SchoolClass {
 }
 
 class FileEntry {
-  final String name, path, type;
+  final String name, path, type, rev;
   final int size, modified;
   FileEntry.fromJson(Map<String, dynamic> j)
       : name = j['name'] ?? '',
         path = j['path'] ?? '',
         type = j['type'] ?? 'file',
         size = j['size'] ?? 0,
-        modified = j['modified'] ?? 0;
+        modified = j['modified'] ?? 0,
+        rev = j['rev'] ?? '';
   bool get isDir => type == 'dir';
 }
 
@@ -649,19 +651,59 @@ class Api {
           FileEntry.fromJson(e)
       ];
 
-  Future<void> upload(String pid, String path, Uint8List bytes) async {
-    if (bytes.length <= chunkSize) {
-      return putFile('/projects/$pid/files', bytes, {'path': path});
+  /// Flat recursive listing of the whole project tree with content revs;
+  /// the desktop sync engine diffs this against the local checkout.
+  Future<List<FileEntry>> manifest(String pid) async => [
+        for (final e in (await get('/projects/$pid/manifest')) as List)
+          FileEntry.fromJson(e)
+      ];
+
+  /// (acquired, detail) for lock acquire calls: detail is the server
+  /// message or the conflict body when another client holds the lock.
+  Future<(bool, String)> lockAcquire(String pid, String kind, String clientId,
+      {bool force = false}) async {
+    try {
+      await post('/projects/$pid/locks',
+          {'kind': kind, 'clientId': clientId, 'force': force});
+      return (true, '');
+    } on ApiException catch (e) {
+      if (e.status == 409) return (false, e.message);
+      rethrow;
     }
-    await uploadChunked(
-        pid, path, bytes.length, (a, b) async => bytes.sublist(a, b));
+  }
+
+  /// True while this client still holds the lock; false once a takeover or
+  /// expiry moved it to someone else.
+  Future<bool> lockHeartbeat(String pid, String kind, String clientId) async {
+    try {
+      await post('/projects/$pid/locks/heartbeat',
+          {'kind': kind, 'clientId': clientId});
+      return true;
+    } on ApiException catch (e) {
+      if (e.status == 409) return false;
+      rethrow;
+    }
+  }
+
+  Future<void> lockRelease(String pid, String kind, String clientId) =>
+      del('/projects/$pid/locks', {'kind': kind, 'clientId': clientId});
+
+  Future<void> upload(String pid, String path, Uint8List bytes,
+      {String clientId = '', String base = ''}) async {
+    if (bytes.length <= chunkSize) {
+      return putFile('/projects/$pid/files', bytes,
+          {'path': path, 'clientId': clientId, 'base': base});
+    }
+    await uploadChunked(pid, path, bytes.length,
+        (a, b) async => bytes.sublist(a, b), null, clientId, base);
   }
 
   Future<String> uploadStart(String pid, String path,
-          {String clientId = ''}) async =>
+          {String clientId = '', String base = ''}) async =>
       '${(await post('/projects/$pid/files/upload', {
             'path': path,
-            'clientId': clientId
+            'clientId': clientId,
+            'base': base
           }))['id']}';
 
   Future<void> uploadChunk(String uid, int offset, Uint8List bytes) =>
@@ -676,8 +718,10 @@ class Api {
 
   Future<void> uploadChunked(String pid, String path, int total,
       Future<Uint8List> Function(int start, int end) slice,
-      [void Function(int sent, int total)? onProgress]) async {
-    final uid = await uploadStart(pid, path);
+      [void Function(int sent, int total)? onProgress,
+      String clientId = '',
+      String base = '']) async {
+    final uid = await uploadStart(pid, path, clientId: clientId, base: base);
     var off = 0;
     var size = chunkSize;
     try {
@@ -710,17 +754,44 @@ class Api {
   Future<void> uploadAvatar(Uint8List bytes) =>
       putFile('/me/avatar', bytes, {});
 
-  Future<void> mkdir(String pid, String path) =>
-      post('/projects/$pid/files/mkdir', {'path': path});
+  Future<void> mkdir(String pid, String path, {String clientId = ''}) =>
+      post('/projects/$pid/files/mkdir', {'path': path, 'clientId': clientId});
 
-  Future<void> move(String pid, String from, String to) =>
-      post('/projects/$pid/files/move', {'from': from, 'to': to});
+  Future<void> move(String pid, String from, String to,
+          {String clientId = '', String base = ''}) =>
+      post('/projects/$pid/files/move',
+          {'from': from, 'to': to, 'clientId': clientId, 'base': base});
 
   String zipUrl(String pid, List<String> paths) =>
       '$baseUrl/api/projects/$pid/zip?paths=${paths.map(Uri.encodeComponent).join(',')}';
 
-  Future<void> deleteFile(String pid, String path) =>
-      del('/projects/$pid/files', {'path': path});
+  Future<void> deleteFile(String pid, String path,
+          {String clientId = '', String base = ''}) =>
+      del('/projects/$pid/files',
+          {'path': path, 'clientId': clientId, 'base': base});
+
+  /// Stream a project file into [sink] without buffering it whole in
+  /// memory: the sync engine pulls media this way.
+  Future<void> downloadInto(
+      String pid, String path, StreamConsumer<List<int>> sink) async {
+    final req =
+        http.Request('GET', _u('/projects/$pid/download', {'path': path}))
+          ..headers.addAll(_h);
+    final r = await _c.send(req);
+    if (r.statusCode == 401) {
+      if (user != null) {
+        user = null;
+        csrf = '';
+        sessionToken = '';
+        onSignedOut?.call();
+      }
+      throw ApiException(401, 'auth');
+    }
+    if (r.statusCode >= 400) {
+      throw ApiException(r.statusCode, 'error ${r.statusCode}');
+    }
+    await r.stream.pipe(sink);
+  }
 
   String projectUrl(String pid, {String? theme}) =>
       '$baseUrl/filmcraft/wfm.html?project=$pid${theme == null ? '' : '&theme=$theme'}';

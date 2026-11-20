@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'api.dart';
 import 'l10n/app_localizations.dart';
 import 'notifications.dart';
+import 'platform.dart';
 import 'projects.dart';
 import 'shared.dart';
 import 'invite.dart';
@@ -765,6 +766,12 @@ class ShellState extends State<Shell> {
     super.initState();
     refreshShared();
     refreshNotifs();
+  }
+
+  @override
+  void dispose() {
+    unawaited(shutdownCrafts());
+    super.dispose();
   }
 
   Future<void> refreshShared() async {

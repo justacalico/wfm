@@ -247,11 +247,12 @@ class _ProjectsPageState extends State<ProjectsPage> {
         ),
       );
 
-  Widget _openAction(BuildContext c, IconData icon, String label, String url) =>
+  Widget _openAction(BuildContext c, IconData icon, String label, String url,
+          String name) =>
       TextButton.icon(
         onPressed: () async {
           try {
-            await openEditor(c, Api.i, url);
+            await openEditor(c, Api.i, url, projectName: name);
           } catch (e) {
             if (c.mounted) snack(c, e);
           }
@@ -268,11 +269,11 @@ class _ProjectsPageState extends State<ProjectsPage> {
     final theme = _theme(c);
     final buttons = [
       _openAction(c, Icons.edit_note, l10n.openScript,
-          Api.i.scriptUrl(p.id, theme: theme)),
+          Api.i.scriptUrl(p.id, theme: theme), p.displayName),
       _openAction(c, Icons.view_carousel_outlined, l10n.openBoards,
-          Api.i.deckUrl(p.id, theme: theme)),
+          Api.i.deckUrl(p.id, theme: theme), p.displayName),
       _openAction(c, Icons.edit_outlined, l10n.editInFilmcraft,
-          Api.i.projectUrl(p.id, theme: theme)),
+          Api.i.projectUrl(p.id, theme: theme), p.displayName),
     ];
     if (!expand) return Row(mainAxisSize: MainAxisSize.min, children: buttons);
     return Row(children: [for (final b in buttons) Expanded(child: b)]);
@@ -686,7 +687,8 @@ class _ProjectPageState extends State<ProjectPage> {
 
   Future<void> _open(String url) async {
     try {
-      await openEditor(context, Api.i, url);
+      await openEditor(context, Api.i, url,
+          projectName: widget.project.displayName);
     } catch (e) {
       if (mounted) snack(context, e);
     }

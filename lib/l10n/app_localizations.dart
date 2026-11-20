@@ -2293,6 +2293,96 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'In progress'**
   String get inProgress;
+
+  /// No description provided for @editorMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Editor mode'**
+  String get editorMode;
+
+  /// No description provided for @editorModeWeb.
+  ///
+  /// In en, this message translates to:
+  /// **'Web'**
+  String get editorModeWeb;
+
+  /// No description provided for @editorModeNative.
+  ///
+  /// In en, this message translates to:
+  /// **'Native'**
+  String get editorModeNative;
+
+  /// No description provided for @craftCheckoutDir.
+  ///
+  /// In en, this message translates to:
+  /// **'Project checkout folder'**
+  String get craftCheckoutDir;
+
+  /// No description provided for @craftCheckoutDirBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Native editors keep a local copy of each open project here.'**
+  String get craftCheckoutDirBody;
+
+  /// No description provided for @craftAlreadyOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'{craft} already has this project open.'**
+  String craftAlreadyOpen(Object craft);
+
+  /// No description provided for @craftMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'The native {craft} editor is not bundled in this build.'**
+  String craftMissing(Object craft);
+
+  /// No description provided for @craftLocked.
+  ///
+  /// In en, this message translates to:
+  /// **'{craft} is open elsewhere and could not be taken over.'**
+  String craftLocked(Object craft);
+
+  /// No description provided for @craftTakeOverBody.
+  ///
+  /// In en, this message translates to:
+  /// **'{craft} already has this project open elsewhere. Take over and close the other session?'**
+  String craftTakeOverBody(Object craft);
+
+  /// No description provided for @syncPulling.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading project files…'**
+  String get syncPulling;
+
+  /// No description provided for @syncPushing.
+  ///
+  /// In en, this message translates to:
+  /// **'Uploading changes…'**
+  String get syncPushing;
+
+  /// No description provided for @syncLockLost.
+  ///
+  /// In en, this message translates to:
+  /// **'This project was taken over elsewhere. The editor was closed to keep your work safe.'**
+  String get syncLockLost;
+
+  /// No description provided for @importStorage.
+  ///
+  /// In en, this message translates to:
+  /// **'Import storage'**
+  String get importStorage;
+
+  /// No description provided for @importMixed.
+  ///
+  /// In en, this message translates to:
+  /// **'Local copy + upload'**
+  String get importMixed;
+
+  /// No description provided for @importServer.
+  ///
+  /// In en, this message translates to:
+  /// **'Server only'**
+  String get importServer;
 }
 
 class _AppLocalizationsDelegate
