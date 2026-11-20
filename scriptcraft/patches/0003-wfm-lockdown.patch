@@ -1,0 +1,158 @@
+diff --git a/crates/ui-egui/src/chrome.rs b/crates/ui-egui/src/chrome.rs
+index b5023e6..084001c 100644
+--- a/crates/ui-egui/src/chrome.rs
++++ b/crates/ui-egui/src/chrome.rs
+@@ -115,38 +115,44 @@ pub fn menu_bar(app: &mut ScriptApp, ui: &mut Ui) {
+     egui::Panel::top("menu").frame(egui::Frame::NONE.fill(t.chrome).inner_margin(egui::Margin::symmetric(8, 3))).show(ui, |ui| {
+         egui::MenuBar::new().ui(ui, |ui| {
+             ui.menu_button(lang.text("File"), |ui| {
+-                item(app, ui, "New Script", "file.new", "Mod+N");
+-                crate::drafts::new_menu(app, ui);
+-                item(app, ui, "Open…", "ui.open", "Mod+O");
+-                item(app, ui, "Import from Word, Celtx or PDF…", "ui.import", "");
+-                ui.menu_button(lang.text("Open Recent"), |ui| {
+-                    let recent = app.prefs.files.recent.clone();
+-                    if recent.is_empty() {
+-                        ui.label(RichText::new(lang.text("No recent files")).italics());
+-                    }
+-                    for p in recent {
+-                        let name = std::path::Path::new(&p).file_name().and_then(|n| n.to_str()).unwrap_or(&p).to_string();
+-                        if ui.button(name).on_hover_text(&p).clicked() {
+-                            app.run("ui.openRecent", json!({"path": p}));
+-                            ui.close();
++                if !app.in_wfm {
++                    item(app, ui, "New Script", "file.new", "Mod+N");
++                    crate::drafts::new_menu(app, ui);
++                    item(app, ui, "Open…", "ui.open", "Mod+O");
++                    item(app, ui, "Import from Word, Celtx or PDF…", "ui.import", "");
++                    ui.menu_button(lang.text("Open Recent"), |ui| {
++                        let recent = app.prefs.files.recent.clone();
++                        if recent.is_empty() {
++                            ui.label(RichText::new(lang.text("No recent files")).italics());
+                         }
+-                    }
++                        for p in recent {
++                            let name = std::path::Path::new(&p).file_name().and_then(|n| n.to_str()).unwrap_or(&p).to_string();
++                            if ui.button(name).on_hover_text(&p).clicked() {
++                                app.run("ui.openRecent", json!({"path": p}));
++                                ui.close();
++                            }
++                        }
++                        ui.separator();
++                        item(app, ui, "Clear Menu", "ui.clearRecent", "");
++                    });
++                    item(app, ui, "Open Sample Script", "file.sample", "");
+                     ui.separator();
+-                    item(app, ui, "Clear Menu", "ui.clearRecent", "");
+-                });
+-                item(app, ui, "Open Sample Script", "file.sample", "");
+-                ui.separator();
++                }
+                 item(app, ui, "Save", "ui.save", "Mod+S");
+-                item(app, ui, "Save As…", "ui.saveAs", "Mod+Shift+S");
++                if !app.in_wfm {
++                    item(app, ui, "Save As…", "ui.saveAs", "Mod+Shift+S");
++                }
+                 ui.separator();
+                 item(app, ui, "Print…", "ui.print", "Mod+P");
+                 item(app, ui, "Export PDF…", "ui.exportPdf", "");
+                 item(app, ui, "Export Final Draft (FDX)…", "ui.exportFdx", "");
+                 item(app, ui, "Export Fountain…", "ui.exportFountain", "");
+-                ui.separator();
+-                item(app, ui, "Collaborate…", "ui.collaborate", "");
+-                ui.separator();
+-                item(app, ui, "Quit", "ui.quit", "Mod+Q");
++                if !app.in_wfm {
++                    ui.separator();
++                    item(app, ui, "Collaborate…", "ui.collaborate", "");
++                    ui.separator();
++                    item(app, ui, "Quit", "ui.quit", "Mod+Q");
++                }
+             });
+             ui.menu_button(lang.text("Edit"), |ui| {
+                 let undo = app.session.undo_label().map_or(lang.text("Undo").to_string(), |l| lang.format("Undo {l}", &[("l", (l).to_string())]));
+@@ -289,7 +295,9 @@ pub fn menu_bar(app: &mut ScriptApp, ui: &mut Ui) {
+             });
+             ui.menu_button(lang.text("Help"), |ui| {
+                 item(app, ui, "About ScriptCraft", "ui.about", "");
+-                item(app, ui, "Open Sample Script", "file.sample", "");
++                if !app.in_wfm {
++                    item(app, ui, "Open Sample Script", "file.sample", "");
++                }
+             });
+         });
+     });
+@@ -350,6 +358,9 @@ pub fn toolbar(app: &mut ScriptApp, ui: &mut Ui) {
+                     (Icon::Save, lang.text("Save"), "ui.save"),
+                     (Icon::Pdf, lang.text("Export PDF…"), "ui.exportPdf"),
+                 ] {
++                    if app.in_wfm && !matches!(id, "ui.save" | "ui.exportPdf") {
++                        continue;
++                    }
+                     if icons::button(ui, icon, lang.text(tip), false).clicked() {
+                         app.run(id, json!({}));
+                     }
+@@ -887,7 +898,9 @@ pub fn dialogs(app: &mut ScriptApp, ctx: &egui::Context) {
+             if let Some(d) = loc["data"].as_str() {
+                 ui.label(RichText::new(lang.format("Recovery, backups, dictionary: {d}", &[("d", (d).to_string())])).size(11.5));
+             }
+-            ui.hyperlink_to("getartcraft.com/apps", "https://getartcraft.com/apps");
++            if !app.in_wfm {
++                ui.hyperlink_to("getartcraft.com/apps", "https://getartcraft.com/apps");
++            }
+         });
+         app.about = open;
+     }
+diff --git a/crates/ui-egui/src/drafts.rs b/crates/ui-egui/src/drafts.rs
+index 4d9a89d..fb1196f 100644
+--- a/crates/ui-egui/src/drafts.rs
++++ b/crates/ui-egui/src/drafts.rs
+@@ -194,7 +194,7 @@ pub(crate) fn tools_menu(app: &mut ScriptApp, ui: &mut Ui) {
+             ui.close();
+         }
+     });
+-    if ui.button("Compare with Draft…").clicked() {
++    if !app.in_wfm && ui.button("Compare with Draft…").clicked() {
+         app.run("ui.compare", json!({}));
+         ui.close();
+     }
+diff --git a/crates/ui-egui/src/lib.rs b/crates/ui-egui/src/lib.rs
+index 9086bab..d39b9ee 100644
+--- a/crates/ui-egui/src/lib.rs
++++ b/crates/ui-egui/src/lib.rs
+@@ -201,6 +201,9 @@ pub struct ScriptApp {
+     pub recovery_dir: Option<std::path::PathBuf>,
+     /// Where files are opened from and saved to when there is no file system (the web build).
+     pub host: Option<Box<dyn FileHost>>,
++    /// Running inside the WFM project frame: the host owns the document, so local file
++    /// commands (open, import, save-as, samples, templates, quit) are off the menus and no-op.
++    pub in_wfm: bool,
+     /// Files delivered by the host or dropped on the window.
+     pub inbox: Inbox,
+     /// Text to speech (and speech to text) from the host: system voices natively, the browser's
+@@ -284,6 +287,7 @@ impl ScriptApp {
+             confirm_replace: None,
+             dialog_buttons: Vec::new(),
+             host: None,
++            in_wfm: false,
+             inbox: Inbox::default(),
+             speaker: None,
+             printer: None,
+@@ -509,6 +513,17 @@ impl ScriptApp {
+ 
+     /// Run a command: `ui.*` here, everything else in the engine. Errors go to the status bar.
+     pub fn execute(&mut self, id: &str, params: Value) -> Result<Value, CmdError> {
++        // Inside WFM the document belongs to the project: nothing opens, imports or
++        // replaces it, and saves only go through the host.
++        if self.in_wfm
++            && matches!(id,
++                "file.new" | "file.open" | "file.import" | "file.sample" | "file.revert"
++                | "file.save" | "file.saveAs" | "template.new"
++                | "ui.open" | "ui.openRecent" | "ui.clearRecent" | "ui.import" | "ui.saveAs"
++                | "ui.collaborate" | "ui.quit" | "ui.compare" | "ui.theme.toggle" | "ui.theme.dark" | "ui.theme.light")
++        {
++            return Err(CmdError::Disabled("not available inside WFM".into()));
++        }
+         // Replacing a script with unsaved changes asks first (interactive windows only).
+         if self.dialogs
+             && self.session.dirty
