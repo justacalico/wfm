@@ -1,0 +1,21 @@
+diff --git a/apps/deckcraft-web/src/web.rs b/apps/deckcraft-web/src/web.rs
+index 759420b..b6dd20e 100644
+--- a/apps/deckcraft-web/src/web.rs
++++ b/apps/deckcraft-web/src/web.rs
+@@ -31,8 +31,14 @@ pub fn start() {
+         // never the framed page.
+         let hosted = crate::presenter::token().is_none();
+         let bridge = if hosted { crate::host::Bridge::detect(&canvas) } else { None };
+-        if hosted && bridge.is_none() && query_param("host").as_deref() == Some("parent") {
+-            log::warn!("?host=parent needs a framing page on the same origin; saves download instead");
++        // WFM embeds DeckCraft and owns its files: without a host page there is no document to
++        // open and nowhere to save, so the standalone app does not start.
++        if hosted && bridge.is_none() {
++            if let Some(el) = document.get_element_by_id(LOADING_ID) {
++                el.set_inner_html("<p>DeckCraft is embedded in its host page; open it from there.</p>");
++            }
++            log::error!("no host page: DeckCraft only runs embedded");
++            return;
+         }
+         let app_bridge = bridge.clone();
+         let mut options = eframe::WebOptions::default();

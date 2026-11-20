@@ -1,0 +1,338 @@
+diff --git a/crates/ui-egui/src/app.rs b/crates/ui-egui/src/app.rs
+index 8cc5325..7047df1 100644
+--- a/crates/ui-egui/src/app.rs
++++ b/crates/ui-egui/src/app.rs
+@@ -107,6 +107,7 @@ impl SlideApp {
+             next_file_id: 1,
+             pending_files: Vec::new(),
+             host_start: None,
++            in_host: false,
+             ime_tracker: egui::ime_context::ImeContextTracker::new(),
+             ime_pending: None,
+             ime_frame_viewport: None,
+diff --git a/crates/ui-egui/src/app/commands.rs b/crates/ui-egui/src/app/commands.rs
+index 718b95a..65e92b3 100644
+--- a/crates/ui-egui/src/app/commands.rs
++++ b/crates/ui-egui/src/app/commands.rs
+@@ -14,11 +14,29 @@ fn grid_flag(p: &Value, key: &str) -> Result<Option<bool>, String> {
+     }
+ }
+ 
++/// Commands a host page owns: the file comes from the page and saves back to it, so nothing
++/// local may create, open, close, revert or re-file a presentation (menus, palette, shortcuts
++/// and the control channel all run commands through [`SlideApp::run`]).
++const HOST_FILE_COMMANDS: &[&str] = &[
++    "file.new",
++    "file.open",
++    "file.openBytes",
++    "file.close",
++    "file.revert",
++    "file.recovery.open",
++    "file.saveTemplate",
++    "slide.fromOutline",
++    "app.openDialog",
++    "app.closePresentation",
++];
++
+ impl SlideApp {
+     /// Run a command by id (UI commands here, everything else in the engine). Errors show in the
+     /// status bar and are returned.
+     pub fn run(&mut self, id: &str, params: Value) -> Result<Value, String> {
+-        let r = if UI_COMMANDS.iter().any(|c| c.0 == id) {
++        let r = if self.in_host && HOST_FILE_COMMANDS.contains(&id) {
++            Err("the page keeps this presentation's files".to_string())
++        } else if UI_COMMANDS.iter().any(|c| c.0 == id) {
+             self.run_ui(id, &params)
+         } else if id == "file.save" && self.services.host_save.is_some() && params.get("path").is_none() {
+             // A page that keeps the files (`?host=parent`): Save by id (the command palette) goes
+diff --git a/crates/ui-egui/src/app/files.rs b/crates/ui-egui/src/app/files.rs
+index 3ec5920..e50dccd 100644
+--- a/crates/ui-egui/src/app/files.rs
++++ b/crates/ui-egui/src/app/files.rs
+@@ -167,6 +167,9 @@ impl SlideApp {
+     /// File › Close and Ctrl+W: closes the active presentation, asking first when it has unsaved
+     /// changes (Save, Don't Save, Cancel), as PowerPoint does.
+     pub fn close_presentation(&mut self) {
++        if self.in_host {
++            return;
++        }
+         match self.session.active() {
+             None => {}
+             Some(d) if d.is_dirty() => self.dialog = Some(dialogs::Dialog::new("close")),
+@@ -293,6 +296,9 @@ impl SlideApp {
+     }
+ 
+     pub(crate) fn pick_and_open(&mut self) {
++        if self.in_host {
++            return;
++        }
+         if let Some(pick) = self.services.pick_open.as_mut() {
+             if let Some(path) = pick("open") {
+                 self.open_path_in_background(&path);
+@@ -306,6 +312,9 @@ impl SlideApp {
+     }
+ 
+     pub fn open_path(&mut self, path: &str) -> Result<(), String> {
++        if self.in_host {
++            return Err("the page keeps this presentation's files".to_string());
++        }
+         self.session.execute("file.open", &json!({"path": path})).map_err(|e| e.to_string())?;
+         self.note_recent(path);
+         Ok(())
+@@ -579,6 +588,7 @@ impl SlideApp {
+     pub fn start_for_host(&mut self) -> Result<(), String> {
+         self.run("file.new", json!({}))?;
+         self.host_start = self.session.active().map(|d| d.uid);
++        self.in_host = true;
+         Ok(())
+     }
+ 
+@@ -696,6 +706,12 @@ impl SlideApp {
+                 return;
+             }
+         };
++        // A hosted page owns the presentation: a picked or dropped file can only insert media
++        // into it, never open as (or create) one.
++        if self.in_host && (cmd == "file.openBytes" || cmd == "slide.fromOutline" || self.session.active().is_none()) {
++            self.set_status(format!("{name}: the page keeps this presentation's files"));
++            return;
++        }
+         let params = if cmd == "slide.fromOutline" {
+             json!({"text": deckcraft_engine::cmd::file::outline_text(bytes), "markdown": name.to_ascii_lowercase().ends_with(".md")})
+         } else {
+diff --git a/crates/ui-egui/src/backstage.rs b/crates/ui-egui/src/backstage.rs
+index 8146697..ab72077 100644
+--- a/crates/ui-egui/src/backstage.rs
++++ b/crates/ui-egui/src/backstage.rs
+@@ -139,10 +139,17 @@ impl Nav {
+ 
+ /// The side menu, top group then bottom group, in keyboard order. PowerPoint's Share (cloud) is
+ /// left out; with nothing open only Home, New and Open stay at the top.
+-pub fn entries(has_doc: bool) -> (Vec<Nav>, Vec<Nav>) {
+-    let mut top = vec![Nav::Page(Page::Home), Nav::Page(Page::New), Nav::Page(Page::Open)];
++pub fn entries(has_doc: bool, hosted: bool) -> (Vec<Nav>, Vec<Nav>) {
++    let mut top = vec![Nav::Page(Page::Home)];
++    if !hosted {
++        // A hosted page owns the file lifecycle: no local new, open or close.
++        top.extend([Nav::Page(Page::New), Nav::Page(Page::Open)]);
++    }
+     if has_doc {
+-        top.extend([Nav::Page(Page::Info), Nav::Save, Nav::Page(Page::SaveAs), Nav::Page(Page::Print), Nav::Page(Page::Export), Nav::Close]);
++        top.extend([Nav::Page(Page::Info), Nav::Save, Nav::Page(Page::SaveAs), Nav::Page(Page::Print), Nav::Page(Page::Export)]);
++        if !hosted {
++            top.push(Nav::Close);
++        }
+     }
+     (top, vec![Nav::Page(Page::About), Nav::Options])
+ }
+@@ -279,7 +286,7 @@ pub fn key(app: &mut SlideApp, key: Key, mods: deckcraft_engine::Mods) -> bool {
+         return false;
+     }
+     let has_doc = app.session.active().is_some();
+-    let (top, bottom) = entries(has_doc);
++    let (top, bottom) = entries(has_doc, app.in_host);
+     let all: Vec<Nav> = top.into_iter().chain(bottom).collect();
+     let Some(bs) = app.backstage.as_mut() else { return false };
+     match key {
+@@ -326,9 +333,12 @@ pub fn show(app: &mut SlideApp, ui: &mut Ui) {
+     if !has_doc && bs.page.needs_doc() {
+         bs.page = Page::Home;
+     }
++    if app.in_host && matches!(bs.page, Page::New | Page::Open) {
++        bs.page = Page::Home;
++    }
+     let (nav_bg, page_bg) = colours(&t);
+     let mut out = Outcome::default();
+-    let (top, bottom) = entries(has_doc);
++    let (top, bottom) = entries(has_doc, app.in_host);
+     egui::Panel::left("backstage_nav").exact_size(NAV_W).resizable(false).frame(egui::Frame::NONE.fill(nav_bg)).show(ui, |ui| {
+         ui.spacing_mut().item_spacing.y = 0.0;
+         if has_doc {
+diff --git a/crates/ui-egui/src/backstage/files.rs b/crates/ui-egui/src/backstage/files.rs
+index 4b7cec6..d47c9e1 100644
+--- a/crates/ui-egui/src/backstage/files.rs
++++ b/crates/ui-egui/src/backstage/files.rs
+@@ -32,6 +32,9 @@ fn tile(ui: &mut Ui, label: &str, theme: Option<&deckcraft_model::Theme>, big: b
+ /// The built-in themes and the sample deck, filtered by `query` (after a blank presentation when
+ /// `blank`); at most `limit` theme tiles. False when nothing matched.
+ fn new_tiles(app: &mut SlideApp, ui: &mut Ui, query: &str, limit: usize, blank: bool) -> bool {
++    if app.in_host {
++        return false;
++    }
+     let q = query.trim().to_lowercase();
+     let themes: Vec<deckcraft_model::Theme> =
+         deckcraft_model::theme::builtin_themes().into_iter().filter(|th| q.is_empty() || th.name.to_lowercase().contains(&q)).collect();
+@@ -68,6 +71,9 @@ fn new_tiles(app: &mut SlideApp, ui: &mut Ui, query: &str, limit: usize, blank:
+ 
+ /// Starter decks whose name, summary, theme or a slide title matches `query`, at most `limit` tiles.
+ fn template_tiles(app: &mut SlideApp, ui: &mut Ui, query: &str, limit: usize) -> bool {
++    if app.in_host {
++        return false;
++    }
+     let list = deckcraft_engine::templates::matching(query);
+     if list.is_empty() {
+         return false;
+@@ -212,6 +218,11 @@ pub(super) fn home(app: &mut SlideApp, ui: &mut Ui, bs: &mut Backstage, out: &mu
+         crate::dialogs::paint_logo(ui.painter(), r);
+         ui.label(RichText::new("DeckCraft").font(theme::bold(24.0)).color(t.text));
+     });
++    if app.in_host {
++        ui.add_space(18.0);
++        dim(ui, "The page this runs in opens and saves the presentation.");
++        return;
++    }
+     ui.add_space(18.0);
+     ui.horizontal(|ui| {
+         ui.label(RichText::new("New").font(theme::bold(16.0)).color(t.text));
+diff --git a/crates/ui-egui/src/backstage/info.rs b/crates/ui-egui/src/backstage/info.rs
+index 0fbf4dc..e1b220e 100644
+--- a/crates/ui-egui/src/backstage/info.rs
++++ b/crates/ui-egui/src/backstage/info.rs
+@@ -222,8 +222,10 @@ pub(super) fn about(app: &mut SlideApp, ui: &mut Ui) {
+             if task(ui, Icon::Help, "Credits", "Credits", "The people and models who built DeckCraft.", true) {
+                 let _ = app.run("app.about", json!({}));
+             }
+-            ui.hyperlink_to("Join our community on Discord", deckcraft_engine::links::DISCORD);
+-            ui.hyperlink_to("Source on GitHub", deckcraft_engine::links::GITHUB);
++            if !app.in_host {
++                ui.hyperlink_to("Join our community on Discord", deckcraft_engine::links::DISCORD);
++                ui.hyperlink_to("Source on GitHub", deckcraft_engine::links::GITHUB);
++            }
+         });
+     });
+ }
+diff --git a/crates/ui-egui/src/backstage/tests.rs b/crates/ui-egui/src/backstage/tests.rs
+index a8d4dd1..ba0dbf5 100644
+--- a/crates/ui-egui/src/backstage/tests.rs
++++ b/crates/ui-egui/src/backstage/tests.rs
+@@ -89,10 +89,12 @@ fn page_ids_round_trip_and_unknown_ids_are_refused() {
+     assert_eq!(Page::parse("about"), Some(Page::About));
+     assert_eq!(Page::parse("share"), None);
+     assert_eq!(Page::parse(""), None);
+-    let (top, bottom) = entries(false);
++    let (top, bottom) = entries(false, false);
+     assert_eq!(top, vec![Nav::Page(Page::Home), Nav::Page(Page::New), Nav::Page(Page::Open)], "the start screen has no presentation pages");
+     assert_eq!(bottom, vec![Nav::Page(Page::About), Nav::Options]);
+-    assert_eq!(entries(true).0.len(), 9);
++    assert_eq!(entries(true, false).0.len(), 9);
++    let (hosted_top, _) = entries(true, true);
++    assert_eq!(hosted_top, vec![Nav::Page(Page::Home), Nav::Page(Page::Info), Nav::Save, Nav::Page(Page::SaveAs), Nav::Page(Page::Print), Nav::Page(Page::Export)], "a hosted page owns new, open and close");
+     assert_eq!(split_path("/home/me/Talk.pptx"), ("Talk.pptx".into(), "/home/me".into()));
+     assert_eq!(format_bytes(512), "512 bytes");
+     assert_eq!(format_bytes(33_485), "32.7 KB");
+diff --git a/crates/ui-egui/src/dialogs/about.rs b/crates/ui-egui/src/dialogs/about.rs
+index 059543b..0b2e159 100644
+--- a/crates/ui-egui/src/dialogs/about.rs
++++ b/crates/ui-egui/src/dialogs/about.rs
+@@ -15,7 +15,7 @@ pub(super) fn credits_block(ui: &mut Ui, models: bool) -> Rect {
+     .rect
+ }
+ 
+-pub fn about(_app: &mut SlideApp, ui: &mut Ui) {
++pub fn about(app: &mut SlideApp, ui: &mut Ui) {
+     let t = Tokens::get(ui.ctx());
+     ui.vertical_centered(|ui| {
+         let (r, _) = ui.allocate_exact_size(vec2(64.0, 64.0), Sense::hover());
+@@ -26,9 +26,11 @@ pub fn about(_app: &mut SlideApp, ui: &mut Ui) {
+         ui.label("Presentations and slide shows, rebuilt from scratch in pure Rust.");
+         ui.label("An open-source, clean-room project. Not affiliated with Microsoft.");
+         ui.add_space(6.0);
+-        ui.hyperlink_to("Join our community on Discord", deckcraft_engine::links::DISCORD);
+-        ui.hyperlink_to("getartcraft.com/apps/deckcraft", deckcraft_engine::links::APP_PAGE);
+-        ui.hyperlink_to("Source on GitHub", deckcraft_engine::links::GITHUB);
++        if !app.in_host {
++            ui.hyperlink_to("Join our community on Discord", deckcraft_engine::links::DISCORD);
++            ui.hyperlink_to("getartcraft.com/apps/deckcraft", deckcraft_engine::links::APP_PAGE);
++            ui.hyperlink_to("Source on GitHub", deckcraft_engine::links::GITHUB);
++        }
+         ui.add_space(6.0);
+         ui.label(egui::RichText::new("MIT OR Apache-2.0 · © 2026 ArtCraft Team and the DeckCraft contributors").size(11.0).color(t.text_faint));
+     });
+diff --git a/crates/ui-egui/src/host_save_tests.rs b/crates/ui-egui/src/host_save_tests.rs
+index 78fad53..7c249e2 100644
+--- a/crates/ui-egui/src/host_save_tests.rs
++++ b/crates/ui-egui/src/host_save_tests.rs
+@@ -95,14 +95,15 @@ fn host_save_of_an_untitled_presentation_is_save_as() {
+     assert_eq!(calls(&got), [(name.clone(), true), (name, false)]);
+ }
+ 
+-/// A presentation the user dropped (or picked with File › Open) didn't come from the page, so
+-/// its name isn't one the page holds: Save makes a new file.
++/// A presentation the user dropped (or picked with File › Open) didn't come from the page: in
++/// host mode the page owns the file lifecycle, so the drop is refused and nothing opens.
+ #[test]
+-fn a_file_the_page_never_sent_saves_as_a_new_file() {
++fn a_file_the_page_never_sent_is_refused() {
+     let (mut app, got) = host_app(false);
+     app.open_or_insert_bytes("dropped.pptx", &pptx(1));
++    assert_eq!(app.session.documents().len(), 1, "the dropped presentation does not open");
+     app.save();
+-    assert_eq!(calls(&got), [("dropped.deckcraft".to_string(), true)]);
++    assert_eq!(calls(&got), [("Presentation1.deckcraft".to_string(), true)], "only the page's own document saves");
+ }
+ 
+ /// Exports and Print are copies: named after the presentation, not a new file, and the
+@@ -211,3 +212,28 @@ fn a_damaged_file_from_the_page_saves_as_a_new_repaired_file() {
+     app.save();
+     assert_eq!(calls(&got), [("talk (Repaired).deckcraft".to_string(), true)]);
+ }
++
++/// The page owns the file lifecycle: new, open, close, revert and the local file dialogs are
++/// refused, while host-sent files still open and insert commands keep working.
++#[test]
++fn a_hosted_app_refuses_local_file_commands() {
++    let (mut app, _got) = host_app(false);
++    app.open_from_host(Some("deck.pptx"), &pptx(1));
++    for id in ["file.new", "file.close", "file.revert", "file.recovery.open", "app.openDialog", "app.closePresentation"] {
++        assert!(app.run(id, json!({})).is_err(), "{id} must be refused in host mode");
++    }
++    assert_eq!(app.session.documents().len(), 1, "the host document stays open");
++}
++
++/// A dropped presentation can't open in host mode; a dropped picture still inserts into the
++/// page's document.
++#[test]
++fn a_hosted_drop_inserts_media_but_never_opens_a_file() {
++    let (mut app, _got) = host_app(false);
++    app.open_from_host(Some("deck.pptx"), &pptx(1));
++    app.open_or_insert_bytes("other.pptx", &pptx(2));
++    assert_eq!(app.session.documents().len(), 1, "a dropped presentation is refused");
++    let png = [0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a];
++    app.open_or_insert_bytes("a.png", &png);
++    assert!(app.status.is_none_or(|(m, _)| !m.contains("keeps")), "media still inserts");
++}
+diff --git a/crates/ui-egui/src/lib.rs b/crates/ui-egui/src/lib.rs
+index 08fcc23..6937971 100644
+--- a/crates/ui-egui/src/lib.rs
++++ b/crates/ui-egui/src/lib.rs
+@@ -338,6 +338,9 @@ pub struct SlideApp {
+     /// The empty presentation host mode starts with ([`SlideApp::start_for_host`]), until the
+     /// first file the page sends takes its place.
+     host_start: Option<u64>,
++    /// Set by [`SlideApp::start_for_host`]: a host page owns the file lifecycle, so local
++    /// new/open/close/revert commands and local file picks are refused.
++    pub in_host: bool,
+     /// Owner/generation/cause bookkeeping for the canvas text IME producer.
+     ime_tracker: egui::ime_context::ImeContextTracker,
+     /// Canvas IME geometry for this pass: the caret while editing, or the selected shape.
+diff --git a/crates/ui-egui/src/ribbon/slide_show.rs b/crates/ui-egui/src/ribbon/slide_show.rs
+index 89c78c1..164958b 100644
+--- a/crates/ui-egui/src/ribbon/slide_show.rs
++++ b/crates/ui-egui/src/ribbon/slide_show.rs
+@@ -70,9 +70,11 @@ pub(super) fn record(app: &mut SlideApp, ui: &mut Ui) {
+             }
+         }
+     });
+-    group(ui, |ui| {
+-        if big_button(ui, Icon::Help, "Learn\nMore", true).clicked() {
+-            app.open_url(deckcraft_engine::links::APP_PAGE);
+-        }
+-    });
++    if !app.in_host {
++        group(ui, |ui| {
++            if big_button(ui, Icon::Help, "Learn\nMore", true).clicked() {
++                app.open_url(deckcraft_engine::links::APP_PAGE);
++            }
++        });
++    }
+ }
