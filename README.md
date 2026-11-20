@@ -6,8 +6,10 @@
 [![pages](https://img.shields.io/badge/site-gitlab.io-orange.svg)](https://httpanimations.gitlab.io/wfm/)
 
 Self-hosted media project manager built for a school film program. Students
-upload footage, edit in the browser with [FilmCraft](https://github.com/storytold/filmcraft),
-and queue renders on the server. Teachers manage accounts, roles and the audit log.
+upload footage, write scripts in [ScriptCraft](https://github.com/NoJuanNobody/scriptcraft),
+plan storyboards in [DeckCraft](https://github.com/storytold/deckcraft), edit in
+the browser with [FilmCraft](https://github.com/storytold/filmcraft), and queue
+renders on the server. Teachers manage accounts, assignments and the audit log.
 
 - **Site:** https://httpanimations.gitlab.io/wfm/ (app at [/app/](https://httpanimations.gitlab.io/wfm/app/))
 - **Releases:** https://gitlab.com/HttpAnimations/wfm/-/releases
@@ -21,10 +23,12 @@ and queue renders on the server. Teachers manage accounts, roles and the audit l
 
 - `server/` - Rust (axum) backend: auth, projects, file API, render queue, audit
 - `lib/` - Flutter web app, embedded into the server binary
-- `filmcraft/` - pinned FilmCraft source patches + `wfm.html` host page (locks, media bin, saves)
+- `filmcraft/`, `scriptcraft/`, `deckcraft/` - pinned craft sources, patches and
+  the `wfm.html` host page (locks, media bin, saves)
 - `server/migrations/{sqlite,postgres}/` - plain `.sql` migrations, applied in filename order
 - `landing/` - small standalone landing page (optional)
-- `scripts/` - `build-filmcraft.sh`, `build-web.sh`
+- `deploy/` - ready-to-run compose file using the published image
+- `scripts/` - `build-<craft>.sh` for each craft, `build-web.sh`
 
 ## Quick start (Docker)
 
@@ -74,7 +78,8 @@ docker compose up --build
 cd server && cargo run          # sqlite + local media dir by default
 ```
 
-The app is at `/app/`, the editor bridge at `/filmcraft/wfm.html?project=<id>`.
+The app is at `/app/`; the craft bridges live at `/filmcraft/wfm.html`,
+`/scriptcraft/wfm.html` and `/deckcraft/wfm.html`, all taking `?project=<id>`.
 
 ## Configuration
 
@@ -86,7 +91,8 @@ Everything is a flag or env var (`wfm --help`):
   store works: RustFS, MinIO, AWS, Backblaze
 - `WFM_RENDER_WORKERS` / `WFM_LOCAL_RENDERS` - local ffmpeg workers
 - `WFM_FFMPEG` / `WFM_FFPROBE` - binary paths
-- `WFM_WEB_DIR` / `WFM_FILMCRAFT_DIR` - serve frontend from disk instead of embedded
+- `WFM_WEB_DIR` / `WFM_FILMCRAFT_DIR` / `WFM_SCRIPTCRAFT_DIR` /
+  `WFM_DECKCRAFT_DIR` - serve frontends from disk instead of embedded
 - `WFM_MAX_UPLOAD_MB`, `WFM_SESSION_DAYS`, `WFM_LOCK_TTL`, `WFM_SECURE_COOKIES`
 - `WFM_TRUSTED_PROXIES` - comma-separated proxy IPs/CIDRs. Off by default; when
   set, `X-Forwarded-For` is only honored from those addresses. Owners can
@@ -123,15 +129,25 @@ The node polls for jobs, downloads inputs, runs ffmpeg, and uploads the export.
 
 `student` < `mod` < `teacher` < `admin` < `owner`. Each account belongs to the
 tree of whoever created it; managers only see their own subtree. The first
-account created at `/api/setup` is the owner.
+account created at `/api/setup` is the owner. Projects can be shared with
+other accounts through invites or scoped share links. Teachers can mark a
+project as a template and assign it to students; each student works in their
+own copy and submits it for review, with optional due dates and attempt
+limits.
 
-## Editing
+## Craft apps
 
-FilmCraft is pinned in `filmcraft/VERSION` and built from source with the patches
-in `filmcraft/patches/` applied (`./scripts/build-filmcraft.sh`). `filmcraft/wfm.html` is the host page: it
-acquires the project edit lock, serves the media bin, and stores the project as
-`project.fcproj` in project storage. Projects are locked while open; a second
-tab gets a take-over prompt.
+Three embedded editors are pinned and built the same way: upstream source is
+fetched at the version in `<craft>/VERSION`, patched with `<craft>/patches/`,
+and bundled into the server binary (`./scripts/build-<craft>.sh`):
+
+- **FilmCraft** - timeline video editor; saves `project.fcproj`
+- **ScriptCraft** - Fountain screenwriting; saves `Script/script.fountain`
+- **DeckCraft** - storyboards and slide decks; saves `Boards/boards.deckcraft`
+
+Each `<craft>/wfm.html` host page acquires the project edit lock, serves
+project media, and saves back to project storage. Projects are locked while
+open; a second tab gets a take-over prompt.
 
 ## Interface
 
