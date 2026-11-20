@@ -236,6 +236,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get emptyFolder => 'Empty folder';
 
   @override
+  String get emptyFolderUpload => 'Empty folder. Tap Upload to add files.';
+
+  @override
   String get newFolder => 'New folder';
 
   @override
@@ -862,7 +865,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sharedProjects => 'Shared projects';
 
   @override
-  String get noShares => 'Nothing shared with you yet';
+  String get noShares =>
+      'Nothing shared with you yet. Projects others share with you appear here.';
 
   @override
   String get autoShares => 'Auto-share';
@@ -1347,7 +1351,8 @@ class AppLocalizationsEnGb extends AppLocalizationsEn {
   String get sharedProjects => 'Shared projects';
 
   @override
-  String get noShares => 'Nothing shared with you yet';
+  String get noShares =>
+      'Nothing shared with you yet. Projects others share with you appear here.';
 
   @override
   String get autoShares => 'Auto-share';

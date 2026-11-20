@@ -237,6 +237,10 @@ class AppLocalizationsGa extends AppLocalizations {
   String get emptyFolder => 'Fillteán folamh';
 
   @override
+  String get emptyFolderUpload =>
+      'Fillteán folamh. Brúigh Uaslódáil chun comhaid a chur leis.';
+
+  @override
   String get newFolder => 'Fillteán nua';
 
   @override
@@ -865,7 +869,8 @@ class AppLocalizationsGa extends AppLocalizations {
   String get sharedProjects => 'Tionscadail roinnte';
 
   @override
-  String get noShares => 'Níl aon rud roinnte leat fós';
+  String get noShares =>
+      'Níl aon rud roinnte leat fós. Beidh tionscadail a roinnfidh daoine eile leat le feiceáil anseo.';
 
   @override
   String get autoShares => 'Uath-roinnt';
