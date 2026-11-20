@@ -2017,6 +2017,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Restore every shortcut to its default?'**
   String get resetAllShortcutsBody;
+
+  /// No description provided for @unsupportedUploadType.
+  ///
+  /// In en, this message translates to:
+  /// **'File type isn\'t allowed: {names}'**
+  String unsupportedUploadType(Object names);
 }
 
 class _AppLocalizationsDelegate

@@ -463,5 +463,6 @@
   "unbound": "Не назначено",
   "resetToDefault": "Сбросить на умолчание",
   "resetAllShortcuts": "Сбросить все сочетания",
-  "resetAllShortcutsBody": "Вернуть все сочетания к значениям по умолчанию?"
+  "resetAllShortcutsBody": "Вернуть все сочетания к значениям по умолчанию?",
+  "unsupportedUploadType": "Тип файла не поддерживается: {names}"
 }

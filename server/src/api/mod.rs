@@ -2792,6 +2792,9 @@ async fn upload_file(
         Ok(k) => k,
         Err(e) => return fs_resp(e),
     };
+    if !files::upload_allowed(&key) {
+        return err(StatusCode::UNSUPPORTED_MEDIA_TYPE, "unsupported file type");
+    }
     if key == "project.fcproj" && !q.client_id.is_empty() {
         match s.db.lock_get(&id, "edit").await {
             Ok(l) if l.holder != q.client_id && l.expires_at > AppState::now() => {
@@ -2804,6 +2807,9 @@ async fn upload_file(
         Ok(v) => v,
         Err(r) => return r,
     };
+    if let Err(r) = sniff_spool(&tmp, &key).await {
+        return r;
+    }
     let put = async {
         let mut f = tokio::fs::File::open(&tmp)
             .await
@@ -2862,6 +2868,9 @@ async fn upload_start(
         Ok(k) => k,
         Err(e) => return fs_resp(e),
     };
+    if !files::upload_allowed(&key) {
+        return err(StatusCode::UNSUPPORTED_MEDIA_TYPE, "unsupported file type");
+    }
     let uid = model::new_id();
     let tmp = s.cfg.data_dir.join("tmp").join(format!("chunk-{uid}"));
     let _ = tokio::fs::create_dir_all(tmp.parent().unwrap()).await;
@@ -2931,9 +2940,19 @@ async fn upload_chunk(
     let mut stream = body.into_data_stream();
     let mut n: u64 = 0;
     let mut failed = false;
+    let first = u.received == 0;
+    let mut head: Vec<u8> = Vec::new();
+    let mut bad_type = false;
     while let Some(c) = stream.next().await {
         match c {
             Ok(b) => {
+                if first && head.len() < 512 {
+                    head.extend_from_slice(&b[..(512 - head.len()).min(b.len())]);
+                    if head.len() >= 512 && !files::sniff_ok(&u.key, &head) {
+                        bad_type = true;
+                        break;
+                    }
+                }
                 n += b.len() as u64;
                 if n > s.cfg.max_upload
                     || tokio::io::AsyncWriteExt::write_all(&mut f, &b)
@@ -2949,6 +2968,18 @@ async fn upload_chunk(
                 break;
             }
         }
+    }
+    if first && !bad_type && head.len() < 512 && !files::sniff_ok(&u.key, &head) {
+        bad_type = true;
+    }
+    if bad_type {
+        drop(f);
+        let _ = tokio::fs::remove_file(&u.tmp).await;
+        s.chunk_uploads.lock().unwrap().remove(&uid);
+        return err(
+            StatusCode::UNSUPPORTED_MEDIA_TYPE,
+            "file content doesn't match its type",
+        );
     }
     if failed {
         let _ = f.set_len(u.received).await;
@@ -2985,6 +3016,10 @@ async fn upload_complete(
             s.chunk_uploads.lock().unwrap().remove(&uid);
             return err(StatusCode::PAYLOAD_TOO_LARGE, "storage quota exceeded");
         }
+    }
+    if let Err(r) = sniff_spool(&u.tmp, &u.key).await {
+        s.chunk_uploads.lock().unwrap().remove(&uid);
+        return r;
     }
     let put = async {
         let mut f = tokio::fs::File::open(&u.tmp)
@@ -3024,6 +3059,29 @@ async fn upload_cancel(
     s.chunk_uploads.lock().unwrap().remove(&uid);
     let _ = tokio::fs::remove_file(&u.tmp).await;
     Json(json!({"ok": true})).into_response()
+}
+
+/// Check a spooled upload's first bytes against the type its extension
+/// claims. Removes the spool file on rejection.
+async fn sniff_spool(tmp: &std::path::Path, key: &str) -> Result<(), Response> {
+    use tokio::io::AsyncReadExt;
+    let mut head = [0u8; 512];
+    let n = match tokio::fs::File::open(tmp).await {
+        Ok(mut f) => match f.read(&mut head).await {
+            Ok(n) => n,
+            Err(e) => return Err(fs_resp(e.into())),
+        },
+        Err(e) => return Err(fs_resp(e.into())),
+    };
+    if files::sniff_ok(key, &head[..n]) {
+        Ok(())
+    } else {
+        let _ = tokio::fs::remove_file(tmp).await;
+        Err(err(
+            StatusCode::UNSUPPORTED_MEDIA_TYPE,
+            "file content doesn't match its type",
+        ))
+    }
 }
 
 /// Spool a request body to a temp file with a size cap. Returns the temp path
@@ -3493,7 +3551,7 @@ mod tests {
                 filmcraft_dir: None,
                 scriptcraft_dir: None,
                 deckcraft_dir: None,
-                max_upload: 0,
+                max_upload: u64::MAX,
                 secure_cookies: false,
                 cors_origins: vec![],
                 render_workers: 0,
@@ -3643,6 +3701,95 @@ mod tests {
         let p = s.db.project_by_id(&p.id).await.unwrap();
         assert_eq!(p.display_name, "new name");
         assert!(p.pinned);
+    }
+
+    fn upload_req(path: &str, body: &'static [u8]) -> (Query<FileQuery>, HeaderMap, Body) {
+        (
+            Query(FileQuery {
+                path: path.into(),
+                dl: false,
+                done: false,
+                client_id: String::new(),
+                start: None,
+                end: None,
+            }),
+            HeaderMap::new(),
+            Body::from(body),
+        )
+    }
+
+    #[tokio::test]
+    async fn upload_rejects_bad_types_and_fakes() {
+        let dir = std::env::temp_dir().join(format!("wfm-api-{}", model::new_id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let s = state(&dir);
+
+        let student = user(Role::Student);
+        let p = project(&student);
+        s.db.create_project(&p).await.unwrap();
+
+        let (q, h, b) = upload_req("Raw/run.exe", b"MZ\x90\x00exe");
+        let r = upload_file(
+            State(s.clone()),
+            session(&student),
+            Path(p.id.clone()),
+            q,
+            h,
+            b,
+        )
+        .await;
+        assert_eq!(r.status(), StatusCode::UNSUPPORTED_MEDIA_TYPE);
+        assert!(s.blobs.head(&format!("{}/Raw/run.exe", p.dir)).await.is_err());
+
+        // An allowed extension whose bytes do not match is refused too.
+        let (q, h, b) = upload_req("Raw/fake.mp4", b"MZ\x90\x00exe");
+        let r = upload_file(
+            State(s.clone()),
+            session(&student),
+            Path(p.id.clone()),
+            q,
+            h,
+            b,
+        )
+        .await;
+        assert_eq!(r.status(), StatusCode::UNSUPPORTED_MEDIA_TYPE);
+        assert!(s
+            .blobs
+            .head(&format!("{}/Raw/fake.mp4", p.dir))
+            .await
+            .is_err());
+
+        let (q, h, b) = upload_req("Raw/clip.mp4", b"\x00\x00\x00\x18ftypisomrest");
+        let r = upload_file(
+            State(s.clone()),
+            session(&student),
+            Path(p.id.clone()),
+            q,
+            h,
+            b,
+        )
+        .await;
+        assert_eq!(r.status(), StatusCode::OK);
+        assert_eq!(
+            s.blobs
+                .head(&format!("{}/Raw/clip.mp4", p.dir))
+                .await
+                .unwrap(),
+            16
+        );
+
+        // The managed doc paths the host editors write to work end to end.
+        let (q, h, b) = upload_req("Script/script.fountain", b"Title: T\n\nINT. ROOM");
+        let r = upload_file(
+            State(s.clone()),
+            session(&student),
+            Path(p.id.clone()),
+            q,
+            h,
+            b,
+        )
+        .await;
+        assert_eq!(r.status(), StatusCode::OK);
     }
 
     #[test]
@@ -4726,6 +4873,9 @@ async fn worker_complete(
         Ok(v) => v,
         Err(r) => return r,
     };
+    if let Err(r) = sniff_spool(&tmp, &key).await {
+        return r;
+    }
     let put = async {
         let mut f = tokio::fs::File::open(&tmp)
             .await

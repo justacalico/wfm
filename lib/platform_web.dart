@@ -43,14 +43,14 @@ Future<void> openEditor(BuildContext context, Api api, String url) async {
   web.window.open(url, '_blank');
 }
 
-Future<List<PickedFile>> pickFiles({String? accept}) async {
+Future<List<PickedFile>> pickFiles({List<String>? exts}) async {
   final test = pickFilesForTesting;
   if (test != null) return test();
   final input = web.HTMLInputElement()
     ..type = 'file'
     ..multiple = true
     ..style.display = 'none';
-  if (accept != null) input.accept = accept;
+  if (exts != null) input.accept = exts.map((e) => '.$e').join(',');
   web.document.body?.appendChild(input);
   final done = Completer<List<PickedFile>>();
   void finish(List<PickedFile> files) {

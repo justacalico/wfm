@@ -463,5 +463,6 @@
   "unbound": "Gan cheangal",
   "resetToDefault": "Athshocraigh go réamhshocraithe",
   "resetAllShortcuts": "Athshocraigh gach aicearra",
-  "resetAllShortcutsBody": "Gach aicearra a chur ar ais go dtí a réamhshocrú?"
+  "resetAllShortcutsBody": "Gach aicearra a chur ar ais go dtí a réamhshocrú?",
+  "unsupportedUploadType": "Cineál comhaid nach dtacaítear leis: {names}"
 }

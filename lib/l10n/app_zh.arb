@@ -463,5 +463,6 @@
   "unbound": "未绑定",
   "resetToDefault": "恢复默认",
   "resetAllShortcuts": "重置所有快捷键",
-  "resetAllShortcutsBody": "将所有快捷键恢复为默认？"
+  "resetAllShortcutsBody": "将所有快捷键恢复为默认？",
+  "unsupportedUploadType": "不允许的文件类型：{names}"
 }

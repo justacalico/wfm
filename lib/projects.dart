@@ -1005,7 +1005,7 @@ class _FilesTabState extends State<FilesTab> {
   Future<void> _upload() async {
     List<PickedFile> picked;
     try {
-      picked = await pickFiles();
+      picked = await pickFiles(exts: uploadExts.toList());
     } catch (e) {
       if (mounted) snack(context, e);
       return;
@@ -1015,9 +1015,21 @@ class _FilesTabState extends State<FilesTab> {
 
   void _enqueue(List<PickedFile> picked) {
     if (picked.isEmpty || !mounted) return;
+    final ok = [
+      for (final f in picked)
+        if (uploadable(f.name)) f
+    ];
+    final bad = [
+      for (final f in picked)
+        if (!uploadable(f.name)) f.name
+    ];
+    if (bad.isNotEmpty) {
+      snack(context, context.l10n.unsupportedUploadType(bad.join(', ')));
+    }
+    if (ok.isEmpty) return;
     final folder = _path.isEmpty ? 'Raw/Other' : _path;
     unawaited(Api.i.uploads.enqueue([
-      for (final f in picked)
+      for (final f in ok)
         UploadJob(
             widget.project.id,
             f.name,
