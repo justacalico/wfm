@@ -207,11 +207,24 @@ void main() {
         authed = false;
         return {'ok': true};
       },
+      'POST /api/projects': (_) =>
+          {'id': 'p9', 'name': 'x', 'displayName': 'x'},
+      'GET /api/projects/p9/assignment': (_) =>
+          http.Response('{"error":"none"}', 404),
       'GET *': (_) => [],
     }));
     await pumpWfm(t);
     expect(find.byType(Shell), findsOneWidget);
     await tapNav(t, 'Projects');
+    expect(find.byType(ProjectsPage), findsOneWidget);
+    await t.tap(find.byType(FloatingActionButton));
+    await settle(t);
+    await t.enterText(find.byType(TextField).last, 'New Film');
+    await t.tap(find.text('OK'));
+    await settle(t);
+    expect(find.byType(ProjectPage), findsOneWidget);
+    await t.tap(find.byIcon(Icons.arrow_back));
+    await settle(t);
     expect(find.byType(ProjectsPage), findsOneWidget);
     await tapNav(t, 'Manage');
     expect(find.byType(ManagePage), findsOneWidget);
