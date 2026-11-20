@@ -1,0 +1,113 @@
+diff --git a/apps/scriptcraft-web/Cargo.toml b/apps/scriptcraft-web/Cargo.toml
+index 20b478a..1e56e2a 100644
+--- a/apps/scriptcraft-web/Cargo.toml
++++ b/apps/scriptcraft-web/Cargo.toml
+@@ -20,5 +20,3 @@ wasm-bindgen = "0.2"
+ wasm-bindgen-futures = "0.4"
+ js-sys = "0.3"
+ web-sys = { version = "0.3", features = ["Window", "Document", "Element", "HtmlElement", "HtmlCanvasElement", "HtmlAnchorElement", "HtmlIFrameElement", "Blob", "BlobPropertyBag", "Url", "UrlSearchParams", "Navigator", "Location", "MessageEvent", "SpeechSynthesis", "SpeechSynthesisUtterance", "SpeechSynthesisVoice"] }
+-# The browser's file picker (an <input type=file>) for File › Open.
+-rfd = { workspace = true }
+diff --git a/apps/scriptcraft-web/src/main.rs b/apps/scriptcraft-web/src/main.rs
+index 44e8089..72e9b59 100644
+--- a/apps/scriptcraft-web/src/main.rs
++++ b/apps/scriptcraft-web/src/main.rs
+@@ -1,7 +1,8 @@
+ //! ScriptCraft in the browser. Build with `cargo xtask web` (needs the `wasm32-unknown-unknown`
+ //! target and `wasm-bindgen-cli`); it writes `apps/scriptcraft-web/dist/`, which any static
+-//! server can host. File › Open uses the browser's file picker; Save and the exports download
+-//! the file. Fonts, the word list and the sample script are compiled in, so it works offline.
++//! server can host. In WFM it only runs framed by `wfm.html` (`?project=`): the page owns the
++//! document and every save goes through `scriptcraft:save` posts. Fonts and the word list are
++//! compiled in, so it works offline.
+ #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
+ 
+ #[cfg(not(target_arch = "wasm32"))]
+@@ -21,50 +22,6 @@ mod web {
+     use wasm_bindgen::JsValue;
+     use wasm_bindgen::closure::Closure;
+ 
+-    /// Browser files: the file picker opens, a download saves.
+-    struct BrowserFiles {
+-        ctx: egui::Context,
+-    }
+-
+-    impl FileHost for BrowserFiles {
+-        fn open(&self, inbox: Inbox) {
+-            let ctx = self.ctx.clone();
+-            wasm_bindgen_futures::spawn_local(async move {
+-                let picked = rfd::AsyncFileDialog::new().add_filter("Script", &scriptcraft_engine::io::OPEN_EXTENSIONS).pick_file().await;
+-                if let Some(f) = picked {
+-                    let bytes = f.read().await;
+-                    if let Ok(mut q) = inbox.lock() {
+-                        q.push((f.file_name(), bytes));
+-                    }
+-                    ctx.request_repaint();
+-                }
+-            });
+-        }
+-
+-        fn save(&self, name: &str, bytes: Vec<u8>) {
+-            if let Err(e) = download(name, &bytes) {
+-                log::error!("download failed: {e:?}");
+-            }
+-        }
+-    }
+-
+-    /// Offer `bytes` as a download named `name`.
+-    fn download(name: &str, bytes: &[u8]) -> Result<(), wasm_bindgen::JsValue> {
+-        let window = web_sys::window().ok_or("no window")?;
+-        let document = window.document().ok_or("no document")?;
+-        let parts = js_sys::Array::of1(&js_sys::Uint8Array::from(bytes));
+-        let opts = web_sys::BlobPropertyBag::new();
+-        opts.set_type("application/octet-stream");
+-        let blob = web_sys::Blob::new_with_u8_array_sequence_and_options(&parts, &opts)?;
+-        let url = web_sys::Url::create_object_url_with_blob(&blob)?;
+-        let a: web_sys::HtmlAnchorElement = document.create_element("a")?.dyn_into()?;
+-        a.set_href(&url);
+-        a.set_download(name);
+-        a.click();
+-        web_sys::Url::revoke_object_url(&url)?;
+-        Ok(())
+-    }
+-
+     /// WFM host mode (`?project=` in the URL): the wrapping page owns the document. It posts
+     /// `scriptcraft:open` with the doc bytes; saves post `scriptcraft:save` back for it to store.
+     fn wfm_host() -> bool {
+@@ -379,12 +336,11 @@ mod web {
+                     canvas,
+                     eframe::WebOptions::default(),
+                     Box::new(|cc| {
+-                        let host_mode = wfm_host();
+-                        let mut app = if host_mode {
+-                            ScriptApp::new(Session::new(scriptcraft_engine::doc::Script::new()))
+-                        } else {
+-                            ScriptApp::new(Session::sample())
+-                        };
++                        // WFM ships no standalone editor: the app only starts inside a host page.
++                        if !wfm_host() {
++                            return Err("ScriptCraft opens inside WFM".into());
++                        }
++                        let mut app = ScriptApp::new(Session::new(scriptcraft_engine::doc::Script::new()));
+                         // The host page owns the theme: `&theme=` (light/dark/oled/system) picks
+                         // it; no host word means the OS choice, as before.
+                         let theme = web_sys::window()
+@@ -401,14 +357,10 @@ mod web {
+                         } else {
+                             scriptcraft_ui_egui::persist::Theme::Light
+                         };
+-                        let files: Box<dyn FileHost> = if host_mode {
+-                            wfm_listen(app.inbox.clone(), cc.egui_ctx.clone());
+-                            wfm_post(&[("type", JsValue::from_str("scriptcraft:ready"))]);
+-                            Box::new(WfmFiles)
+-                        } else {
+-                            Box::new(BrowserFiles { ctx: cc.egui_ctx.clone() })
+-                        };
+-                        app.host = Some(files);
++                        wfm_listen(app.inbox.clone(), cc.egui_ctx.clone());
++                        wfm_post(&[("type", JsValue::from_str("scriptcraft:ready"))]);
++                        app.host = Some(Box::new(WfmFiles));
++                        app.in_wfm = true;
+                         app.speaker = Some(Box::new(BrowserSpeech::new(cc.egui_ctx.clone())));
+                         app.printer = Some(Box::new(BrowserPrint::new()));
+                         Ok(Box::new(WebApp(app)))
