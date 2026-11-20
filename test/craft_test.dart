@@ -407,6 +407,23 @@ void main() {
     await run.done.future;
   });
 
+  test('fresh checkout gets the doc parent dir', () async {
+    final api = Api(FakeClient(remote.routes()));
+    final spawned = <FakeProcess>[];
+    final exe = File('${dir.path}/wfm-scriptcraft')..writeAsBytesSync([0]);
+    final runner = CraftRunner(api, spawn: (e, a, env) async {
+      final p = FakeProcess();
+      spawned.add(p);
+      return p;
+    });
+    final checkout = Directory('${dir.path}/sc');
+    final run = await runner.open('scriptcraft', 'p1', checkout, exe.path,
+        takeOver: (_) async => true, lockLost: (_) {});
+    expect(Directory('${checkout.path}/Script').existsSync(), isTrue);
+    spawned.first.exit();
+    await run.done.future;
+  });
+
   test('missing binary and lost heartbeat', () async {
     final api = Api(FakeClient(remote.routes()));
     final runner = CraftRunner(api, spawn: (e, a, env) async => FakeProcess());
