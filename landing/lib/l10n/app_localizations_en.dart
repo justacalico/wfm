@@ -18,24 +18,24 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get heroBody =>
-      'WFM is a self-hosted media manager for school film programs. Students upload footage, cut in a browser editor, and queue renders. Teachers keep accounts, permissions and activity under control.';
+      'WFM is a self-hosted media manager for school film programs. Students upload footage, write scripts, plan storyboards, cut in a browser editor and queue renders. Teachers keep accounts, assignments and activity under control.';
 
   @override
   String get openApp => 'Open the app';
 
   @override
-  String get featureEditTitle => 'Edit in the browser';
+  String get featureEditTitle => 'Write, board and cut';
 
   @override
   String get featureEditBody =>
-      'Timeline editing powered by FilmCraft, no installs needed.';
+      'ScriptCraft screenplays, DeckCraft storyboards and FilmCraft timelines, all in the browser.';
 
   @override
   String get featureMediaTitle => 'Organized media';
 
   @override
   String get featureMediaBody =>
-      'Raw, Audio, Images and Exports folders for every project.';
+      'Managed folders for footage, audio, images, scripts, boards and exports.';
 
   @override
   String get featureRenderTitle => 'Server renders';
@@ -49,7 +49,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get featureSchoolBody =>
-      'Student, mod, teacher and admin roles with an audit log.';
+      'Student, mod, teacher and admin roles, assignments and an audit log.';
 
   @override
   String get downloadsTitle => 'Downloads';
@@ -85,6 +85,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get langSystem => 'System';
 
   @override
+  String get showcaseScript => 'Draft the script before the shoot';
+
+  @override
   String get showcaseTimeline => 'Cut on a timeline in the browser';
 
   @override
@@ -100,6 +103,9 @@ class AppLocalizationsEn extends AppLocalizations {
 /// The translations for English, as used in the United Kingdom (`en_GB`).
 class AppLocalizationsEnGb extends AppLocalizationsEn {
   AppLocalizationsEnGb() : super('en_GB');
+
+  @override
+  String get featureMediaTitle => 'Organised media';
 
   @override
   String get screenshotsTitle => 'Screenshots';

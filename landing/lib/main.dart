@@ -234,6 +234,11 @@ class _LandingPageState extends State<LandingPage> {
                 SizedBox(
                   width: 290,
                   child: ShowcaseCard(
+                      title: l10n.showcaseScript, child: const ScriptMock()),
+                ),
+                SizedBox(
+                  width: 290,
+                  child: ShowcaseCard(
                       title: l10n.showcaseTimeline,
                       child: const TimelineMock()),
                 ),

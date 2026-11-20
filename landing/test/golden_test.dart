@@ -58,6 +58,7 @@ void main() {
     }
     await snap(t, 'landing_bottom');
 
+    await t.pumpWidget(const SizedBox());
     SharedPreferences.setMockInitialValues({'theme': 2, 'locale': 'zh'});
     await t.pumpWidget(const LandingApp());
     for (var i = 0; i < 10; i++) {

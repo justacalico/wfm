@@ -86,13 +86,61 @@ class _TimelinePainter extends CustomPainter {
   bool shouldRepaint(_TimelinePainter old) => old.cs != cs;
 }
 
+class ScriptMock extends StatelessWidget {
+  const ScriptMock({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return CustomPaint(painter: _ScriptPainter(cs));
+  }
+}
+
+class _ScriptPainter extends CustomPainter {
+  final ColorScheme cs;
+  _ScriptPainter(this.cs);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width, h = size.height;
+    canvas.drawRect(
+        Offset.zero & size, Paint()..color = cs.surfaceContainerHighest);
+    final page = Rect.fromLTWH(w * 0.17, h * 0.07, w * 0.66, h * 0.86);
+    canvas.drawRect(page, Paint()..color = cs.surface);
+    double y = page.top + 14;
+    void line(double indent, double len, Paint paint) {
+      canvas.drawRect(Rect.fromLTWH(page.left + indent, y, len, 4), paint);
+      y += 9;
+    }
+
+    final slug = Paint()..color = cs.primary.withValues(alpha: 0.75);
+    final action = Paint()..color = cs.onSurfaceVariant.withValues(alpha: 0.5);
+    final cue = Paint()..color = cs.secondary.withValues(alpha: 0.85);
+    line(14, page.width * 0.5, slug);
+    y += 5;
+    line(14, page.width * 0.82, action);
+    line(14, page.width * 0.68, action);
+    line(14, page.width * 0.76, action);
+    y += 6;
+    line(page.width * 0.32, page.width * 0.28, cue);
+    line(page.width * 0.2, page.width * 0.52, action);
+    line(page.width * 0.2, page.width * 0.38, action);
+    y += 6;
+    line(14, page.width * 0.78, action);
+    line(14, page.width * 0.58, action);
+  }
+
+  @override
+  bool shouldRepaint(_ScriptPainter old) => old.cs != cs;
+}
+
 class FoldersMock extends StatelessWidget {
   const FoldersMock({super.key});
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final names = ['Raw', 'Audio', 'Images', 'Exports'];
+    final names = ['Raw', 'Audio', 'Images', 'Script', 'Boards', 'Exports'];
     return Container(
       color: cs.surfaceContainerHighest,
       padding: const EdgeInsets.all(14),
