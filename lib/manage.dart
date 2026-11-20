@@ -167,6 +167,7 @@ class _AccountsTabState extends State<AccountsTab> {
     final l10n = context.l10n;
     if (_err.isNotEmpty) return errorView(context, _err, _load);
     final users = _users;
+    final tight = MediaQuery.sizeOf(context).width < 720;
     return Scaffold(
       floatingActionButton: Api.i.caps.creatable.isEmpty
           ? null
@@ -224,6 +225,35 @@ class _AccountsTabState extends State<AccountsTab> {
                       }
                       final (u, depth) = rows[i];
                       final nk = kids[u.id] ?? 0;
+                      final actions =
+                          Row(mainAxisSize: MainAxisSize.min, children: [
+                        IconButton(
+                            icon: const Icon(Icons.edit_outlined),
+                            tooltip: l10n.editAccount,
+                            onPressed: () => _edit(u)),
+                        IconButton(
+                            icon: const Icon(Icons.key),
+                            tooltip: l10n.resetPassword,
+                            onPressed: () => _reset(u)),
+                        IconButton(
+                          icon: Icon(u.disabled
+                              ? Icons.play_circle_outline
+                              : Icons.block),
+                          tooltip: u.disabled ? l10n.enable : l10n.disable,
+                          onPressed: () async {
+                            try {
+                              await Api.i.setDisabled(u.id, !u.disabled);
+                              _load();
+                            } catch (e) {
+                              if (context.mounted) snack(context, e);
+                            }
+                          },
+                        ),
+                        IconButton(
+                            icon: const Icon(Icons.delete_outline),
+                            tooltip: l10n.delete,
+                            onPressed: () => _delete(u)),
+                      ]);
                       return ListTile(
                         contentPadding:
                             EdgeInsets.only(left: 16.0 + depth * 28, right: 8),
@@ -249,38 +279,19 @@ class _AccountsTabState extends State<AccountsTab> {
                         ]),
                         title: Text(
                             '${u.name.isEmpty ? u.username : u.name}  ·  ${u.role}${u.disabled ? l10n.disabledSuffix : ""}'),
-                        subtitle: Text(l10n.userLine(
-                            '${u.username}${u.studentId.isNotEmpty ? " · ${u.studentId}" : ""}${u.note.isNotEmpty ? " · ${u.note}" : ""}',
-                            fmtAgo(l10n, u.lastLogin))),
-                        trailing:
-                            Row(mainAxisSize: MainAxisSize.min, children: [
-                          IconButton(
-                              icon: const Icon(Icons.edit_outlined),
-                              tooltip: l10n.editAccount,
-                              onPressed: () => _edit(u)),
-                          IconButton(
-                              icon: const Icon(Icons.key),
-                              tooltip: l10n.resetPassword,
-                              onPressed: () => _reset(u)),
-                          IconButton(
-                            icon: Icon(u.disabled
-                                ? Icons.play_circle_outline
-                                : Icons.block),
-                            tooltip: u.disabled ? l10n.enable : l10n.disable,
-                            onPressed: () async {
-                              try {
-                                await Api.i.setDisabled(u.id, !u.disabled);
-                                _load();
-                              } catch (e) {
-                                if (context.mounted) snack(context, e);
-                              }
-                            },
-                          ),
-                          IconButton(
-                              icon: const Icon(Icons.delete_outline),
-                              tooltip: l10n.delete,
-                              onPressed: () => _delete(u)),
-                        ]),
+                        subtitle: tight
+                            ? Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                    Text(l10n.userLine(
+                                        '${u.username}${u.studentId.isNotEmpty ? " · ${u.studentId}" : ""}${u.note.isNotEmpty ? " · ${u.note}" : ""}',
+                                        fmtAgo(l10n, u.lastLogin))),
+                                    actions,
+                                  ])
+                            : Text(l10n.userLine(
+                                '${u.username}${u.studentId.isNotEmpty ? " · ${u.studentId}" : ""}${u.note.isNotEmpty ? " · ${u.note}" : ""}',
+                                fmtAgo(l10n, u.lastLogin))),
+                        trailing: tight ? null : actions,
                       );
                     },
                   );
