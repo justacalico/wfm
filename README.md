@@ -17,7 +17,7 @@ renders on the server. Teachers manage accounts, assignments and the audit log.
 
 | Home | Projects | Files |
 |---|---|---|
-| ![home](test/goldens/home.png) | ![projects](test/goldens/projects.png) | ![files](test/goldens/project_files.png) |
+| ![home](test/goldens/light/home.png) | ![projects](test/goldens/light/projects.png) | ![files](test/goldens/light/project_files.png) |
 
 ## Layout
 

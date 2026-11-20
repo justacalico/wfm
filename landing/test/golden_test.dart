@@ -8,6 +8,22 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wfm_landing/main.dart';
 import 'package:wfm_landing/releases.dart';
 
+/// The screenshots section embeds the app's own golden PNGs. Their decode is
+/// racy under the test binding, so fail fast and let the cards collapse via
+/// their error builders instead of landing mid-decode.
+class _NoScreenshots extends CachingAssetBundle {
+  @override
+  Future<ByteData> load(String key) => key.startsWith('assets/screenshots/')
+      ? throw FlutterError('blocked in golden test')
+      : rootBundle.load(key);
+
+  @override
+  Future<String> loadString(String key, {bool cache = true}) =>
+      key.startsWith('assets/screenshots/')
+          ? throw FlutterError('blocked in golden test')
+          : rootBundle.loadString(key, cache: cache);
+}
+
 Future<void> _fonts() async {
   final reg = await rootBundle.load('assets/fonts/NotoSans-Regular.ttf');
   final bold = await rootBundle.load('assets/fonts/NotoSans-Bold.ttf');
@@ -43,28 +59,46 @@ void main() {
         find.byType(MaterialApp), matchesGoldenFile('goldens/$name.png'));
   }
 
-  testWidgets('landing goldens', (t) async {
+  Future<void> settle(WidgetTester t, [int n = 10]) async {
+    for (var i = 0; i < n; i++) {
+      await t.pump(const Duration(milliseconds: 50));
+    }
+  }
+
+  Future<void> tour(WidgetTester t, String dir) async {
     await t.binding.setSurfaceSize(const Size(1280, 800));
-    await t.pumpWidget(const LandingApp());
-    for (var i = 0; i < 10; i++) {
-      await t.pump(const Duration(milliseconds: 50));
-    }
-    await snap(t, 'landing_top');
+    await t.pumpWidget(DefaultAssetBundle(
+        bundle: _NoScreenshots(), child: const LandingApp()));
+    await settle(t);
+    await snap(t, '$dir/landing_top');
 
-    await t.dragUntilVisible(find.text('Open the app'), find.byType(ListView),
-        const Offset(0, -400));
-    for (var i = 0; i < 5; i++) {
-      await t.pump(const Duration(milliseconds: 50));
-    }
-    await snap(t, 'landing_bottom');
-
+    final scroll =
+        t.state<ScrollableState>(find.byType(Scrollable).first).position;
+    scroll.jumpTo(scroll.maxScrollExtent);
+    await settle(t);
+    await snap(t, '$dir/landing_bottom');
     await t.pumpWidget(const SizedBox());
-    SharedPreferences.setMockInitialValues({'theme': 2, 'locale': 'zh'});
-    await t.pumpWidget(const LandingApp());
-    for (var i = 0; i < 10; i++) {
-      await t.pump(const Duration(milliseconds: 50));
-    }
-    await snap(t, 'landing_dark_zh');
+  }
+
+  for (final (dir, theme) in [
+    ('light', LandingTheme.light),
+    ('dark', LandingTheme.dark),
+    ('oled', LandingTheme.oled),
+  ]) {
+    testWidgets('landing $dir', (t) async {
+      SharedPreferences.setMockInitialValues({'theme': theme.index});
+      await tour(t, dir);
+    });
+  }
+
+  testWidgets('landing dark zh', (t) async {
+    SharedPreferences.setMockInitialValues(
+        {'theme': LandingTheme.dark.index, 'locale': 'zh'});
+    await t.binding.setSurfaceSize(const Size(1280, 800));
+    await t.pumpWidget(DefaultAssetBundle(
+        bundle: _NoScreenshots(), child: const LandingApp()));
+    await settle(t);
+    await snap(t, 'dark/landing_zh');
     await t.pumpWidget(const SizedBox());
   });
 }
