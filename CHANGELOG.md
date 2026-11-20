@@ -2,6 +2,13 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.38.0 - 2026-11-20
+#### Features
+- DeckCraft 故事板锁定为编辑器并托管文件生成 - (cae0738) - calico
+- 班级协作教师，主讲教师可添加协作教师共同管理班级 - (ca56d5b) - calico
+
+- - -
+
 ## v0.37.0 - 2026-11-20
 #### Features
 - craft 编辑器适配移动端布局 - (8fedcbd) - calico
