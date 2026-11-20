@@ -149,6 +149,28 @@ Each `<craft>/wfm.html` host page acquires the project edit lock, serves
 project media, and saves back to project storage. Projects are locked while
 open; a second tab gets a take-over prompt.
 
+## Desktop app
+
+The Flutter app also builds for Windows, macOS and Linux. Settings has an
+"Editor mode" choice: **Web** embeds the craft's web build in a webview,
+**Native** spawns the craft's real desktop binary, which ships inside the
+app bundle (built per-OS by `scripts/build-<craft>-native.sh --target` and
+staged under `desktop/craft/`).
+
+In native mode each open project gets a local checkout under
+`~/WFM/Projects` (relocatable in Settings) that syncs both ways with the
+server: files pull on open, changes push while you work and once more on
+exit, and every write is preconditioned on the server's file revision so a
+stale client can never clobber newer state. The server lock keeps the same
+project closed to other editors, web or native, with a take-over prompt
+both ways.
+
+Builds are unsigned. Windows SmartScreen warns on first run: click "More
+info" then "Run anyway". macOS Gatekeeper quarantines the downloaded app:
+run `xattr -dr com.apple.quarantine wfm.app` (the zip is ad-hoc signed, so
+Apple Silicon launches it once that is cleared). Linux ships as a tar.gz;
+unpack anywhere and run `wfm`.
+
 ## Interface
 
 The Flutter web UI ships English (incl. en_GB), Chinese, Russian and Irish,
