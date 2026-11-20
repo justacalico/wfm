@@ -155,6 +155,32 @@ fn row_node(r: sqlx::postgres::PgRow) -> RenderNode {
     }
 }
 
+fn row_assignment(r: &sqlx::postgres::PgRow) -> Assignment {
+    Assignment {
+        id: r.get("id"),
+        project_id: r.get("project_id"),
+        teacher_id: r.get("teacher_id"),
+        allow_withdraw: r.get::<i32, _>("allow_withdraw") != 0,
+        max_submissions: r.get("max_submissions"),
+        due_at: r.get("due_at"),
+        hidden: r.get::<i32, _>("hidden") != 0,
+        locked: r.get::<i32, _>("locked") != 0,
+        created_at: r.get("created_at"),
+    }
+}
+
+fn row_copy(r: &sqlx::postgres::PgRow) -> AssignmentCopy {
+    AssignmentCopy {
+        project_id: r.get("project_id"),
+        assignment_id: r.get("assignment_id"),
+        student_id: r.get("student_id"),
+        submissions: r.get("submissions"),
+    }
+}
+
+const ASSIGNMENT_COLS: &str =
+    "id,project_id,teacher_id,allow_withdraw,max_submissions,due_at,hidden,locked,created_at";
+
 fn row_link(r: sqlx::postgres::PgRow) -> ProjectLink {
     ProjectLink {
         id: r.get("id"),
@@ -1534,6 +1560,186 @@ impl Db for PgDb {
         .fetch_one(&self.pool)
         .await
         .map_err(map_err)
+    }
+
+    async fn create_assignment(&self, a: &Assignment, copies: &[AssignmentCopy]) -> DbResult<()> {
+        let mut tx = self.pool.begin().await.map_err(map_err)?;
+        sqlx::query(
+            "INSERT INTO assignments(id,project_id,teacher_id,allow_withdraw,max_submissions,due_at,hidden,locked,created_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)",
+        )
+        .bind(&a.id)
+        .bind(&a.project_id)
+        .bind(&a.teacher_id)
+        .bind(a.allow_withdraw as i32)
+        .bind(a.max_submissions)
+        .bind(a.due_at)
+        .bind(a.hidden as i32)
+        .bind(a.locked as i32)
+        .bind(a.created_at)
+        .execute(&mut *tx)
+        .await
+        .map_err(map_err)?;
+        for cp in copies {
+            sqlx::query(
+                "INSERT INTO assignment_copies(project_id,assignment_id,student_id,submissions) VALUES($1,$2,$3,0)",
+            )
+            .bind(&cp.project_id)
+            .bind(&cp.assignment_id)
+            .bind(&cp.student_id)
+            .execute(&mut *tx)
+            .await
+            .map_err(map_err)?;
+        }
+        tx.commit().await.map_err(map_err)
+    }
+
+    async fn assignment(&self, id: &str) -> DbResult<Assignment> {
+        sqlx::query(&format!(
+            "SELECT {ASSIGNMENT_COLS} FROM assignments WHERE id=$1"
+        ))
+        .bind(id)
+        .map(|r| row_assignment(&r))
+        .fetch_one(&self.pool)
+        .await
+        .map_err(map_err)
+    }
+
+    async fn assignment_for_source(&self, project: &str) -> DbResult<Assignment> {
+        sqlx::query(&format!(
+            "SELECT {ASSIGNMENT_COLS} FROM assignments WHERE project_id=$1 ORDER BY created_at DESC"
+        ))
+        .bind(project)
+        .map(|r| row_assignment(&r))
+        .fetch_one(&self.pool)
+        .await
+        .map_err(map_err)
+    }
+
+    async fn assignment_for_project(
+        &self,
+        project: &str,
+    ) -> DbResult<Option<(Assignment, AssignmentCopy)>> {
+        sqlx::query(
+            "SELECT a.id,a.project_id,a.teacher_id,a.allow_withdraw,a.max_submissions,a.due_at,a.hidden,a.locked,a.created_at,c.project_id AS c_project_id,c.assignment_id,c.student_id,c.submissions FROM assignment_copies c JOIN assignments a ON a.id=c.assignment_id WHERE c.project_id=$1",
+        )
+        .bind(project)
+        .map(|r: sqlx::postgres::PgRow| {
+            let a = row_assignment(&r);
+            let c = AssignmentCopy {
+                project_id: r.get("c_project_id"),
+                assignment_id: r.get("assignment_id"),
+                student_id: r.get("student_id"),
+                submissions: r.get("submissions"),
+            };
+            (a, c)
+        })
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(map_err)
+    }
+
+    async fn submissions(&self, assignment: &str) -> DbResult<Vec<SubmissionView>> {
+        sqlx::query(
+            "SELECT c.project_id,p.display_name AS proj_name,c.student_id,u.username,u.display_name AS student_name,p.status,p.submitted_at,c.submissions,a.due_at FROM assignment_copies c JOIN projects p ON p.id=c.project_id JOIN users u ON u.id=c.student_id JOIN assignments a ON a.id=c.assignment_id WHERE c.assignment_id=$1 ORDER BY u.username",
+        )
+        .bind(assignment)
+        .map(|r: sqlx::postgres::PgRow| {
+            let submitted_at: i64 = r.get("submitted_at");
+            let due_at: i64 = r.get("due_at");
+            SubmissionView {
+                project_id: r.get("project_id"),
+                project_name: r.get("proj_name"),
+                student_id: r.get("student_id"),
+                student_username: r.get("username"),
+                student_name: r.get("student_name"),
+                status: r.get("status"),
+                submitted_at,
+                submissions: r.get("submissions"),
+                late: due_at > 0 && submitted_at > due_at,
+            }
+        })
+        .fetch_all(&self.pool)
+        .await
+        .map_err(map_err)
+    }
+
+    async fn assignments_for_student(&self, student: &str) -> DbResult<Vec<MyAssignment>> {
+        sqlx::query(
+            "SELECT a.id,a.project_id AS a_project_id,a.teacher_id,a.allow_withdraw,a.max_submissions,a.due_at,a.hidden,a.locked,a.created_at,c.project_id,c.assignment_id,c.student_id,c.submissions,p.display_name AS proj_name,p.status FROM assignment_copies c JOIN assignments a ON a.id=c.assignment_id JOIN projects p ON p.id=c.project_id WHERE c.student_id=$1 AND a.hidden=0 ORDER BY a.created_at DESC",
+        )
+        .bind(student)
+        .map(|r: sqlx::postgres::PgRow| {
+            MyAssignment {
+                assignment: Assignment {
+                    id: r.get("id"),
+                    project_id: r.get("a_project_id"),
+                    teacher_id: r.get("teacher_id"),
+                    allow_withdraw: r.get::<i32, _>("allow_withdraw") != 0,
+                    max_submissions: r.get("max_submissions"),
+                    due_at: r.get("due_at"),
+                    hidden: r.get::<i32, _>("hidden") != 0,
+                    locked: r.get::<i32, _>("locked") != 0,
+                    created_at: r.get("created_at"),
+                },
+                copy: row_copy(&r),
+                project_name: r.get("proj_name"),
+                status: r.get("status"),
+            }
+        })
+        .fetch_all(&self.pool)
+        .await
+        .map_err(map_err)
+    }
+
+    async fn hidden_assignment_projects(&self, student: &str) -> DbResult<Vec<String>> {
+        sqlx::query(
+            "SELECT c.project_id FROM assignment_copies c JOIN assignments a ON a.id=c.assignment_id WHERE c.student_id=$1 AND a.hidden<>0",
+        )
+        .bind(student)
+        .map(|r: sqlx::postgres::PgRow| r.get("project_id"))
+        .fetch_all(&self.pool)
+        .await
+        .map_err(map_err)
+    }
+
+    async fn update_assignment(&self, a: &Assignment) -> DbResult<()> {
+        sqlx::query(
+            "UPDATE assignments SET allow_withdraw=$1,max_submissions=$2,due_at=$3,hidden=$4,locked=$5 WHERE id=$6",
+        )
+        .bind(a.allow_withdraw as i32)
+        .bind(a.max_submissions)
+        .bind(a.due_at)
+        .bind(a.hidden as i32)
+        .bind(a.locked as i32)
+        .bind(&a.id)
+        .execute(&self.pool)
+        .await
+        .map(|_| ())
+        .map_err(map_err)
+    }
+
+    async fn delete_assignment(&self, id: &str) -> DbResult<()> {
+        let mut tx = self.pool.begin().await.map_err(map_err)?;
+        sqlx::query("DELETE FROM assignment_copies WHERE assignment_id=$1")
+            .bind(id)
+            .execute(&mut *tx)
+            .await
+            .map_err(map_err)?;
+        sqlx::query("DELETE FROM assignments WHERE id=$1")
+            .bind(id)
+            .execute(&mut *tx)
+            .await
+            .map_err(map_err)?;
+        tx.commit().await.map_err(map_err)
+    }
+
+    async fn bump_submissions(&self, project: &str) -> DbResult<()> {
+        sqlx::query("UPDATE assignment_copies SET submissions=submissions+1 WHERE project_id=$1")
+            .bind(project)
+            .execute(&self.pool)
+            .await
+            .map(|_| ())
+            .map_err(map_err)
     }
 
     async fn notify(&self, user: &str, kind: &str, payload: &str, ts: i64) -> DbResult<()> {

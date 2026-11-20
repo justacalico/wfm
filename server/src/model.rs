@@ -346,6 +346,67 @@ pub struct ShareView {
 }
 
 #[derive(Clone, Serialize)]
+pub struct Assignment {
+    pub id: String,
+    #[serde(rename = "projectId")]
+    pub project_id: String,
+    #[serde(rename = "teacherId")]
+    pub teacher_id: String,
+    #[serde(rename = "allowWithdraw")]
+    pub allow_withdraw: bool,
+    #[serde(rename = "maxSubmissions")]
+    pub max_submissions: i64,
+    #[serde(rename = "dueAt")]
+    pub due_at: i64,
+    pub hidden: bool,
+    pub locked: bool,
+    #[serde(rename = "createdAt")]
+    pub created_at: i64,
+}
+
+#[derive(Clone, Serialize)]
+pub struct AssignmentCopy {
+    #[serde(rename = "projectId")]
+    pub project_id: String,
+    #[serde(rename = "assignmentId")]
+    pub assignment_id: String,
+    #[serde(rename = "studentId")]
+    pub student_id: String,
+    pub submissions: i64,
+}
+
+/// A student's copy joined with its assignment and project for their list.
+#[derive(Clone, Serialize)]
+pub struct MyAssignment {
+    #[serde(flatten)]
+    pub assignment: Assignment,
+    pub copy: AssignmentCopy,
+    #[serde(rename = "projectName")]
+    pub project_name: String,
+    pub status: String,
+}
+
+/// A copy joined with its student and project for the teacher's submissions view.
+#[derive(Clone, Serialize)]
+pub struct SubmissionView {
+    #[serde(rename = "projectId")]
+    pub project_id: String,
+    #[serde(rename = "projectName")]
+    pub project_name: String,
+    #[serde(rename = "studentId")]
+    pub student_id: String,
+    #[serde(rename = "studentUsername")]
+    pub student_username: String,
+    #[serde(rename = "studentName")]
+    pub student_name: String,
+    pub status: String,
+    #[serde(rename = "submittedAt")]
+    pub submitted_at: i64,
+    pub submissions: i64,
+    pub late: bool,
+}
+
+#[derive(Clone, Serialize)]
 pub struct AuditEntry {
     pub id: i64,
     pub ts: i64,

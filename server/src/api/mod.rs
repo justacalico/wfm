@@ -16,8 +16,8 @@ use crate::auth::{
 };
 use crate::files::{self, FsError};
 use crate::model::{
-    self, can_manage, lineage_has, InviteCode, Project, ProjectGroup, ProjectLink, ProjectShare,
-    RenderJob, RenderSpec, Role, User,
+    self, can_manage, lineage_has, Assignment, AssignmentCopy, InviteCode, Project, ProjectGroup,
+    ProjectLink, ProjectShare, RenderJob, RenderSpec, Role, User,
 };
 use crate::render;
 use crate::store::{AuditFilter, DbError, LockOutcome};
@@ -75,6 +75,13 @@ pub fn router(state: Arc<AppState>) -> Router {
         )
         .route("/projects/{id}/submit", post(submit_project))
         .route("/projects/{id}/review", post(review_project))
+        .route("/projects/{id}/assign", post(assign_project))
+        .route("/projects/{id}/assignment", get(project_assignment))
+        .route("/assignments", get(my_assignments))
+        .route(
+            "/assignments/{id}",
+            patch(update_assignment).delete(delete_assignment),
+        )
         .route(
             "/projects/{id}/shares",
             get(list_project_shares).post(create_share),
@@ -1320,6 +1327,15 @@ async fn list_projects(State(s): State<Arc<AppState>>, session: Session) -> Resp
         Ok(v) => v,
         Err(e) => return db_resp(e),
     };
+    let hidden: std::collections::HashSet<String> =
+        s.db.hidden_assignment_projects(&session.user.id)
+            .await
+            .unwrap_or_default()
+            .into_iter()
+            .collect();
+    if !hidden.is_empty() {
+        v.retain(|p| !hidden.contains(&p.id));
+    }
     if session.user.role.can_see_audit() {
         let names: std::collections::HashMap<String, String> =
             s.db.managed_users(&session.user)
@@ -2037,7 +2053,15 @@ async fn project_access(
     id: &str,
 ) -> Result<(Project, &'static str), Response> {
     let p = fetch_project(s, id).await?;
-    if p.owner_id == session.user.id || session.user.role == Role::Owner {
+    if p.owner_id == session.user.id {
+        if let Ok(Some((a, _))) = s.db.assignment_for_project(&p.id).await {
+            if a.hidden {
+                return Err(err(StatusCode::NOT_FOUND, "not found"));
+            }
+        }
+        return Ok((p, "owner"));
+    }
+    if session.user.role == Role::Owner {
         return Ok((p, "owner"));
     }
     if let Ok(share) = s.db.share_by(&p.id, &session.user.id).await {
@@ -2073,6 +2097,13 @@ async fn edit_project(s: &Arc<AppState>, session: &Session, id: &str) -> Result<
     }
     if p.status == "submitted" {
         return Err(err(StatusCode::FORBIDDEN, "submitted for review"));
+    }
+    if p.owner_id == session.user.id {
+        if let Ok(Some((a, _))) = s.db.assignment_for_project(&p.id).await {
+            if a.locked {
+                return Err(err(StatusCode::FORBIDDEN, "assignment locked"));
+            }
+        }
     }
     let _ = s.db.touch_project(&p.id, AppState::now()).await;
     Ok(p)
@@ -2321,29 +2352,24 @@ async fn delete_project(
     Json(json!({"ok": true})).into_response()
 }
 
-async fn duplicate_project(
-    State(s): State<Arc<AppState>>,
-    session: Session,
-    Path(id): Path<String>,
-) -> Response {
-    let src = match read_project(&s, &session, &id).await {
-        Ok(p) => p,
-        Err(r) => return r,
-    };
-    let bytes = usage_bytes(&s, &src.dir).await;
-    if quota_exceeded(&s, &session.user.id, bytes).await {
-        return err(StatusCode::PAYLOAD_TOO_LARGE, "storage quota exceeded");
+/// Copy every blob under `src.dir` into a fresh project dir for `owner` and
+/// insert the project row. Cleans up the new dir on failure.
+async fn clone_project(
+    s: &Arc<AppState>,
+    src: &Project,
+    owner: &User,
+    name: String,
+    display: String,
+) -> Result<Project, Response> {
+    let bytes = usage_bytes(s, &src.dir).await;
+    if quota_exceeded(s, &owner.id, bytes).await {
+        return Err(err(StatusCode::PAYLOAD_TOO_LARGE, "storage quota exceeded"));
     }
-    let name = format!("{} copy", src.name.chars().take(58).collect::<String>());
-    let display: String = format!("{} (copy)", src.display_name)
-        .chars()
-        .take(100)
-        .collect();
     let id2 = model::new_id();
-    let dir = files::rel_project_dir(&session.user.username, &session.user.id, &name, &id2);
+    let dir = files::rel_project_dir(&owner.username, &owner.id, &name, &id2);
     for f in files::PROJECT_FOLDERS {
         if let Err(e) = s.blobs.mkdir(&format!("{dir}/{f}")).await {
-            return err(StatusCode::INTERNAL_SERVER_ERROR, &e);
+            return Err(err(StatusCode::INTERNAL_SERVER_ERROR, &e));
         }
     }
     let mut stack = vec![src.dir.clone()];
@@ -2352,7 +2378,7 @@ async fn duplicate_project(
         guard += 1;
         if guard > 10000 {
             let _ = s.blobs.delete_prefix(&dir).await;
-            return err(StatusCode::INTERNAL_SERVER_ERROR, "too many files");
+            return Err(err(StatusCode::INTERNAL_SERVER_ERROR, "too many files"));
         }
         match s.blobs.list(&pre).await {
             Ok((folders, objects)) => {
@@ -2365,25 +2391,25 @@ async fn duplicate_project(
                             let mut r = tokio_util::io::StreamReader::new(stream);
                             if let Err(e) = s.blobs.put(&dst, o.size, &mut r).await {
                                 let _ = s.blobs.delete_prefix(&dir).await;
-                                return err(StatusCode::INTERNAL_SERVER_ERROR, &e);
+                                return Err(err(StatusCode::INTERNAL_SERVER_ERROR, &e));
                             }
                         }
                         Err(e) => {
                             let _ = s.blobs.delete_prefix(&dir).await;
-                            return err(StatusCode::INTERNAL_SERVER_ERROR, &e);
+                            return Err(err(StatusCode::INTERNAL_SERVER_ERROR, &e));
                         }
                     }
                 }
             }
             Err(e) => {
                 let _ = s.blobs.delete_prefix(&dir).await;
-                return err(StatusCode::INTERNAL_SERVER_ERROR, &e);
+                return Err(err(StatusCode::INTERNAL_SERVER_ERROR, &e));
             }
         }
     }
     let p = Project {
         id: id2,
-        owner_id: session.user.id.clone(),
+        owner_id: owner.id.clone(),
         name,
         display_name: display,
         dir,
@@ -2399,8 +2425,29 @@ async fn duplicate_project(
     };
     if let Err(e) = s.db.create_project(&p).await {
         let _ = s.blobs.delete_prefix(&p.dir).await;
-        return db_resp(e);
+        return Err(db_resp(e));
     }
+    Ok(p)
+}
+
+async fn duplicate_project(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Path(id): Path<String>,
+) -> Response {
+    let src = match read_project(&s, &session, &id).await {
+        Ok(p) => p,
+        Err(r) => return r,
+    };
+    let name = format!("{} copy", src.name.chars().take(58).collect::<String>());
+    let display: String = format!("{} (copy)", src.display_name)
+        .chars()
+        .take(100)
+        .collect();
+    let p = match clone_project(&s, &src, &session.user, name, display).await {
+        Ok(p) => p,
+        Err(r) => return r,
+    };
     s.audit(
         "project",
         &session.user,
@@ -2547,6 +2594,19 @@ async fn submit_project(
         Err(r) => return r,
     };
     let submitted = p.status == "submitted";
+    if p.owner_id == session.user.id {
+        if let Ok(Some((a, c))) = s.db.assignment_for_project(&id).await {
+            if a.locked {
+                return err(StatusCode::FORBIDDEN, "assignment locked");
+            }
+            if submitted && !a.allow_withdraw {
+                return err(StatusCode::FORBIDDEN, "withdraw not allowed");
+            }
+            if !submitted && a.max_submissions > 0 && c.submissions >= a.max_submissions {
+                return err(StatusCode::FORBIDDEN, "submission limit reached");
+            }
+        }
+    }
     let (status, submitted_at, action) = if submitted {
         ("draft", 0, "project_withdraw")
     } else {
@@ -2554,6 +2614,9 @@ async fn submit_project(
     };
     if let Err(e) = s.db.set_project_status(&id, status, submitted_at, "").await {
         return db_resp(e);
+    }
+    if !submitted {
+        let _ = s.db.bump_submissions(&id).await;
     }
     s.audit("project", &session.user, action, &p.display_name, "", "")
         .await;
@@ -2636,6 +2699,302 @@ async fn review_project(
         .await;
     }
     Json(json!({"ok": true, "status": status})).into_response()
+}
+
+// ---------- assignments ----------
+
+#[derive(Deserialize)]
+struct AssignReq {
+    #[serde(default)]
+    students: Vec<String>,
+    #[serde(default = "yes", rename = "allowWithdraw")]
+    allow_withdraw: bool,
+    #[serde(default, rename = "maxSubmissions")]
+    max_submissions: i64,
+    #[serde(default, rename = "dueAt")]
+    due_at: i64,
+    #[serde(default)]
+    hidden: bool,
+    #[serde(default)]
+    locked: bool,
+}
+
+fn yes() -> bool {
+    true
+}
+
+/// Hand out per-student copies of a project as an assignment.
+async fn assign_project(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Path(id): Path<String>,
+    Json(req): Json<AssignReq>,
+) -> Response {
+    if session.user.role < Role::Teacher {
+        return err(StatusCode::FORBIDDEN, "staff only");
+    }
+    let src = match edit_project(&s, &session, &id).await {
+        Ok(p) => p,
+        Err(r) => return r,
+    };
+    if s.db
+        .assignment_for_project(&id)
+        .await
+        .unwrap_or(None)
+        .is_some()
+    {
+        return err(StatusCode::BAD_REQUEST, "already an assignment copy");
+    }
+    if s.db.assignment_for_source(&id).await.is_ok() {
+        return err(StatusCode::CONFLICT, "already assigned");
+    }
+    if req.students.is_empty() || req.students.len() > 200 {
+        return err(StatusCode::BAD_REQUEST, "students: 1-200 ids");
+    }
+    if req.max_submissions < 0 || req.due_at < 0 {
+        return err(StatusCode::BAD_REQUEST, "invalid options");
+    }
+    let mut seen = std::collections::HashSet::new();
+    let mut students = Vec::new();
+    for sid in &req.students {
+        if !seen.insert(sid.clone()) {
+            continue;
+        }
+        let st = match s.db.user_by_id(sid).await {
+            Ok(u) => u,
+            Err(_) => return err(StatusCode::NOT_FOUND, "unknown user"),
+        };
+        if st.role != Role::Student {
+            return err(StatusCode::BAD_REQUEST, "students only");
+        }
+        if !model::can_see(&session.user, &st) {
+            return err(StatusCode::NOT_FOUND, "unknown user");
+        }
+        students.push(st);
+    }
+    let aid = model::new_id();
+    let assignment = Assignment {
+        id: aid.clone(),
+        project_id: src.id.clone(),
+        teacher_id: session.user.id.clone(),
+        allow_withdraw: req.allow_withdraw,
+        max_submissions: req.max_submissions,
+        due_at: req.due_at,
+        hidden: req.hidden,
+        locked: req.locked,
+        created_at: AppState::now(),
+    };
+    let mut copies = Vec::new();
+    let mut made = Vec::new();
+    let mut failed = Vec::new();
+    for st in students {
+        let name: String = format!("{}-{}", src.name, st.username)
+            .chars()
+            .take(58)
+            .collect();
+        let who = if st.display_name.is_empty() {
+            &st.username
+        } else {
+            &st.display_name
+        };
+        let display: String = format!("{} - {}", src.display_name, who)
+            .chars()
+            .take(100)
+            .collect();
+        match clone_project(&s, &src, &st, name, display).await {
+            Ok(p) => {
+                copies.push(AssignmentCopy {
+                    project_id: p.id.clone(),
+                    assignment_id: aid.clone(),
+                    student_id: st.id.clone(),
+                    submissions: 0,
+                });
+                made.push(p);
+            }
+            Err(_) => failed.push(st.username.clone()),
+        }
+    }
+    if let Err(e) = s.db.create_assignment(&assignment, &copies).await {
+        return db_resp(e);
+    }
+    s.audit(
+        "project",
+        &session.user,
+        "project_assign",
+        &src.display_name,
+        &format!("{} students", copies.len()),
+        "",
+    )
+    .await;
+    for (p, cp) in made.iter().zip(copies.iter()) {
+        auto_share_apply(&s, p, &session.user).await;
+        s.notify(
+            &cp.student_id,
+            "assign",
+            json!({
+                "assignment": aid,
+                "project": p.id,
+                "projectName": p.display_name,
+                "from": session.user.username,
+                "dueAt": req.due_at,
+            }),
+        )
+        .await;
+    }
+    Json(json!({"assignment": assignment, "copies": made, "failed": failed})).into_response()
+}
+
+/// Assignment info for a project: submissions for staff on the source, the
+/// caller's own copy state on a student copy.
+async fn project_assignment(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Path(id): Path<String>,
+) -> Response {
+    if let Ok(Some((a, c))) = s.db.assignment_for_project(&id).await {
+        let mine = c.student_id == session.user.id;
+        let staff = session.user.role == Role::Owner
+            || (session.user.role >= Role::Teacher
+                && s.db
+                    .user_in_subtree(&session.user, &c.student_id)
+                    .await
+                    .unwrap_or(false));
+        if !mine && !staff {
+            return err(StatusCode::NOT_FOUND, "not found");
+        }
+        if mine && a.hidden {
+            return err(StatusCode::NOT_FOUND, "not found");
+        }
+        return Json(json!({
+            "assignment": a,
+            "copy": c,
+        }))
+        .into_response();
+    }
+    if let Ok(a) = s.db.assignment_for_source(&id).await {
+        if session.user.role < Role::Teacher {
+            return err(StatusCode::FORBIDDEN, "staff only");
+        }
+        if project_access(&s, &session, &id).await.is_err() {
+            return err(StatusCode::NOT_FOUND, "not found");
+        }
+        let subs = match s.db.submissions(&a.id).await {
+            Ok(v) => v,
+            Err(e) => return db_resp(e),
+        };
+        return Json(json!({
+            "assignment": a,
+            "submissions": subs,
+        }))
+        .into_response();
+    }
+    err(StatusCode::NOT_FOUND, "not an assignment")
+}
+
+/// Revealed assignments assigned to the caller (student view).
+async fn my_assignments(State(s): State<Arc<AppState>>, session: Session) -> Response {
+    match s.db.assignments_for_student(&session.user.id).await {
+        Ok(v) => Json(json!(v)).into_response(),
+        Err(e) => db_resp(e),
+    }
+}
+
+#[derive(Deserialize)]
+struct AssignmentPatch {
+    #[serde(rename = "allowWithdraw")]
+    allow_withdraw: Option<bool>,
+    #[serde(rename = "maxSubmissions")]
+    max_submissions: Option<i64>,
+    #[serde(rename = "dueAt")]
+    due_at: Option<i64>,
+    hidden: Option<bool>,
+    locked: Option<bool>,
+}
+
+async fn assignment_editable(
+    s: &Arc<AppState>,
+    session: &Session,
+    id: &str,
+) -> Result<Assignment, Response> {
+    let a = match s.db.assignment(id).await {
+        Ok(a) => a,
+        Err(e) => return Err(db_resp(e)),
+    };
+    if a.teacher_id != session.user.id && session.user.role != Role::Owner {
+        return Err(err(StatusCode::FORBIDDEN, "not your assignment"));
+    }
+    Ok(a)
+}
+
+async fn update_assignment(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Path(id): Path<String>,
+    Json(req): Json<AssignmentPatch>,
+) -> Response {
+    let mut a = match assignment_editable(&s, &session, &id).await {
+        Ok(a) => a,
+        Err(r) => return r,
+    };
+    if let Some(v) = req.allow_withdraw {
+        a.allow_withdraw = v;
+    }
+    if let Some(v) = req.max_submissions {
+        if v < 0 {
+            return err(StatusCode::BAD_REQUEST, "maxSubmissions >= 0");
+        }
+        a.max_submissions = v;
+    }
+    if let Some(v) = req.due_at {
+        if v < 0 {
+            return err(StatusCode::BAD_REQUEST, "dueAt >= 0");
+        }
+        a.due_at = v;
+    }
+    if let Some(v) = req.hidden {
+        a.hidden = v;
+    }
+    if let Some(v) = req.locked {
+        a.locked = v;
+    }
+    if let Err(e) = s.db.update_assignment(&a).await {
+        return db_resp(e);
+    }
+    s.audit(
+        "assignment",
+        &session.user,
+        "assignment_update",
+        &a.id,
+        "",
+        "",
+    )
+    .await;
+    Json(json!(a)).into_response()
+}
+
+/// Unlink an assignment: copies stay as ordinary student projects.
+async fn delete_assignment(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Path(id): Path<String>,
+) -> Response {
+    let a = match assignment_editable(&s, &session, &id).await {
+        Ok(a) => a,
+        Err(r) => return r,
+    };
+    if let Err(e) = s.db.delete_assignment(&a.id).await {
+        return db_resp(e);
+    }
+    s.audit(
+        "assignment",
+        &session.user,
+        "assignment_delete",
+        &a.id,
+        "",
+        "",
+    )
+    .await;
+    Json(json!({"ok": true})).into_response()
 }
 
 #[derive(Deserialize)]
@@ -3754,7 +4113,11 @@ mod tests {
         )
         .await;
         assert_eq!(r.status(), StatusCode::UNSUPPORTED_MEDIA_TYPE);
-        assert!(s.blobs.head(&format!("{}/Raw/run.exe", p.dir)).await.is_err());
+        assert!(s
+            .blobs
+            .head(&format!("{}/Raw/run.exe", p.dir))
+            .await
+            .is_err());
 
         // An allowed extension whose bytes do not match is refused too.
         let (q, h, b) = upload_req("Raw/fake.mp4", b"MZ\x90\x00exe");
@@ -3885,10 +4248,14 @@ mod tests {
         ] {
             let r = shortcut_catalog(
                 session(&u),
-                Query(CatalogQuery { app: app.map(str::to_string) }),
+                Query(CatalogQuery {
+                    app: app.map(str::to_string),
+                }),
             )
             .await;
-            let b = axum::body::to_bytes(r.into_body(), usize::MAX).await.unwrap();
+            let b = axum::body::to_bytes(r.into_body(), usize::MAX)
+                .await
+                .unwrap();
             let s = String::from_utf8_lossy(&b);
             assert!(s.contains(want), "{app:?} should serve {want}");
             assert!(!s.contains(not), "{app:?} should not serve {not}");
@@ -3927,10 +4294,24 @@ mod tests {
         let p = project(&student);
         s.db.create_project(&p).await.unwrap();
         let share = |to: &User| {
-            Json(ShareReq { username: to.username.clone(), level: "view".into() })
+            Json(ShareReq {
+                username: to.username.clone(),
+                level: "view".into(),
+            })
         };
-        for (to, want) in [(&outsider, StatusCode::NOT_FOUND), (&teacher2, StatusCode::NOT_FOUND), (&teacher, StatusCode::OK), (&classmate, StatusCode::OK)] {
-            let r = create_share(State(s.clone()), session(&student), Path(p.id.clone()), share(to)).await;
+        for (to, want) in [
+            (&outsider, StatusCode::NOT_FOUND),
+            (&teacher2, StatusCode::NOT_FOUND),
+            (&teacher, StatusCode::OK),
+            (&classmate, StatusCode::OK),
+        ] {
+            let r = create_share(
+                State(s.clone()),
+                session(&student),
+                Path(p.id.clone()),
+                share(to),
+            )
+            .await;
             assert_eq!(r.status(), want, "share to {}", to.username);
         }
     }
@@ -3941,7 +4322,14 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         let s = state(&dir);
         let (owner, teacher, teacher2, student, classmate, outsider) = school(&s);
-        let body = |r: Response| async move { String::from_utf8_lossy(&axum::body::to_bytes(r.into_body(), usize::MAX).await.unwrap()).to_string() };
+        let body = |r: Response| async move {
+            String::from_utf8_lossy(
+                &axum::body::to_bytes(r.into_body(), usize::MAX)
+                    .await
+                    .unwrap(),
+            )
+            .to_string()
+        };
         let t = body(share_targets(State(s.clone()), session(&student)).await).await;
         for u in [&teacher, &classmate, &owner] {
             assert!(t.contains(&u.username), "student sees {}", u.username);
@@ -3951,8 +4339,240 @@ mod tests {
         }
         let t = body(share_targets(State(s.clone()), session(&teacher)).await).await;
         assert!(t.contains(&student.username) && t.contains(&owner.username));
-        assert!(!t.contains(&teacher2.username), "a teacher's peers stay hidden");
-        assert!(!t.contains(&outsider.username), "other trees' students stay hidden");
+        assert!(
+            !t.contains(&teacher2.username),
+            "a teacher's peers stay hidden"
+        );
+        assert!(
+            !t.contains(&outsider.username),
+            "other trees' students stay hidden"
+        );
+    }
+
+    fn assign_req(students: Vec<String>) -> Json<AssignReq> {
+        Json(AssignReq {
+            students,
+            allow_withdraw: false,
+            max_submissions: 1,
+            due_at: 0,
+            hidden: false,
+            locked: false,
+        })
+    }
+
+    #[tokio::test]
+    async fn assign_copies_and_enforces_policies() {
+        let dir = std::env::temp_dir().join(format!("wfm-api-{}", model::new_id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let s = state(&dir);
+        let (_owner, teacher, _t2, student, classmate, _out) = school(&s);
+        let p = project(&teacher);
+        s.db.create_project(&p).await.unwrap();
+
+        let r = assign_project(
+            State(s.clone()),
+            session(&teacher),
+            Path(p.id.clone()),
+            assign_req(vec![
+                student.id.clone(),
+                classmate.id.clone(),
+                student.id.clone(),
+            ]),
+        )
+        .await;
+        assert_eq!(r.status(), StatusCode::OK);
+        let mine = s.db.assignments_for_student(&student.id).await.unwrap();
+        assert_eq!(mine.len(), 1, "one copy per student");
+        let copy = mine[0].copy.project_id.clone();
+        let a = mine[0].assignment.clone();
+        assert_eq!(mine[0].status, "draft");
+        let cp = fetch_project(&s, &copy).await.unwrap();
+        assert_eq!(cp.owner_id, student.id);
+
+        // submissions view for the teacher
+        let r = project_assignment(State(s.clone()), session(&teacher), Path(p.id.clone())).await;
+        assert_eq!(r.status(), StatusCode::OK);
+        let t = body(r).await;
+        assert!(t.contains(&student.username) && t.contains(&classmate.username));
+
+        // the student sees their own copy info; classmates do not see each other's
+        let r = project_assignment(State(s.clone()), session(&student), Path(copy.clone())).await;
+        assert_eq!(r.status(), StatusCode::OK);
+        let r = project_assignment(State(s.clone()), session(&classmate), Path(copy.clone())).await;
+        assert_eq!(r.status(), StatusCode::NOT_FOUND);
+
+        // submit once, then the cap and withdraw rules bite
+        let r = submit_project(State(s.clone()), session(&student), Path(copy.clone())).await;
+        assert_eq!(r.status(), StatusCode::OK);
+        let r = submit_project(State(s.clone()), session(&student), Path(copy.clone())).await;
+        assert_eq!(r.status(), StatusCode::FORBIDDEN, "withdraw disabled");
+        s.db.set_project_status(&copy, "draft", 0, "")
+            .await
+            .unwrap();
+        let r = submit_project(State(s.clone()), session(&student), Path(copy.clone())).await;
+        assert_eq!(r.status(), StatusCode::FORBIDDEN, "submission cap reached");
+
+        // allow withdraw again, submit + withdraw now works
+        let r = update_assignment(
+            State(s.clone()),
+            session(&teacher),
+            Path(a.id.clone()),
+            Json(AssignmentPatch {
+                allow_withdraw: Some(true),
+                max_submissions: Some(0),
+                due_at: None,
+                hidden: None,
+                locked: None,
+            }),
+        )
+        .await;
+        assert_eq!(r.status(), StatusCode::OK);
+        let r = submit_project(State(s.clone()), session(&student), Path(copy.clone())).await;
+        assert_eq!(r.status(), StatusCode::OK);
+        let r = submit_project(State(s.clone()), session(&student), Path(copy.clone())).await;
+        assert_eq!(r.status(), StatusCode::OK, "withdraw allowed now");
+
+        // hidden: the copy vanishes for the student only
+        let r = update_assignment(
+            State(s.clone()),
+            session(&teacher),
+            Path(a.id.clone()),
+            Json(AssignmentPatch {
+                allow_withdraw: None,
+                max_submissions: None,
+                due_at: None,
+                hidden: Some(true),
+                locked: None,
+            }),
+        )
+        .await;
+        assert_eq!(r.status(), StatusCode::OK);
+        let r = project_assignment(State(s.clone()), session(&student), Path(copy.clone())).await;
+        assert_eq!(r.status(), StatusCode::NOT_FOUND);
+        let t = body(list_projects(State(s.clone()), session(&student)).await).await;
+        assert!(!t.contains(&copy), "hidden copy stays out of the list");
+        let r = project_assignment(State(s.clone()), session(&teacher), Path(p.id.clone())).await;
+        assert_eq!(r.status(), StatusCode::OK, "staff still see hidden copies");
+
+        // locked: submit and edit are refused
+        let _ = update_assignment(
+            State(s.clone()),
+            session(&teacher),
+            Path(a.id.clone()),
+            Json(AssignmentPatch {
+                allow_withdraw: None,
+                max_submissions: None,
+                due_at: None,
+                hidden: Some(false),
+                locked: Some(true),
+            }),
+        )
+        .await;
+        let r = submit_project(State(s.clone()), session(&student), Path(copy.clone())).await;
+        assert_eq!(r.status(), StatusCode::FORBIDDEN, "locked blocks submit");
+        match edit_project(&s, &session(&student), &copy).await {
+            Err(r) => assert_eq!(r.status(), StatusCode::FORBIDDEN),
+            Ok(_) => panic!("locked edit should fail"),
+        }
+
+        // delete unlinks; the copy becomes an ordinary project
+        let r = delete_assignment(State(s.clone()), session(&teacher), Path(a.id.clone())).await;
+        assert_eq!(r.status(), StatusCode::OK);
+        assert!(s.db.assignment_for_project(&copy).await.unwrap().is_none());
+        let r = submit_project(State(s.clone()), session(&student), Path(copy.clone())).await;
+        assert_eq!(r.status(), StatusCode::OK, "unlinked copy submits freely");
+    }
+
+    #[tokio::test]
+    async fn assign_validates_targets_and_source() {
+        let dir = std::env::temp_dir().join(format!("wfm-api-{}", model::new_id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let s = state(&dir);
+        let (_owner, teacher, teacher2, student, classmate, outsider) = school(&s);
+        let p = project(&teacher);
+        s.db.create_project(&p).await.unwrap();
+        let call = |u: &User, req: Json<AssignReq>| {
+            assign_project(State(s.clone()), session(u), Path(p.id.clone()), req)
+        };
+
+        assert_eq!(
+            call(&student, assign_req(vec![student.id.clone()]))
+                .await
+                .status(),
+            StatusCode::FORBIDDEN
+        );
+        assert_eq!(
+            call(&teacher, assign_req(vec![])).await.status(),
+            StatusCode::BAD_REQUEST
+        );
+        assert_eq!(
+            call(&teacher, assign_req(vec![teacher2.id.clone()]))
+                .await
+                .status(),
+            StatusCode::BAD_REQUEST,
+            "non-student"
+        );
+        assert_eq!(
+            call(&teacher, assign_req(vec![outsider.id.clone()]))
+                .await
+                .status(),
+            StatusCode::NOT_FOUND,
+            "invisible student"
+        );
+        assert_eq!(
+            call(&teacher, assign_req(vec!["nope".into()]))
+                .await
+                .status(),
+            StatusCode::NOT_FOUND
+        );
+        assert_eq!(
+            call(&teacher, assign_req(vec![student.id.clone()]))
+                .await
+                .status(),
+            StatusCode::OK
+        );
+        assert_eq!(
+            call(&teacher, assign_req(vec![classmate.id.clone()]))
+                .await
+                .status(),
+            StatusCode::CONFLICT,
+            "one assignment per source"
+        );
+
+        let aid = s.db.assignment_for_source(&p.id).await.unwrap().id;
+        let r = update_assignment(
+            State(s.clone()),
+            session(&teacher2),
+            Path(aid.clone()),
+            Json(AssignmentPatch {
+                allow_withdraw: None,
+                max_submissions: None,
+                due_at: None,
+                hidden: Some(true),
+                locked: None,
+            }),
+        )
+        .await;
+        assert_eq!(
+            r.status(),
+            StatusCode::FORBIDDEN,
+            "only the assigning teacher edits"
+        );
+        let r = my_assignments(State(s.clone()), session(&student)).await;
+        assert_eq!(r.status(), StatusCode::OK);
+        let t = body(r).await;
+        assert!(t.contains(&student.id.as_str()) || t.contains("projectName"));
+    }
+
+    fn body(r: Response) -> impl std::future::Future<Output = String> {
+        async move {
+            String::from_utf8_lossy(
+                &axum::body::to_bytes(r.into_body(), usize::MAX)
+                    .await
+                    .unwrap(),
+            )
+            .to_string()
+        }
     }
 }
 
@@ -4916,7 +5536,15 @@ async fn worker_file(
         Ok(k) => k,
         Err(e) => return fs_resp(e),
     };
-    serve_blob(&s, &blob_key(&project.dir, &key), &key, &headers, false, None).await
+    serve_blob(
+        &s,
+        &blob_key(&project.dir, &key),
+        &key,
+        &headers,
+        false,
+        None,
+    )
+    .await
 }
 
 #[derive(Deserialize)]

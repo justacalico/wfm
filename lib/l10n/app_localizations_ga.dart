@@ -1080,4 +1080,55 @@ class AppLocalizationsGa extends AppLocalizations {
   String unsupportedUploadType(Object names) {
     return 'Cineál comhaid nach dtacaítear leis: $names';
   }
+
+  @override
+  String get assign => 'Sanntaigh';
+
+  @override
+  String get assignProject => 'Sanntaigh do dhaltaí';
+
+  @override
+  String get assignment => 'Tasc';
+
+  @override
+  String get dueDate => 'Dáta dílis';
+
+  @override
+  String get noDueDate => 'Gan dháta dílis';
+
+  @override
+  String get allowWithdraw => 'Ceadaigh ais-tharraingt';
+
+  @override
+  String get maxSubmissions => 'Uaslíon iarrachtaí (0 = gan teorainn)';
+
+  @override
+  String get hiddenFromStudents => 'I bhfolach ar dhaltaí';
+
+  @override
+  String get lockedForStudents => 'Faoi ghlas';
+
+  @override
+  String get submissions => 'Aighneachtaí';
+
+  @override
+  String attemptsUsed(Object max, Object used) {
+    return '$used as $max iarracht';
+  }
+
+  @override
+  String get overdue => 'Thar téarma';
+
+  @override
+  String get unassign => 'Bain an tasc';
+
+  @override
+  String get unassignBody =>
+      'Bain an tasc seo? Fanfaidh cóipeanna na ndaltaí mar ghnáththionscadail.';
+
+  @override
+  String get noStudents => 'Níl daltaí le sannadh';
+
+  @override
+  String get lateSubmission => 'déanach';
 }

@@ -246,6 +246,73 @@ class AutoShare {
         createdAt = j['createdAt'] ?? 0;
 }
 
+class Assignment {
+  final String id, projectId, teacherId;
+  final bool allowWithdraw, hidden, locked;
+  final int maxSubmissions, dueAt, createdAt;
+  Assignment.fromJson(Map<String, dynamic> j)
+      : id = j['id'] ?? '',
+        projectId = j['projectId'] ?? '',
+        teacherId = j['teacherId'] ?? '',
+        allowWithdraw = j['allowWithdraw'] ?? true,
+        maxSubmissions = j['maxSubmissions'] ?? 0,
+        dueAt = j['dueAt'] ?? 0,
+        hidden = j['hidden'] ?? false,
+        locked = j['locked'] ?? false,
+        createdAt = j['createdAt'] ?? 0;
+}
+
+class AssignmentCopy {
+  final String projectId, assignmentId, studentId;
+  final int submissions;
+  AssignmentCopy.fromJson(Map<String, dynamic> j)
+      : projectId = j['projectId'] ?? '',
+        assignmentId = j['assignmentId'] ?? '',
+        studentId = j['studentId'] ?? '',
+        submissions = j['submissions'] ?? 0;
+}
+
+class Submission {
+  final String projectId, projectName, studentId, studentUsername, studentName;
+  final String status;
+  final int submittedAt, submissions;
+  final bool late;
+  Submission.fromJson(Map<String, dynamic> j)
+      : projectId = j['projectId'] ?? '',
+        projectName = j['projectName'] ?? '',
+        studentId = j['studentId'] ?? '',
+        studentUsername = j['studentUsername'] ?? '',
+        studentName = j['studentName'] ?? '',
+        status = j['status'] ?? 'draft',
+        submittedAt = j['submittedAt'] ?? 0,
+        submissions = j['submissions'] ?? 0,
+        late = j['late'] ?? false;
+}
+
+class AssignmentInfo {
+  final Assignment assignment;
+  final AssignmentCopy? copy;
+  final List<Submission> submissions;
+  AssignmentInfo.fromJson(Map<String, dynamic> j)
+      : assignment = Assignment.fromJson(j['assignment'] ?? {}),
+        copy = j['copy'] == null ? null : AssignmentCopy.fromJson(j['copy']),
+        submissions = [
+          for (final e in (j['submissions'] ?? []) as List)
+            Submission.fromJson(e)
+        ];
+}
+
+class MyAssignment {
+  final Assignment assignment;
+  final AssignmentCopy copy;
+  final String projectName, status;
+  MyAssignment.fromJson(Map<String, dynamic> j)
+      : assignment = Assignment.fromJson(j),
+        copy = AssignmentCopy.fromJson(j['copy'] ?? {}),
+        projectName = j['projectName'] ?? '',
+        status = j['status'] ?? 'draft';
+}
+
 class ShareLink {
   final String id, projectId, scope;
   final int createdAt, expiresAt;
@@ -505,6 +572,31 @@ class Api {
       '${(await post('/projects/$id/review', {
                 'status': status
               }))['status'] ?? status}';
+
+  Future<Map<String, dynamic>> assignProject(
+          String id, Map<String, dynamic> body) async =>
+      (await post('/projects/$id/assign', body)) as Map<String, dynamic>;
+
+  Future<AssignmentInfo?> projectAssignment(String id) async {
+    try {
+      return AssignmentInfo.fromJson(
+          (await get('/projects/$id/assignment')) as Map<String, dynamic>);
+    } on ApiException {
+      return null;
+    }
+  }
+
+  Future<Assignment> updateAssignment(
+          String id, Map<String, dynamic> body) async =>
+      Assignment.fromJson(
+          (await patch('/assignments/$id', body)) as Map<String, dynamic>);
+
+  Future<void> deleteAssignment(String id) => del('/assignments/$id');
+
+  Future<List<MyAssignment>> myAssignments() async => [
+        for (final e in (await get('/assignments')) as List)
+          MyAssignment.fromJson(e)
+      ];
 
   Future<List<ShortcutAction>> shortcutCatalog(
           [String app = 'filmcraft']) async =>
