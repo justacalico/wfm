@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.36.0 - 2026-11-20
+#### Features
+- 落地页补齐编剧分镜应用与新截图 - (1375409) - calico
+
+- - -
+
 ## v0.35.0 - 2026-11-20
 #### Features
 - craft 应用 OLED 纯黑主题 - (9e34010) - calico
