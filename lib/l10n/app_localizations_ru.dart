@@ -237,6 +237,10 @@ class AppLocalizationsRu extends AppLocalizations {
   String get emptyFolder => 'Пустая папка';
 
   @override
+  String get emptyFolderUpload =>
+      'Пустая папка. Нажмите «Загрузить», чтобы добавить файлы.';
+
+  @override
   String get newFolder => 'Новая папка';
 
   @override
@@ -862,7 +866,8 @@ class AppLocalizationsRu extends AppLocalizations {
   String get sharedProjects => 'Общие проекты';
 
   @override
-  String get noShares => 'С вами пока ничем не поделились';
+  String get noShares =>
+      'С вами пока ничем не поделились. Проекты, которыми с вами поделятся, появятся здесь.';
 
   @override
   String get autoShares => 'Автодоступ';

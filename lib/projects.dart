@@ -1287,7 +1287,10 @@ class _FilesTabState extends State<FilesTab> {
             : _items == null
                 ? const Center(child: CircularProgressIndicator())
                 : _items!.isEmpty
-                    ? Center(child: Text(l10n.emptyFolder))
+                    ? Center(
+                        child: Text(widget.project.editable
+                            ? l10n.emptyFolderUpload
+                            : l10n.emptyFolder))
                     : _view == 1
                         ? GridView.extent(
                             key: PageStorageKey(

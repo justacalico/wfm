@@ -44,6 +44,11 @@ void main() {
     testWidgets('empty folder state', (t) async {
       installApi(extra: {'GET /api/projects/p1/files': (_) => []});
       await pump(t, FilesTab(project: p1));
+      expect(
+          find.text('Empty folder. Tap Upload to add files.'), findsOneWidget);
+      final view = Project.fromJson(
+          {'id': 'p1', 'name': 'n', 'displayName': 'P', 'access': 'view'});
+      await pump(t, FilesTab(project: view));
       expect(find.text('Empty folder'), findsOneWidget);
     });
 
@@ -261,7 +266,8 @@ void main() {
       await pump(t, ProjectPage(project: p1));
       await t.tap(find.text('Images'));
       await settle(t);
-      expect(find.text('Empty folder'), findsOneWidget);
+      expect(
+          find.text('Empty folder. Tap Upload to add files.'), findsOneWidget);
       await t.tap(find.text('Renders'));
       await settle(t);
       await t.tap(find.text('Files'));

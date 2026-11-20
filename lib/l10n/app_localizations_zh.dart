@@ -235,6 +235,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get emptyFolder => '空文件夹';
 
   @override
+  String get emptyFolderUpload => '空文件夹。点击“上传”添加文件。';
+
+  @override
   String get newFolder => '新建文件夹';
 
   @override
@@ -857,7 +860,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get sharedProjects => '共享的项目';
 
   @override
-  String get noShares => '还没有人与你共享内容';
+  String get noShares => '还没有人共享项目给你。别人共享给你的项目会出现在这里。';
 
   @override
   String get autoShares => '自动共享';

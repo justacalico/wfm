@@ -101,7 +101,10 @@ void main() {
     fail = false;
     await t.tap(find.text('Retry'));
     await settle(t);
-    expect(find.text('Nothing shared with you yet'), findsOneWidget);
+    expect(
+        find.text(
+            'Nothing shared with you yet. Projects others share with you appear here.'),
+        findsOneWidget);
   });
 
   testWidgets('respond error shows snack', (t) async {
