@@ -2,6 +2,7 @@
 
 // ignore: unused_import
 import 'package:intl/intl.dart' as intl;
+
 import 'app_localizations.dart';
 
 // ignore_for_file: type=lint
@@ -170,10 +171,10 @@ class AppLocalizationsRu extends AppLocalizations {
   String get editInFilmcraft => 'Редактировать';
 
   @override
-  String get openScript => 'Сценарий';
+  String get openScript => 'Писать сценарий';
 
   @override
-  String get openBoards => 'Раскадровка';
+  String get openBoards => 'Планировать раскадровку';
 
   @override
   String get renameProject => 'Переименовать проект';

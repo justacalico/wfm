@@ -65,8 +65,8 @@
     }
   },
   "editInFilmcraft": "编辑",
-  "openScript": "剧本",
-  "openBoards": "故事板",
+  "openScript": "写剧本",
+  "openBoards": "画故事板",
   "renameProject": "重命名项目",
   "displayName": "显示名称",
   "deleteProject": "删除项目",
