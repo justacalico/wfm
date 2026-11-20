@@ -2140,6 +2140,9 @@ async fn update_project(
         Ok(p) => p,
         Err(r) => return r,
     };
+    if req.template.is_some() && session.user.role < Role::Teacher {
+        return err(StatusCode::FORBIDDEN, "teachers only");
+    }
     let name = match req.display_name {
         Some(n) => {
             let n: String = n.trim().chars().take(100).collect();
@@ -3477,7 +3480,170 @@ fn parse_range(v: &str, size: u64) -> Option<(u64, u64)> {
 
 #[cfg(test)]
 mod tests {
-    use super::{handoff_to, key_ext, lock_kind, parse_range, parse_semver, reserved_worker_name};
+    use super::*;
+    use std::collections::{HashMap, HashSet};
+    use std::sync::{Mutex, RwLock};
+
+    fn state(dir: &std::path::Path) -> Arc<AppState> {
+        Arc::new(AppState {
+            cfg: crate::config::Config {
+                addr: String::new(),
+                data_dir: dir.to_path_buf(),
+                web_dir: None,
+                filmcraft_dir: None,
+                scriptcraft_dir: None,
+                deckcraft_dir: None,
+                max_upload: 0,
+                secure_cookies: false,
+                cors_origins: vec![],
+                render_workers: 0,
+                filmcraft_cli: String::new(),
+                ffmpeg: String::new(),
+                local_renders: false,
+                db_url: None,
+                session_ttl: 86400,
+                audit_days: 0,
+                lock_ttl: 45,
+                worker: None,
+                media_kind: "local".into(),
+                media_path: None,
+                s3_endpoint: String::new(),
+                s3_region: String::new(),
+                s3_bucket: String::new(),
+                s3_access: String::new(),
+                s3_secret: String::new(),
+                s3_prefix: String::new(),
+                trusted_proxies: vec![],
+            },
+            db: futures::executor::block_on(crate::store::sqlite::connect(":memory:")).unwrap(),
+            blobs: Arc::new(crate::blobs::LocalBlobs::new(dir.join("blobs"))),
+            logins: Mutex::new(HashMap::new()),
+            link_hits: Mutex::new(HashMap::new()),
+            cancels: Mutex::new(HashSet::new()),
+            inspect_cache: Mutex::new(HashMap::new()),
+            chunk_uploads: Mutex::new(HashMap::new()),
+            handoffs: Mutex::new(HashMap::new()),
+            update_check: Mutex::new(None),
+            trusted: RwLock::new(vec![]),
+        })
+    }
+
+    fn user(role: Role) -> User {
+        User {
+            id: model::new_id(),
+            username: model::new_id(),
+            display_name: "u".into(),
+            role,
+            role_name: role.as_str().into(),
+            student_id: String::new(),
+            note: String::new(),
+            disabled: false,
+            avatar: String::new(),
+            quota_bytes: 0,
+            created_by: String::new(),
+            lineage: "/".into(),
+            created_at: AppState::now(),
+            last_login: 0,
+        }
+    }
+
+    fn project(owner: &User) -> Project {
+        Project {
+            id: model::new_id(),
+            owner_id: owner.id.clone(),
+            name: "p".into(),
+            display_name: "p".into(),
+            dir: format!("d/{}", model::new_id()),
+            group_id: String::new(),
+            tags: vec![],
+            created_at: AppState::now(),
+            last_activity: AppState::now(),
+            pinned: false,
+            template: false,
+            status: "draft".into(),
+            submitted_at: 0,
+            reviewed_by: String::new(),
+        }
+    }
+
+    fn session(u: &User) -> Session {
+        Session {
+            user: u.clone(),
+            csrf: "c".into(),
+            token_hash: "t".into(),
+        }
+    }
+
+    fn patch_body(template: Option<bool>) -> Json<UpdateProjectReq> {
+        Json(UpdateProjectReq {
+            display_name: None,
+            group_id: None,
+            tags: None,
+            pinned: None,
+            template,
+        })
+    }
+
+    #[tokio::test]
+    async fn template_flag_is_staff_only() {
+        let dir = std::env::temp_dir().join(format!("wfm-api-{}", model::new_id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let s = state(&dir);
+
+        let student = user(Role::Student);
+        let p = project(&student);
+        s.db.create_project(&p).await.unwrap();
+        let r = update_project(
+            State(s.clone()),
+            session(&student),
+            Path(p.id.clone()),
+            patch_body(Some(true)),
+        )
+        .await;
+        assert_eq!(r.status(), StatusCode::FORBIDDEN);
+        assert!(!s.db.project_by_id(&p.id).await.unwrap().template);
+
+        let teacher = user(Role::Teacher);
+        let p = project(&teacher);
+        s.db.create_project(&p).await.unwrap();
+        let r = update_project(
+            State(s.clone()),
+            session(&teacher),
+            Path(p.id.clone()),
+            patch_body(Some(true)),
+        )
+        .await;
+        assert_eq!(r.status(), StatusCode::OK);
+        assert!(s.db.project_by_id(&p.id).await.unwrap().template);
+    }
+
+    #[tokio::test]
+    async fn students_can_still_patch_other_fields() {
+        let dir = std::env::temp_dir().join(format!("wfm-api-{}", model::new_id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let s = state(&dir);
+
+        let student = user(Role::Student);
+        let p = project(&student);
+        s.db.create_project(&p).await.unwrap();
+        let r = update_project(
+            State(s.clone()),
+            session(&student),
+            Path(p.id.clone()),
+            Json(UpdateProjectReq {
+                display_name: Some("new name".into()),
+                group_id: None,
+                tags: None,
+                pinned: Some(true),
+                template: None,
+            }),
+        )
+        .await;
+        assert_eq!(r.status(), StatusCode::OK);
+        let p = s.db.project_by_id(&p.id).await.unwrap();
+        assert_eq!(p.display_name, "new name");
+        assert!(p.pinned);
+    }
 
     #[test]
     fn file_extensions_compare_case_insensitively() {
