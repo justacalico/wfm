@@ -202,8 +202,14 @@ class _ProjectsPageState extends State<ProjectsPage> {
           onSelected: (v) => switch (v) {
             'share' =>
               showDialog(context: c, builder: (_) => _ShareDialog(project: p)),
-            'render' =>
-              showDialog(context: c, builder: (_) => RenderDialog(project: p)),
+            'render' => showDialog<bool>(
+                  context: c,
+                  builder: (_) => RenderDialog(project: p)).then((queued) {
+                if (queued == true && c.mounted) {
+                  Navigator.of(c).push(MaterialPageRoute(
+                      builder: (_) => ProjectPage(project: p, initialTab: 1)));
+                }
+              }),
             'pin' => _togglePin(p),
             'tags' => _editTags(p),
             'take' => _takeOver(p),
@@ -559,13 +565,15 @@ Widget tagChip(BuildContext context, String t) {
 class ProjectPage extends StatefulWidget {
   final Project project;
   final VoidCallback? onBack;
-  const ProjectPage({super.key, required this.project, this.onBack});
+  final int initialTab;
+  const ProjectPage(
+      {super.key, required this.project, this.onBack, this.initialTab = 0});
   @override
   State<ProjectPage> createState() => _ProjectPageState();
 }
 
 class _ProjectPageState extends State<ProjectPage> {
-  int _tab = 0;
+  late int _tab = widget.initialTab;
   String _filesPath = '';
   late Project _p = widget.project;
 

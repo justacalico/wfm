@@ -318,6 +318,43 @@ void main() {
       expect(find.byType(RenderDialog), findsOneWidget);
     });
 
+    testWidgets('card menu render lands on the renders tab', (t) async {
+      var listed = 0;
+      installApi(extra: {
+        'GET /api/projects/p1/render-info': (_) => {
+              'sequences': [
+                {'id': 21, 'name': 'Main Edit'}
+              ],
+              'activeSequence': 21,
+              'serverRender': true,
+              'project': true,
+            },
+        'POST /api/projects/p1/renders': (_) =>
+            {'id': 'r9', 'status': 'queued', 'mode': 'server'},
+        'GET /api/projects/p1/renders': (_) {
+          listed++;
+          return [
+            {'id': 'r9', 'status': 'queued', 'outputName': 'out9'}
+          ];
+        },
+      });
+      await pump(t, const ProjectsPage());
+      await t.tap(find.byType(PopupMenuButton<String>).first);
+      await settle(t);
+      await t.tap(find.text('Render'));
+      await settle(t);
+      await t.tap(find.text('This device'));
+      await settle(t);
+      await t.tap(find.text('Server').last);
+      await settle(t);
+      await t.tap(find.text('Render'));
+      await settle(t);
+      expect(find.byType(ProjectPage), findsOneWidget);
+      expect(listed, greaterThan(0));
+      expect(find.text('out9'), findsOneWidget);
+      await t.pumpWidget(const SizedBox());
+    });
+
     testWidgets('card menu share opens the share dialog', (t) async {
       installApi();
       await pump(t, const ProjectsPage());
