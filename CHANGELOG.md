@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.27.0 - 2026-11-20
+#### Features
+- 锁定 DeckCraft 宿主模式 - (cbdba87) - calico
+
+- - -
+
 ## v0.26.0 - 2026-11-20
 #### Features
 - ScriptCraft 快捷键由 WFM 设置管理 - (538d777) - calico
