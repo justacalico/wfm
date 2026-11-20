@@ -674,19 +674,6 @@ impl Db for SqliteDb {
         .map_err(dberr)
     }
 
-    async fn managed_projects(&self, actor: &User) -> DbResult<Vec<Project>> {
-        let (role, pat) = (actor.role as i64, format!("%/{}/%", actor.id));
-        self.q(move |c| {
-                let mut st = c.prepare(&format!(
-                    "SELECT p.id,p.owner_id,p.name,p.display_name,p.dir,p.group_id,p.tags,p.created_at,p.last_activity,p.pinned,p.template,p.status,p.submitted_at,p.reviewed_by FROM projects p JOIN users u ON p.owner_id=u.id WHERE u.role < ? AND u.lineage LIKE ? ORDER BY p.created_at DESC"
-                ))?;
-                let rows = st.query_map(params![role, pat], map_project)?;
-                rows.collect::<rusqlite::Result<Vec<_>>>()
-            })
-            .await
-            .map_err(dberr)
-    }
-
     async fn user_in_subtree(&self, actor: &User, user_id: &str) -> DbResult<bool> {
         let (role, pat, uid) = (
             actor.role as i64,
@@ -2275,7 +2262,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn managed_projects_and_take_over() {
+    async fn subtree_and_take_over() {
         let db = connect(":memory:").await.unwrap();
         let u = |id: &str, role: Role, lineage: &str| User {
             id: id.into(),
@@ -2318,9 +2305,9 @@ mod tests {
         db.create_project(&p("sp", "s")).await.unwrap();
         db.create_project(&p("xp", "x")).await.unwrap();
         db.create_project(&p("tp", "t")).await.unwrap();
-        let managed = db.managed_projects(&teacher).await.unwrap();
-        assert_eq!(managed.len(), 1);
-        assert_eq!(managed[0].id, "sp");
+        let own = db.projects_by_owner("s").await.unwrap();
+        assert_eq!(own.len(), 1);
+        assert_eq!(own[0].id, "sp");
         assert!(db.user_in_subtree(&teacher, "s").await.unwrap());
         assert!(!db.user_in_subtree(&teacher, "x").await.unwrap());
         assert!(!db.user_in_subtree(&student, "x").await.unwrap());

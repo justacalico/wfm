@@ -82,7 +82,7 @@ class _CommentsTabState extends State<CommentsTab> {
 
   Widget _comment(AppLocalizations l10n, ProjectComment c) {
     final own = c.userId == Api.i.user?.id;
-    final canDel = own || widget.project.mine || (Api.i.user?.isOwner ?? false);
+    final canDel = own || widget.project.mine;
     return Card(
       child: ListTile(
         leading: CircleAvatar(

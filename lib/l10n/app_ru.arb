@@ -350,6 +350,8 @@
   "takeOver": "Стать владельцем",
   "takeOverBody": "Стать владельцем {name}?",
   "ownedBy": "владелец {name}",
+  "userProjects": "Проекты: {name}",
+  "userProjectsEmpty": "Проектов пока нет.",
   "selectFiles": "Выбрать",
   "selectAll": "Выбрать все",
   "moveSelected": "Переместить выбранное",

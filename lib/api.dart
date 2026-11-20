@@ -84,9 +84,7 @@ class Project {
         submittedAt = j['submittedAt'] ?? 0,
         reviewedBy = j['reviewedBy'] ?? '';
   bool get mine => access.isEmpty
-      ? (ownerId.isEmpty ||
-          ownerId == Api.i.user?.id ||
-          (Api.i.user?.isOwner ?? false))
+      ? (ownerId.isEmpty || ownerId == Api.i.user?.id)
       : access == 'owner';
   bool get locked => status == 'submitted';
   bool get editable => !locked && (mine || access == 'edit');
@@ -770,6 +768,11 @@ class Api {
 
   Future<int> accountUsage(String id) async =>
       (await get('/accounts/$id/usage'))['bytes'] ?? 0;
+
+  Future<List<Project>> accountProjects(String id) async => [
+        for (final e in (await get('/accounts/$id/projects')) as List)
+          Project.fromJson(e)
+      ];
 
   Future<User> updateAccount(String id, Map<String, dynamic> body) async =>
       User.fromJson(await patch('/accounts/$id', body));

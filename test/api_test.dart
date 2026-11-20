@@ -196,11 +196,16 @@ void main() {
         'GET /api/projects/p1/files': [
           {'name': 'a.txt', 'path': 'a.txt', 'type': 'file'}
         ],
+        'GET /api/accounts/u2/projects': [
+          {'id': 'sp', 'name': 's', 'ownerId': 'u2', 'access': 'view'}
+        ],
         'POST *': {'ok': true},
         'PUT *': {'ok': true},
       }));
       final ps = await api.projects();
       expect(ps.single.id, 'p1');
+      final managed = await api.accountProjects('u2');
+      expect(managed.single.id, 'sp');
       final p2 = await api.createProject('n2');
       expect(p2.id, 'p2');
       await api.updateProject('p1',

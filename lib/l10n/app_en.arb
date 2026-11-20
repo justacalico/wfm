@@ -350,6 +350,8 @@
   "takeOver": "Take ownership",
   "takeOverBody": "Take ownership of {name}?",
   "ownedBy": "by {name}",
+  "userProjects": "{name}'s projects",
+  "userProjectsEmpty": "No projects yet.",
   "selectFiles": "Select",
   "selectAll": "Select all",
   "moveSelected": "Move selected",

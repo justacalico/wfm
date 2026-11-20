@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'api.dart';
 import 'main.dart';
+import 'projects.dart';
 import 'util.dart';
 
 class ManagePage extends StatelessWidget {
@@ -292,10 +293,104 @@ class _AccountsTabState extends State<AccountsTab> {
                                 '${u.username}${u.studentId.isNotEmpty ? " · ${u.studentId}" : ""}${u.note.isNotEmpty ? " · ${u.note}" : ""}',
                                 fmtAgo(l10n, u.lastLogin))),
                         trailing: tight ? null : actions,
+                        onTap: () => Navigator.of(c).push(MaterialPageRoute(
+                            builder: (_) => UserProjectsPage(user: u))),
                       );
                     },
                   );
                 }),
+    );
+  }
+}
+
+/// Read-only view of a managed account's projects; taking over is the only
+/// action offered since everything else stays under the owner's control.
+class UserProjectsPage extends StatefulWidget {
+  final User user;
+  const UserProjectsPage({super.key, required this.user});
+  @override
+  State<UserProjectsPage> createState() => _UserProjectsPageState();
+}
+
+class _UserProjectsPageState extends State<UserProjectsPage> {
+  List<Project>? _items;
+  String _err = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final v = await Api.i.accountProjects(widget.user.id);
+      setState(() {
+        _items = v;
+        _err = '';
+      });
+    } catch (e) {
+      setState(() => _err = '$e');
+    }
+  }
+
+  Future<void> _takeOver(Project p) async {
+    if (!await confirm(context, context.l10n.takeOver,
+        context.l10n.takeOverBody(p.displayName))) {
+      return;
+    }
+    try {
+      await Api.i.takeOverProject(p.id);
+      _load();
+    } catch (e) {
+      if (mounted) snack(context, e);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final u = widget.user;
+    final items = _items;
+    return Scaffold(
+      appBar: AppBar(
+          title: Text(l10n.userProjects(u.name.isEmpty ? u.username : u.name))),
+      body: _err.isNotEmpty
+          ? errorView(context, _err, _load)
+          : items == null
+              ? const Center(child: CircularProgressIndicator())
+              : items.isEmpty
+                  ? Center(child: Text(l10n.userProjectsEmpty))
+                  : ListView(padding: const EdgeInsets.all(16), children: [
+                      for (final p in items)
+                        Card(
+                          clipBehavior: Clip.antiAlias,
+                          child: ListTile(
+                            title: Text(p.displayName),
+                            subtitle: Text([
+                              l10n.createdAgo(fmtAgo(l10n, p.createdAt)),
+                              if (p.status == 'submitted')
+                                l10n.statusSubmitted
+                              else if (p.status == 'reviewed')
+                                l10n.statusReviewed,
+                            ].join('  ·  ')),
+                            trailing: p.canTakeOver
+                                ? PopupMenuButton<String>(
+                                    iconSize: 18,
+                                    onSelected: (_) => _takeOver(p),
+                                    itemBuilder: (_) => [
+                                      PopupMenuItem(
+                                          value: 'take',
+                                          child: Text(l10n.takeOver)),
+                                    ],
+                                  )
+                                : null,
+                            onTap: () => Navigator.of(context).push(
+                                MaterialPageRoute(
+                                    builder: (_) => ProjectPage(project: p))),
+                          ),
+                        ),
+                    ]),
     );
   }
 }

@@ -2,7 +2,6 @@
 
 // ignore: unused_import
 import 'package:intl/intl.dart' as intl;
-
 import 'app_localizations.dart';
 
 // ignore_for_file: type=lint
@@ -711,6 +710,14 @@ class AppLocalizationsRu extends AppLocalizations {
   String ownedBy(Object name) {
     return 'владелец $name';
   }
+
+  @override
+  String userProjects(Object name) {
+    return 'Проекты: $name';
+  }
+
+  @override
+  String get userProjectsEmpty => 'Проектов пока нет.';
 
   @override
   String get selectFiles => 'Выбрать';

@@ -2,7 +2,6 @@
 
 // ignore: unused_import
 import 'package:intl/intl.dart' as intl;
-
 import 'app_localizations.dart';
 
 // ignore_for_file: type=lint
@@ -705,6 +704,14 @@ class AppLocalizationsZh extends AppLocalizations {
   String ownedBy(Object name) {
     return '$name 的项目';
   }
+
+  @override
+  String userProjects(Object name) {
+    return '$name 的项目';
+  }
+
+  @override
+  String get userProjectsEmpty => '还没有项目。';
 
   @override
   String get selectFiles => '选择';
