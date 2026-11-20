@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.31.2 - 2026-11-20
+#### Bug Fixes
+- 项目卡片只在服务端允许时显示接管入口 - (bc1f645) - calico
+
+- - -
+
 ## v0.31.1 - 2026-11-20
 #### Bug Fixes
 - 渲染媒体暂存名与客户端注册名一致 - (5ffccb0) - calico
