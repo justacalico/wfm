@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.36.3 - 2026-11-20
+#### Bug Fixes
+- 项目页只显示自己的项目，他人项目从管理页查看 - (5e366fa) - calico
+
+- - -
+
 ## v0.36.2 - 2026-11-20
 #### Bug Fixes
 - 修复窄屏项目页与分享对话框布局 - (8162600) - calico
