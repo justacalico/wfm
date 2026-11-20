@@ -647,7 +647,7 @@ async fn avatar(
     if u.avatar.is_empty() {
         return err(StatusCode::NOT_FOUND, "no avatar");
     }
-    serve_blob(&s, &u.avatar, &u.avatar, &headers, false).await
+    serve_blob(&s, &u.avatar, &u.avatar, &headers, false, None).await
 }
 
 #[derive(Deserialize)]
@@ -1948,7 +1948,7 @@ async fn link_file(
     if l.scope == "renders" && !key.starts_with("Exports/") {
         return err(StatusCode::NOT_FOUND, "not found");
     }
-    serve_blob(&s, &blob_key(&p.dir, &key), &key, &headers, false).await
+    serve_blob(&s, &blob_key(&p.dir, &key), &key, &headers, false, None).await
 }
 
 #[derive(Deserialize)]
@@ -2630,6 +2630,8 @@ struct FileQuery {
     done: bool,
     #[serde(rename = "clientId", default)]
     client_id: String,
+    start: Option<u64>,
+    end: Option<u64>,
 }
 
 async fn list_files(
@@ -3197,7 +3199,8 @@ async fn download(
         Ok(k) => k,
         Err(e) => return fs_resp(e),
     };
-    serve_blob(&s, &blob_key(&p.dir, &key), &key, &headers, q.dl).await
+    let range = q.start.map(|a| (a, q.end.unwrap_or(u64::MAX)));
+    serve_blob(&s, &blob_key(&p.dir, &key), &key, &headers, q.dl, range).await
 }
 
 fn thumb_key(dir: &str, rel: &str, size: u64) -> String {
@@ -3368,7 +3371,7 @@ async fn thumb(
             return err(StatusCode::NOT_FOUND, &e);
         }
     }
-    serve_blob(&s, &tk, "thumb.jpg", &HeaderMap::new(), false).await
+    serve_blob(&s, &tk, "thumb.jpg", &HeaderMap::new(), false, None).await
 }
 
 async fn serve_blob(
@@ -3377,17 +3380,26 @@ async fn serve_blob(
     name: &str,
     headers: &HeaderMap,
     attachment: bool,
+    range: Option<(u64, u64)>,
 ) -> Response {
     let size = match s.blobs.head(key).await {
         Ok(v) => v,
         Err(_) => return err(StatusCode::NOT_FOUND, "not found"),
     };
-    let (start, end, partial) = match headers.get(header::RANGE).and_then(|v| v.to_str().ok()) {
-        Some(r) => match parse_range(r, size) {
-            Some((a, b)) => (a, b, true),
+    // A `start`/`end` query pair asks for a range without the `Range` header, which some
+    // browsers cannot send on fetch and some proxies drop.
+    let (start, end, partial) = match range
+        .map(|(a, b)| (a, b.min(size.saturating_sub(1))))
+        .filter(|(a, b)| a <= b)
+    {
+        Some((a, b)) => (a, b, true),
+        None => match headers.get(header::RANGE).and_then(|v| v.to_str().ok()) {
+            Some(r) => match parse_range(r, size) {
+                Some((a, b)) => (a, b, true),
+                None => (0u64, size.saturating_sub(1), false),
+            },
             None => (0u64, size.saturating_sub(1), false),
         },
-        None => (0u64, size.saturating_sub(1), false),
     };
     if size == 0 {
         let mut r = Response::new(Body::empty());
@@ -4484,7 +4496,7 @@ async fn worker_file(
         Ok(k) => k,
         Err(e) => return fs_resp(e),
     };
-    serve_blob(&s, &blob_key(&project.dir, &key), &key, &headers, false).await
+    serve_blob(&s, &blob_key(&project.dir, &key), &key, &headers, false, None).await
 }
 
 #[derive(Deserialize)]

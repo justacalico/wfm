@@ -1,0 +1,55 @@
+diff --git a/apps/filmcraft-web/src/host.rs b/apps/filmcraft-web/src/host.rs
+index 4a98dfa..852259a 100644
+--- a/apps/filmcraft-web/src/host.rs
++++ b/apps/filmcraft-web/src/host.rs
+@@ -464,10 +464,11 @@ fn restore_bins() {
+             }
+         }
+         for (paths, dirs) in files {
+-            let r = crate::import::on_ui(move |w, _| {
++            let held = paths.clone();
++            let bin: Result<Value, String> = crate::import::on_ui(move |w, _| {
+                 let s = &mut w.app.session;
+                 let referenced = s.project.items.values().any(|i| match &i.kind {
+-                    filmcraft_engine::project::ItemKind::Media(m) => matches!(&m.media, filmcraft_engine::project::MediaRef::File { path: p } if paths.iter().any(|x| x == p)),
++                    filmcraft_engine::project::ItemKind::Media(m) => matches!(&m.media, filmcraft_engine::project::MediaRef::File { path: p } if held.iter().any(|x| x == p)),
+                     _ => false,
+                 });
+                 if referenced {
+@@ -475,10 +476,21 @@ fn restore_bins() {
+                 }
+                 let root = s.project.root.clone();
+                 let parent = bin_for(&root, s, &dirs)?;
+-                s.execute("file.import", json!({"paths": [paths[0]], "bin": parent.0})).map_err(|e| e.to_string())
++                Ok(json!(parent.0))
+             })
+             .await;
+-            if let Err(e) = r {
++            let bin = match bin {
++                Ok(v) => match v.as_u64() {
++                    Some(b) => b,
++                    None => continue,
++                },
++                Err(e) => {
++                    crate::post(move |w, _| w.app.status(e));
++                    continue;
++                }
++            };
++            // Remote entries read over the network: the import retries while chunks load.
++            if let Err(e) = crate::import::import_path(paths[0].clone(), bin).await {
+                 crate::post(move |w, _| w.app.status(e));
+             }
+         }
+diff --git a/apps/filmcraft-web/src/import.rs b/apps/filmcraft-web/src/import.rs
+index 3ff1904..fa0897d 100644
+--- a/apps/filmcraft-web/src/import.rs
++++ b/apps/filmcraft-web/src/import.rs
+@@ -81,7 +81,7 @@ pub(crate) async fn prewarm(path: &str, size: u64) {
+ }
+ 
+ /// `file.import` one path, retried while its bytes are loading.
+-async fn import_path(path: String, bin: u64) -> Result<Value, String> {
++pub(crate) async fn import_path(path: String, bin: u64) -> Result<Value, String> {
+     for _ in 0..2000 {
+         let p = path.clone();
+         let (r, pending) = on_ui(move |w, _| {
