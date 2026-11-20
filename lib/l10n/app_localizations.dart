@@ -1970,6 +1970,12 @@ abstract class AppLocalizations {
   /// **'FilmCraft shortcuts'**
   String get filmcraftShortcuts;
 
+  /// No description provided for @scriptcraftShortcuts.
+  ///
+  /// In en, this message translates to:
+  /// **'ScriptCraft shortcuts'**
+  String get scriptcraftShortcuts;
+
   /// No description provided for @searchShortcuts.
   ///
   /// In en, this message translates to:

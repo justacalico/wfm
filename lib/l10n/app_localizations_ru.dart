@@ -1044,6 +1044,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get filmcraftShortcuts => 'Горячие клавиши FilmCraft';
 
   @override
+  String get scriptcraftShortcuts => 'Горячие клавиши ScriptCraft';
+
+  @override
   String get searchShortcuts => 'Поиск действий';
 
   @override

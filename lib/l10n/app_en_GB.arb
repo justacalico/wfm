@@ -124,10 +124,10 @@
   "notifComment": "{from} commented on {project}",
   "notifSubmitted": "{from} submitted {project} for review",
   "notifReviewed": "{from} marked {project} reviewed",
-  "notifReturned": "{from} returned {project} to draft"
-,
+  "notifReturned": "{from} returned {project} to draft",
   "editors": "Editors",
   "filmcraftShortcuts": "FilmCraft shortcuts",
+  "scriptcraftShortcuts": "ScriptCraft shortcuts",
   "searchShortcuts": "Search actions",
   "pressShortcut": "Press the new shortcut",
   "shortcutConflict": "Already used by {action}",

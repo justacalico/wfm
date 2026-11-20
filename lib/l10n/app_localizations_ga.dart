@@ -1047,6 +1047,9 @@ class AppLocalizationsGa extends AppLocalizations {
   String get filmcraftShortcuts => 'Aicearraí FilmCraft';
 
   @override
+  String get scriptcraftShortcuts => 'Aicearraí ScriptCraft';
+
+  @override
   String get searchShortcuts => 'Cuardaigh gníomhartha';
 
   @override

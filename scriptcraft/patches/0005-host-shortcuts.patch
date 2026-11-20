@@ -1,0 +1,143 @@
+diff --git a/crates/ui-egui/src/canvas.rs b/crates/ui-egui/src/canvas.rs
+index dec2550..9614b8a 100644
+--- a/crates/ui-egui/src/canvas.rs
++++ b/crates/ui-egui/src/canvas.rs
+@@ -289,7 +289,19 @@ pub fn key_command(app: &mut ScriptApp, key: Key, m: Modifiers) {
+             }
+             return;
+         }
+-        _ if plain => return,
++        _ if plain => {
++            // Modifier-free keys type text, but function and navigation keys can still be bound.
++            if matches!(key,
++                Key::F1 | Key::F2 | Key::F3 | Key::F4 | Key::F5 | Key::F6 | Key::F7 | Key::F8 | Key::F9
++                | Key::F10 | Key::F11 | Key::F12 | Key::F13 | Key::F14 | Key::F15 | Key::F16 | Key::F17
++                | Key::F18 | Key::F19 | Key::F20 | Key::F21 | Key::F22 | Key::F23 | Key::F24 | Key::F25
++                | Key::F26 | Key::F27 | Key::F28 | Key::F29 | Key::F30 | Key::F31 | Key::F32 | Key::F33
++                | Key::F34 | Key::F35 | Key::Insert | Key::PageUp | Key::PageDown)
++            {
++                crate::chrome::dispatch_shortcut(app, key, m);
++            }
++            return;
++        }
+         _ => {
+             crate::chrome::dispatch_shortcut(app, key, m);
+             return;
+diff --git a/crates/ui-egui/src/chrome.rs b/crates/ui-egui/src/chrome.rs
+index 084001c..9d2c811 100644
+--- a/crates/ui-egui/src/chrome.rs
++++ b/crates/ui-egui/src/chrome.rs
+@@ -7,6 +7,30 @@ use serde_json::json;
+ use crate::icons::{self, Icon};
+ use crate::{ScriptApp, UI_COMMANDS, View};
+ 
++/// File commands and find have a `ui.*` twin: the engine default and the host binding
++/// live under different ids, so a rebind must hide the twin's default too.
++fn ui_alias(id: &str) -> Option<&'static str> {
++    Some(match id {
++        "file.save" => "ui.save",
++        "file.saveAs" => "ui.saveAs",
++        "file.exportPdf" => "ui.exportPdf",
++        "ui.save" => "file.save",
++        "ui.saveAs" => "file.saveAs",
++        "ui.exportPdf" => "file.exportPdf",
++        "edit.find" => "ui.find",
++        "ui.find" => "edit.find",
++        _ => return None,
++    })
++}
++
++/// The binding the WFM host set for `id` (or its `ui.*` twin), if any.
++pub(crate) fn wfm_bind<'a>(app: &'a ScriptApp, id: &str) -> Option<&'a str> {
++    app.wfm_keys
++        .get(id)
++        .or_else(|| ui_alias(id).and_then(|a| app.wfm_keys.get(a)))
++        .map(String::as_str)
++}
++
+ /// Run the command bound to a shortcut (UI commands first, then the engine registry).
+ pub fn dispatch_shortcut(app: &mut ScriptApp, key: Key, m: Modifiers) -> bool {
+     let sc = crate::canvas::shortcut(key, m);
+@@ -14,12 +38,16 @@ pub fn dispatch_shortcut(app: &mut ScriptApp, key: Key, m: Modifiers) -> bool {
+     if matches!(sc.as_str(), "Mod+C" | "Mod+X" | "Mod+V") {
+         return false;
+     }
+-    if let Some((id, ..)) = UI_COMMANDS.iter().find(|(_, _, _, k)| !k.is_empty() && k.eq_ignore_ascii_case(&sc)) {
++    let hit = |id: &str, default: &str| {
++        let keys = wfm_bind(app, id).unwrap_or(default);
++        !keys.is_empty() && keys.split(" / ").any(|k| k.eq_ignore_ascii_case(&sc))
++    };
++    if let Some((id, ..)) = UI_COMMANDS.iter().find(|(id, _, _, k)| hit(id, k)) {
+         app.run(id, json!({}));
+         return true;
+     }
+     let reg = app.session.registry.clone();
+-    let Some(spec) = reg.by_shortcut(&sc) else { return false };
++    let Some(spec) = reg.all().iter().find(|s| hit(s.id, s.shortcut)) else { return false };
+     // File commands that need a path go through their UI versions (which ask for one).
+     let id = match spec.id {
+         "file.save" => "ui.save",
+@@ -62,6 +90,7 @@ fn item(app: &mut ScriptApp, ui: &mut Ui, label: &str, id: &str, key: &str) {
+     let lang = app.prefs.appearance.language;
+     let enabled = if id.starts_with("ui.") { true } else { app.session.registry.get(id).is_some_and(|c| (c.enabled)(&app.session).is_none()) };
+     let mut b = egui::Button::new(lang.text(label));
++    let key = app.bound_key(id, key);
+     if !key.is_empty() {
+         b = b.shortcut_text(pretty_key(key));
+     }
+diff --git a/crates/ui-egui/src/lib.rs b/crates/ui-egui/src/lib.rs
+index d39b9ee..06d8d52 100644
+--- a/crates/ui-egui/src/lib.rs
++++ b/crates/ui-egui/src/lib.rs
+@@ -26,6 +26,7 @@ pub mod split;
+ pub mod storymap;
+ pub mod theme;
+ 
++use std::collections::HashMap;
+ use std::sync::mpsc::Receiver;
+ 
+ use scriptcraft_engine::{CmdError, Session};
+@@ -204,6 +205,8 @@ pub struct ScriptApp {
+     /// Running inside the WFM project frame: the host owns the document, so local file
+     /// commands (open, import, save-as, samples, templates, quit) are off the menus and no-op.
+     pub in_wfm: bool,
++    /// Per-user shortcut bindings pushed by the WFM host (`command id` → keys, empty = unbound).
++    pub wfm_keys: HashMap<String, String>,
+     /// Files delivered by the host or dropped on the window.
+     pub inbox: Inbox,
+     /// Text to speech (and speech to text) from the host: system voices natively, the browser's
+@@ -288,6 +291,7 @@ impl ScriptApp {
+             dialog_buttons: Vec::new(),
+             host: None,
+             in_wfm: false,
++            wfm_keys: HashMap::new(),
+             inbox: Inbox::default(),
+             speaker: None,
+             printer: None,
+@@ -577,6 +581,11 @@ impl ScriptApp {
+         let _ = self.execute(id, params);
+     }
+ 
++    /// The shortcut bound to `id` by the WFM host, or the compiled-in `default`.
++    pub fn bound_key<'a>(&'a self, id: &str, default: &'a str) -> &'a str {
++        chrome::wfm_bind(self, id).unwrap_or(default)
++    }
++
+     fn ui_command(&mut self, id: &str, p: &Value) -> Result<Value, CmdError> {
+         let path = p.get("path").and_then(Value::as_str).map(str::to_string);
+         match id {
+@@ -820,6 +829,14 @@ impl ScriptApp {
+         let mut files = std::mem::take(&mut *self.inbox.lock().unwrap_or_else(|e| e.into_inner()));
+         files.extend(dropped);
+         for (name, bytes) in files {
++            if let Some(meta) = name.strip_prefix("wfm:").and_then(|s| serde_json::from_str::<Value>(s).ok()) {
++                if meta["k"].as_str() == Some("shortcuts")
++                    && let Some(b) = meta["b"].as_object()
++                {
++                    self.wfm_keys = b.iter().filter_map(|(k, v)| Some((k.clone(), v.as_str()?.to_string()))).collect();
++                }
++                continue;
++            }
+             let data = scriptcraft_engine::b64::encode(&bytes);
+             if std::mem::take(&mut self.drafts.compare_pending) {
+                 let _ = drafts::run_compare(self, json!({"name": name, "data": data}));

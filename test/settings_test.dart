@@ -355,6 +355,8 @@ void main() {
     await t.binding.setSurfaceSize(const Size(1000, 900));
     addTearDown(() => t.binding.setSurfaceSize(null));
     await goSettings(t);
+    await t.ensureVisible(find.text('Check for updates'));
+    await settle(t);
     await t.tap(find.text('Check for updates'));
     await settle(t);
     expect(find.textContaining('up to date'), findsOneWidget);
@@ -393,6 +395,8 @@ void main() {
     await t.binding.setSurfaceSize(const Size(1000, 900));
     addTearDown(() => t.binding.setSurfaceSize(null));
     await goSettings(t);
+    await t.ensureVisible(find.text('Check for updates'));
+    await settle(t);
     await t.tap(find.text('Check for updates'));
     await settle(t);
     expect(find.textContaining('9.9.9'), findsOneWidget);
@@ -411,6 +415,8 @@ void main() {
     addTearDown(() => t.binding.setSurfaceSize(null));
     openExternalForTesting = (_) => throw 'no browser';
     await goSettings(t);
+    await t.ensureVisible(find.text('Check for updates'));
+    await settle(t);
     await t.tap(find.text('Check for updates'));
     await settle(t);
     await t.tap(find.text('View release'));
@@ -426,9 +432,13 @@ void main() {
     await t.binding.setSurfaceSize(const Size(1000, 900));
     addTearDown(() => t.binding.setSurfaceSize(null));
     await goSettings(t);
+    await t.ensureVisible(find.text('Check for updates'));
+    await settle(t);
     await t.tap(find.text('Check for updates'));
     await settle(t);
     expect(find.text('Update check failed'), findsOneWidget);
+    await t.ensureVisible(find.text('Check for updates'));
+    await settle(t);
     await t.tap(find.text('Check for updates'));
     await settle(t);
     expect(find.text('Update check failed'), findsOneWidget);
@@ -533,6 +543,8 @@ void main() {
     await t.binding.setSurfaceSize(const Size(1000, 900));
     addTearDown(() => t.binding.setSurfaceSize(null));
     await goSettings(t);
+    await t.ensureVisible(find.text('Check for updates'));
+    await settle(t);
     await t.tap(find.text('Check for updates'));
     await settle(t, 60);
     expect(find.text('Update check failed'), findsOneWidget);

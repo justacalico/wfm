@@ -456,6 +456,7 @@
   "notifReturned": "{from} returned {project} to draft",
   "editors": "Editors",
   "filmcraftShortcuts": "FilmCraft shortcuts",
+  "scriptcraftShortcuts": "ScriptCraft shortcuts",
   "searchShortcuts": "Search actions",
   "pressShortcut": "Press the new shortcut",
   "shortcutConflict": "Already used by {action}",

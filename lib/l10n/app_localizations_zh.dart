@@ -1038,6 +1038,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get filmcraftShortcuts => 'FilmCraft 快捷键';
 
   @override
+  String get scriptcraftShortcuts => 'ScriptCraft 快捷键';
+
+  @override
   String get searchShortcuts => '搜索操作';
 
   @override

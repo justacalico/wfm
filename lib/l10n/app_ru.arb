@@ -456,6 +456,7 @@
   "notifReturned": "{from} вернул {project} в черновик",
   "editors": "Редакторы",
   "filmcraftShortcuts": "Горячие клавиши FilmCraft",
+  "scriptcraftShortcuts": "Горячие клавиши ScriptCraft",
   "searchShortcuts": "Поиск действий",
   "pressShortcut": "Нажмите новое сочетание",
   "shortcutConflict": "Уже используется: {action}",

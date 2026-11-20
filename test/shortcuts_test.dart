@@ -277,9 +277,105 @@ void main() {
     await settle(t);
     await t.tap(find.widgetWithText(ListTile, 'Settings').first);
     await settle(t);
-    await t.tap(find.byIcon(Icons.keyboard_outlined));
+    await t.tap(find.byIcon(Icons.keyboard_outlined).first);
     await settle(t);
     expect(find.byType(ShortcutsPage), findsOneWidget);
     expect(find.text('Undo'), findsOneWidget);
+  });
+
+  testWidgets('scriptcraft page loads its catalog and sc-namespaced bindings',
+      (t) async {
+    var app = '';
+    var saved = '';
+    installApi(extra: {
+      'GET /api/shortcuts/catalog': (req) {
+        app = req.url.queryParameters['app'] ?? '';
+        return catalog;
+      },
+      'GET /api/shortcuts': (_) => {
+            'bindings': {'sc.edit.undo': 'Alt+Q', 'edit.undo': 'Cmd+K'}
+          },
+      'PUT /api/shortcuts': (req) {
+        saved = req.body;
+        return {'ok': true};
+      },
+    });
+    await pump(t, const ShortcutsPage(app: 'scriptcraft'));
+    expect(app, 'scriptcraft');
+    expect(find.text('ScriptCraft shortcuts'), findsOneWidget);
+    expect(find.text('Alt+Q'), findsOneWidget);
+    await t.tap(find.text('Undo'));
+    await settle(t);
+    await t.sendKeyEvent(LogicalKeyboardKey.keyC);
+    await settle(t);
+    await t.tap(find.widgetWithText(FilledButton, 'Save'));
+    await settle(t);
+    expect(saved, contains('"sc.edit.undo":"C"'));
+    expect(saved, contains('"edit.undo":"Cmd+K"'));
+    expect(saved, contains('"sc.tool.razor":""'));
+    expect(find.text('Unbound'), findsWidgets);
+  });
+
+  testWidgets('scriptcraft reset all keeps filmcraft bindings', (t) async {
+    var saved = '';
+    installApi(extra: {
+      ...stubs(
+          bindings: {'sc.edit.undo': 'Alt+Q', 'edit.undo': 'Cmd+K'},
+          catalog: catalog),
+      'PUT /api/shortcuts': (req) {
+        saved = req.body;
+        return {'ok': true};
+      },
+    });
+    await pump(t, const ShortcutsPage(app: 'scriptcraft'));
+    await t.tap(find.byIcon(Icons.restore));
+    await settle(t);
+    await t.tap(find.widgetWithText(FilledButton, 'Confirm'));
+    await settle(t);
+    expect(saved, contains('"edit.undo":"Cmd+K"'));
+    expect(saved, isNot(contains('sc.edit.undo')));
+  });
+
+  testWidgets('filmcraft reset all keeps scriptcraft bindings', (t) async {
+    var saved = '';
+    installApi(extra: {
+      ...stubs(
+          bindings: {'sc.edit.undo': 'Alt+Q', 'edit.undo': 'Cmd+K'},
+          catalog: catalog),
+      'PUT /api/shortcuts': (req) {
+        saved = req.body;
+        return {'ok': true};
+      },
+    });
+    await pump(t, const ShortcutsPage());
+    await t.tap(find.byIcon(Icons.restore));
+    await settle(t);
+    await t.tap(find.widgetWithText(FilledButton, 'Confirm'));
+    await settle(t);
+    expect(saved, contains('"sc.edit.undo":"Alt+Q"'));
+    expect(saved, isNot(contains('"edit.undo"')));
+  });
+
+  testWidgets('scriptcraft settings tile opens the sc shortcuts page',
+      (t) async {
+    var app = '';
+    installApi(extra: {
+      'GET /api/shortcuts/catalog': (req) {
+        app = req.url.queryParameters['app'] ?? '';
+        return catalog;
+      },
+      'GET /api/shortcuts': (_) => {'bindings': <String, String>{}},
+    });
+    await t.binding.setSurfaceSize(const Size(1280, 2400));
+    addTearDown(() => t.binding.setSurfaceSize(null));
+    await t.pumpWidget(const WfmApp());
+    await settle(t);
+    await t.tap(find.widgetWithText(ListTile, 'Settings').first);
+    await settle(t);
+    await t.tap(find.byIcon(Icons.keyboard_outlined).last);
+    await settle(t);
+    expect(find.byType(ShortcutsPage), findsOneWidget);
+    expect(app, 'scriptcraft');
+    expect(find.text('ScriptCraft shortcuts'), findsNWidgets(2));
   });
 }
