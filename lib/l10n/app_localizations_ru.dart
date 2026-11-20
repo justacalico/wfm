@@ -1127,4 +1127,31 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get lateSubmission => ' ';
+
+  @override
+  String get assignedToYou => 'Назначено вам';
+
+  @override
+  String get dueNow => 'срок вышел';
+
+  @override
+  String inMinutes(Object count) {
+    return 'через $count мин.';
+  }
+
+  @override
+  String inHours(Object count) {
+    return 'через $count ч.';
+  }
+
+  @override
+  String inDays(Object count) {
+    return 'через $count дн.';
+  }
+
+  @override
+  String get notStarted => 'Не начато';
+
+  @override
+  String get inProgress => 'В работе';
 }

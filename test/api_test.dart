@@ -612,6 +612,7 @@ void main() {
             'id': 'a1',
             'copy': {'projectId': 'c1', 'submissions': 3},
             'projectName': 'P - K',
+            'teacherName': 'Ms T',
             'status': 'draft'
           }
         ],
@@ -638,6 +639,7 @@ void main() {
       expect(mine.single.projectName, 'P - K');
       expect(mine.single.copy.submissions, 3);
       expect(mine.single.status, 'draft');
+      expect(mine.single.teacherName, 'Ms T');
     });
 
     test('AutoShare model and endpoints', () async {

@@ -481,5 +481,27 @@
   "unassign": "Bain an tasc",
   "unassignBody": "Bain an tasc seo? Fanfaidh cóipeanna na ndaltaí mar ghnáththionscadail.",
   "noStudents": "Níl daltaí le sannadh",
-  "lateSubmission": "déanach"
+  "lateSubmission": "déanach",
+  "assignedToYou": "Sannta duit",
+  "dueNow": "dlite anois",
+  "inMinutes": "in {count} nóiméad",
+  "@inMinutes": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "inHours": "in {count} uair",
+  "@inHours": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "inDays": "in {count} lá",
+  "@inDays": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "notStarted": "Gan tosú",
+  "inProgress": "Ar siúl"
 }

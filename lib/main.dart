@@ -12,6 +12,7 @@ import 'invite.dart';
 import 'link.dart';
 import 'manage.dart';
 import 'settings.dart';
+import 'util.dart';
 
 void main() => runApp(const WfmApp());
 
@@ -938,8 +939,41 @@ class ShellState extends State<Shell> {
   }
 }
 
-class HomePage extends StatelessWidget {
+class HomePage extends StatefulWidget {
   const HomePage({super.key});
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  List<MyAssignment>? _assignments;
+
+  @override
+  void initState() {
+    super.initState();
+    Api.i.myAssignments().then((v) {
+      if (mounted) setState(() => _assignments = v);
+    }).catchError((_) {
+      if (mounted) setState(() => _assignments = const []);
+    });
+  }
+
+  void _openCopy(MyAssignment a) {
+    final p = Project.fromJson({
+      'id': a.copy.projectId,
+      'name': a.projectName,
+      'displayName': a.projectName,
+      'status': a.status,
+    });
+    final shell = context.findAncestorStateOfType<ShellState>();
+    if (shell != null) {
+      shell.openProject(p);
+    } else {
+      Navigator.of(context)
+          .push(MaterialPageRoute(builder: (_) => ProjectPage(project: p)));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
@@ -958,10 +992,32 @@ class HomePage extends StatelessWidget {
       ),
     ];
     final tight = MediaQuery.sizeOf(context).width < 720;
+    final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    final mine = List.of(_assignments ?? [])
+      ..sort((a, b) {
+        final dueA = a.assignment.dueAt, dueB = b.assignment.dueAt;
+        final lateA = dueA > 0 && dueA < now, lateB = dueB > 0 && dueB < now;
+        if (lateA != lateB) return lateA ? -1 : 1;
+        if (dueA != dueB) {
+          if (dueA == 0) return 1;
+          if (dueB == 0) return -1;
+          return dueA.compareTo(dueB);
+        }
+        return b.assignment.createdAt.compareTo(a.assignment.createdAt);
+      });
     return ListView(padding: const EdgeInsets.all(24), children: [
       Text(l10n.greeting(u.name.isEmpty ? u.username : u.name),
           style: Theme.of(context).textTheme.headlineSmall),
       const SizedBox(height: 16),
+      if (mine.isNotEmpty) ...[
+        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(l10n.assignedToYou,
+              style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 8),
+          for (final a in mine) _assignmentTile(context, a, now),
+          const SizedBox(height: 16),
+        ]),
+      ],
       Wrap(spacing: 12, runSpacing: 12, children: [
         for (final c in cards)
           SizedBox(
@@ -991,5 +1047,35 @@ class HomePage extends StatelessWidget {
           ),
       ]),
     ]);
+  }
+
+  Widget _assignmentTile(BuildContext context, MyAssignment a, int now) {
+    final l10n = context.l10n;
+    final due = a.assignment.dueAt;
+    final overdue = due > 0 && due < now;
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      margin: const EdgeInsets.only(bottom: 8),
+      child: ListTile(
+        leading: Icon(a.assignment.locked
+            ? Icons.lock_outline
+            : Icons.assignment_outlined),
+        title: Text(a.projectName),
+        subtitle: Text([
+          if (a.teacherName.isNotEmpty) a.teacherName,
+          if (due > 0)
+            overdue ? l10n.overdue : '${l10n.dueDate}: ${fmtIn(l10n, due)}',
+        ].join(' · ')),
+        trailing: a.status == 'draft'
+            ? tagChip(context,
+                a.copy.submissions > 0 ? l10n.inProgress : l10n.notStarted)
+            : tagChip(
+                context,
+                a.status == 'reviewed'
+                    ? l10n.statusReviewed
+                    : l10n.statusSubmitted),
+        onTap: a.assignment.locked ? null : () => _openCopy(a),
+      ),
+    );
   }
 }

@@ -481,5 +481,27 @@
   "unassign": " ",
   "unassignBody": "  ?     .",
   "noStudents": "   ",
-  "lateSubmission": " "
+  "lateSubmission": " ",
+  "assignedToYou": "Назначено вам",
+  "dueNow": "срок вышел",
+  "inMinutes": "через {count} мин.",
+  "@inMinutes": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "inHours": "через {count} ч.",
+  "@inHours": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "inDays": "через {count} дн.",
+  "@inDays": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "notStarted": "Не начато",
+  "inProgress": "В работе"
 }

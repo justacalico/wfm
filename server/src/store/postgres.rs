@@ -1665,7 +1665,7 @@ impl Db for PgDb {
 
     async fn assignments_for_student(&self, student: &str) -> DbResult<Vec<MyAssignment>> {
         sqlx::query(
-            "SELECT a.id,a.project_id AS a_project_id,a.teacher_id,a.allow_withdraw,a.max_submissions,a.due_at,a.hidden,a.locked,a.created_at,c.project_id,c.assignment_id,c.student_id,c.submissions,p.display_name AS proj_name,p.status FROM assignment_copies c JOIN assignments a ON a.id=c.assignment_id JOIN projects p ON p.id=c.project_id WHERE c.student_id=$1 AND a.hidden=0 ORDER BY a.created_at DESC",
+            "SELECT a.id,a.project_id AS a_project_id,a.teacher_id,a.allow_withdraw,a.max_submissions,a.due_at,a.hidden,a.locked,a.created_at,c.project_id,c.assignment_id,c.student_id,c.submissions,p.display_name AS proj_name,p.status,COALESCE(NULLIF(u.display_name,''),u.username) AS teacher_name FROM assignment_copies c JOIN assignments a ON a.id=c.assignment_id JOIN projects p ON p.id=c.project_id JOIN users u ON u.id=a.teacher_id WHERE c.student_id=$1 AND a.hidden=0 ORDER BY a.created_at DESC",
         )
         .bind(student)
         .map(|r: sqlx::postgres::PgRow| {
@@ -1683,6 +1683,7 @@ impl Db for PgDb {
                 },
                 copy: row_copy(&r),
                 project_name: r.get("proj_name"),
+                teacher_name: r.get("teacher_name"),
                 status: r.get("status"),
             }
         })

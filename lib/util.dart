@@ -31,6 +31,15 @@ String fmtAgo(AppLocalizations l10n, int ts) {
   return l10n.yearsAgo(d.inDays ~/ 365);
 }
 
+String fmtIn(AppLocalizations l10n, int ts) {
+  final d =
+      DateTime.fromMillisecondsSinceEpoch(ts * 1000).difference(DateTime.now());
+  if (d.inMinutes < 1) return l10n.dueNow;
+  if (d.inHours < 1) return l10n.inMinutes(d.inMinutes);
+  if (d.inDays < 1) return l10n.inHours(d.inHours);
+  return l10n.inDays(d.inDays);
+}
+
 bool validUsername(String s) =>
     s.length >= 2 &&
     s.length <= 32 &&

@@ -235,6 +235,78 @@ void main() {
     expect(find.byType(ManagePage), findsOneWidget);
   });
 
+  Map<String, dynamic> assignment(String id, String name,
+          {int due = 0,
+          bool locked = false,
+          String teacher = 'Ms T',
+          int subs = 0,
+          int created = 1,
+          String status = 'draft'}) =>
+      {
+        'id': id,
+        'projectId': 's$id',
+        'teacherId': 'u9',
+        'allowWithdraw': true,
+        'maxSubmissions': 0,
+        'dueAt': due,
+        'hidden': false,
+        'locked': locked,
+        'createdAt': created,
+        'copy': {
+          'projectId': 'c$id',
+          'assignmentId': id,
+          'studentId': 'u1',
+          'submissions': subs
+        },
+        'projectName': name,
+        'teacherName': teacher,
+        'status': status
+      };
+
+  testWidgets('home lists assignments with lock, due and status', (t) async {
+    final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    installApi(extra: {
+      'GET /api/assignments': (_) => [
+            assignment('a1', 'Essay', teacher: ''),
+            assignment('a2', 'Quiz', due: now - 60, locked: true),
+            assignment('a3', 'Lab', due: now + 200000, status: 'reviewed'),
+            assignment('a4', 'Report', due: now + 5400, subs: 1),
+            assignment('a5', 'Model', due: now + 30, status: 'submitted'),
+            assignment('a6', 'Draft', due: now + 1800),
+            assignment('a7', 'Notes', created: 2),
+          ],
+    });
+    await pumpWfm(t);
+    expect(find.text('Assigned to you'), findsOneWidget);
+    expect(find.text('Quiz'), findsOneWidget);
+    expect(find.textContaining('due now'), findsOneWidget);
+    expect(find.textContaining('Due date: in '), findsNWidgets(3));
+    expect(find.textContaining('Overdue'), findsWidgets);
+    expect(find.text('Not started'), findsWidgets);
+    expect(find.text('In progress'), findsOneWidget);
+    expect(find.text('Submitted'), findsWidgets);
+    expect(find.text('Reviewed'), findsWidgets);
+    expect(find.byIcon(Icons.lock_outline), findsOneWidget);
+    final locked = t.widget<ListTile>(
+        find.ancestor(of: find.text('Quiz'), matching: find.byType(ListTile)));
+    expect(locked.onTap, isNull);
+    await t.tap(find.text('Report'));
+    await settle(t);
+    expect(find.byType(ProjectPage), findsOneWidget);
+  });
+
+  testWidgets('home assignment tile pushes page without a shell', (t) async {
+    installApi(extra: {
+      'GET /api/assignments': (_) => [assignment('a1', 'Essay')],
+    });
+    await t.pumpWidget(testApp(const HomePage()));
+    await settle(t);
+    expect(find.text('Essay'), findsOneWidget);
+    await t.tap(find.text('Essay'));
+    await settle(t);
+    expect(find.byType(ProjectPage), findsOneWidget);
+  });
+
   testWidgets('narrow layout uses drawer', (t) async {
     installApi(extra: {'GET *': (_) => []});
     await t.binding.setSurfaceSize(const Size(500, 800));

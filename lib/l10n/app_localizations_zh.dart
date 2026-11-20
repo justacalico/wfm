@@ -1120,4 +1120,31 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get lateSubmission => '迟交';
+
+  @override
+  String get assignedToYou => '布置给你的作业';
+
+  @override
+  String get dueNow => '已到期';
+
+  @override
+  String inMinutes(Object count) {
+    return '$count 分钟后';
+  }
+
+  @override
+  String inHours(Object count) {
+    return '$count 小时后';
+  }
+
+  @override
+  String inDays(Object count) {
+    return '$count 天后';
+  }
+
+  @override
+  String get notStarted => '未开始';
+
+  @override
+  String get inProgress => '进行中';
 }
