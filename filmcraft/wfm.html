@@ -185,6 +185,25 @@ async function listFiles(path) {
 
 const MEDIA_EXT = /\.(mp4|mov|mkv|webm|avi|mts|m2ts|mxf|mp3|wav|aac|flac|ogg|oga|m4a|opus|png|jpe?g|webp|gif|tiff?|bmp|srt|vtt|dng|exr|hdr)$/i;
 
+const sentFolders = new Set();
+const sentMedia = new Set();
+
+async function pushFiles(entries) {
+  for (const d of entries.filter(e => e.type === "dir" && e.path !== "Exports" && !e.path.startsWith("Exports/"))) {
+    if (sentFolders.has(d.path)) continue;
+    sentFolders.add(d.path);
+    send({ k: "folder", p: d.path }, new ArrayBuffer(0));
+  }
+  const media = entries
+    .filter(e => e.type !== "dir" && !e.path.startsWith("Exports/") && !e.name.endsWith(".fcproj") && MEDIA_EXT.test(e.name))
+    .sort((a, b) => (a.path < b.path ? -1 : 1));
+  for (const m of media) {
+    if (sentMedia.has(m.path)) continue;
+    sentMedia.add(m.path);
+    send({ k: "media-ref", p: m.path, s: m.size, u: API + "/projects/" + projectId + "/download?path=" + encodeURIComponent(m.path) }, new ArrayBuffer(0));
+  }
+}
+
 async function sendDoc() {
   try {
     const sr = await api("/shortcuts");
@@ -194,15 +213,7 @@ async function sendDoc() {
   let entries = [];
   try {
     entries = await listFiles("");
-    for (const d of entries.filter(e => e.type === "dir" && e.path !== "Exports" && !e.path.startsWith("Exports/"))) {
-      send({ k: "folder", p: d.path }, new ArrayBuffer(0));
-    }
-    const media = entries
-      .filter(e => e.type !== "dir" && !e.path.startsWith("Exports/") && !e.name.endsWith(".fcproj") && MEDIA_EXT.test(e.name))
-      .sort((a, b) => (a.path < b.path ? -1 : 1));
-    for (const m of media) {
-      send({ k: "media-ref", p: m.path, s: m.size, u: API + "/projects/" + projectId + "/download?path=" + encodeURIComponent(m.path) }, new ArrayBuffer(0));
-    }
+    await pushFiles(entries);
   } catch (_) { docErrors++; }
   const hasDoc = entries.some(e => e.type !== "dir" && e.path === "project.fcproj");
   const r = await api("/projects/" + projectId + "/download?path=project.fcproj");
@@ -481,6 +492,13 @@ setInterval(() => {
     if (s && s.className === "err") fcFail(s.textContent || "FilmCraft could not start.");
   } catch (_) {}
 }, 1500);
+async function syncMedia() {
+  if (renderId) return;
+  try { await pushFiles(await listFiles("")); } catch (_) {}
+}
+setInterval(syncMedia, 15000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) syncMedia(); });
+window.addEventListener("focus", syncMedia);
 boot().catch((e) => { if (!e || e.message !== "auth") fcFail("Could not open the project: " + ((e && e.message) || e)); });
 </script>
 </body>
