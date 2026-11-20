@@ -503,6 +503,7 @@ void main() {
       await t.testTextInput.receiveAction(TextInputAction.done);
       await settle(t);
       expect(created, 1);
+      expect(find.byType(ProjectPage), findsOneWidget);
     });
 
     testWidgets('create project error shows snack', (t) async {

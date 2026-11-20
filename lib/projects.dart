@@ -79,8 +79,16 @@ class _ProjectsPageState extends State<ProjectsPage> {
         context, context.l10n.newProject, context.l10n.projectName);
     if (name == null || name.isEmpty || !mounted) return;
     try {
-      await Api.i.createProject(name);
+      final p = await Api.i.createProject(name);
       _load();
+      if (!mounted) return;
+      final shell = context.findAncestorStateOfType<ShellState>();
+      if (shell != null) {
+        shell.openProject(p);
+      } else {
+        Navigator.of(context)
+            .push(MaterialPageRoute(builder: (_) => ProjectPage(project: p)));
+      }
     } catch (e) {
       if (mounted) snack(context, e);
     }
