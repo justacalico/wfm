@@ -299,6 +299,40 @@ class AppLocalizationsZh extends AppLocalizations {
   String get accounts => '账户';
 
   @override
+  String get classes => '班级';
+
+  @override
+  String get schoolClass => '班级';
+
+  @override
+  String get newClass => '新建班级';
+
+  @override
+  String get className => '班级名称';
+
+  @override
+  String get renameClass => '重命名班级';
+
+  @override
+  String get noClasses => '还没有班级';
+
+  @override
+  String get unmanagedClass => '未分班';
+
+  @override
+  String memberCount(Object count) {
+    return '$count 名成员';
+  }
+
+  @override
+  String get moveToClass => '移到班级';
+
+  @override
+  String deleteClassBody(Object name) {
+    return '删除班级“$name”？其中成员将移入未分班。';
+  }
+
+  @override
   String get activity => '动态';
 
   @override

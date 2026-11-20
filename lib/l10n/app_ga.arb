@@ -140,6 +140,26 @@
   "manage": "Bainistigh",
   "nothingToManage": "Níl aon rud le bainistiú.",
   "accounts": "Cuntais",
+  "classes": "Ranganna",
+  "schoolClass": "Rang",
+  "newClass": "Rang nua",
+  "className": "Ainm an ranga",
+  "renameClass": "Athainmnigh an rang",
+  "noClasses": "Níl aon rang fós",
+  "unmanagedClass": "Gan bhainistiú",
+  "memberCount": "{count} ball",
+  "@memberCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "moveToClass": "Bog go rang",
+  "deleteClassBody": "Scrios an rang \"{name}\"? Bogfar a bhaill go Gan bhainistiú.",
+  "@deleteClassBody": {
+    "placeholders": {
+      "name": {}
+    }
+  },
   "activity": "Gníomhaíocht",
   "renderNodes": "Nóid rindreála",
   "newAccount": "Cuntas nua",

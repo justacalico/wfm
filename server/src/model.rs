@@ -76,6 +76,8 @@ pub struct User {
     pub quota_bytes: i64,
     #[serde(rename = "createdBy")]
     pub created_by: String,
+    #[serde(rename = "classId")]
+    pub class_id: String,
     #[serde(skip)]
     pub lineage: String,
     #[serde(rename = "createdAt")]
@@ -126,6 +128,18 @@ pub struct CommentView {
     pub created_at: i64,
     #[serde(rename = "editedAt")]
     pub edited_at: i64,
+}
+
+#[derive(Clone, Serialize)]
+pub struct Class {
+    pub id: String,
+    #[serde(rename = "ownerId")]
+    pub owner_id: String,
+    pub name: String,
+    pub unmanaged: bool,
+    pub members: i64,
+    #[serde(rename = "createdAt")]
+    pub created_at: i64,
 }
 
 #[derive(Clone, Serialize)]
@@ -513,7 +527,7 @@ pub fn lineage_has(lineage: &str, id: &str) -> bool {
 
 /// Whether `actor` may see `target` for sharing and pickers: the actor's subtree
 /// (the managed_users rule), the actor's own ancestry, and, only for students,
-/// classmates sharing the same creator. Teachers' peers stay hidden.
+/// classmates in the same class. Teachers' peers stay hidden.
 pub fn can_see(actor: &User, target: &User) -> bool {
     if target.id == actor.id {
         return false;
@@ -526,8 +540,8 @@ pub fn can_see(actor: &User, target: &User) -> bool {
     }
     actor.role == Role::Student
         && target.role == Role::Student
-        && !actor.created_by.is_empty()
-        && actor.created_by == target.created_by
+        && !actor.class_id.is_empty()
+        && actor.class_id == target.class_id
 }
 
 #[cfg(test)]
@@ -559,6 +573,7 @@ mod tests {
             avatar: String::new(),
             quota_bytes: 0,
             created_by: created_by.into(),
+            class_id: String::new(),
             lineage: lineage.into(),
             created_at: 0,
             last_login: 0,
@@ -591,9 +606,14 @@ mod tests {
         let owner = user("o1", Role::Owner, "", "/");
         let teacher = user("t1", Role::Teacher, "o1", "/o1/");
         let teacher2 = user("t2", Role::Teacher, "o1", "/o1/");
-        let student = user("s1", Role::Student, "t1", "/o1/t1/");
-        let classmate = user("s2", Role::Student, "t1", "/o1/t1/");
+        let mut student = user("s1", Role::Student, "t1", "/o1/t1/");
+        student.class_id = "c1".into();
+        let mut classmate = user("s2", Role::Student, "t1", "/o1/t1/");
+        classmate.class_id = "c1".into();
+        let mut other_class = user("s3", Role::Student, "t1", "/o1/t1/");
+        other_class.class_id = "c2".into();
         let outsider = user("s9", Role::Student, "t2", "/o1/t2/");
+        let unclassed = user("s4", Role::Student, "t1", "/o1/t1/");
         // below: the subtree, strictly lower rank
         assert!(can_see(&teacher, &student));
         assert!(!can_see(&teacher, &teacher.clone()));
@@ -602,8 +622,11 @@ mod tests {
         assert!(can_see(&student, &owner));
         assert!(!can_see(&teacher, &teacher2));
         assert!(can_see(&owner, &teacher2));
-        // classmates share a creator; only students get siblings
+        // classmates share a class; only students get siblings
         assert!(can_see(&student, &classmate));
+        assert!(!can_see(&student, &other_class));
+        assert!(!can_see(&student, &unclassed));
+        assert!(!can_see(&unclassed, &unclassed.clone()));
         assert!(!can_see(&student, &outsider));
         assert!(!can_see(&student, &student.clone()));
     }

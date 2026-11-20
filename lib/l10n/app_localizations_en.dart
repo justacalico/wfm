@@ -301,6 +301,40 @@ class AppLocalizationsEn extends AppLocalizations {
   String get accounts => 'Accounts';
 
   @override
+  String get classes => 'Classes';
+
+  @override
+  String get schoolClass => 'Class';
+
+  @override
+  String get newClass => 'New class';
+
+  @override
+  String get className => 'Class name';
+
+  @override
+  String get renameClass => 'Rename class';
+
+  @override
+  String get noClasses => 'No classes yet';
+
+  @override
+  String get unmanagedClass => 'Unmanaged';
+
+  @override
+  String memberCount(Object count) {
+    return '$count members';
+  }
+
+  @override
+  String get moveToClass => 'Move to class';
+
+  @override
+  String deleteClassBody(Object name) {
+    return 'Delete class \"$name\"? Its members move to Unmanaged.';
+  }
+
+  @override
   String get activity => 'Activity';
 
   @override

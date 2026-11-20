@@ -14,6 +14,7 @@ class ManagePage extends StatelessWidget {
     final tight = MediaQuery.sizeOf(context).width < 720;
     final tabs = <(String, Widget)>[
       if (Api.i.caps.manage) (l10n.accounts, const AccountsTab()),
+      if (Api.i.user?.isStaff ?? false) (l10n.classes, const ClassesTab()),
       if (Api.i.caps.audit) (l10n.activity, const AuditTab()),
       if (Api.i.user?.isAdmin ?? false) (l10n.renderNodes, const NodesTab()),
     ];
@@ -303,6 +304,164 @@ class _AccountsTabState extends State<AccountsTab> {
   }
 }
 
+/// A teacher's classes: create, rename, delete, and move members between them.
+/// Deleting a class drops its members back into the unmanaged class.
+class ClassesTab extends StatefulWidget {
+  const ClassesTab({super.key});
+  @override
+  State<ClassesTab> createState() => _ClassesTabState();
+}
+
+class _ClassesTabState extends State<ClassesTab> {
+  List<SchoolClass>? _classes;
+  List<User> _users = const [];
+  String _err = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final c = await Api.i.classes();
+      final u = await Api.i.accounts();
+      setState(() {
+        _classes = c;
+        _users = u;
+        _err = '';
+      });
+    } catch (e) {
+      setState(() => _err = '$e');
+    }
+  }
+
+  String _name(SchoolClass c) =>
+      c.unmanaged ? context.l10n.unmanagedClass : c.name;
+
+  bool _canManage(SchoolClass c) =>
+      c.ownerId == Api.i.user?.id || (Api.i.user?.isAdmin ?? false);
+
+  Future<void> _create() async {
+    final l10n = context.l10n;
+    final name = await promptText(
+        context, l10n.newClass, l10n.className, '', (v) => v.trim().isNotEmpty);
+    if (name == null || name.trim().isEmpty || !mounted) return;
+    try {
+      await Api.i.classCreate(name.trim());
+      _load();
+    } catch (e) {
+      if (mounted) snack(context, e);
+    }
+  }
+
+  Future<void> _rename(SchoolClass c) async {
+    final l10n = context.l10n;
+    final name = await promptText(context, l10n.renameClass, l10n.className,
+        c.name, (v) => v.trim().isNotEmpty);
+    if (name == null ||
+        name.trim().isEmpty ||
+        name.trim() == c.name ||
+        !mounted) {
+      return;
+    }
+    try {
+      await Api.i.classRename(c.id, name.trim());
+      _load();
+    } catch (e) {
+      if (mounted) snack(context, e);
+    }
+  }
+
+  Future<void> _delete(SchoolClass c) async {
+    final l10n = context.l10n;
+    if (!await confirm(context, l10n.delete, l10n.deleteClassBody(_name(c)))) {
+      return;
+    }
+    try {
+      await Api.i.classDelete(c.id);
+      _load();
+    } catch (e) {
+      if (mounted) snack(context, e);
+    }
+  }
+
+  Future<void> _move(User u, SchoolClass to) async {
+    try {
+      await Api.i.updateAccount(u.id, {'classId': to.id});
+      _load();
+    } catch (e) {
+      if (mounted) snack(context, e);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    if (_err.isNotEmpty) return errorView(context, _err, _load);
+    final classes = _classes;
+    return Scaffold(
+      floatingActionButton: FloatingActionButton.extended(
+          onPressed: _create,
+          icon: const Icon(Icons.group_add),
+          label: Text(l10n.newClass)),
+      body: classes == null
+          ? const Center(child: CircularProgressIndicator())
+          : classes.isEmpty
+              ? Center(child: Text(l10n.noClasses))
+              : ListView(children: [
+                  for (final c in classes)
+                    ExpansionTile(
+                      leading: Icon(c.unmanaged
+                          ? Icons.group_outlined
+                          : Icons.class_outlined),
+                      title: Text(_name(c)),
+                      subtitle: Text(l10n.memberCount(c.members)),
+                      children: [
+                        if (_canManage(c) && !c.unmanaged)
+                          OverflowBar(children: [
+                            TextButton.icon(
+                                onPressed: () => _rename(c),
+                                icon: const Icon(Icons.edit_outlined, size: 18),
+                                label: Text(l10n.rename)),
+                            TextButton.icon(
+                                onPressed: () => _delete(c),
+                                icon:
+                                    const Icon(Icons.delete_outline, size: 18),
+                                label: Text(l10n.delete)),
+                          ]),
+                        for (final u in _users)
+                          if (u.classId == c.id)
+                            ListTile(
+                              dense: true,
+                              title: Text(u.name.isEmpty ? u.username : u.name),
+                              subtitle: Text('${u.username} · ${u.role}'),
+                              trailing: _canManage(c)
+                                  ? PopupMenuButton<String>(
+                                      icon: const Icon(
+                                          Icons.drive_file_move_outline,
+                                          size: 20),
+                                      tooltip: l10n.moveToClass,
+                                      onSelected: (v) => _move(u,
+                                          classes.firstWhere((x) => x.id == v)),
+                                      itemBuilder: (_) => [
+                                        for (final oc in classes)
+                                          if (oc.id != c.id)
+                                            PopupMenuItem(
+                                                value: oc.id,
+                                                child: Text(_name(oc))),
+                                      ],
+                                    )
+                                  : null,
+                            ),
+                      ],
+                    ),
+                ]),
+    );
+  }
+}
+
 /// Read-only view of a managed account's projects; taking over is the only
 /// action offered since everything else stays under the owner's control.
 class UserProjectsPage extends StatefulWidget {
@@ -426,10 +585,15 @@ class _AccountDialogState extends State<_AccountDialog> {
         !Api.i.caps.creatable.contains(widget.existing!.role))
       widget.existing!.role,
   ];
+  List<SchoolClass> _classes = const [];
+  late String _classId = widget.existing?.classId ?? '';
 
   @override
   void initState() {
     super.initState();
+    Api.i.classes().then((v) {
+      if (mounted) setState(() => _classes = v);
+    }).catchError((_) {});
     final u = widget.existing;
     if (u != null) {
       Api.i.accountUsage(u.id).then((v) {
@@ -506,6 +670,28 @@ class _AccountDialogState extends State<_AccountDialog> {
               onChanged: (v) => setState(() => _role = v!),
             ),
           ],
+          if (_role == 'student' && _classes.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            DropdownButtonFormField<String>(
+              initialValue: _classId.isNotEmpty
+                  ? _classId
+                  : _classes
+                      .firstWhere((c) => c.unmanaged,
+                          orElse: () => _classes.first)
+                      .id,
+              decoration: dec(l10n.schoolClass),
+              items: [
+                for (final c in _classes)
+                  DropdownMenuItem(
+                      value: c.id,
+                      child: Text(c.unmanaged ? l10n.unmanagedClass : c.name)),
+                if (_classId.isNotEmpty &&
+                    !_classes.any((c) => c.id == _classId))
+                  DropdownMenuItem(value: _classId, child: Text(_classId)),
+              ],
+              onChanged: (v) => setState(() => _classId = v!),
+            ),
+          ],
           if (!_invite) ...[
             const SizedBox(height: 8),
             TextField(
@@ -546,6 +732,8 @@ class _AccountDialogState extends State<_AccountDialog> {
                       'studentId': _sid.text.trim(),
                       'note': _note.text.trim(),
                       'quotaMb': _quota.text.trim(),
+                      if (_role == 'student' && _classId.isNotEmpty)
+                        'classId': _classId,
                       if (!editing) 'password': _pass.text,
                     })
                 : null,

@@ -140,6 +140,26 @@
   "manage": "管理",
   "nothingToManage": "没有可管理的内容。",
   "accounts": "账户",
+  "classes": "班级",
+  "schoolClass": "班级",
+  "newClass": "新建班级",
+  "className": "班级名称",
+  "renameClass": "重命名班级",
+  "noClasses": "还没有班级",
+  "unmanagedClass": "未分班",
+  "memberCount": "{count} 名成员",
+  "@memberCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "moveToClass": "移到班级",
+  "deleteClassBody": "删除班级“{name}”？其中成员将移入未分班。",
+  "@deleteClassBody": {
+    "placeholders": {
+      "name": {}
+    }
+  },
   "activity": "动态",
   "renderNodes": "渲染节点",
   "newAccount": "新建账户",

@@ -2204,6 +2204,7 @@ class _ShareDialogState extends State<_ShareDialog> {
   List<Share>? _shares;
   List<ShareLink>? _links;
   List<User>? _targets;
+  Map<String, String> _classNames = const {};
   User? _invitee;
   final _tokens = <String, String>{};
   String _level = 'view';
@@ -2239,6 +2240,15 @@ class _ShareDialogState extends State<_ShareDialog> {
       setState(() => _targets = const []);
       if (mounted) snack(context, e);
     }
+    try {
+      final cs = await Api.i.classes();
+      if (mounted) {
+        setState(() => _classNames = {
+              for (final c in cs)
+                c.id: c.unmanaged ? context.l10n.unmanagedClass : c.name,
+            });
+      }
+    } catch (_) {}
   }
 
   Future<void> _createLink() async {
@@ -2290,7 +2300,10 @@ class _ShareDialogState extends State<_ShareDialog> {
         for (final u in _targets ?? const <User>[])
           DropdownMenuEntry(
               value: u,
-              label: u.name.isEmpty ? u.username : '${u.name} (${u.username})'),
+              label: [
+                u.name.isEmpty ? u.username : '${u.name} (${u.username})',
+                if (_classNames[u.classId] != null) _classNames[u.classId]!
+              ].join(' · ')),
       ],
       onSelected: (u) => setState(() => _invitee = u),
     );

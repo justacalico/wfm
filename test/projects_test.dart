@@ -848,8 +848,12 @@ void main() {
             : {'id': 'l3', 'token': 'tok3'};
       },
       'GET /api/share-targets': (_) => [
-            {'id': 'u9', 'username': 'bob', 'displayName': 'Bob'},
-            {'id': 'u10', 'username': 'cat'}
+            {'id': 'u9', 'username': 'bob', 'displayName': 'Bob', 'classId': 'c1'},
+            {'id': 'u10', 'username': 'cat', 'classId': 'cu'}
+          ],
+      'GET /api/classes': (_) => [
+            {'id': 'c1', 'name': 'Period 1', 'members': 2, 'createdAt': 1},
+            {'id': 'cu', 'name': 'unmanaged', 'unmanaged': true, 'createdAt': 2}
           ],
       'DELETE /api/projects/p1/links/l1': (_) {
         rcalls++;
@@ -872,7 +876,8 @@ void main() {
     expect(created, 0);
     await t.tap(find.byType(DropdownMenu<User>));
     await settle(t);
-    await t.tap(find.text('Bob (bob)').last);
+    expect(find.text('cat · Unmanaged'), findsOneWidget);
+    await t.tap(find.text('Bob (bob) · Period 1').last);
     await settle(t);
     await t.tap(find.descendant(
         of: find.byType(AlertDialog), matching: find.byIcon(Icons.send)));

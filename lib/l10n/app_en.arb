@@ -140,6 +140,26 @@
   "manage": "Manage",
   "nothingToManage": "Nothing to manage.",
   "accounts": "Accounts",
+  "classes": "Classes",
+  "schoolClass": "Class",
+  "newClass": "New class",
+  "className": "Class name",
+  "renameClass": "Rename class",
+  "noClasses": "No classes yet",
+  "unmanagedClass": "Unmanaged",
+  "memberCount": "{count} members",
+  "@memberCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "moveToClass": "Move to class",
+  "deleteClassBody": "Delete class \"{name}\"? Its members move to Unmanaged.",
+  "@deleteClassBody": {
+    "placeholders": {
+      "name": {}
+    }
+  },
   "activity": "Activity",
   "renderNodes": "Render nodes",
   "newAccount": "New account",
