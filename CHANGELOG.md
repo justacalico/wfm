@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.30.0 - 2026-11-20
+#### Features
+- 首页展示布置给我的作业 - (67cdbeb) - calico
+
+- - -
+
 ## v0.29.0 - 2026-11-20
 #### Features
 - 作业布置与学生提交策略 - (f9224b2) - calico
