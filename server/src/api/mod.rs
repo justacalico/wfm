@@ -57,6 +57,7 @@ pub fn router(state: Arc<AppState>) -> Router {
         )
         .route("/accounts/{id}/password", post(reset_password))
         .route("/accounts/{id}/status", post(set_status))
+        .route("/share-targets", get(share_targets))
         .route("/invites", get(list_invites).post(create_invite))
         .route("/invites/{id}", get(invite_preview).delete(revoke_invite))
         .route("/invites/{id}/redeem", post(redeem_invite))
@@ -734,6 +735,14 @@ async fn list_accounts(State(s): State<Arc<AppState>>, session: Session) -> Resp
         return err(StatusCode::FORBIDDEN, "not allowed");
     }
     match s.db.managed_users(&session.user).await {
+        Ok(v) => Json(json!(v)).into_response(),
+        Err(e) => db_resp(e),
+    }
+}
+
+/// Users the caller may share with: their subtree, their ancestry, and classmates.
+async fn share_targets(State(s): State<Arc<AppState>>, session: Session) -> Response {
+    match s.db.visible_users(&session.user).await {
         Ok(v) => Json(json!(v)).into_response(),
         Err(e) => db_resp(e),
     }
@@ -1524,6 +1533,9 @@ async fn create_share(
         Ok((u, _)) => u,
         Err(_) => return err(StatusCode::NOT_FOUND, "unknown user"),
     };
+    if !model::can_see(&session.user, &invitee) {
+        return err(StatusCode::NOT_FOUND, "unknown user");
+    }
     if invitee.id == session.user.id {
         return err(StatusCode::BAD_REQUEST, "cannot share with yourself");
     }
@@ -1665,6 +1677,9 @@ async fn add_auto_share(
         Ok((u, _)) => u,
         Err(_) => return err(StatusCode::NOT_FOUND, "unknown user"),
     };
+    if !model::can_see(&session.user, &invitee) {
+        return err(StatusCode::NOT_FOUND, "unknown user");
+    }
     if invitee.id == session.user.id {
         return err(StatusCode::BAD_REQUEST, "cannot share with yourself");
     }
@@ -3878,6 +3893,66 @@ mod tests {
             assert!(s.contains(want), "{app:?} should serve {want}");
             assert!(!s.contains(not), "{app:?} should not serve {not}");
         }
+    }
+
+    fn school(s: &Arc<AppState>) -> (User, User, User, User, User, User) {
+        let owner = user(Role::Owner);
+        let mut teacher = user(Role::Teacher);
+        teacher.created_by = owner.id.clone();
+        teacher.lineage = format!("/{}/", owner.id);
+        let mut teacher2 = user(Role::Teacher);
+        teacher2.created_by = owner.id.clone();
+        teacher2.lineage = teacher.lineage.clone();
+        let mut student = user(Role::Student);
+        student.created_by = teacher.id.clone();
+        student.lineage = format!("{}{}/", teacher.lineage, teacher.id);
+        let mut classmate = user(Role::Student);
+        classmate.created_by = teacher.id.clone();
+        classmate.lineage = student.lineage.clone();
+        let mut outsider = user(Role::Student);
+        outsider.created_by = teacher2.id.clone();
+        outsider.lineage = format!("{}{}/", teacher2.lineage, teacher2.id);
+        for u in [&owner, &teacher, &teacher2, &student, &classmate, &outsider] {
+            futures::executor::block_on(s.db.create_user(u, "h")).unwrap();
+        }
+        (owner, teacher, teacher2, student, classmate, outsider)
+    }
+
+    #[tokio::test]
+    async fn share_only_reaches_visible_users() {
+        let dir = std::env::temp_dir().join(format!("wfm-api-{}", model::new_id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let s = state(&dir);
+        let (_owner, teacher, teacher2, student, classmate, outsider) = school(&s);
+        let p = project(&student);
+        s.db.create_project(&p).await.unwrap();
+        let share = |to: &User| {
+            Json(ShareReq { username: to.username.clone(), level: "view".into() })
+        };
+        for (to, want) in [(&outsider, StatusCode::NOT_FOUND), (&teacher2, StatusCode::NOT_FOUND), (&teacher, StatusCode::OK), (&classmate, StatusCode::OK)] {
+            let r = create_share(State(s.clone()), session(&student), Path(p.id.clone()), share(to)).await;
+            assert_eq!(r.status(), want, "share to {}", to.username);
+        }
+    }
+
+    #[tokio::test]
+    async fn share_targets_returns_the_visibility_set() {
+        let dir = std::env::temp_dir().join(format!("wfm-api-{}", model::new_id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let s = state(&dir);
+        let (owner, teacher, teacher2, student, classmate, outsider) = school(&s);
+        let body = |r: Response| async move { String::from_utf8_lossy(&axum::body::to_bytes(r.into_body(), usize::MAX).await.unwrap()).to_string() };
+        let t = body(share_targets(State(s.clone()), session(&student)).await).await;
+        for u in [&teacher, &classmate, &owner] {
+            assert!(t.contains(&u.username), "student sees {}", u.username);
+        }
+        for u in [&teacher2, &outsider] {
+            assert!(!t.contains(&u.username), "student hides {}", u.username);
+        }
+        let t = body(share_targets(State(s.clone()), session(&teacher)).await).await;
+        assert!(t.contains(&student.username) && t.contains(&owner.username));
+        assert!(!t.contains(&teacher2.username), "a teacher's peers stay hidden");
+        assert!(!t.contains(&outsider.username), "other trees' students stay hidden");
     }
 }
 

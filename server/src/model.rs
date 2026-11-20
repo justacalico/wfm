@@ -448,6 +448,25 @@ pub fn lineage_has(lineage: &str, id: &str) -> bool {
     hay.contains(&format!("/{}/", id))
 }
 
+/// Whether `actor` may see `target` for sharing and pickers: the actor's subtree
+/// (the managed_users rule), the actor's own ancestry, and, only for students,
+/// classmates sharing the same creator. Teachers' peers stay hidden.
+pub fn can_see(actor: &User, target: &User) -> bool {
+    if target.id == actor.id {
+        return false;
+    }
+    if lineage_has(&actor.lineage, &target.id) {
+        return true;
+    }
+    if target.role < actor.role && lineage_has(&target.lineage, &actor.id) {
+        return true;
+    }
+    actor.role == Role::Student
+        && target.role == Role::Student
+        && !actor.created_by.is_empty()
+        && actor.created_by == target.created_by
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -502,6 +521,28 @@ mod tests {
         assert!(can_manage(&modd, &in_tree));
         assert!(!can_manage(&modd, &not_in_tree));
         assert!(!can_manage(&modd, &teacher));
+    }
+
+    #[test]
+    fn can_see_covers_tree_up_and_classmates() {
+        let owner = user("o1", Role::Owner, "", "/");
+        let teacher = user("t1", Role::Teacher, "o1", "/o1/");
+        let teacher2 = user("t2", Role::Teacher, "o1", "/o1/");
+        let student = user("s1", Role::Student, "t1", "/o1/t1/");
+        let classmate = user("s2", Role::Student, "t1", "/o1/t1/");
+        let outsider = user("s9", Role::Student, "t2", "/o1/t2/");
+        // below: the subtree, strictly lower rank
+        assert!(can_see(&teacher, &student));
+        assert!(!can_see(&teacher, &teacher.clone()));
+        // above: the actor's own ancestry
+        assert!(can_see(&student, &teacher));
+        assert!(can_see(&student, &owner));
+        assert!(!can_see(&teacher, &teacher2));
+        assert!(can_see(&owner, &teacher2));
+        // classmates share a creator; only students get siblings
+        assert!(can_see(&student, &classmate));
+        assert!(!can_see(&student, &outsider));
+        assert!(!can_see(&student, &student.clone()));
     }
 
     #[test]

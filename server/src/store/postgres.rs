@@ -429,6 +429,24 @@ impl Db for PgDb {
         .map_err(map_err)
     }
 
+    async fn visible_users(&self, actor: &User) -> DbResult<Vec<User>> {
+        // Classmates only exist for students: an empty parent matches nothing for anyone
+        // else (created_by is never empty on a real account except the seed owner).
+        sqlx::query(
+            "SELECT * FROM users WHERE id<>$1 AND ((role<$2 AND lineage LIKE $3) OR $4 LIKE '%/'||id||'/%' OR (role=$5 AND created_by=$6 AND created_by<>'')) ORDER BY created_at",
+        )
+        .bind(&actor.id)
+        .bind(actor.role as i32)
+        .bind(format!("%/{}/%", actor.id))
+        .bind(format!("/{}/", actor.lineage.trim_matches('/')))
+        .bind(crate::model::Role::Student as i32)
+        .bind(if actor.role == crate::model::Role::Student { actor.created_by.clone() } else { String::new() })
+        .fetch_all(&self.pool)
+        .await
+        .map(|rows| rows.into_iter().map(row_user).collect())
+        .map_err(map_err)
+    }
+
     async fn create_session(
         &self,
         token_hash: &str,

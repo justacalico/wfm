@@ -71,6 +71,10 @@ pub trait Db: Send + Sync {
     async fn touch_login(&self, id: &str, ts: i64) -> DbResult<()>;
     async fn owner_count(&self) -> DbResult<i64>;
     async fn managed_users(&self, actor: &User) -> DbResult<Vec<User>>;
+    /// The users `actor` may see for sharing: their subtree, their ancestry, and
+    /// (students only) classmates created by the same account. `model::can_see`
+    /// in SQL form.
+    async fn visible_users(&self, actor: &User) -> DbResult<Vec<User>>;
 
     // sessions
     async fn create_session(

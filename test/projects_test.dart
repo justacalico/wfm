@@ -812,6 +812,10 @@ void main() {
             ? http.Response('{"error":"no"}', 400)
             : {'id': 'l3', 'token': 'tok3'};
       },
+      'GET /api/share-targets': (_) => [
+            {'id': 'u9', 'username': 'bob', 'displayName': 'Bob'},
+            {'id': 'u10', 'username': 'cat'}
+          ],
       'DELETE /api/projects/p1/links/l1': (_) {
         rcalls++;
         return rcalls == 1 ? http.Response('{"error":"x"}', 500) : {'ok': true};
@@ -831,8 +835,12 @@ void main() {
         of: find.byType(AlertDialog), matching: find.byIcon(Icons.send)));
     await settle(t);
     expect(created, 0);
-    await t.enterText(find.byType(TextField).first, 'bob');
-    await t.testTextInput.receiveAction(TextInputAction.done);
+    await t.tap(find.byType(DropdownMenu<User>));
+    await settle(t);
+    await t.tap(find.text('Bob (bob)').last);
+    await settle(t);
+    await t.tap(find.descendant(
+        of: find.byType(AlertDialog), matching: find.byIcon(Icons.send)));
     await settle(t);
     expect(created, 1);
     expect(find.byType(Notice), findsWidgets);

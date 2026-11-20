@@ -101,6 +101,51 @@ void main() {
       expect(find.byType(FloatingActionButton), findsOneWidget);
     });
 
+    testWidgets('accounts render as a tree and children expand', (t) async {
+      installApi(extra: {
+        'GET /api/accounts': (_) => [
+              {
+                'id': 't1',
+                'username': 'teachx',
+                'role': 'teacher',
+                'createdBy': 'u1'
+              },
+              {
+                'id': 's1',
+                'username': 'pupilx',
+                'role': 'student',
+                'createdBy': 't1'
+              },
+              {'id': 's9', 'username': 'orphanx', 'createdBy': 'gone'}
+            ]
+      });
+      await pump(t, const AccountsTab());
+      expect(find.textContaining('teachx'), findsWidgets);
+      expect(find.textContaining('pupilx'), findsNothing);
+      expect(find.textContaining('orphanx'), findsWidgets);
+      await t.tap(find.byIcon(Icons.chevron_right));
+      await settle(t);
+      expect(find.textContaining('pupilx'), findsWidgets);
+      await t.tap(find.byIcon(Icons.expand_more));
+      await settle(t);
+      expect(find.textContaining('pupilx'), findsNothing);
+    });
+
+    test('accountTree nests children and surfaces orphans', () {
+      User u(Map<String, dynamic> j) => User.fromJson(j);
+      final users = [
+        u({'id': 't1', 'username': 'a', 'createdBy': 'me'}),
+        u({'id': 's1', 'username': 'b', 'createdBy': 't1'}),
+        u({'id': 's2', 'username': 'c', 'createdBy': 't1'}),
+        u({'id': 'x1', 'username': 'd', 'createdBy': 'gone'}),
+      ];
+      final flat = accountTree(users, 'me', {});
+      expect(flat.map((r) => r.$1.id), ['t1', 'x1']);
+      final deep = accountTree(users, 'me', {'t1'});
+      expect(deep.map((r) => '${r.$1.id}:${r.$2}'),
+          ['t1:0', 's1:1', 's2:1', 'x1:0']);
+    });
+
     testWidgets('reset password and disable error snacks', (t) async {
       installApi(extra: {
         'POST *': (_) => http.Response('{"error":"denied"}', 403),

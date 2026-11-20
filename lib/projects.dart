@@ -2131,8 +2131,9 @@ class _ShareDialog extends StatefulWidget {
 class _ShareDialogState extends State<_ShareDialog> {
   List<Share>? _shares;
   List<ShareLink>? _links;
+  List<User>? _targets;
+  User? _invitee;
   final _tokens = <String, String>{};
-  final _user = TextEditingController();
   String _level = 'view';
   String _scope = 'renders';
   int _days = 7;
@@ -2142,12 +2143,6 @@ class _ShareDialogState extends State<_ShareDialog> {
   void initState() {
     super.initState();
     _load();
-  }
-
-  @override
-  void dispose() {
-    _user.dispose();
-    super.dispose();
   }
 
   Future<void> _load() async {
@@ -2163,6 +2158,13 @@ class _ShareDialogState extends State<_ShareDialog> {
       setState(() => _links = l);
     } catch (e) {
       setState(() => _links = []);
+      if (mounted) snack(context, e);
+    }
+    try {
+      final t = await Api.i.shareTargets();
+      setState(() => _targets = t);
+    } catch (e) {
+      setState(() => _targets = const []);
       if (mounted) snack(context, e);
     }
   }
@@ -2187,12 +2189,12 @@ class _ShareDialogState extends State<_ShareDialog> {
       '${Uri.base.scheme.startsWith('http') ? '${Uri.base.origin}/' : ''}app/link/${_tokens[l.id]}';
 
   Future<void> _send() async {
-    final username = _user.text.trim();
-    if (username.isEmpty || _busy) return;
+    final invitee = _invitee;
+    if (invitee == null || _busy) return;
     setState(() => _busy = true);
     try {
-      await Api.i.shareProject(widget.project.id, username, _level);
-      _user.clear();
+      await Api.i.shareProject(widget.project.id, invitee.username, _level);
+      setState(() => _invitee = null);
       await _load();
     } catch (e) {
       if (mounted) snack(context, e);
@@ -2212,11 +2214,22 @@ class _ShareDialogState extends State<_ShareDialog> {
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             Row(children: [
               Expanded(
-                child: TextField(
-                  controller: _user,
-                  decoration:
-                      InputDecoration(labelText: l10n.username, isDense: true),
-                  onSubmitted: (_) => _send(),
+                child: DropdownMenu<User>(
+                  key: ValueKey('share-target-${_invitee?.id ?? ''}'),
+                  initialSelection: _invitee,
+                  label: Text(l10n.username),
+                  enableFilter: true,
+                  menuHeight: 320,
+                  expandedInsets: EdgeInsets.zero,
+                  dropdownMenuEntries: [
+                    for (final u in _targets ?? const <User>[])
+                      DropdownMenuEntry(
+                          value: u,
+                          label: u.name.isEmpty
+                              ? u.username
+                              : '${u.name} (${u.username})'),
+                  ],
+                  onSelected: (u) => setState(() => _invitee = u),
                 ),
               ),
               const SizedBox(width: 8),

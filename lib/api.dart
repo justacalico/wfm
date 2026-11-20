@@ -16,6 +16,7 @@ class User {
   final String id, username, name, role, studentId, note, avatar;
   final bool disabled;
   final int createdAt, lastLogin, quotaBytes;
+  final String createdBy;
   User.fromJson(Map<String, dynamic> j)
       : id = j['id'] ?? '',
         username = j['username'] ?? '',
@@ -25,6 +26,7 @@ class User {
         studentId = j['studentId'] ?? '',
         note = j['note'] ?? '',
         avatar = j['avatar'] ?? '',
+        createdBy = j['createdBy'] ?? '',
         createdAt = j['createdAt'] ?? 0,
         lastLogin = j['lastLogin'] ?? 0,
         quotaBytes = j['quotaBytes'] ?? 0;
@@ -661,6 +663,9 @@ class Api {
 
   Future<List<User>> accounts() async =>
       [for (final e in (await get('/accounts')) as List) User.fromJson(e)];
+
+  Future<List<User>> shareTargets() async =>
+      [for (final e in (await get('/share-targets')) as List) User.fromJson(e)];
 
   Future<User> createAccount(Map<String, dynamic> body) async =>
       User.fromJson(await post('/accounts', body));
