@@ -2,6 +2,14 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.26.0 - 2026-11-20
+#### Features
+- ScriptCraft 快捷键由 WFM 设置管理 - (538d777) - calico
+#### Bug Fixes
+- Docker 构建包含 ScriptCraft 快捷键目录 - (67668eb) - calico
+
+- - -
+
 ## v0.25.0 - 2026-11-20
 #### Features
 - 锁定 ScriptCraft 宿主模式 - (b2336ed) - calico
