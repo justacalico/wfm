@@ -698,7 +698,7 @@ class AppLocalizationsGa extends AppLocalizations {
   String get readOnly => 'Léamh amháin';
 
   @override
-  String get takeOver => 'Tóg seilbh';
+  String get takeOver => 'Tóg úinéireacht';
 
   @override
   String takeOverBody(Object name) {

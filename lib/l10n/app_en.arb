@@ -346,7 +346,7 @@
   "revokeSessionBody": "Sign out this session?",
   "sessionLastSeen": "Last seen {time}",
   "readOnly": "Read only",
-  "takeOver": "Take over",
+  "takeOver": "Take ownership",
   "takeOverBody": "Take ownership of {name}?",
   "ownedBy": "by {name}",
   "selectFiles": "Select",

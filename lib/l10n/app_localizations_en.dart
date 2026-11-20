@@ -695,7 +695,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get readOnly => 'Read only';
 
   @override
-  String get takeOver => 'Take over';
+  String get takeOver => 'Take ownership';
 
   @override
   String takeOverBody(Object name) {

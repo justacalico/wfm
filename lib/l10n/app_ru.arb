@@ -346,7 +346,7 @@
   "revokeSessionBody": "Завершить этот сеанс?",
   "sessionLastSeen": "Активность {time}",
   "readOnly": "Только чтение",
-  "takeOver": "Перехватить",
+  "takeOver": "Стать владельцем",
   "takeOverBody": "Стать владельцем {name}?",
   "ownedBy": "владелец {name}",
   "selectFiles": "Выбрать",

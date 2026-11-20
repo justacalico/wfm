@@ -63,7 +63,7 @@ class Project {
   final String id, name, displayName, groupId, ownerId, ownerName, access;
   final List<String> tags;
   final int createdAt, lastActivity;
-  final bool pinned, template;
+  final bool pinned, template, canTakeOver;
   final String status, reviewedBy;
   final int submittedAt;
   Project.fromJson(Map<String, dynamic> j)
@@ -79,6 +79,7 @@ class Project {
         lastActivity = j['lastActivity'] ?? j['createdAt'] ?? 0,
         pinned = j['pinned'] ?? false,
         template = j['template'] ?? false,
+        canTakeOver = j['takeOver'] == true,
         status = j['status'] ?? 'draft',
         submittedAt = j['submittedAt'] ?? 0,
         reviewedBy = j['reviewedBy'] ?? '';
@@ -103,6 +104,7 @@ class Project {
         'lastActivity': lastActivity,
         'pinned': pinned,
         'template': template ?? this.template,
+        'takeOver': canTakeOver,
         'status': status ?? this.status,
         'submittedAt': submittedAt,
         'reviewedBy': reviewedBy,
