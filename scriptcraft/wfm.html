@@ -11,6 +11,8 @@
   #overlay.hidden { display: none; }
   #overlay button { padding: 6px 14px; margin: 0 4px; }
   #toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: #333; color: #eee; padding: 8px 16px; border-radius: 4px; display: none; font: 13px system-ui, sans-serif; z-index: 6; }
+  html.oled, html.oled body, html.oled #overlay { background: #000; }
+  html.oled #toast { background: #0b0b0d; }
 </style>
 </head>
 <body>
@@ -24,6 +26,7 @@ const projectId = qs.get("project");
 const docPath = qs.get("doc") || "Script/script.fountain";
 const docName = docPath.split("/").pop();
 const theme = qs.get("theme") ? "&theme=" + encodeURIComponent(qs.get("theme")) : "";
+if (qs.get("theme") === "oled") document.documentElement.classList.add("oled");
 const API = "/api";
 const clientId = (() => {
   if (crypto.randomUUID) return crypto.randomUUID();

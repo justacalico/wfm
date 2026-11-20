@@ -29,6 +29,9 @@
   .upl-row.err .upl-fill { background: #e05c5c; }
   .upl-row.done .upl-fill { background: #4caf7d; }
   .upl-pct { min-width: 44px; text-align: right; color: #8d8d96; }
+  html.oled body, html.oled #overlay { background: #000; }
+  html.oled #toast, html.oled #upl-card { background: #0b0b0d; }
+  html.oled #upl { background: rgba(0,0,0,.7); }
 </style>
 </head>
 <body>
@@ -60,6 +63,7 @@ const qs = new URLSearchParams(location.search);
 const projectId = qs.get("project");
 const renderId = qs.get("render");
 const theme = qs.get("theme") ? "&theme=" + encodeURIComponent(qs.get("theme")) : "";
+if (qs.get("theme") === "oled") document.documentElement.classList.add("oled");
 const API = "/api";
 const clientId = (() => {
   if (crypto.randomUUID) return crypto.randomUUID();

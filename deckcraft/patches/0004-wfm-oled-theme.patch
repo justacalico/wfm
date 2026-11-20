@@ -1,0 +1,90 @@
+diff --git a/apps/deckcraft-web/src/web.rs b/apps/deckcraft-web/src/web.rs
+index b6dd20e..52d5975 100644
+--- a/apps/deckcraft-web/src/web.rs
++++ b/apps/deckcraft-web/src/web.rs
+@@ -70,7 +70,8 @@ pub fn start() {
+                     // no host word follows the OS choice.
+                     app.ui.brightness = match query_param("theme").as_deref() {
+                         Some("light") => Brightness::Light,
+-                        Some("dark") | Some("oled") => Brightness::Dark,
++                        Some("dark") => Brightness::Dark,
++                        Some("oled") => Brightness::Oled,
+                         _ if cc.egui_ctx.system_theme() == Some(egui::Theme::Dark) => Brightness::Dark,
+                         _ => Brightness::Light,
+                     };
+diff --git a/crates/ui-egui/src/theme.rs b/crates/ui-egui/src/theme.rs
+index 2e14bba..91d7cbb 100644
+--- a/crates/ui-egui/src/theme.rs
++++ b/crates/ui-egui/src/theme.rs
+@@ -9,12 +9,15 @@ pub enum Brightness {
+     #[default]
+     Light,
+     Dark,
++    /// Pure-black surfaces for OLED screens; the host page's `theme=oled` picks it.
++    Oled,
+ }
+ 
+ /// Every colour the chrome uses.
+ #[derive(Clone, Copy, Debug)]
+ pub struct Tokens {
+     pub dark: bool,
++    pub oled: bool,
+     /// Window background (title bar, tab row, side panes).
+     pub chrome: Color32,
+     /// The ribbon card and popovers.
+@@ -56,6 +59,7 @@ impl Tokens {
+     pub fn light() -> Self {
+         Tokens {
+             dark: false,
++            oled: false,
+             chrome: Color32::from_rgb(0xF5, 0xF5, 0xF5),
+             card: Color32::WHITE,
+             card_border: Color32::from_rgb(0xE3, 0xE3, 0xE3),
+@@ -88,6 +92,7 @@ impl Tokens {
+     pub fn dark() -> Self {
+         Tokens {
+             dark: true,
++            oled: false,
+             chrome: Color32::from_rgb(0x26, 0x26, 0x26),
+             card: Color32::from_rgb(0x33, 0x33, 0x33),
+             card_border: Color32::from_rgb(0x44, 0x44, 0x44),
+@@ -117,19 +122,38 @@ impl Tokens {
+             shadow: Color32::from_black_alpha(90),
+         }
+     }
++    pub fn oled() -> Self {
++        Tokens {
++            oled: true,
++            chrome: Color32::BLACK,
++            card: Color32::from_rgb(0x0d, 0x0d, 0x0d),
++            text_field: Color32::from_rgb(0x14, 0x14, 0x14),
++            canvas: Color32::BLACK,
++            field_bg: Color32::from_rgb(0x14, 0x14, 0x14),
++            control: Color32::from_rgb(0x14, 0x14, 0x14),
++            control_hover: Color32::from_rgb(0x24, 0x24, 0x24),
++            control_pressed: Color32::from_rgb(0x34, 0x34, 0x34),
++            ..Self::dark()
++        }
++    }
+     pub fn for_brightness(b: Brightness) -> Self {
+         match b {
+             Brightness::Light => Self::light(),
+             Brightness::Dark => Self::dark(),
++            Brightness::Oled => Self::oled(),
+         }
+     }
+     pub fn get(ctx: &egui::Context) -> Self {
+-        if ctx.global_style().visuals.dark_mode { Self::dark() } else { Self::light() }
++        if !ctx.global_style().visuals.dark_mode {
++            return Self::light();
++        }
++        if ctx.data_mut(|d| d.get_persisted(egui::Id::unique("wfm.oled"))).unwrap_or(false) { Self::oled() } else { Self::dark() }
+     }
+ }
+ 
+ /// Apply tokens to egui's style.
+ pub fn apply(ctx: &egui::Context, t: &Tokens) {
++    ctx.data_mut(|d| d.insert_persisted(egui::Id::unique("wfm.oled"), t.oled));
+     let mut v = if t.dark { Visuals::dark() } else { Visuals::light() };
+     v.panel_fill = t.chrome;
+     v.window_fill = t.card;
