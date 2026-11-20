@@ -305,11 +305,12 @@ class AssignmentInfo {
 class MyAssignment {
   final Assignment assignment;
   final AssignmentCopy copy;
-  final String projectName, status;
+  final String projectName, teacherName, status;
   MyAssignment.fromJson(Map<String, dynamic> j)
       : assignment = Assignment.fromJson(j),
         copy = AssignmentCopy.fromJson(j['copy'] ?? {}),
         projectName = j['projectName'] ?? '',
+        teacherName = j['teacherName'] ?? '',
         status = j['status'] ?? 'draft';
 }
 

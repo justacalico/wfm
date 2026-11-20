@@ -1127,6 +1127,33 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get lateSubmission => 'late';
+
+  @override
+  String get assignedToYou => 'Assigned to you';
+
+  @override
+  String get dueNow => 'due now';
+
+  @override
+  String inMinutes(Object count) {
+    return 'in ${count}m';
+  }
+
+  @override
+  String inHours(Object count) {
+    return 'in ${count}h';
+  }
+
+  @override
+  String inDays(Object count) {
+    return 'in ${count}d';
+  }
+
+  @override
+  String get notStarted => 'Not started';
+
+  @override
+  String get inProgress => 'In progress';
 }
 
 /// The translations for English, as used in the United Kingdom (`en_GB`).

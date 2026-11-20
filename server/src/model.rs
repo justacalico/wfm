@@ -383,6 +383,8 @@ pub struct MyAssignment {
     pub copy: AssignmentCopy,
     #[serde(rename = "projectName")]
     pub project_name: String,
+    #[serde(rename = "teacherName")]
+    pub teacher_name: String,
     pub status: String,
 }
 

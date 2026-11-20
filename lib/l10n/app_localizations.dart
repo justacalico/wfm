@@ -2125,6 +2125,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'late'**
   String get lateSubmission;
+
+  /// No description provided for @assignedToYou.
+  ///
+  /// In en, this message translates to:
+  /// **'Assigned to you'**
+  String get assignedToYou;
+
+  /// No description provided for @dueNow.
+  ///
+  /// In en, this message translates to:
+  /// **'due now'**
+  String get dueNow;
+
+  /// No description provided for @inMinutes.
+  ///
+  /// In en, this message translates to:
+  /// **'in {count}m'**
+  String inMinutes(Object count);
+
+  /// No description provided for @inHours.
+  ///
+  /// In en, this message translates to:
+  /// **'in {count}h'**
+  String inHours(Object count);
+
+  /// No description provided for @inDays.
+  ///
+  /// In en, this message translates to:
+  /// **'in {count}d'**
+  String inDays(Object count);
+
+  /// No description provided for @notStarted.
+  ///
+  /// In en, this message translates to:
+  /// **'Not started'**
+  String get notStarted;
+
+  /// No description provided for @inProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'In progress'**
+  String get inProgress;
 }
 
 class _AppLocalizationsDelegate

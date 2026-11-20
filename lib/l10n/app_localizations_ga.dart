@@ -1131,4 +1131,31 @@ class AppLocalizationsGa extends AppLocalizations {
 
   @override
   String get lateSubmission => 'déanach';
+
+  @override
+  String get assignedToYou => 'Sannta duit';
+
+  @override
+  String get dueNow => 'dlite anois';
+
+  @override
+  String inMinutes(Object count) {
+    return 'in $count nóiméad';
+  }
+
+  @override
+  String inHours(Object count) {
+    return 'in $count uair';
+  }
+
+  @override
+  String inDays(Object count) {
+    return 'in $count lá';
+  }
+
+  @override
+  String get notStarted => 'Gan tosú';
+
+  @override
+  String get inProgress => 'Ar siúl';
 }

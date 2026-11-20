@@ -1846,7 +1846,7 @@ impl Db for SqliteDb {
         let student = student.to_string();
         self.q(move |c| {
                 let mut st = c.prepare(
-                    "SELECT a.id,a.project_id,a.teacher_id,a.allow_withdraw,a.max_submissions,a.due_at,a.hidden,a.locked,a.created_at,c.project_id,c.assignment_id,c.student_id,c.submissions,p.display_name,p.status FROM assignment_copies c JOIN assignments a ON a.id=c.assignment_id JOIN projects p ON p.id=c.project_id WHERE c.student_id=? AND a.hidden=0 ORDER BY a.created_at DESC",
+                    "SELECT a.id,a.project_id,a.teacher_id,a.allow_withdraw,a.max_submissions,a.due_at,a.hidden,a.locked,a.created_at,c.project_id,c.assignment_id,c.student_id,c.submissions,p.display_name,p.status,COALESCE(NULLIF(u.display_name,''),u.username) FROM assignment_copies c JOIN assignments a ON a.id=c.assignment_id JOIN projects p ON p.id=c.project_id JOIN users u ON u.id=a.teacher_id WHERE c.student_id=? AND a.hidden=0 ORDER BY a.created_at DESC",
                 )?;
                 let rows = st.query_map(params![student], |r| {
                     Ok(MyAssignment {
@@ -1859,6 +1859,7 @@ impl Db for SqliteDb {
                         },
                         project_name: r.get(13)?,
                         status: r.get(14)?,
+                        teacher_name: r.get(15)?,
                     })
                 })?;
                 rows.collect::<rusqlite::Result<Vec<_>>>()

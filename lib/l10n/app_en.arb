@@ -481,5 +481,27 @@
   "unassign": "Remove assignment",
   "unassignBody": "Remove this assignment? Student copies stay as ordinary projects.",
   "noStudents": "No students to assign",
-  "lateSubmission": "late"
+  "lateSubmission": "late",
+  "assignedToYou": "Assigned to you",
+  "dueNow": "due now",
+  "inMinutes": "in {count}m",
+  "@inMinutes": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "inHours": "in {count}h",
+  "@inHours": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "inDays": "in {count}d",
+  "@inDays": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "notStarted": "Not started",
+  "inProgress": "In progress"
 }
