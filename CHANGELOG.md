@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.28.0 - 2026-11-20
+#### Features
+- 按可见范围限制分享与账号树 - (91f4d11) - calico
+
+- - -
+
 ## v0.27.0 - 2026-11-20
 #### Features
 - 锁定 DeckCraft 宿主模式 - (cbdba87) - calico
