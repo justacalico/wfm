@@ -684,6 +684,14 @@ class _ProjectPageState extends State<ProjectPage> {
     }
   }
 
+  Future<void> _open(String url) async {
+    try {
+      await openEditor(context, Api.i, url);
+    } catch (e) {
+      if (mounted) snack(context, e);
+    }
+  }
+
   Future<void> _delete() async {
     if (!await confirm(context, context.l10n.deleteProject,
         context.l10n.deleteProjectBody(_p.displayName))) {
@@ -700,6 +708,7 @@ class _ProjectPageState extends State<ProjectPage> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final tight = MediaQuery.sizeOf(context).width < 720;
     return Scaffold(
       appBar: AppBar(
         leading:
@@ -739,42 +748,33 @@ class _ProjectPageState extends State<ProjectPage> {
                       style: Theme.of(context).textTheme.labelSmall)),
             ),
           if (_p.editable) ...[
-            FilledButton.tonalIcon(
-              onPressed: () async {
-                try {
-                  await openEditor(context, Api.i,
-                      Api.i.projectUrl(_p.id, theme: _theme(context)));
-                } catch (e) {
-                  if (context.mounted) snack(context, e);
-                }
-              },
-              icon: const Icon(Icons.movie_edit, size: 18),
-              label: Text(l10n.editInFilmcraft),
-            ),
-            const SizedBox(width: 8),
+            if (tight)
+              IconButton(
+                icon: const Icon(Icons.movie_edit, size: 20),
+                tooltip: l10n.editInFilmcraft,
+                onPressed: () =>
+                    _open(Api.i.projectUrl(_p.id, theme: _theme(context))),
+              )
+            else ...[
+              FilledButton.tonalIcon(
+                onPressed: () =>
+                    _open(Api.i.projectUrl(_p.id, theme: _theme(context))),
+                icon: const Icon(Icons.movie_edit, size: 18),
+                label: Text(l10n.editInFilmcraft),
+              ),
+              const SizedBox(width: 8),
+            ],
             IconButton(
-              onPressed: () async {
-                try {
-                  await openEditor(context, Api.i,
-                      Api.i.scriptUrl(_p.id, theme: _theme(context)));
-                } catch (e) {
-                  if (context.mounted) snack(context, e);
-                }
-              },
               icon: const Icon(Icons.edit_note, size: 20),
               tooltip: l10n.openScript,
+              onPressed: () =>
+                  _open(Api.i.scriptUrl(_p.id, theme: _theme(context))),
             ),
             IconButton(
-              onPressed: () async {
-                try {
-                  await openEditor(context, Api.i,
-                      Api.i.deckUrl(_p.id, theme: _theme(context)));
-                } catch (e) {
-                  if (context.mounted) snack(context, e);
-                }
-              },
               icon: const Icon(Icons.view_carousel_outlined, size: 20),
               tooltip: l10n.openBoards,
+              onPressed: () =>
+                  _open(Api.i.deckUrl(_p.id, theme: _theme(context))),
             ),
           ],
           if (_p.mine && _p.status != 'reviewed')
@@ -855,23 +855,26 @@ class _ProjectPageState extends State<ProjectPage> {
             alignment: Alignment.centerLeft,
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: SegmentedButton<int>(
-                segments: [
-                  ButtonSegment(
-                      value: 0,
-                      icon: const Icon(Icons.folder_outlined),
-                      label: Text(l10n.files)),
-                  ButtonSegment(
-                      value: 1,
-                      icon: const Icon(Icons.rocket_launch_outlined),
-                      label: Text(l10n.renders)),
-                  ButtonSegment(
-                      value: 2,
-                      icon: const Icon(Icons.comment_outlined),
-                      label: Text(l10n.comments)),
-                ],
-                selected: {_tab},
-                onSelectionChanged: (s) => setState(() => _tab = s.first),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: SegmentedButton<int>(
+                  segments: [
+                    ButtonSegment(
+                        value: 0,
+                        icon: const Icon(Icons.folder_outlined),
+                        label: Text(l10n.files)),
+                    ButtonSegment(
+                        value: 1,
+                        icon: const Icon(Icons.rocket_launch_outlined),
+                        label: Text(l10n.renders)),
+                    ButtonSegment(
+                        value: 2,
+                        icon: const Icon(Icons.comment_outlined),
+                        label: Text(l10n.comments)),
+                  ],
+                  selected: {_tab},
+                  onSelectionChanged: (s) => setState(() => _tab = s.first),
+                ),
               ),
             ),
           ),
@@ -1206,6 +1209,7 @@ class _FilesTabState extends State<FilesTab> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final tight = MediaQuery.sizeOf(context).width < 720;
     final crumbs = _path.isEmpty ? <String>[] : _path.split('/');
     return Column(children: [
       Padding(
@@ -1220,7 +1224,9 @@ class _FilesTabState extends State<FilesTab> {
                             _selPaths.add(e.path);
                           }
                         })),
-                Text(l10n.selectedCount(_selPaths.length)),
+                Flexible(
+                    child: Text(l10n.selectedCount(_selPaths.length),
+                        overflow: TextOverflow.ellipsis)),
                 const Spacer(),
                 IconButton(
                     icon: const Icon(Icons.download),
@@ -1239,18 +1245,25 @@ class _FilesTabState extends State<FilesTab> {
                 IconButton(icon: const Icon(Icons.close), onPressed: _exitSel),
               ])
             : Row(children: [
-                InkWell(
-                    onTap: () => _go(''),
-                    child: const Icon(Icons.home_outlined, size: 20)),
-                for (var i = 0; i < crumbs.length; i++) ...[
-                  const Icon(Icons.chevron_right, size: 18),
-                  InkWell(
-                    onTap: () => _go(crumbs.sublist(0, i + 1).join('/')),
-                    child: Text(crumbs[i],
-                        style: const TextStyle(fontWeight: FontWeight.w600)),
+                Expanded(
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(children: [
+                      InkWell(
+                          onTap: () => _go(''),
+                          child: const Icon(Icons.home_outlined, size: 20)),
+                      for (var i = 0; i < crumbs.length; i++) ...[
+                        const Icon(Icons.chevron_right, size: 18),
+                        InkWell(
+                          onTap: () => _go(crumbs.sublist(0, i + 1).join('/')),
+                          child: Text(crumbs[i],
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.w600)),
+                        ),
+                      ],
+                    ]),
                   ),
-                ],
-                const Spacer(),
+                ),
                 if (_usage >= 0)
                   Padding(
                     padding: const EdgeInsets.only(right: 8),
@@ -1280,11 +1293,16 @@ class _FilesTabState extends State<FilesTab> {
                     tooltip: l10n.refresh,
                     onPressed: _load),
                 if (widget.project.editable)
-                  FilledButton.tonalIcon(
-                    onPressed: _upload,
-                    icon: const Icon(Icons.upload_file, size: 18),
-                    label: Text(l10n.upload),
-                  ),
+                  tight
+                      ? IconButton(
+                          icon: const Icon(Icons.upload_file),
+                          tooltip: l10n.upload,
+                          onPressed: _upload)
+                      : FilledButton.tonalIcon(
+                          onPressed: _upload,
+                          icon: const Icon(Icons.upload_file, size: 18),
+                          label: Text(l10n.upload),
+                        ),
               ]),
       ),
       _progress(),
@@ -2259,47 +2277,75 @@ class _ShareDialogState extends State<_ShareDialog> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final tight = MediaQuery.sizeOf(context).width < 480;
     final shares = _shares;
+    final invitee = DropdownMenu<User>(
+      key: ValueKey('share-target-${_invitee?.id ?? ''}'),
+      initialSelection: _invitee,
+      label: Text(l10n.username),
+      enableFilter: true,
+      menuHeight: 320,
+      expandedInsets: EdgeInsets.zero,
+      dropdownMenuEntries: [
+        for (final u in _targets ?? const <User>[])
+          DropdownMenuEntry(
+              value: u,
+              label: u.name.isEmpty ? u.username : '${u.name} (${u.username})'),
+      ],
+      onSelected: (u) => setState(() => _invitee = u),
+    );
+    final level = DropdownButton<String>(
+      value: _level,
+      items: [
+        DropdownMenuItem(value: 'view', child: Text(l10n.canView)),
+        DropdownMenuItem(value: 'edit', child: Text(l10n.canEdit)),
+      ],
+      onChanged: (v) => setState(() => _level = v!),
+    );
+    final send = IconButton(
+        icon: const Icon(Icons.send),
+        tooltip: l10n.send,
+        onPressed: _busy ? null : _send);
+    final scope = DropdownButton<String>(
+      value: _scope,
+      isExpanded: true,
+      items: [
+        DropdownMenuItem(value: 'renders', child: Text(l10n.scopeRenders)),
+        DropdownMenuItem(value: 'project', child: Text(l10n.scopeProject)),
+      ],
+      onChanged: (v) => setState(() => _scope = v!),
+    );
+    final days = DropdownButton<int>(
+      value: _days,
+      isExpanded: true,
+      items: [
+        DropdownMenuItem(value: 0, child: Text(l10n.expiryNever)),
+        DropdownMenuItem(value: 1, child: Text(l10n.expiryDay)),
+        DropdownMenuItem(value: 7, child: Text(l10n.expiryWeek)),
+        DropdownMenuItem(value: 30, child: Text(l10n.expiryMonth)),
+      ],
+      onChanged: (v) => setState(() => _days = v!),
+    );
     return AlertDialog(
       title: Text(l10n.shareProject),
+      insetPadding:
+          EdgeInsets.symmetric(horizontal: tight ? 16 : 40, vertical: 24),
+      contentPadding:
+          EdgeInsets.fromLTRB(tight ? 16 : 24, 20, tight ? 16 : 24, 24),
       content: SizedBox(
         width: 400,
         child: SingleChildScrollView(
           child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Row(children: [
-              Expanded(
-                child: DropdownMenu<User>(
-                  key: ValueKey('share-target-${_invitee?.id ?? ''}'),
-                  initialSelection: _invitee,
-                  label: Text(l10n.username),
-                  enableFilter: true,
-                  menuHeight: 320,
-                  expandedInsets: EdgeInsets.zero,
-                  dropdownMenuEntries: [
-                    for (final u in _targets ?? const <User>[])
-                      DropdownMenuEntry(
-                          value: u,
-                          label: u.name.isEmpty
-                              ? u.username
-                              : '${u.name} (${u.username})'),
-                  ],
-                  onSelected: (u) => setState(() => _invitee = u),
-                ),
-              ),
-              const SizedBox(width: 8),
-              DropdownButton<String>(
-                value: _level,
-                items: [
-                  DropdownMenuItem(value: 'view', child: Text(l10n.canView)),
-                  DropdownMenuItem(value: 'edit', child: Text(l10n.canEdit)),
-                ],
-                onChanged: (v) => setState(() => _level = v!),
-              ),
-              IconButton(
-                  icon: const Icon(Icons.send),
-                  tooltip: l10n.send,
-                  onPressed: _busy ? null : _send),
-            ]),
+            if (tight) ...[
+              SizedBox(width: double.infinity, child: invitee),
+              Row(children: [level, const Spacer(), send]),
+            ] else
+              Row(children: [
+                Expanded(child: invitee),
+                const SizedBox(width: 8),
+                level,
+                send,
+              ]),
             const SizedBox(height: 8),
             if (shares == null)
               const Padding(
@@ -2346,35 +2392,15 @@ class _ShareDialogState extends State<_ShareDialog> {
                   tooltip: l10n.createLink,
                   onPressed: _busy ? null : _createLink),
             ]),
-            Row(children: [
-              Expanded(
-                child: DropdownButton<String>(
-                  value: _scope,
-                  isExpanded: true,
-                  items: [
-                    DropdownMenuItem(
-                        value: 'renders', child: Text(l10n.scopeRenders)),
-                    DropdownMenuItem(
-                        value: 'project', child: Text(l10n.scopeProject)),
-                  ],
-                  onChanged: (v) => setState(() => _scope = v!),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: DropdownButton<int>(
-                  value: _days,
-                  isExpanded: true,
-                  items: [
-                    DropdownMenuItem(value: 0, child: Text(l10n.expiryNever)),
-                    DropdownMenuItem(value: 1, child: Text(l10n.expiryDay)),
-                    DropdownMenuItem(value: 7, child: Text(l10n.expiryWeek)),
-                    DropdownMenuItem(value: 30, child: Text(l10n.expiryMonth)),
-                  ],
-                  onChanged: (v) => setState(() => _days = v!),
-                ),
-              ),
-            ]),
+            if (tight) ...[
+              scope,
+              days,
+            ] else
+              Row(children: [
+                Expanded(child: scope),
+                const SizedBox(width: 8),
+                Expanded(child: days),
+              ]),
             if (_links != null)
               for (final l in _links!)
                 if (!l.revoked)
