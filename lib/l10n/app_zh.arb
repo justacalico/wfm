@@ -160,6 +160,23 @@
       "name": {}
     }
   },
+  "add": "添加",
+  "remove": "移除",
+  "coTeachers": "协作教师",
+  "coTeacherCount": "{count} 位协作教师",
+  "@coTeacherCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "addCoTeacher": "添加协作教师",
+  "coTeacherNew": "创建新账号",
+  "removeCoTeacherBody": "将 {name} 移出协作教师？其账号将保留。",
+  "@removeCoTeacherBody": {
+    "placeholders": {
+      "name": {}
+    }
+  },
   "activity": "动态",
   "renderNodes": "渲染节点",
   "newAccount": "新建账户",
@@ -473,6 +490,7 @@
   "returnToDraft": "退回草稿",
   "statusSubmitted": "已提交",
   "statusReviewed": "已审核",
+  "notifCoTeacher": "{from} 已将你添加为“{name}”的协作教师",
   "notifComment": "{from} 评论了 {project}",
   "notifSubmitted": "{from} 提交了 {project} 待审核",
   "notifReviewed": "{from} 已将 {project} 标记为已审核",

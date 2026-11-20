@@ -138,6 +138,7 @@ pub struct Class {
     pub name: String,
     pub unmanaged: bool,
     pub members: i64,
+    pub teachers: i64,
     #[serde(rename = "createdAt")]
     pub created_at: i64,
 }

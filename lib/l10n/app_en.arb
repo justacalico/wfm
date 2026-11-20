@@ -160,6 +160,23 @@
       "name": {}
     }
   },
+  "add": "Add",
+  "remove": "Remove",
+  "coTeachers": "Co-teachers",
+  "coTeacherCount": "{count} co-teachers",
+  "@coTeacherCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "addCoTeacher": "Add co-teacher",
+  "coTeacherNew": "Create a new account",
+  "removeCoTeacherBody": "Remove {name} as a co-teacher? Their account stays.",
+  "@removeCoTeacherBody": {
+    "placeholders": {
+      "name": {}
+    }
+  },
   "activity": "Activity",
   "renderNodes": "Render nodes",
   "newAccount": "New account",
@@ -473,6 +490,7 @@
   "returnToDraft": "Return to draft",
   "statusSubmitted": "Submitted",
   "statusReviewed": "Reviewed",
+  "notifCoTeacher": "{from} added you as a co-teacher of {name}",
   "notifComment": "{from} commented on {project}",
   "notifSubmitted": "{from} submitted {project} for review",
   "notifReviewed": "{from} marked {project} reviewed",

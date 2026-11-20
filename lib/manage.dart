@@ -417,7 +417,9 @@ class _ClassesTabState extends State<ClassesTab> {
                           ? Icons.group_outlined
                           : Icons.class_outlined),
                       title: Text(_name(c)),
-                      subtitle: Text(l10n.memberCount(c.members)),
+                      subtitle: Text(c.teachers > 0
+                          ? '${l10n.memberCount(c.members)} · ${l10n.coTeacherCount(c.teachers)}'
+                          : l10n.memberCount(c.members)),
                       children: [
                         if (_canManage(c) && !c.unmanaged)
                           OverflowBar(children: [
@@ -455,9 +457,199 @@ class _ClassesTabState extends State<ClassesTab> {
                                     )
                                   : null,
                             ),
+                        if (!c.unmanaged)
+                          _CoTeachers(
+                              klass: c,
+                              canManage: _canManage(c),
+                              onChanged: _load),
                       ],
                     ),
                 ]),
+    );
+  }
+}
+
+/// Co-teachers of a class. The main teacher links existing staff or creates a
+/// teacher account for the class; everyone else just sees the roster.
+class _CoTeachers extends StatefulWidget {
+  final SchoolClass klass;
+  final bool canManage;
+  final VoidCallback onChanged;
+  const _CoTeachers(
+      {required this.klass, required this.canManage, required this.onChanged});
+  @override
+  State<_CoTeachers> createState() => _CoTeachersState();
+}
+
+class _CoTeachersState extends State<_CoTeachers> {
+  List<User>? _teachers;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final t = await Api.i.classTeachers(widget.klass.id);
+      if (mounted) setState(() => _teachers = t);
+    } catch (_) {
+      if (mounted) setState(() => _teachers = const []);
+    }
+  }
+
+  Future<void> _add() async {
+    final added = await showDialog<bool>(
+        context: context,
+        builder: (_) => _CoTeacherDialog(classId: widget.klass.id));
+    if (added == true) {
+      _load();
+      widget.onChanged();
+    }
+  }
+
+  Future<void> _remove(User t) async {
+    final l10n = context.l10n;
+    if (!await confirm(context, l10n.remove,
+        l10n.removeCoTeacherBody(t.name.isEmpty ? t.username : t.name))) {
+      return;
+    }
+    try {
+      await Api.i.classTeacherRemove(widget.klass.id, t.id);
+      _load();
+      widget.onChanged();
+    } catch (e) {
+      if (mounted) snack(context, e);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final teachers = _teachers;
+    return Column(children: [
+      for (final t in teachers ?? const <User>[])
+        ListTile(
+          dense: true,
+          leading: const Icon(Icons.co_present_outlined, size: 20),
+          title: Text(t.name.isEmpty ? t.username : t.name),
+          subtitle: Text(t.username),
+          trailing: widget.canManage
+              ? IconButton(
+                  icon: const Icon(Icons.person_remove_outlined, size: 20),
+                  tooltip: l10n.remove,
+                  onPressed: () => _remove(t))
+              : null,
+        ),
+      if (widget.canManage)
+        Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+                onPressed: _add,
+                icon: const Icon(Icons.person_add_alt_1, size: 18),
+                label: Text(l10n.addCoTeacher))),
+    ]);
+  }
+}
+
+/// Add a co-teacher: either link an existing teacher account by username or
+/// create a fresh teacher account attached to the class.
+class _CoTeacherDialog extends StatefulWidget {
+  final String classId;
+  const _CoTeacherDialog({required this.classId});
+  @override
+  State<_CoTeacherDialog> createState() => _CoTeacherDialogState();
+}
+
+class _CoTeacherDialogState extends State<_CoTeacherDialog> {
+  final _username = TextEditingController();
+  final _name = TextEditingController();
+  final _password = TextEditingController();
+  bool _newAccount = false;
+  bool _busy = false;
+  String _err = '';
+
+  @override
+  void dispose() {
+    _username.dispose();
+    _name.dispose();
+    _password.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    setState(() {
+      _busy = true;
+      _err = '';
+    });
+    try {
+      if (_newAccount) {
+        await Api.i.createAccount({
+          'username': _username.text.trim(),
+          'password': _password.text,
+          'name': _name.text.trim(),
+          'role': 'teacher',
+          'classId': widget.classId,
+        });
+      } else {
+        await Api.i.classTeacherAdd(widget.classId, _username.text.trim());
+      }
+      if (mounted) Navigator.pop(context, true);
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _err = '$e';
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final valid = _username.text.trim().isNotEmpty &&
+        (!_newAccount ||
+            (_name.text.trim().isNotEmpty && _password.text.length >= 8));
+    return AlertDialog(
+      title: Text(l10n.addCoTeacher),
+      content: Column(mainAxisSize: MainAxisSize.min, children: [
+        TextField(
+            controller: _username,
+            decoration: dec(l10n.username),
+            onChanged: (_) => setState(() {})),
+        CheckboxListTile(
+            value: _newAccount,
+            title: Text(l10n.coTeacherNew),
+            contentPadding: EdgeInsets.zero,
+            controlAffinity: ListTileControlAffinity.leading,
+            onChanged: (v) => setState(() => _newAccount = v ?? false)),
+        if (_newAccount) ...[
+          TextField(
+              controller: _name,
+              decoration: dec(l10n.name),
+              onChanged: (_) => setState(() {})),
+          TextField(
+              controller: _password,
+              obscureText: true,
+              decoration: dec(l10n.password),
+              onChanged: (_) => setState(() {})),
+        ],
+        if (_err.isNotEmpty)
+          Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(_err,
+                  style:
+                      TextStyle(color: Theme.of(context).colorScheme.error))),
+      ]),
+      actions: [
+        TextButton(
+            onPressed: () => Navigator.pop(context), child: Text(l10n.cancel)),
+        FilledButton(
+            onPressed: valid && !_busy ? _submit : null,
+            child: Text(_newAccount ? l10n.create : l10n.add)),
+      ],
     );
   }
 }

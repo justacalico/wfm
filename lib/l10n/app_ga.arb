@@ -160,6 +160,23 @@
       "name": {}
     }
   },
+  "add": "Cuir leis",
+  "remove": "Bain",
+  "coTeachers": "Comh-mhúinteoirí",
+  "coTeacherCount": "{count} chomh-mhúinteoir",
+  "@coTeacherCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "addCoTeacher": "Cuir comh-mhúinteoir leis",
+  "coTeacherNew": "Cruthaigh cuntas nua",
+  "removeCoTeacherBody": "Bain {name} mar chomh-mhúinteoir? Fanann a gcuntas ann.",
+  "@removeCoTeacherBody": {
+    "placeholders": {
+      "name": {}
+    }
+  },
   "activity": "Gníomhaíocht",
   "renderNodes": "Nóid rindreála",
   "newAccount": "Cuntas nua",
@@ -473,6 +490,7 @@
   "returnToDraft": "Fill ar dhreacht",
   "statusSubmitted": "Curtha isteach",
   "statusReviewed": "Athbhreithnithe",
+  "notifCoTeacher": "Chuir {from} tú mar chomh-mhúinteoir ar {name}",
   "notifComment": "Rinne {from} tráchtaireacht ar {project}",
   "notifSubmitted": "Chuir {from} {project} isteach le haghaidh athbhreithnithe",
   "notifReviewed": "Mharcáil {from} {project} mar athbhreithnithe",

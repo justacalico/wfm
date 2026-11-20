@@ -335,6 +335,31 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get add => 'Add';
+
+  @override
+  String get remove => 'Remove';
+
+  @override
+  String get coTeachers => 'Co-teachers';
+
+  @override
+  String coTeacherCount(Object count) {
+    return '$count co-teachers';
+  }
+
+  @override
+  String get addCoTeacher => 'Add co-teacher';
+
+  @override
+  String get coTeacherNew => 'Create a new account';
+
+  @override
+  String removeCoTeacherBody(Object name) {
+    return 'Remove $name as a co-teacher? Their account stays.';
+  }
+
+  @override
   String get activity => 'Activity';
 
   @override
@@ -1062,6 +1087,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get statusReviewed => 'Reviewed';
+
+  @override
+  String notifCoTeacher(Object from, Object name) {
+    return '$from added you as a co-teacher of $name';
+  }
 
   @override
   String notifComment(Object from, Object project) {

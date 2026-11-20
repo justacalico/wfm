@@ -698,6 +698,48 @@ abstract class AppLocalizations {
   /// **'Delete class \"{name}\"? Its members move to Unmanaged.'**
   String deleteClassBody(Object name);
 
+  /// No description provided for @add.
+  ///
+  /// In en, this message translates to:
+  /// **'Add'**
+  String get add;
+
+  /// No description provided for @remove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get remove;
+
+  /// No description provided for @coTeachers.
+  ///
+  /// In en, this message translates to:
+  /// **'Co-teachers'**
+  String get coTeachers;
+
+  /// No description provided for @coTeacherCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} co-teachers'**
+  String coTeacherCount(Object count);
+
+  /// No description provided for @addCoTeacher.
+  ///
+  /// In en, this message translates to:
+  /// **'Add co-teacher'**
+  String get addCoTeacher;
+
+  /// No description provided for @coTeacherNew.
+  ///
+  /// In en, this message translates to:
+  /// **'Create a new account'**
+  String get coTeacherNew;
+
+  /// No description provided for @removeCoTeacherBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove {name} as a co-teacher? Their account stays.'**
+  String removeCoTeacherBody(Object name);
+
   /// No description provided for @activity.
   ///
   /// In en, this message translates to:
@@ -2011,6 +2053,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Reviewed'**
   String get statusReviewed;
+
+  /// No description provided for @notifCoTeacher.
+  ///
+  /// In en, this message translates to:
+  /// **'{from} added you as a co-teacher of {name}'**
+  String notifCoTeacher(Object from, Object name);
 
   /// No description provided for @notifComment.
   ///

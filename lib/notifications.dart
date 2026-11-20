@@ -86,6 +86,8 @@ class _NotificationsPageState extends State<NotificationsPage> {
         return l10n.notifRenderFailed(name, project);
       case 'node_offline':
         return l10n.notifNodeOffline(name);
+      case 'co_teacher':
+        return l10n.notifCoTeacher(from, '${p['className'] ?? ''}');
       case 'comment':
         return l10n.notifComment(from, project);
       case 'submit':
@@ -106,6 +108,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
         'render_done' => Icons.movie_creation_outlined,
         'render_failed' => Icons.error_outline,
         'node_offline' => Icons.dns_outlined,
+        'co_teacher' => Icons.co_present_outlined,
         'comment' => Icons.comment_outlined,
         'submit' => Icons.send_outlined,
         'review' => Icons.fact_check_outlined,

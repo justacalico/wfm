@@ -160,6 +160,23 @@
       "name": {}
     }
   },
+  "add": "Добавить",
+  "remove": "Убрать",
+  "coTeachers": "Сопреподаватели",
+  "coTeacherCount": "сопреподавателей: {count}",
+  "@coTeacherCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "addCoTeacher": "Добавить сопреподавателя",
+  "coTeacherNew": "Создать новую учётную запись",
+  "removeCoTeacherBody": "Убрать {name} из сопреподавателей? Учётная запись останется.",
+  "@removeCoTeacherBody": {
+    "placeholders": {
+      "name": {}
+    }
+  },
   "activity": "Активность",
   "renderNodes": "Узлы рендера",
   "newAccount": "Новая учётная запись",
@@ -473,6 +490,7 @@
   "returnToDraft": "Вернуть в черновик",
   "statusSubmitted": "Отправлено",
   "statusReviewed": "Проверено",
+  "notifCoTeacher": "{from} добавил(а) вас сопреподавателем класса «{name}»",
   "notifComment": "{from} прокомментировал {project}",
   "notifSubmitted": "{from} отправил {project} на проверку",
   "notifReviewed": "{from} отметил {project} проверенным",

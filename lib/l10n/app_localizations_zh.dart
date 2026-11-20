@@ -333,6 +333,31 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get add => '添加';
+
+  @override
+  String get remove => '移除';
+
+  @override
+  String get coTeachers => '协作教师';
+
+  @override
+  String coTeacherCount(Object count) {
+    return '$count 位协作教师';
+  }
+
+  @override
+  String get addCoTeacher => '添加协作教师';
+
+  @override
+  String get coTeacherNew => '创建新账号';
+
+  @override
+  String removeCoTeacherBody(Object name) {
+    return '将 $name 移出协作教师？其账号将保留。';
+  }
+
+  @override
   String get activity => '动态';
 
   @override
@@ -1055,6 +1080,11 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get statusReviewed => '已审核';
+
+  @override
+  String notifCoTeacher(Object from, Object name) {
+    return '$from 已将你添加为“$name”的协作教师';
+  }
 
   @override
   String notifComment(Object from, Object project) {
