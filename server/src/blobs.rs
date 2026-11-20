@@ -15,6 +15,10 @@ pub struct BlobObject {
     pub key: String,
     pub size: u64,
     pub modified: i64,
+    /// Opaque content revision: changes whenever the object is rewritten.
+    /// Clients send it back as a write precondition so stale copies can't
+    /// overwrite newer data.
+    pub rev: String,
 }
 
 /// Media/object storage contract. Default deployment speaks S3 to RustFS;
@@ -165,15 +169,17 @@ impl Blobs for LocalBlobs {
                 if meta.is_dir() {
                     folders.push(rel);
                 } else {
+                    let ms = meta
+                        .modified()
+                        .ok()
+                        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                        .map(|d| d.as_millis() as u64)
+                        .unwrap_or(0);
                     objects.push(BlobObject {
                         key: rel,
                         size: meta.len(),
-                        modified: meta
-                            .modified()
-                            .ok()
-                            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-                            .map(|d| d.as_secs() as i64)
-                            .unwrap_or(0),
+                        modified: (ms / 1000) as i64,
+                        rev: format!("{ms:x}-{:x}", meta.len()),
                     });
                 }
             }
@@ -402,6 +408,15 @@ impl Blobs for S3Blobs {
                     key: rel,
                     size: o.size as u64,
                     modified: chrono_ts(&o.last_modified),
+                    rev: format!(
+                        "{}-{:x}",
+                        o.e_tag
+                            .as_deref()
+                            .map(|e| e.trim_matches('"'))
+                            .filter(|e| !e.is_empty())
+                            .unwrap_or(&o.last_modified),
+                        o.size
+                    ),
                 });
             }
         }

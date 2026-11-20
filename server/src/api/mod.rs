@@ -124,6 +124,7 @@ pub fn router(state: Arc<AppState>) -> Router {
             "/projects/{id}/files",
             get(list_files).put(upload_file).delete(delete_file),
         )
+        .route("/projects/{id}/manifest", get(project_manifest))
         .route("/projects/{id}/files/upload", post(upload_start))
         .route("/projects/{id}/files/mkdir", post(mkdir))
         .route("/projects/{id}/files/move", post(move_file))
@@ -3429,6 +3430,8 @@ struct FileQuery {
     done: bool,
     #[serde(rename = "clientId", default)]
     client_id: String,
+    #[serde(default)]
+    base: String,
     start: Option<u64>,
     end: Option<u64>,
 }
@@ -3453,6 +3456,7 @@ async fn list_files(
                 kind: "dir".into(),
                 size: 0,
                 modified: 0,
+                rev: String::new(),
             })
             .collect();
         return Json(json!(out)).into_response();
@@ -3475,6 +3479,7 @@ async fn list_files(
                         kind: "dir".into(),
                         size: 0,
                         modified: 0,
+                        rev: String::new(),
                     }
                 })
                 .collect();
@@ -3486,6 +3491,7 @@ async fn list_files(
                     kind: "file".into(),
                     size: o.size,
                     modified: o.modified,
+                    rev: o.rev.clone(),
                 }
             }));
             out.sort_by(|a, b| {
@@ -3496,6 +3502,128 @@ async fn list_files(
             Json(json!(out)).into_response()
         }
         Err(e) => err(StatusCode::INTERNAL_SERVER_ERROR, &e),
+    }
+}
+
+/// One flat listing of the whole project tree: the desktop client's sync
+/// engine diffs it against its local checkout instead of walking folders.
+async fn project_manifest(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Path(id): Path<String>,
+) -> Response {
+    let p = match read_project(&s, &session, &id).await {
+        Ok(p) => p,
+        Err(r) => return r,
+    };
+    let strip = format!("{}/", p.dir);
+    let mut out: Vec<files::FileEntry> = Vec::new();
+    let mut stack = vec![p.dir.clone()];
+    let mut guard = 0usize;
+    while let Some(pre) = stack.pop() {
+        guard += 1;
+        if guard > 10000 {
+            return err(StatusCode::INTERNAL_SERVER_ERROR, "tree too deep");
+        }
+        match s.blobs.list(&pre).await {
+            Ok((folders, objects)) => {
+                stack.extend(folders);
+                for o in objects {
+                    let rel = o
+                        .key
+                        .strip_prefix(&strip)
+                        .unwrap_or(&o.key)
+                        .to_string();
+                    if files::clean_rel_key(&rel).is_err() {
+                        continue;
+                    }
+                    out.push(files::FileEntry {
+                        name: rel.rsplit('/').next().unwrap_or(&rel).to_string(),
+                        path: rel,
+                        kind: "file".into(),
+                        size: o.size,
+                        modified: o.modified,
+                        rev: o.rev,
+                    });
+                }
+            }
+            Err(e) => return err(StatusCode::INTERNAL_SERVER_ERROR, &e),
+        }
+    }
+    out.sort_by(|a, b| a.path.cmp(&b.path));
+    Json(json!(out)).into_response()
+}
+
+/// The blob's current rev, or None when it does not exist. Lists the parent
+/// prefix so no extra backend call shape is needed.
+async fn blob_rev(s: &AppState, dir: &str, key: &str) -> Result<Option<String>, String> {
+    let full = blob_key(dir, key);
+    let parent = full.rsplit_once('/').map(|(p, _)| p).unwrap_or("");
+    let (_, objects) = s.blobs.list(parent).await?;
+    Ok(objects
+        .into_iter()
+        .find(|o| o.key == full)
+        .map(|o| o.rev))
+}
+
+/// `base` is the rev the client last synced. `"none"` means the file must
+/// not exist yet. An empty base skips the check (legacy callers).
+async fn check_base(
+    s: &AppState,
+    dir: &str,
+    key: &str,
+    base: &str,
+) -> Result<(), Response> {
+    if base.is_empty() {
+        return Ok(());
+    }
+    let cur = blob_rev(s, dir, key)
+        .await
+        .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e))?;
+    let ok = match (cur.as_deref(), base) {
+        (None, "none") => true,
+        (Some(r), b) => r == b,
+        _ => false,
+    };
+    if ok {
+        Ok(())
+    } else {
+        Err((
+            StatusCode::CONFLICT,
+            Json(json!({"error": "stale", "rev": cur})),
+        )
+            .into_response())
+    }
+}
+
+/// Lock kind guarding `key`: ScriptCraft owns Script/, DeckCraft owns
+/// Boards/, everything else falls under FilmCraft's "edit".
+fn write_lock_kind(key: &str) -> &'static str {
+    if key.starts_with("Script/") {
+        "script"
+    } else if key.starts_with("Boards/") {
+        "deck"
+    } else {
+        "edit"
+    }
+}
+
+/// Reject a write made by a client that lost the edit lock for this file's
+/// domain. Callers without a clientId skip the check (legacy behaviour).
+async fn check_write_lock(
+    s: &AppState,
+    project_id: &str,
+    key: &str,
+    client_id: &str,
+) -> Result<(), Response> {
+    if client_id.is_empty() {
+        return Ok(());
+    }
+    match s.db.lock_get(project_id, write_lock_kind(key)).await {
+        Ok(l) if l.holder != client_id && l.expires_at > AppState::now() => {
+            Err(err(StatusCode::CONFLICT, "lock lost"))
+        }
+        _ => Ok(()),
     }
 }
 
@@ -3591,13 +3719,11 @@ async fn upload_file(
     if !files::upload_allowed(&key) {
         return err(StatusCode::UNSUPPORTED_MEDIA_TYPE, "unsupported file type");
     }
-    if key == "project.fcproj" && !q.client_id.is_empty() {
-        match s.db.lock_get(&id, "edit").await {
-            Ok(l) if l.holder != q.client_id && l.expires_at > AppState::now() => {
-                return err(StatusCode::CONFLICT, "lock lost");
-            }
-            _ => {}
-        }
+    if let Err(r) = check_write_lock(&s, &id, &key, &q.client_id).await {
+        return r;
+    }
+    if let Err(r) = check_base(&s, &p.dir, &key, &q.base).await {
+        return r;
     }
     let (tmp, written) = match spool_body(&s, body, s.cfg.max_upload).await {
         Ok(v) => v,
@@ -3634,6 +3760,8 @@ struct UploadStart {
     path: String,
     #[serde(default, rename = "clientId")]
     client_id: String,
+    #[serde(default)]
+    base: String,
 }
 
 #[derive(Deserialize)]
@@ -3666,6 +3794,12 @@ async fn upload_start(
     };
     if !files::upload_allowed(&key) {
         return err(StatusCode::UNSUPPORTED_MEDIA_TYPE, "unsupported file type");
+    }
+    if let Err(r) = check_write_lock(&s, &id, &key, &b.client_id).await {
+        return r;
+    }
+    if let Err(r) = check_base(&s, &p.dir, &key, &b.base).await {
+        return r;
     }
     let uid = model::new_id();
     let tmp = s.cfg.data_dir.join("tmp").join(format!("chunk-{uid}"));
@@ -3798,13 +3932,8 @@ async fn upload_complete(
         Some(u) => u,
         None => return err(StatusCode::NOT_FOUND, "unknown upload"),
     };
-    if u.key == "project.fcproj" && !u.client_id.is_empty() {
-        match s.db.lock_get(&u.project, "edit").await {
-            Ok(l) if l.holder != u.client_id && l.expires_at > AppState::now() => {
-                return err(StatusCode::CONFLICT, "lock lost");
-            }
-            _ => {}
-        }
+    if let Err(r) = check_write_lock(&s, &u.project, &u.key, &u.client_id).await {
+        return r;
     }
     if let Ok(p) = s.db.project_by_id(&u.project).await {
         if quota_exceeded(&s, &p.owner_id, u.received).await {
@@ -3929,6 +4058,8 @@ async fn spool_body(
 #[derive(Deserialize)]
 struct PathReq {
     path: String,
+    #[serde(default, rename = "clientId")]
+    client_id: String,
 }
 
 async fn mkdir(
@@ -3941,6 +4072,11 @@ async fn mkdir(
         Ok(p) => p,
         Err(r) => return r,
     };
+    if let Ok(k) = files::clean_rel_key(&req.path) {
+        if let Err(r) = check_write_lock(&s, &id, &k, &req.client_id).await {
+            return r;
+        }
+    }
     match files::clean_rel_key(&req.path) {
         Ok(k) => match s.blobs.mkdir(&blob_key(&p.dir, &k)).await {
             Ok(()) => {
@@ -3958,6 +4094,10 @@ async fn mkdir(
 struct MoveReq {
     from: String,
     to: String,
+    #[serde(default, rename = "clientId")]
+    client_id: String,
+    #[serde(default)]
+    base: String,
 }
 
 async fn move_file(
@@ -3979,6 +4119,15 @@ async fn move_file(
     };
     if fk == tk {
         return Json(json!({"ok": true})).into_response();
+    }
+    if let Err(r) = check_write_lock(&s, &id, &fk, &req.client_id).await {
+        return r;
+    }
+    if let Err(r) = check_write_lock(&s, &id, &tk, &req.client_id).await {
+        return r;
+    }
+    if let Err(r) = check_base(&s, &p.dir, &fk, &req.base).await {
+        return r;
     }
     if let Some(from_ext) = key_ext(&fk) {
         if s.blobs.head(&blob_key(&p.dir, &fk)).await.is_ok()
@@ -4023,6 +4172,12 @@ async fn delete_file(
         Ok(k) if k.split('/').count() > 1 => k,
         _ => return err(StatusCode::FORBIDDEN, "cannot delete root folder"),
     };
+    if let Err(r) = check_write_lock(&s, &id, &key, &q.client_id).await {
+        return r;
+    }
+    if let Err(r) = check_base(&s, &p.dir, &key, &q.base).await {
+        return r;
+    }
     match s.blobs.delete(&blob_key(&p.dir, &key)).await {
         Ok(()) => {
             s.audit(
@@ -4507,6 +4662,7 @@ mod tests {
                 dl: false,
                 done: false,
                 client_id: String::new(),
+                base: String::new(),
                 start: None,
                 end: None,
             }),
@@ -4581,6 +4737,191 @@ mod tests {
 
         // The managed doc paths the host editors write to work end to end.
         let (q, h, b) = upload_req("Script/script.fountain", b"Title: T\n\nINT. ROOM");
+        let r = upload_file(
+            State(s.clone()),
+            session(&student),
+            Path(p.id.clone()),
+            q,
+            h,
+            b,
+        )
+        .await;
+        assert_eq!(r.status(), StatusCode::OK);
+    }
+
+    #[test]
+    fn write_lock_domains() {
+        assert_eq!(write_lock_kind("Script/script.fountain"), "script");
+        assert_eq!(write_lock_kind("Script/notes/t.txt"), "script");
+        assert_eq!(write_lock_kind("Boards/boards.deckcraft"), "deck");
+        assert_eq!(write_lock_kind("project.fcproj"), "edit");
+        assert_eq!(write_lock_kind("Raw/a.mp4"), "edit");
+        assert_eq!(write_lock_kind("Exports/cut.mp4"), "edit");
+    }
+
+    #[tokio::test]
+    async fn manifest_lists_everything_with_revs() {
+        let dir = std::env::temp_dir().join(format!("wfm-api-{}", model::new_id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let s = state(&dir);
+
+        let student = user(Role::Student);
+        let p = project(&student);
+        s.db.create_project(&p).await.unwrap();
+
+        let put = |key: &str, body: &'static [u8]| {
+            let s = s.clone();
+            let pdir = p.dir.clone();
+            let key = key.to_string();
+            async move {
+                let mut c = std::io::Cursor::new(body);
+                s.blobs
+                    .put(&format!("{pdir}/{key}"), body.len() as u64, &mut c)
+                    .await
+                    .unwrap();
+            }
+        };
+        put("project.fcproj", b"{\"format\":\"filmcraft.project\"}").await;
+        put("Raw/clip.mp4", b"\x00\x00\x00\x18ftypisomrest").await;
+        put("Script/script.fountain", b"Title: T\n\nINT. ROOM").await;
+
+        let r = project_manifest(State(s.clone()), session(&student), Path(p.id.clone()))
+            .await;
+        assert_eq!(r.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(r.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let list: Vec<Value> = serde_json::from_slice(&body).unwrap();
+        let paths: Vec<&str> = list.iter().filter_map(|e| e["path"].as_str()).collect();
+        assert_eq!(
+            paths,
+            vec!["Raw/clip.mp4", "Script/script.fountain", "project.fcproj"]
+        );
+        for e in &list {
+            assert!(!e["rev"].as_str().unwrap_or_default().is_empty());
+        }
+    }
+
+    #[tokio::test]
+    async fn base_precondition_guards_writes() {
+        let dir = std::env::temp_dir().join(format!("wfm-api-{}", model::new_id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let s = state(&dir);
+
+        let student = user(Role::Student);
+        let p = project(&student);
+        s.db.create_project(&p).await.unwrap();
+
+        // A write claiming a base on a file that does not exist is stale.
+        let (mut q, h, b) = upload_req("Raw/clip.mp4", b"\x00\x00\x00\x18ftypisomrest");
+        q.base = "deadbeef-10".into();
+        let r = upload_file(
+            State(s.clone()),
+            session(&student),
+            Path(p.id.clone()),
+            q,
+            h.clone(),
+            b,
+        )
+        .await;
+        assert_eq!(r.status(), StatusCode::CONFLICT);
+
+        // `base=none` allows the create.
+        let (mut q, h, b) = upload_req("Raw/clip.mp4", b"\x00\x00\x00\x18ftypisomrest");
+        q.base = "none".into();
+        let r = upload_file(
+            State(s.clone()),
+            session(&student),
+            Path(p.id.clone()),
+            q,
+            h,
+            b,
+        )
+        .await;
+        assert_eq!(r.status(), StatusCode::OK);
+
+        let rev = blob_rev(&s, &p.dir, "Raw/clip.mp4").await.unwrap().unwrap();
+
+        // Rewriting with the right base works; with a stale one it is refused.
+        let (mut q, h, b) = upload_req("Raw/clip.mp4", b"\x00\x00\x00\x18ftypisomv2");
+        q.base = "wrong".into();
+        let r = upload_file(
+            State(s.clone()),
+            session(&student),
+            Path(p.id.clone()),
+            q,
+            h,
+            b,
+        )
+        .await;
+        assert_eq!(r.status(), StatusCode::CONFLICT);
+
+        let (mut q, h, b) = upload_req("Raw/clip.mp4", b"\x00\x00\x00\x18ftypisomv2");
+        q.base = rev;
+        let r = upload_file(
+            State(s.clone()),
+            session(&student),
+            Path(p.id.clone()),
+            q,
+            h,
+            b,
+        )
+        .await;
+        assert_eq!(r.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn lock_holder_blocks_other_writers() {
+        let dir = std::env::temp_dir().join(format!("wfm-api-{}", model::new_id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let s = state(&dir);
+
+        let student = user(Role::Student);
+        let p = project(&student);
+        s.db.create_project(&p).await.unwrap();
+        s.db
+            .lock_acquire(
+                &p.id,
+                "script",
+                "web-tab-1",
+                &student.username,
+                AppState::now() + 60,
+                AppState::now(),
+                false,
+            )
+            .await
+            .unwrap();
+
+        // Another client writing into Script/ is refused; the holder is not.
+        let (mut q, h, b) = upload_req("Script/script.fountain", b"Title: T\n\nINT. ROOM");
+        q.client_id = "native-run-9".into();
+        let r = upload_file(
+            State(s.clone()),
+            session(&student),
+            Path(p.id.clone()),
+            q,
+            h.clone(),
+            b,
+        )
+        .await;
+        assert_eq!(r.status(), StatusCode::CONFLICT);
+
+        let (mut q, h, b) = upload_req("Script/script.fountain", b"Title: T\n\nINT. ROOM");
+        q.client_id = "web-tab-1".into();
+        let r = upload_file(
+            State(s.clone()),
+            session(&student),
+            Path(p.id.clone()),
+            q,
+            h,
+            b,
+        )
+        .await;
+        assert_eq!(r.status(), StatusCode::OK);
+
+        // A different lock kind does not guard Raw/ writes.
+        let (mut q, h, b) = upload_req("Raw/clip.mp4", b"\x00\x00\x00\x18ftypisomrest");
+        q.client_id = "native-run-9".into();
         let r = upload_file(
             State(s.clone()),
             session(&student),

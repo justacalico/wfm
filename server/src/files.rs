@@ -305,6 +305,7 @@ pub struct FileEntry {
     pub kind: String,
     pub size: u64,
     pub modified: i64,
+    pub rev: String,
 }
 
 pub fn valid_project_name_or_err(name: &str) -> Result<String, FsError> {
