@@ -2,6 +2,13 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.37.0 - 2026-11-20
+#### Features
+- craft 编辑器适配移动端布局 - (8fedcbd) - calico
+- 班级功能，教师可建班并在班级内隔离学生分享可见性 - (16fb512) - calico
+
+- - -
+
 ## v0.36.3 - 2026-11-20
 #### Bug Fixes
 - 项目页只显示自己的项目，他人项目从管理页查看 - (5e366fa) - calico
