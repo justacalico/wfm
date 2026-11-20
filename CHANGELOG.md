@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.22.1 - 2026-11-20
+#### Bug Fixes
+- friendly rename errors and same-path no-ops - (f991d7f) - calico
+
+- - -
+
 ## v0.22.0 - 2026-11-20
 #### Features
 - navigate to the renders tab after queuing a render - (37f02a4) - calico
