@@ -35,6 +35,12 @@ class AppLocalizationsRu extends AppLocalizations {
   String get rename => 'Переименовать';
 
   @override
+  String get fileExists => 'Файл с таким именем уже существует.';
+
+  @override
+  String get renameFailed => 'Не удалось переименовать файл.';
+
+  @override
   String get download => 'Скачать';
 
   @override

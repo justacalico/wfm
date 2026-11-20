@@ -1253,6 +1253,61 @@ void main() {
       await settle(t);
     });
 
+    testWidgets(
+        'rename same name fires no request, collision shows friendly text',
+        (t) async {
+      var moved = 0;
+      installApi(extra: {
+        'GET /api/projects/p1/files': (_) => [
+              {
+                'name': 'clip.mp4',
+                'path': 'clip.mp4',
+                'type': 'file',
+                'size': 2048,
+                'modified': 1
+              },
+            ],
+        'POST /api/projects/p1/files/move': (req) {
+          moved++;
+          return moved == 1
+              ? http.Response('{"error":"exists"}', 409)
+              : http.Response('{"error":"boom"}', 500);
+        },
+      });
+      await pump(t, Scaffold(body: FilesTab(project: p1)));
+      expect(find.text('clip.mp4'), findsOneWidget);
+
+      await t.tap(find.byType(PopupMenuButton<String>).first);
+      await settle(t);
+      await t.tap(find.text('Rename'));
+      await settle(t);
+      await t.enterText(find.byType(TextField).last, 'CLIP.MP4');
+      await t.tap(find.text('OK'));
+      await settle(t);
+      expect(moved, 0);
+
+      await t.tap(find.byType(PopupMenuButton<String>).first);
+      await settle(t);
+      await t.tap(find.text('Rename'));
+      await settle(t);
+      await t.enterText(find.byType(TextField).last, 'taken.mp4');
+      await t.tap(find.text('OK'));
+      await settle(t);
+      expect(moved, 1);
+      expect(find.text('A file with that name already exists.'), findsWidgets);
+
+      await t.tap(find.byType(PopupMenuButton<String>).first);
+      await settle(t);
+      await t.tap(find.text('Rename'));
+      await settle(t);
+      await t.enterText(find.byType(TextField).last, 'other.mp4');
+      await t.tap(find.text('OK'));
+      await settle(t);
+      expect(moved, 2);
+      expect(find.text("Couldn't rename the file."), findsWidgets);
+      await t.pumpWidget(const SizedBox());
+    });
+
     testWidgets('selection mode: bulk move, zip and delete', (t) async {
       var opened = '';
       var moved = 0;

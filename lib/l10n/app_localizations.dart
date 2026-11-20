@@ -152,6 +152,18 @@ abstract class AppLocalizations {
   /// **'Rename'**
   String get rename;
 
+  /// No description provided for @fileExists.
+  ///
+  /// In en, this message translates to:
+  /// **'A file with that name already exists.'**
+  String get fileExists;
+
+  /// No description provided for @renameFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t rename the file.'**
+  String get renameFailed;
+
   /// No description provided for @download.
   ///
   /// In en, this message translates to:

@@ -8,6 +8,8 @@
   "save": "Сохранить",
   "delete": "Удалить",
   "rename": "Переименовать",
+  "fileExists": "Файл с таким именем уже существует.",
+  "renameFailed": "Не удалось переименовать файл.",
   "download": "Скачать",
   "close": "Закрыть",
   "playInBrowser": "Открыть в браузере",
@@ -313,7 +315,11 @@
   "connecting": "…",
   "finishSetupInBrowser": "    .    : {url}.",
   "@finishSetupInBrowser": {
-    "placeholders": {"url": {"type": "String"}}
+    "placeholders": {
+      "url": {
+        "type": "String"
+      }
+    }
   },
   "serverUnreachable": "Не удаётся связаться с сервером: {error}",
   "@serverUnreachable": {
@@ -445,8 +451,7 @@
   "notifComment": "{from} прокомментировал {project}",
   "notifSubmitted": "{from} отправил {project} на проверку",
   "notifReviewed": "{from} отметил {project} проверенным",
-  "notifReturned": "{from} вернул {project} в черновик"
-,
+  "notifReturned": "{from} вернул {project} в черновик",
   "editors": "Редакторы",
   "filmcraftShortcuts": "Горячие клавиши FilmCraft",
   "searchShortcuts": "Поиск действий",
