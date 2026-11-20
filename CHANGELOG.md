@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.25.0 - 2026-11-20
+#### Features
+- 锁定 ScriptCraft 宿主模式 - (b2336ed) - calico
+
+- - -
+
 ## v0.24.0 - 2026-11-20
 #### Features
 - 限制项目上传文件类型并校验文件内容 - (4287b2c) - calico
