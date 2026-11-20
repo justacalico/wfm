@@ -435,6 +435,44 @@ void main() {
       await api.deleteNode('n1');
       expect(lastRequest!.method, 'DELETE');
     });
+
+    test('classes endpoints and model', () async {
+      final api = Api(client({
+        'GET /api/classes': [
+          {
+            'id': 'c1',
+            'name': 'Period 1',
+            'ownerId': 'u1',
+            'unmanaged': false,
+            'members': 2,
+            'createdAt': 9
+          }
+        ],
+        'POST /api/classes': {
+          'id': 'c2',
+          'name': 'unmanaged',
+          'ownerId': 'u1',
+          'unmanaged': true,
+          'members': 0,
+          'createdAt': 1
+        },
+        'PATCH /api/classes/c1': {'ok': true},
+        'DELETE /api/classes/c1': {'ok': true},
+      }));
+      final cs = await api.classes();
+      expect(cs.single.name, 'Period 1');
+      expect(cs.single.members, 2);
+      expect(cs.single.unmanaged, isFalse);
+      expect(cs.single.ownerId, 'u1');
+      expect(cs.single.createdAt, 9);
+      expect((await api.classCreate('Period 2')).unmanaged, isTrue);
+      expect(jsonDecode(lastRequest!.body)['name'], 'Period 2');
+      await api.classRename('c1', 'P1b');
+      expect(jsonDecode(lastRequest!.body)['name'], 'P1b');
+      await api.classDelete('c1');
+      expect(lastRequest!.method, 'DELETE');
+      expect(User.fromJson({'id': 's1', 'classId': 'c9'}).classId, 'c9');
+    });
   });
   group('invites', () {
     test('Invite model and endpoints', () async {

@@ -302,6 +302,40 @@ class AppLocalizationsRu extends AppLocalizations {
   String get accounts => 'Учётные записи';
 
   @override
+  String get classes => 'Классы';
+
+  @override
+  String get schoolClass => 'Класс';
+
+  @override
+  String get newClass => 'Новый класс';
+
+  @override
+  String get className => 'Название класса';
+
+  @override
+  String get renameClass => 'Переименовать класс';
+
+  @override
+  String get noClasses => 'Классов пока нет';
+
+  @override
+  String get unmanagedClass => 'Без класса';
+
+  @override
+  String memberCount(Object count) {
+    return '$count участников';
+  }
+
+  @override
+  String get moveToClass => 'Переместить в класс';
+
+  @override
+  String deleteClassBody(Object name) {
+    return 'Удалить класс \"$name\"? Участники перейдут в \"Без класса\".';
+  }
+
+  @override
   String get activity => 'Активность';
 
   @override

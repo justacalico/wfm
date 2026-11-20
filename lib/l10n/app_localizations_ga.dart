@@ -303,6 +303,40 @@ class AppLocalizationsGa extends AppLocalizations {
   String get accounts => 'Cuntais';
 
   @override
+  String get classes => 'Ranganna';
+
+  @override
+  String get schoolClass => 'Rang';
+
+  @override
+  String get newClass => 'Rang nua';
+
+  @override
+  String get className => 'Ainm an ranga';
+
+  @override
+  String get renameClass => 'Athainmnigh an rang';
+
+  @override
+  String get noClasses => 'Níl aon rang fós';
+
+  @override
+  String get unmanagedClass => 'Gan bhainistiú';
+
+  @override
+  String memberCount(Object count) {
+    return '$count ball';
+  }
+
+  @override
+  String get moveToClass => 'Bog go rang';
+
+  @override
+  String deleteClassBody(Object name) {
+    return 'Scrios an rang \"$name\"? Bogfar a bhaill go Gan bhainistiú.';
+  }
+
+  @override
   String get activity => 'Gníomhaíocht';
 
   @override

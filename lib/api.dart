@@ -16,7 +16,7 @@ class User {
   final String id, username, name, role, studentId, note, avatar;
   final bool disabled;
   final int createdAt, lastLogin, quotaBytes;
-  final String createdBy;
+  final String createdBy, classId;
   User.fromJson(Map<String, dynamic> j)
       : id = j['id'] ?? '',
         username = j['username'] ?? '',
@@ -27,6 +27,7 @@ class User {
         note = j['note'] ?? '',
         avatar = j['avatar'] ?? '',
         createdBy = j['createdBy'] ?? '',
+        classId = j['classId'] ?? '',
         createdAt = j['createdAt'] ?? 0,
         lastLogin = j['lastLogin'] ?? 0,
         quotaBytes = j['quotaBytes'] ?? 0;
@@ -114,6 +115,19 @@ class ProjectGroup {
   ProjectGroup.fromJson(Map<String, dynamic> j)
       : id = j['id'] ?? '',
         name = j['name'] ?? '';
+}
+
+class SchoolClass {
+  final String id, name, ownerId;
+  final bool unmanaged;
+  final int members, createdAt;
+  SchoolClass.fromJson(Map<String, dynamic> j)
+      : id = j['id'] ?? '',
+        name = j['name'] ?? '',
+        ownerId = j['ownerId'] ?? '',
+        unmanaged = j['unmanaged'] ?? false,
+        members = j['members'] ?? 0,
+        createdAt = j['createdAt'] ?? 0;
 }
 
 class FileEntry {
@@ -759,6 +773,18 @@ class Api {
 
   Future<List<User>> shareTargets() async =>
       [for (final e in (await get('/share-targets')) as List) User.fromJson(e)];
+
+  Future<List<SchoolClass>> classes() async => [
+        for (final e in (await get('/classes')) as List) SchoolClass.fromJson(e)
+      ];
+
+  Future<SchoolClass> classCreate(String name) async =>
+      SchoolClass.fromJson(await post('/classes', {'name': name}));
+
+  Future<void> classRename(String id, String name) =>
+      patch('/classes/$id', {'name': name});
+
+  Future<void> classDelete(String id) => del('/classes/$id');
 
   Future<User> createAccount(Map<String, dynamic> body) async =>
       User.fromJson(await post('/accounts', body));

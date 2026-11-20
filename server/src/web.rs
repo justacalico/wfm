@@ -297,6 +297,7 @@ mod tests {
             avatar: String::new(),
             quota_bytes: 0,
             created_by: String::new(),
+            class_id: String::new(),
             lineage: "/".into(),
             created_at: AppState::now(),
             last_login: 0,

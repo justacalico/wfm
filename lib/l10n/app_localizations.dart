@@ -638,6 +638,66 @@ abstract class AppLocalizations {
   /// **'Accounts'**
   String get accounts;
 
+  /// No description provided for @classes.
+  ///
+  /// In en, this message translates to:
+  /// **'Classes'**
+  String get classes;
+
+  /// No description provided for @schoolClass.
+  ///
+  /// In en, this message translates to:
+  /// **'Class'**
+  String get schoolClass;
+
+  /// No description provided for @newClass.
+  ///
+  /// In en, this message translates to:
+  /// **'New class'**
+  String get newClass;
+
+  /// No description provided for @className.
+  ///
+  /// In en, this message translates to:
+  /// **'Class name'**
+  String get className;
+
+  /// No description provided for @renameClass.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename class'**
+  String get renameClass;
+
+  /// No description provided for @noClasses.
+  ///
+  /// In en, this message translates to:
+  /// **'No classes yet'**
+  String get noClasses;
+
+  /// No description provided for @unmanagedClass.
+  ///
+  /// In en, this message translates to:
+  /// **'Unmanaged'**
+  String get unmanagedClass;
+
+  /// No description provided for @memberCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} members'**
+  String memberCount(Object count);
+
+  /// No description provided for @moveToClass.
+  ///
+  /// In en, this message translates to:
+  /// **'Move to class'**
+  String get moveToClass;
+
+  /// No description provided for @deleteClassBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete class \"{name}\"? Its members move to Unmanaged.'**
+  String deleteClassBody(Object name);
+
   /// No description provided for @activity.
   ///
   /// In en, this message translates to:

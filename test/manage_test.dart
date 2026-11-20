@@ -439,6 +439,318 @@ void main() {
     });
   });
 
+  group('ClassesTab', () {
+    Map<String, dynamic Function(http.Request)> classRoutes() => {
+          'GET /api/classes': (_) => [
+                {
+                  'id': 'cu',
+                  'name': 'unmanaged',
+                  'ownerId': 'u1',
+                  'unmanaged': true,
+                  'members': 1,
+                  'createdAt': 1
+                },
+                {
+                  'id': 'c1',
+                  'name': 'Period 1',
+                  'ownerId': 'u1',
+                  'members': 1,
+                  'createdAt': 2
+                },
+                {
+                  'id': 'c2',
+                  'name': 'Foreign',
+                  'ownerId': 't9',
+                  'members': 1,
+                  'createdAt': 3
+                },
+              ],
+          'GET /api/accounts': (_) => [
+                userJson,
+                {
+                  'id': 's1',
+                  'username': 'stu',
+                  'role': 'student',
+                  'classId': 'cu'
+                },
+                {
+                  'id': 's2',
+                  'username': 'stu2',
+                  'role': 'student',
+                  'classId': 'c1'
+                },
+                {
+                  'id': 's3',
+                  'username': 'far',
+                  'role': 'student',
+                  'classId': 'c2'
+                },
+              ],
+        };
+
+    testWidgets('lists classes and members, moves and edits them', (t) async {
+      var moves = 0, renames = 0, deletes = 0, creates = 0;
+      installApi(extra: {
+        ...classRoutes(),
+        'POST /api/classes': (req) {
+          creates++;
+          return {'id': 'cn', 'name': 'New', 'ownerId': 'u1', 'createdAt': 4};
+        },
+        'PATCH /api/classes/c1': (req) {
+          renames++;
+          return {'ok': true};
+        },
+        'DELETE /api/classes/c1': (req) {
+          deletes++;
+          return {'ok': true};
+        },
+        'PATCH /api/accounts/s1': (req) {
+          moves++;
+          return userJson;
+        },
+      });
+      Api.i.user = User.fromJson({'id': 'u1', 'role': 'teacher'});
+      await pump(t, const ClassesTab());
+      expect(find.text('Unmanaged'), findsOneWidget);
+      expect(find.text('Period 1'), findsOneWidget);
+      expect(find.text('Foreign'), findsOneWidget);
+      expect(find.text('1 members'), findsWidgets);
+
+      await t.tap(find.text('Unmanaged'));
+      await settle(t);
+      expect(find.text('stu · student'), findsOneWidget);
+      await t.tap(find.byIcon(Icons.drive_file_move_outline).first);
+      await settle(t);
+      await t.tap(find.widgetWithText(PopupMenuItem<String>, 'Period 1'));
+      await settle(t);
+      expect(moves, 1);
+
+      await t.tap(find.text('Period 1'));
+      await settle(t);
+      expect(find.text('stu2 · student'), findsOneWidget);
+      await t.tap(find.text('Rename'));
+      await settle(t);
+      await t.tap(find.text('OK'));
+      await settle(t);
+      expect(renames, 0, reason: 'unchanged names are skipped');
+      await t.tap(find.text('Rename'));
+      await settle(t);
+      await t.enterText(find.byType(TextField), 'Period 2');
+      await settle(t);
+      await t.tap(find.text('OK'));
+      await settle(t);
+      expect(renames, 1);
+
+      await t.tap(find.text('Delete'));
+      await settle(t);
+      await t.tap(find.text('Cancel'));
+      await settle(t);
+      expect(deletes, 0);
+      await t.tap(find.text('Delete'));
+      await settle(t);
+      await t.tap(find.text('Confirm'));
+      await settle(t);
+      expect(deletes, 1);
+
+      await t.tap(find.text('Foreign'));
+      await settle(t);
+      expect(find.text('far · student'), findsOneWidget);
+      final foreign = find.ancestor(
+          of: find.text('far · student'), matching: find.byType(ExpansionTile));
+      expect(
+          find.descendant(
+              of: foreign,
+              matching: find.byIcon(Icons.drive_file_move_outline)),
+          findsNothing,
+          reason: 'foreign classes stay read-only');
+      expect(
+          find.descendant(
+              of: foreign, matching: find.widgetWithText(TextButton, 'Rename')),
+          findsNothing);
+
+      await t.tap(find.byType(FloatingActionButton));
+      await settle(t);
+      await t.tap(find.text('Cancel'));
+      await settle(t);
+      expect(creates, 0);
+      await t.tap(find.byType(FloatingActionButton));
+      await settle(t);
+      await t.enterText(find.byType(TextField), 'Period 3');
+      await settle(t);
+      await t.tap(find.text('OK'));
+      await settle(t);
+      expect(creates, 1);
+    });
+
+    testWidgets('empty, error and failing actions', (t) async {
+      installApi(extra: {
+        'GET /api/classes': (_) => [],
+        'GET /api/accounts': (_) => [],
+      });
+      await pump(t, const ClassesTab());
+      expect(find.text('No classes yet'), findsOneWidget);
+
+      await t.pumpWidget(const SizedBox());
+      installApi(extra: {
+        'GET /api/classes': (_) => http.Response('{"error":"nope"}', 500)
+      });
+      await pump(t, const ClassesTab());
+      expect(find.text('nope'), findsOneWidget);
+
+      await t.pumpWidget(const SizedBox());
+      installApi(extra: {
+        'GET /api/classes': (_) => [
+              {
+                'id': 'c1',
+                'name': 'P1',
+                'ownerId': 'u1',
+                'members': 1,
+                'createdAt': 1
+              },
+              {
+                'id': 'cu',
+                'name': 'unmanaged',
+                'ownerId': 'u1',
+                'unmanaged': true,
+                'members': 0,
+                'createdAt': 2
+              },
+            ],
+        'GET /api/accounts': (_) => [
+              {
+                'id': 's1',
+                'username': 'stu',
+                'role': 'student',
+                'classId': 'c1'
+              }
+            ],
+        'POST /api/classes': (_) => http.Response('{"error":"x"}', 500),
+        'PATCH /api/classes/c1': (_) => http.Response('{"error":"x"}', 500),
+        'DELETE /api/classes/c1': (_) => http.Response('{"error":"x"}', 500),
+        'PATCH /api/accounts/s1': (_) => http.Response('{"error":"x"}', 500),
+      });
+      Api.i.user = User.fromJson({'id': 'u1', 'role': 'teacher'});
+      await pump(t, const ClassesTab());
+      await t.tap(find.byType(FloatingActionButton));
+      await settle(t);
+      await t.enterText(find.byType(TextField), 'x');
+      await settle(t);
+      await t.tap(find.text('OK'));
+      await settle(t);
+      expect(find.byType(Notice), findsOneWidget);
+      await t.tap(find.text('P1'));
+      await settle(t);
+      await t.tap(find.text('Rename'));
+      await settle(t);
+      await t.enterText(find.byType(TextField), 'P2');
+      await settle(t);
+      await t.tap(find.text('OK'));
+      await settle(t);
+      expect(find.byType(Notice), findsWidgets);
+      await t.tap(find.text('Delete'));
+      await settle(t);
+      await t.tap(find.text('Confirm'));
+      await settle(t);
+      expect(find.byType(Notice), findsWidgets);
+      await t.tap(find.byIcon(Icons.drive_file_move_outline));
+      await settle(t);
+      await t.tap(find.widgetWithText(PopupMenuItem<String>, 'Unmanaged'));
+      await settle(t);
+      expect(find.byType(Notice), findsWidgets);
+    });
+
+    testWidgets('student account dialog picks a class', (t) async {
+      String? body;
+      installApi(extra: {
+        'GET /api/classes': (_) => [
+              {
+                'id': 'cu',
+                'name': 'unmanaged',
+                'ownerId': 'u1',
+                'unmanaged': true,
+                'members': 0,
+                'createdAt': 1
+              },
+              {
+                'id': 'c1',
+                'name': 'Period 1',
+                'ownerId': 'u1',
+                'members': 0,
+                'createdAt': 2
+              },
+            ],
+        'POST /api/accounts': (req) {
+          body = req.body;
+          return userJson;
+        },
+      });
+      await pump(t, const AccountsTab());
+      await t.tap(find.byType(FloatingActionButton));
+      await settle(t);
+      expect(find.byType(DropdownButtonFormField<String>), findsNWidgets(2));
+      await t.tap(find.byType(DropdownButtonFormField<String>).last);
+      await settle(t);
+      await t.tap(find.text('Period 1').last);
+      await settle(t);
+      await t.enterText(find.byType(TextField).at(0), 'Bob');
+      await t.enterText(find.byType(TextField).at(1), 'bob2');
+      await t.enterText(find.byType(TextField).at(2), 'password1');
+      await settle(t);
+      await t.tap(find.text('Create'));
+      await settle(t);
+      expect(body, contains('"classId":"c1"'));
+    });
+
+    testWidgets('class picker falls back without unmanaged', (t) async {
+      installApi(extra: {
+        'GET /api/classes': (_) => [
+              {
+                'id': 'c1',
+                'name': 'Period 1',
+                'ownerId': 'u1',
+                'members': 0,
+                'createdAt': 1
+              },
+            ],
+      });
+      await pump(t, const AccountsTab());
+      await t.tap(find.byType(FloatingActionButton));
+      await settle(t);
+      expect(find.byType(DropdownButtonFormField<String>), findsNWidgets(2));
+      await t.tap(find.text('Cancel'));
+      await settle(t);
+    });
+
+    testWidgets('editing a student keeps a foreign class listed', (t) async {
+      installApi(extra: {
+        'GET /api/classes': (_) => [
+              {
+                'id': 'c1',
+                'name': 'Period 1',
+                'ownerId': 'u1',
+                'members': 0,
+                'createdAt': 1
+              },
+            ],
+        'GET /api/accounts': (_) => [
+              {
+                'id': 's1',
+                'username': 'stu',
+                'displayName': 'Stu',
+                'role': 'student',
+                'classId': 'c9'
+              }
+            ],
+      });
+      await pump(t, const AccountsTab());
+      await t.tap(find.byIcon(Icons.edit_outlined).first);
+      await settle(t);
+      expect(find.text('c9'), findsWidgets);
+      await t.tap(find.text('Cancel'));
+      await settle(t);
+    });
+  });
+
   group('AuditTab', () {
     testWidgets('shows entries, scope switch, refresh', (t) async {
       var scopes = <String?>[];

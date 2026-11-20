@@ -140,6 +140,26 @@
   "manage": "Управление",
   "nothingToManage": "Нечего управлять.",
   "accounts": "Учётные записи",
+  "classes": "Классы",
+  "schoolClass": "Класс",
+  "newClass": "Новый класс",
+  "className": "Название класса",
+  "renameClass": "Переименовать класс",
+  "noClasses": "Классов пока нет",
+  "unmanagedClass": "Без класса",
+  "memberCount": "{count} участников",
+  "@memberCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "moveToClass": "Переместить в класс",
+  "deleteClassBody": "Удалить класс \"{name}\"? Участники перейдут в \"Без класса\".",
+  "@deleteClassBody": {
+    "placeholders": {
+      "name": {}
+    }
+  },
   "activity": "Активность",
   "renderNodes": "Узлы рендера",
   "newAccount": "Новая учётная запись",

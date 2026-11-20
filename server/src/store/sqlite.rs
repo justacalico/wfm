@@ -118,11 +118,26 @@ fn map_user(r: &rusqlite::Row<'_>) -> rusqlite::Result<User> {
         created_at: r.get(11)?,
         last_login: r.get(12)?,
         quota_bytes: r.get(13)?,
+        class_id: r.get(14)?,
     })
 }
 
+fn map_class(r: &rusqlite::Row<'_>) -> rusqlite::Result<Class> {
+    Ok(Class {
+        id: r.get(0)?,
+        owner_id: r.get(1)?,
+        name: r.get(2)?,
+        unmanaged: r.get::<_, i64>(3)? != 0,
+        created_at: r.get(4)?,
+        members: r.get(5).unwrap_or(0),
+    })
+}
+
+const CLASS_COLS: &str =
+    "id,owner_id,name,unmanaged,created_at,(SELECT COUNT(*) FROM users u WHERE u.class_id=classes.id)";
+
 const USER_COLS: &str =
-    "id,username,display_name,pass_hash,role,student_id,note,disabled,avatar,created_by,lineage,created_at,last_login,quota_bytes";
+    "id,username,display_name,pass_hash,role,student_id,note,disabled,avatar,created_by,lineage,created_at,last_login,quota_bytes,class_id";
 
 const PROJECT_COLS: &str = "id,owner_id,name,display_name,dir,group_id,tags,created_at,last_activity,pinned,template,status,submitted_at,reviewed_by";
 
@@ -334,7 +349,7 @@ impl Db for SqliteDb {
         let (u, h) = (u.clone(), pass_hash.to_string());
         self.q(move |c| {
             c.execute(
-                &format!("INSERT INTO users({USER_COLS}) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)"),
+                &format!("INSERT INTO users({USER_COLS}) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"),
                 params![
                     u.id,
                     u.username,
@@ -349,7 +364,8 @@ impl Db for SqliteDb {
                     u.lineage,
                     u.created_at,
                     u.last_login,
-                    u.quota_bytes
+                    u.quota_bytes,
+                    u.class_id
                 ],
             )
             .map(|_| ())
@@ -362,11 +378,11 @@ impl Db for SqliteDb {
         let (u, h) = (u.clone(), pass_hash.to_string());
         self.q(move |c| {
                 c.execute(
-                    &format!("INSERT INTO users({USER_COLS}) SELECT ?,?,?,?,?,?,?,?,?,?,?,?,?,? WHERE NOT EXISTS(SELECT 1 FROM users WHERE role=?)"),
+                    &format!("INSERT INTO users({USER_COLS}) SELECT ?,?,?,?,?,?,?,?,?,?,?,?,?,?,? WHERE NOT EXISTS(SELECT 1 FROM users WHERE role=?)"),
                     params![
                         u.id, u.username, u.display_name, h, u.role as i64, u.student_id,
                         u.note, u.disabled as i64, u.avatar, u.created_by, u.lineage, u.created_at,
-                        u.last_login, u.quota_bytes, Role::Owner as i64
+                        u.last_login, u.quota_bytes, u.class_id, Role::Owner as i64
                     ],
                 )
             })
@@ -387,7 +403,7 @@ impl Db for SqliteDb {
         let u = u.clone();
         self.q(move |c| {
                 c.execute(
-                    "UPDATE users SET username=?, display_name=?, role=?, student_id=?, note=?, quota_bytes=? WHERE id=?",
+                    "UPDATE users SET username=?, display_name=?, role=?, student_id=?, note=?, quota_bytes=?, class_id=? WHERE id=?",
                     params![
                         u.username,
                         u.display_name,
@@ -395,6 +411,7 @@ impl Db for SqliteDb {
                         u.student_id,
                         u.note,
                         u.quota_bytes,
+                        u.class_id,
                         u.id
                     ],
                 )
@@ -432,6 +449,11 @@ impl Db for SqliteDb {
         self.q(move |c| {
             let tx = c.transaction()?;
             tx.execute("DELETE FROM sessions WHERE user_id=?", [&id])?;
+            tx.execute(
+                "UPDATE users SET class_id='' WHERE class_id IN (SELECT id FROM classes WHERE owner_id=?)",
+                [&id],
+            )?;
+            tx.execute("DELETE FROM classes WHERE owner_id=?", [&id])?;
             tx.execute("DELETE FROM users WHERE id=?", [&id])?;
             tx.commit()
         })
@@ -477,14 +499,14 @@ impl Db for SqliteDb {
     }
 
     async fn visible_users(&self, actor: &User) -> DbResult<Vec<User>> {
-        // Classmates only exist for students: a sentinel parent matches nothing for
-        // anyone else (created_by is never empty on a real account except the seed owner).
+        // Classmates only exist for students: a sentinel class matches nothing for
+        // anyone else (the class_id<>'' guard rejects empty matches).
         let (role, sub, lin, sib, sid) = (
             actor.role as i64,
             format!("%/{}/%", actor.id),
             format!("/{}/", actor.lineage.trim_matches('/')),
             if actor.role == crate::model::Role::Student {
-                actor.created_by.clone()
+                actor.class_id.clone()
             } else {
                 String::new()
             },
@@ -492,13 +514,107 @@ impl Db for SqliteDb {
         );
         self.q(move |c| {
                 let mut st = c.prepare(&format!(
-                    "SELECT {USER_COLS} FROM users WHERE id<>? AND ((role<? AND lineage LIKE ?) OR ? LIKE '%/'||id||'/%' OR (role=? AND created_by=? AND created_by<>'')) ORDER BY created_at"
+                    "SELECT {USER_COLS} FROM users WHERE id<>? AND ((role<? AND lineage LIKE ?) OR ? LIKE '%/'||id||'/%' OR (role=? AND class_id=? AND class_id<>'')) ORDER BY created_at"
                 ))?;
                 let rows = st.query_map(params![sid, role, sub, lin, Role::Student as i64, sib], map_user)?;
                 rows.collect::<rusqlite::Result<Vec<_>>>()
             })
             .await
             .map_err(dberr)
+    }
+
+    async fn classes_for(&self, actor: &User) -> DbResult<Vec<Class>> {
+        let (id, cid, sub) = (
+            actor.id.clone(),
+            actor.class_id.clone(),
+            format!("%/{}/%", actor.id),
+        );
+        self.q(move |c| {
+                let mut st = c.prepare(&format!(
+                    "SELECT {CLASS_COLS} FROM classes WHERE owner_id=? OR id=? OR owner_id IN (SELECT id FROM users WHERE lineage LIKE ?) ORDER BY unmanaged DESC, created_at"
+                ))?;
+                let rows = st.query_map(params![id, cid, sub], map_class)?;
+                rows.collect::<rusqlite::Result<Vec<_>>>()
+            })
+            .await
+            .map_err(dberr)
+    }
+
+    async fn class_by_id(&self, id: &str) -> DbResult<Class> {
+        let id = id.to_string();
+        self.q(move |c| {
+            c.query_row(
+                &format!("SELECT {CLASS_COLS} FROM classes WHERE id=?"),
+                [id],
+                map_class,
+            )
+        })
+        .await
+        .map_err(dberr)
+    }
+
+    async fn create_class(&self, c: &Class) -> DbResult<()> {
+        let c = c.clone();
+        self.q(move |conn| {
+            conn.execute(
+                "INSERT INTO classes(id,owner_id,name,unmanaged,created_at) VALUES(?,?,?,?,?)",
+                params![c.id, c.owner_id, c.name, c.unmanaged as i64, c.created_at],
+            )
+            .map(|_| ())
+        })
+        .await
+        .map_err(dberr)
+    }
+
+    async fn rename_class(&self, id: &str, name: &str) -> DbResult<bool> {
+        let (id, name) = (id.to_string(), name.to_string());
+        self.q(move |c| c.execute("UPDATE classes SET name=? WHERE id=?", params![name, id]))
+            .await
+            .map(|n| n > 0)
+            .map_err(dberr)
+    }
+
+    async fn delete_class(&self, id: &str, fallback: &str) -> DbResult<()> {
+        let (id, fallback) = (id.to_string(), fallback.to_string());
+        self.q(move |c| {
+            let tx = c.transaction()?;
+            tx.execute(
+                "UPDATE users SET class_id=? WHERE class_id=?",
+                params![fallback, id],
+            )?;
+            let n = tx.execute("DELETE FROM classes WHERE id=? AND unmanaged=0", [&id])?;
+            if n == 0 {
+                return Err(rusqlite::Error::QueryReturnedNoRows);
+            }
+            tx.commit()
+        })
+        .await
+        .map_err(dberr)
+    }
+
+    async fn unmanaged_class(&self, owner: &User) -> DbResult<Class> {
+        let owner = owner.clone();
+        self.q(move |c| {
+            c.execute(
+                "INSERT OR IGNORE INTO classes(id,owner_id,name,unmanaged,created_at) VALUES(?,?,'unmanaged',1,strftime('%s','now'))",
+                params![crate::model::new_id(), owner.id],
+            )?;
+            let by_flag = format!("SELECT {CLASS_COLS} FROM classes WHERE owner_id=? AND unmanaged=1");
+            match c.query_row(&by_flag, [&owner.id], map_class) {
+                Ok(cls) => Ok(cls),
+                Err(rusqlite::Error::QueryReturnedNoRows) => {
+                    // A regular class named "unmanaged" blocked the insert; promote it.
+                    c.execute(
+                        "UPDATE classes SET unmanaged=1 WHERE owner_id=? AND name='unmanaged'",
+                        [&owner.id],
+                    )?;
+                    c.query_row(&by_flag, [&owner.id], map_class)
+                }
+                Err(e) => Err(e),
+            }
+        })
+        .await
+        .map_err(dberr)
     }
 
     async fn create_session(
@@ -2107,6 +2223,7 @@ mod tests {
             avatar: String::new(),
             quota_bytes: 0,
             created_by: String::new(),
+            class_id: String::new(),
             lineage: "/".into(),
             created_at: 1,
             last_login: 0,
@@ -2276,6 +2393,7 @@ mod tests {
             avatar: String::new(),
             quota_bytes: 0,
             created_by: String::new(),
+            class_id: String::new(),
             lineage: lineage.into(),
             created_at: 1,
             last_login: 0,
@@ -2330,6 +2448,7 @@ mod tests {
             avatar: String::new(),
             quota_bytes: 0,
             created_by: String::new(),
+            class_id: String::new(),
             lineage: "/".into(),
             created_at: 1,
             last_login: 0,
@@ -2357,6 +2476,7 @@ mod tests {
             avatar: String::new(),
             quota_bytes: 0,
             created_by: String::new(),
+            class_id: String::new(),
             lineage: "/".into(),
             created_at: 1,
             last_login: 0,
@@ -2382,6 +2502,7 @@ mod tests {
             avatar: String::new(),
             quota_bytes: 0,
             created_by: String::new(),
+            class_id: String::new(),
             lineage: "/".into(),
             created_at: 1,
             last_login: 0,
@@ -2447,6 +2568,7 @@ mod tests {
             avatar: String::new(),
             quota_bytes: 0,
             created_by: String::new(),
+            class_id: String::new(),
             lineage: "/".into(),
             created_at: 1,
             last_login: 0,
@@ -2530,6 +2652,7 @@ mod tests {
                 avatar: String::new(),
                 quota_bytes: 0,
                 created_by: String::new(),
+                class_id: String::new(),
                 lineage: "/".into(),
                 created_at: 1,
                 last_login: 0,
@@ -2598,6 +2721,7 @@ mod tests {
             avatar: String::new(),
             quota_bytes: 0,
             created_by: String::new(),
+            class_id: String::new(),
             lineage: "/".into(),
             created_at: 1,
             last_login: 0,
@@ -2807,6 +2931,7 @@ mod tests {
             avatar: String::new(),
             quota_bytes: 0,
             created_by: String::new(),
+            class_id: String::new(),
             lineage: "/".into(),
             created_at: 1,
             last_login: 0,
@@ -2857,5 +2982,88 @@ mod tests {
         .unwrap();
         db.links_delete_project("p1").await.unwrap();
         assert!(db.links_by_project("p1").await.unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn classes_lifecycle() {
+        let db = connect(":memory:").await.unwrap();
+        let u = |id: &str, role: Role, lineage: &str| User {
+            id: id.into(),
+            username: format!("u{id}"),
+            display_name: "n".into(),
+            role,
+            role_name: role.as_str().into(),
+            student_id: String::new(),
+            note: String::new(),
+            disabled: false,
+            avatar: String::new(),
+            quota_bytes: 0,
+            created_by: String::new(),
+            class_id: String::new(),
+            lineage: lineage.into(),
+            created_at: 1,
+            last_login: 0,
+        };
+        let owner = u("o1", Role::Owner, "/");
+        let teacher = u("t1", Role::Teacher, "/o1/");
+        let teacher2 = u("t2", Role::Teacher, "/o1/");
+        db.create_user(&owner, "h").await.unwrap();
+        db.create_user(&teacher, "h").await.unwrap();
+        db.create_user(&teacher2, "h").await.unwrap();
+
+        let un = db.unmanaged_class(&teacher).await.unwrap();
+        assert!(un.unmanaged);
+        assert_eq!(un.name, "unmanaged");
+        assert_eq!(db.unmanaged_class(&teacher).await.unwrap().id, un.id);
+
+        db.create_class(&Class {
+            id: "c1".into(),
+            owner_id: "t1".into(),
+            name: "P1".into(),
+            unmanaged: false,
+            members: 0,
+            created_at: 1,
+        })
+        .await
+        .unwrap();
+        db.create_class(&Class {
+            id: "c2".into(),
+            owner_id: "t2".into(),
+            name: "P2".into(),
+            unmanaged: false,
+            members: 0,
+            created_at: 1,
+        })
+        .await
+        .unwrap();
+
+        let mut student = u("s1", Role::Student, "/o1/t1/");
+        student.class_id = "c1".into();
+        db.create_user(&student, "h").await.unwrap();
+
+        let mine = db.classes_for(&teacher).await.unwrap();
+        assert_eq!(mine.len(), 2);
+        assert_eq!(mine[0].id, un.id, "unmanaged sorts first");
+        assert_eq!(mine[1].members, 1);
+        let mine = db.classes_for(&teacher2).await.unwrap();
+        assert_eq!(mine.len(), 1, "other teachers' classes stay hidden");
+        let seen = db.classes_for(&student).await.unwrap();
+        assert_eq!(seen.len(), 1);
+        assert_eq!(seen[0].id, "c1");
+        let all = db.classes_for(&owner).await.unwrap();
+        assert_eq!(all.len(), 3, "the owner sees every class in the subtree");
+
+        assert!(db.rename_class("c1", "P1b").await.unwrap());
+        assert!(!db.rename_class("zz", "P1b").await.unwrap());
+        assert_eq!(db.class_by_id("c1").await.unwrap().name, "P1b");
+
+        db.delete_class("c1", &un.id).await.unwrap();
+        assert_eq!(db.user_by_id("s1").await.unwrap().class_id, un.id);
+        assert!(db.delete_class(&un.id, "x").await.is_err());
+        assert!(db.delete_class("c1", &un.id).await.is_err());
+
+        db.delete_user("t1").await.unwrap();
+        assert!(db.class_by_id(&un.id).await.is_err());
+        assert!(db.user_by_id("s1").await.unwrap().class_id.is_empty());
     }
 }

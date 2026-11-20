@@ -82,8 +82,22 @@ fn row_user(r: sqlx::postgres::PgRow) -> User {
         created_at: r.get("created_at"),
         last_login: r.get("last_login"),
         quota_bytes: r.get("quota_bytes"),
+        class_id: r.get("class_id"),
     }
 }
+
+fn row_class(r: sqlx::postgres::PgRow) -> Class {
+    Class {
+        id: r.get("id"),
+        owner_id: r.get("owner_id"),
+        name: r.get("name"),
+        unmanaged: r.get::<i32, _>("unmanaged") != 0,
+        created_at: r.get("created_at"),
+        members: r.get("members"),
+    }
+}
+
+const CLASS_SELECT: &str = "SELECT c.id,c.owner_id,c.name,c.unmanaged,c.created_at,(SELECT COUNT(*) FROM users u WHERE u.class_id=c.id) AS members FROM classes c";
 
 fn row_project(r: sqlx::postgres::PgRow) -> Project {
     Project {
@@ -312,8 +326,8 @@ impl Db for PgDb {
 
     async fn create_user(&self, u: &User, pass_hash: &str) -> DbResult<()> {
         sqlx::query(
-            "INSERT INTO users(id,username,display_name,pass_hash,role,student_id,note,disabled,avatar,created_by,lineage,created_at,last_login,quota_bytes)
-             VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)",
+            "INSERT INTO users(id,username,display_name,pass_hash,role,student_id,note,disabled,avatar,created_by,lineage,created_at,last_login,quota_bytes,class_id)
+             VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)",
         )
         .bind(&u.id)
         .bind(&u.username)
@@ -329,6 +343,7 @@ impl Db for PgDb {
         .bind(u.created_at)
         .bind(u.last_login)
         .bind(u.quota_bytes)
+        .bind(&u.class_id)
         .execute(&self.pool)
         .await
         .map(|_| ())
@@ -337,9 +352,9 @@ impl Db for PgDb {
 
     async fn create_owner(&self, u: &User, pass_hash: &str) -> DbResult<bool> {
         sqlx::query(
-            "INSERT INTO users(id,username,display_name,pass_hash,role,student_id,note,disabled,avatar,created_by,lineage,created_at,last_login,quota_bytes)
-             SELECT $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14
-             WHERE NOT EXISTS(SELECT 1 FROM users WHERE role=$15)",
+            "INSERT INTO users(id,username,display_name,pass_hash,role,student_id,note,disabled,avatar,created_by,lineage,created_at,last_login,quota_bytes,class_id)
+             SELECT $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15
+             WHERE NOT EXISTS(SELECT 1 FROM users WHERE role=$16)",
         )
         .bind(&u.id)
         .bind(&u.username)
@@ -355,6 +370,7 @@ impl Db for PgDb {
         .bind(u.created_at)
         .bind(u.last_login)
         .bind(u.quota_bytes)
+        .bind(&u.class_id)
         .bind(Role::Owner as i32)
         .execute(&self.pool)
         .await
@@ -374,7 +390,7 @@ impl Db for PgDb {
 
     async fn update_user(&self, u: &User) -> DbResult<()> {
         sqlx::query(
-            "UPDATE users SET username=$1, display_name=$2, role=$3, student_id=$4, note=$5, quota_bytes=$6 WHERE id=$7",
+            "UPDATE users SET username=$1, display_name=$2, role=$3, student_id=$4, note=$5, quota_bytes=$6, class_id=$7 WHERE id=$8",
         )
         .bind(&u.username)
         .bind(&u.display_name)
@@ -382,6 +398,7 @@ impl Db for PgDb {
         .bind(&u.student_id)
         .bind(&u.note)
         .bind(u.quota_bytes)
+        .bind(&u.class_id)
         .bind(&u.id)
         .execute(&self.pool)
         .await
@@ -412,6 +429,18 @@ impl Db for PgDb {
     async fn delete_user(&self, id: &str) -> DbResult<()> {
         let mut tx = self.pool.begin().await.map_err(map_err)?;
         sqlx::query("DELETE FROM sessions WHERE user_id=$1")
+            .bind(id)
+            .execute(&mut *tx)
+            .await
+            .map_err(map_err)?;
+        sqlx::query(
+            "UPDATE users SET class_id='' WHERE class_id IN (SELECT id FROM classes WHERE owner_id=$1)",
+        )
+        .bind(id)
+        .execute(&mut *tx)
+        .await
+        .map_err(map_err)?;
+        sqlx::query("DELETE FROM classes WHERE owner_id=$1")
             .bind(id)
             .execute(&mut *tx)
             .await
@@ -456,21 +485,124 @@ impl Db for PgDb {
     }
 
     async fn visible_users(&self, actor: &User) -> DbResult<Vec<User>> {
-        // Classmates only exist for students: an empty parent matches nothing for anyone
-        // else (created_by is never empty on a real account except the seed owner).
+        // Classmates only exist for students: an empty class matches nothing for anyone
+        // else (the class_id<>'' guard rejects empty matches).
         sqlx::query(
-            "SELECT * FROM users WHERE id<>$1 AND ((role<$2 AND lineage LIKE $3) OR $4 LIKE '%/'||id||'/%' OR (role=$5 AND created_by=$6 AND created_by<>'')) ORDER BY created_at",
+            "SELECT * FROM users WHERE id<>$1 AND ((role<$2 AND lineage LIKE $3) OR $4 LIKE '%/'||id||'/%' OR (role=$5 AND class_id=$6 AND class_id<>'')) ORDER BY created_at",
         )
         .bind(&actor.id)
         .bind(actor.role as i32)
         .bind(format!("%/{}/%", actor.id))
         .bind(format!("/{}/", actor.lineage.trim_matches('/')))
         .bind(crate::model::Role::Student as i32)
-        .bind(if actor.role == crate::model::Role::Student { actor.created_by.clone() } else { String::new() })
+        .bind(if actor.role == crate::model::Role::Student { actor.class_id.clone() } else { String::new() })
         .fetch_all(&self.pool)
         .await
         .map(|rows| rows.into_iter().map(row_user).collect())
         .map_err(map_err)
+    }
+
+    async fn classes_for(&self, actor: &User) -> DbResult<Vec<Class>> {
+        sqlx::query(&format!(
+            "{CLASS_SELECT} WHERE c.owner_id=$1 OR c.id=$2 OR c.owner_id IN (SELECT id FROM users WHERE lineage LIKE $3) ORDER BY c.unmanaged DESC, c.created_at"
+        ))
+        .bind(&actor.id)
+        .bind(&actor.class_id)
+        .bind(format!("%/{}/%", actor.id))
+        .fetch_all(&self.pool)
+        .await
+        .map(|rows| rows.into_iter().map(row_class).collect())
+        .map_err(map_err)
+    }
+
+    async fn class_by_id(&self, id: &str) -> DbResult<Class> {
+        sqlx::query(&format!("{CLASS_SELECT} WHERE c.id=$1"))
+            .bind(id)
+            .fetch_one(&self.pool)
+            .await
+            .map(row_class)
+            .map_err(map_err)
+    }
+
+    async fn create_class(&self, c: &Class) -> DbResult<()> {
+        sqlx::query(
+            "INSERT INTO classes(id,owner_id,name,unmanaged,created_at) VALUES($1,$2,$3,$4,$5)",
+        )
+        .bind(&c.id)
+        .bind(&c.owner_id)
+        .bind(&c.name)
+        .bind(c.unmanaged as i32)
+        .bind(c.created_at)
+        .execute(&self.pool)
+        .await
+        .map(|_| ())
+        .map_err(map_err)
+    }
+
+    async fn rename_class(&self, id: &str, name: &str) -> DbResult<bool> {
+        sqlx::query("UPDATE classes SET name=$1 WHERE id=$2")
+            .bind(name)
+            .bind(id)
+            .execute(&self.pool)
+            .await
+            .map(|r| r.rows_affected() > 0)
+            .map_err(map_err)
+    }
+
+    async fn delete_class(&self, id: &str, fallback: &str) -> DbResult<()> {
+        let mut tx = self.pool.begin().await.map_err(map_err)?;
+        sqlx::query("UPDATE users SET class_id=$1 WHERE class_id=$2")
+            .bind(fallback)
+            .bind(id)
+            .execute(&mut *tx)
+            .await
+            .map_err(map_err)?;
+        let n = sqlx::query("DELETE FROM classes WHERE id=$1 AND unmanaged=0")
+            .bind(id)
+            .execute(&mut *tx)
+            .await
+            .map_err(map_err)?
+            .rows_affected();
+        if n == 0 {
+            return Err(DbError::NotFound);
+        }
+        tx.commit().await.map_err(map_err)
+    }
+
+    async fn unmanaged_class(&self, owner: &User) -> DbResult<Class> {
+        sqlx::query(
+            "INSERT INTO classes(id,owner_id,name,unmanaged,created_at) VALUES($1,$2,'unmanaged',1,EXTRACT(EPOCH FROM now())::BIGINT) ON CONFLICT DO NOTHING",
+        )
+        .bind(crate::model::new_id())
+        .bind(&owner.id)
+        .execute(&self.pool)
+        .await
+        .map_err(map_err)?;
+        let by_flag = format!("{CLASS_SELECT} WHERE c.owner_id=$1 AND c.unmanaged=1");
+        match sqlx::query(&by_flag)
+            .bind(&owner.id)
+            .fetch_optional(&self.pool)
+            .await
+            .map_err(map_err)?
+        {
+            Some(r) => Ok(row_class(r)),
+            None => {
+                // A regular class named "unmanaged" blocked the insert; promote it.
+                sqlx::query(
+                    "UPDATE classes SET unmanaged=1 WHERE owner_id=$1 AND name='unmanaged'",
+                )
+                .bind(&owner.id)
+                .execute(&self.pool)
+                .await
+                .map_err(map_err)?;
+                sqlx::query(&by_flag)
+                    .bind(&owner.id)
+                    .fetch_one(&self.pool)
+                    .await
+                    .map(row_class)
+                    .map_err(map_err)
+            }
+        }
     }
 
     async fn create_session(
@@ -1912,6 +2044,7 @@ mod tests {
             avatar: String::new(),
             quota_bytes: 0,
             created_by: String::new(),
+            class_id: String::new(),
             lineage: "/".into(),
             created_at: 1,
             last_login: 0,

@@ -59,6 +59,8 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/accounts/{id}/status", post(set_status))
         .route("/accounts/{id}/projects", get(account_projects))
         .route("/share-targets", get(share_targets))
+        .route("/classes", get(list_classes).post(create_class))
+        .route("/classes/{id}", patch(rename_class).delete(delete_class))
         .route("/invites", get(list_invites).post(create_invite))
         .route("/invites/{id}", get(invite_preview).delete(revoke_invite))
         .route("/invites/{id}/redeem", post(redeem_invite))
@@ -312,6 +314,7 @@ async fn setup_owner(
         avatar: String::new(),
         quota_bytes: 0,
         created_by: String::new(),
+        class_id: String::new(),
         lineage: "/".into(),
         created_at: AppState::now(),
         last_login: 0,
@@ -738,6 +741,30 @@ async fn require_manager(
     Ok(t)
 }
 
+/// Fetch a class the actor may put accounts into: theirs, or one owned by an
+/// account they manage.
+async fn require_class(
+    s: &Arc<AppState>,
+    session: &Session,
+    id: &str,
+) -> Result<model::Class, Response> {
+    let c =
+        s.db.class_by_id(id)
+            .await
+            .map_err(|_| err(StatusCode::NOT_FOUND, "no such class"))?;
+    if c.owner_id == session.user.id {
+        return Ok(c);
+    }
+    let owner =
+        s.db.user_by_id(&c.owner_id)
+            .await
+            .map_err(|_| err(StatusCode::NOT_FOUND, "no such class"))?;
+    if !can_manage(&session.user, &owner) {
+        return Err(err(StatusCode::FORBIDDEN, "cannot manage this class"));
+    }
+    Ok(c)
+}
+
 async fn list_accounts(State(s): State<Arc<AppState>>, session: Session) -> Response {
     if !session.user.role.can_see_audit() && !session.user.role.can_create() {
         return err(StatusCode::FORBIDDEN, "not allowed");
@@ -756,6 +783,129 @@ async fn share_targets(State(s): State<Arc<AppState>>, session: Session) -> Resp
     }
 }
 
+async fn list_classes(State(s): State<Arc<AppState>>, session: Session) -> Response {
+    match s.db.classes_for(&session.user).await {
+        Ok(v) => Json(json!(v)).into_response(),
+        Err(e) => db_resp(e),
+    }
+}
+
+#[derive(Deserialize)]
+struct ClassReq {
+    name: String,
+}
+
+async fn create_class(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Json(req): Json<ClassReq>,
+) -> Response {
+    if !session.user.role.can_create() {
+        return err(StatusCode::FORBIDDEN, "teachers only");
+    }
+    let name = req.name.trim();
+    if !model::valid_project_name(name) {
+        return err(StatusCode::BAD_REQUEST, "invalid name");
+    }
+    let c = model::Class {
+        id: model::new_id(),
+        owner_id: session.user.id.clone(),
+        name: name.to_string(),
+        unmanaged: false,
+        members: 0,
+        created_at: AppState::now(),
+    };
+    if let Err(e) = s.db.create_class(&c).await {
+        return match e {
+            DbError::Conflict => err(StatusCode::CONFLICT, "name taken"),
+            other => db_resp(other),
+        };
+    }
+    s.audit(
+        "account",
+        &session.user,
+        "class_create",
+        &c.name,
+        "",
+        &session.user.lineage,
+    )
+    .await;
+    Json(json!(c)).into_response()
+}
+
+async fn rename_class(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Path(id): Path<String>,
+    Json(req): Json<ClassReq>,
+) -> Response {
+    let c = match require_class(&s, &session, &id).await {
+        Ok(c) => c,
+        Err(r) => return r,
+    };
+    if c.unmanaged {
+        return err(StatusCode::BAD_REQUEST, "cannot rename the unmanaged class");
+    }
+    let name = req.name.trim();
+    if !model::valid_project_name(name) {
+        return err(StatusCode::BAD_REQUEST, "invalid name");
+    }
+    match s.db.rename_class(&id, name).await {
+        Ok(true) => {
+            s.audit(
+                "account",
+                &session.user,
+                "class_rename",
+                name,
+                "",
+                &session.user.lineage,
+            )
+            .await;
+            Json(json!({"ok": true})).into_response()
+        }
+        Ok(false) => err(StatusCode::NOT_FOUND, "no such class"),
+        Err(DbError::Conflict) => err(StatusCode::CONFLICT, "name taken"),
+        Err(e) => db_resp(e),
+    }
+}
+
+async fn delete_class(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Path(id): Path<String>,
+) -> Response {
+    let c = match require_class(&s, &session, &id).await {
+        Ok(c) => c,
+        Err(r) => return r,
+    };
+    if c.unmanaged {
+        return err(StatusCode::BAD_REQUEST, "cannot delete the unmanaged class");
+    }
+    let owner = match s.db.user_by_id(&c.owner_id).await {
+        Ok(u) => u,
+        Err(e) => return db_resp(e),
+    };
+    let fallback = match s.db.unmanaged_class(&owner).await {
+        Ok(c) => c,
+        Err(e) => return db_resp(e),
+    };
+    match s.db.delete_class(&id, &fallback.id).await {
+        Ok(()) => {
+            s.audit(
+                "account",
+                &session.user,
+                "class_delete",
+                &c.name,
+                "",
+                &session.user.lineage,
+            )
+            .await;
+            Json(json!({"ok": true})).into_response()
+        }
+        Err(e) => db_resp(e),
+    }
+}
+
 #[derive(Deserialize)]
 struct CreateAccountReq {
     username: String,
@@ -766,6 +916,8 @@ struct CreateAccountReq {
     student_id: String,
     #[serde(default)]
     note: String,
+    #[serde(default, rename = "classId")]
+    class_id: String,
 }
 
 async fn create_account(
@@ -795,6 +947,26 @@ async fn create_account(
     }
     let note: String = req.note.chars().take(20).collect();
     let student_id: String = req.student_id.trim().chars().take(32).collect();
+    let want_class = req.class_id.trim();
+    let class_id = if !want_class.is_empty() {
+        if role >= Role::Teacher {
+            return err(
+                StatusCode::BAD_REQUEST,
+                "only students and mods join classes",
+            );
+        }
+        match require_class(&s, &session, want_class).await {
+            Ok(c) => c.id,
+            Err(r) => return r,
+        }
+    } else if role == Role::Student {
+        match s.db.unmanaged_class(&session.user).await {
+            Ok(c) => c.id,
+            Err(e) => return db_resp(e),
+        }
+    } else {
+        String::new()
+    };
     let hash = match auth::hash_password(&req.password) {
         Ok(h) => h,
         Err(e) => return err(StatusCode::INTERNAL_SERVER_ERROR, &e),
@@ -811,6 +983,7 @@ async fn create_account(
         avatar: String::new(),
         quota_bytes: 0,
         created_by: session.user.id.clone(),
+        class_id,
         lineage: format!("{}{}/", session.user.lineage, session.user.id),
         created_at: AppState::now(),
         last_login: 0,
@@ -1019,11 +1192,20 @@ async fn redeem_invite(
         Ok(h) => h,
         Err(e) => return err(StatusCode::INTERNAL_SERVER_ERROR, &e),
     };
+    let role = Role::parse(&inv.role).unwrap_or(Role::Student);
+    let class_id = if role == Role::Student {
+        match s.db.unmanaged_class(&inviter).await {
+            Ok(c) => c.id,
+            Err(e) => return db_resp(e),
+        }
+    } else {
+        String::new()
+    };
     let u = User {
         id: uid,
         username: username.clone(),
         display_name: name,
-        role: Role::parse(&inv.role).unwrap_or(Role::Student),
+        role,
         role_name: inv.role.clone(),
         student_id: String::new(),
         note: String::new(),
@@ -1031,6 +1213,7 @@ async fn redeem_invite(
         avatar: String::new(),
         quota_bytes: 0,
         created_by: inv.created_by.clone(),
+        class_id,
         lineage: format!("{}{}/", inviter.lineage, inviter.id),
         created_at: now,
         last_login: 0,
@@ -1182,6 +1365,8 @@ struct UpdateAccountReq {
     note: Option<String>,
     #[serde(rename = "quotaBytes")]
     quota_bytes: Option<i64>,
+    #[serde(rename = "classId")]
+    class_id: Option<String>,
 }
 
 async fn update_account(
@@ -1223,6 +1408,10 @@ async fn update_account(
         if role != target.role {
             target.role = role;
             target.role_name = role.as_str().into();
+            if role >= Role::Teacher && !target.class_id.is_empty() {
+                target.class_id = String::new();
+                detail.push("class");
+            }
             detail.push("role");
         }
     }
@@ -1247,6 +1436,22 @@ async fn update_account(
         if q != target.quota_bytes {
             target.quota_bytes = q;
             detail.push("quota");
+        }
+    }
+    if let Some(cid) = req.class_id {
+        if target.role >= Role::Teacher {
+            return err(
+                StatusCode::BAD_REQUEST,
+                "only students and mods join classes",
+            );
+        }
+        let c = match require_class(&s, &session, cid.trim()).await {
+            Ok(c) => c,
+            Err(r) => return r,
+        };
+        if c.id != target.class_id {
+            target.class_id = c.id;
+            detail.push("class");
         }
     }
     if !detail.is_empty() {
@@ -3982,6 +4187,7 @@ mod tests {
             avatar: String::new(),
             quota_bytes: 0,
             created_by: String::new(),
+            class_id: String::new(),
             lineage: "/".into(),
             created_at: AppState::now(),
             last_login: 0,
@@ -4282,12 +4488,19 @@ mod tests {
         let mut student = user(Role::Student);
         student.created_by = teacher.id.clone();
         student.lineage = format!("{}{}/", teacher.lineage, teacher.id);
+        student.class_id = futures::executor::block_on(s.db.unmanaged_class(&teacher))
+            .unwrap()
+            .id;
         let mut classmate = user(Role::Student);
         classmate.created_by = teacher.id.clone();
         classmate.lineage = student.lineage.clone();
+        classmate.class_id = student.class_id.clone();
         let mut outsider = user(Role::Student);
         outsider.created_by = teacher2.id.clone();
         outsider.lineage = format!("{}{}/", teacher2.lineage, teacher2.id);
+        outsider.class_id = futures::executor::block_on(s.db.unmanaged_class(&teacher2))
+            .unwrap()
+            .id;
         for u in [&owner, &teacher, &teacher2, &student, &classmate, &outsider] {
             futures::executor::block_on(s.db.create_user(u, "h")).unwrap();
         }
@@ -4355,6 +4568,227 @@ mod tests {
         assert!(
             !t.contains(&outsider.username),
             "other trees' students stay hidden"
+        );
+    }
+
+    async fn body_json(r: Response) -> Value {
+        serde_json::from_slice(
+            &axum::body::to_bytes(r.into_body(), usize::MAX)
+                .await
+                .unwrap(),
+        )
+        .unwrap()
+    }
+
+    fn class_req(name: &str) -> Json<ClassReq> {
+        Json(ClassReq { name: name.into() })
+    }
+
+    fn move_class(class_id: &str) -> Json<UpdateAccountReq> {
+        Json(UpdateAccountReq {
+            username: None,
+            name: None,
+            role: None,
+            student_id: None,
+            note: None,
+            quota_bytes: None,
+            class_id: Some(class_id.into()),
+        })
+    }
+
+    #[tokio::test]
+    async fn classes_crud_scoped_to_the_owner() {
+        let dir = std::env::temp_dir().join(format!("wfm-api-{}", model::new_id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let s = state(&dir);
+        let (_owner, teacher, teacher2, student, _classmate, _outsider) = school(&s);
+        let r = create_class(State(s.clone()), session(&student), class_req("x")).await;
+        assert_eq!(r.status(), StatusCode::FORBIDDEN);
+        let r = create_class(State(s.clone()), session(&teacher), class_req("!!")).await;
+        assert_eq!(r.status(), StatusCode::BAD_REQUEST);
+        let r = create_class(State(s.clone()), session(&teacher), class_req("Period 1")).await;
+        assert_eq!(r.status(), StatusCode::OK);
+        let cid = body_json(r).await["id"].as_str().unwrap().to_string();
+        let r = create_class(State(s.clone()), session(&teacher), class_req("Period 1")).await;
+        assert_eq!(
+            r.status(),
+            StatusCode::CONFLICT,
+            "names are unique per owner"
+        );
+
+        let v = body_json(list_classes(State(s.clone()), session(&teacher)).await).await;
+        let mine = v.as_array().unwrap();
+        assert!(mine.iter().any(|c| c["id"] == json!(cid)));
+        let v = body_json(list_classes(State(s.clone()), session(&teacher2)).await).await;
+        assert!(
+            !v.as_array().unwrap().iter().any(|c| c["id"] == json!(cid)),
+            "other teachers' classes stay hidden"
+        );
+        let v = body_json(list_classes(State(s.clone()), session(&student)).await).await;
+        let v = v.as_array().unwrap();
+        assert_eq!(v.len(), 1, "a student sees only their own class");
+        assert_eq!(v[0]["id"], json!(student.class_id));
+
+        for (who, want) in [
+            (&teacher2, StatusCode::FORBIDDEN),
+            (&student, StatusCode::FORBIDDEN),
+        ] {
+            let r = rename_class(
+                State(s.clone()),
+                session(who),
+                Path(cid.clone()),
+                class_req("nope"),
+            )
+            .await;
+            assert_eq!(r.status(), want);
+            let r = delete_class(State(s.clone()), session(who), Path(cid.clone())).await;
+            assert_eq!(r.status(), want);
+        }
+        let r = rename_class(
+            State(s.clone()),
+            session(&teacher),
+            Path(cid.clone()),
+            class_req("Period 2"),
+        )
+        .await;
+        assert_eq!(r.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn class_moves_gate_sharing() {
+        let dir = std::env::temp_dir().join(format!("wfm-api-{}", model::new_id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let s = state(&dir);
+        let (owner, teacher, teacher2, student, classmate, outsider) = school(&s);
+        let r = create_class(State(s.clone()), session(&teacher), class_req("Period 1")).await;
+        let cid = body_json(r).await["id"].as_str().unwrap().to_string();
+
+        let r = update_account(
+            State(s.clone()),
+            session(&teacher),
+            Path(student.id.clone()),
+            move_class(&cid),
+        )
+        .await;
+        assert_eq!(r.status(), StatusCode::OK);
+        let student = s.db.user_by_id(&student.id).await.unwrap();
+        assert_eq!(student.class_id, cid);
+
+        let t = body_json(share_targets(State(s.clone()), session(&student)).await).await;
+        let t = t.to_string();
+        assert!(t.contains(&teacher.username), "staff stay visible");
+        assert!(
+            !t.contains(&classmate.username),
+            "former classmates in other classes stay hidden"
+        );
+        let p = project(&student);
+        s.db.create_project(&p).await.unwrap();
+        let r = create_share(
+            State(s.clone()),
+            session(&student),
+            Path(p.id),
+            Json(ShareReq {
+                username: classmate.username.clone(),
+                level: "view".into(),
+            }),
+        )
+        .await;
+        assert_eq!(r.status(), StatusCode::NOT_FOUND, "cross-class shares fail");
+
+        let r = update_account(
+            State(s.clone()),
+            session(&teacher),
+            Path(student.id.clone()),
+            move_class(&outsider.class_id),
+        )
+        .await;
+        assert_eq!(
+            r.status(),
+            StatusCode::FORBIDDEN,
+            "cannot move a student into another teacher's class"
+        );
+        let r = update_account(
+            State(s.clone()),
+            session(&owner),
+            Path(teacher2.id.clone()),
+            move_class(&cid),
+        )
+        .await;
+        assert_eq!(
+            r.status(),
+            StatusCode::BAD_REQUEST,
+            "teachers do not join classes"
+        );
+
+        let r = delete_class(State(s.clone()), session(&teacher), Path(cid)).await;
+        assert_eq!(r.status(), StatusCode::OK);
+        let student = s.db.user_by_id(&student.id).await.unwrap();
+        let unmanaged = s.db.unmanaged_class(&teacher).await.unwrap();
+        assert_eq!(student.class_id, unmanaged.id, "members land in unmanaged");
+
+        let r = delete_class(
+            State(s.clone()),
+            session(&teacher),
+            Path(unmanaged.id.clone()),
+        )
+        .await;
+        assert_eq!(
+            r.status(),
+            StatusCode::BAD_REQUEST,
+            "unmanaged cannot be deleted"
+        );
+        let r = rename_class(
+            State(s.clone()),
+            session(&teacher),
+            Path(unmanaged.id),
+            class_req("x"),
+        )
+        .await;
+        assert_eq!(
+            r.status(),
+            StatusCode::BAD_REQUEST,
+            "unmanaged cannot be renamed"
+        );
+    }
+
+    #[tokio::test]
+    async fn new_students_land_in_unmanaged() {
+        let dir = std::env::temp_dir().join(format!("wfm-api-{}", model::new_id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let s = state(&dir);
+        let (_owner, teacher, _teacher2, student, _classmate, _outsider) = school(&s);
+        let unmanaged = student.class_id.clone();
+        let account = |username: &str, class_id: &str| {
+            Json(CreateAccountReq {
+                username: username.into(),
+                password: "password1".into(),
+                name: "N".into(),
+                role: "student".into(),
+                student_id: String::new(),
+                note: String::new(),
+                class_id: class_id.into(),
+            })
+        };
+        let r = create_account(State(s.clone()), session(&teacher), account("newst", "")).await;
+        assert_eq!(r.status(), StatusCode::OK);
+        assert_eq!(
+            body_json(r).await["classId"],
+            json!(unmanaged),
+            "students default to the creator's unmanaged class"
+        );
+        let r = create_class(State(s.clone()), session(&teacher), class_req("Period 1")).await;
+        let cid = body_json(r).await["id"].as_str().unwrap().to_string();
+        let r = create_account(State(s.clone()), session(&teacher), account("newst2", &cid)).await;
+        assert_eq!(r.status(), StatusCode::OK);
+        assert_eq!(body_json(r).await["classId"], json!(cid));
+
+        let mut staff = account("newt", &cid);
+        staff.role = "teacher".into();
+        let r = create_account(State(s.clone()), session(&teacher), staff).await;
+        assert_eq!(
+            r.status(),
+            StatusCode::BAD_REQUEST,
+            "staff cannot be created into a class"
         );
     }
 

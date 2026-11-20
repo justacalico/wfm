@@ -72,9 +72,21 @@ pub trait Db: Send + Sync {
     async fn owner_count(&self) -> DbResult<i64>;
     async fn managed_users(&self, actor: &User) -> DbResult<Vec<User>>;
     /// The users `actor` may see for sharing: their subtree, their ancestry, and
-    /// (students only) classmates created by the same account. `model::can_see`
-    /// in SQL form.
+    /// (students only) classmates in the same class. `model::can_see` in SQL
+    /// form.
     async fn visible_users(&self, actor: &User) -> DbResult<Vec<User>>;
+
+    // classes
+    /// Classes the actor may use: their own, classes owned by users in their
+    /// subtree, and the class they themselves sit in.
+    async fn classes_for(&self, actor: &User) -> DbResult<Vec<Class>>;
+    async fn class_by_id(&self, id: &str) -> DbResult<Class>;
+    async fn create_class(&self, c: &Class) -> DbResult<()>;
+    async fn rename_class(&self, id: &str, name: &str) -> DbResult<bool>;
+    /// Deletes a non-unmanaged class and moves its members to `fallback`.
+    async fn delete_class(&self, id: &str, fallback: &str) -> DbResult<()>;
+    /// The owner's unmanaged class, created on first use.
+    async fn unmanaged_class(&self, owner: &User) -> DbResult<Class>;
 
     // sessions
     async fn create_session(
