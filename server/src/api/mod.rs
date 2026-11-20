@@ -3858,6 +3858,27 @@ mod tests {
         assert_eq!(parse_range("bytes=0-", 0), None);
         assert_eq!(parse_range("bytes=0-0", 0), None);
     }
+
+    #[tokio::test]
+    async fn shortcut_catalog_selects_app() {
+        let u = user(Role::Student);
+        for (app, want, not) in [
+            (None, "file.newSequence", "ui.save"),
+            (Some("filmcraft"), "file.newSequence", "ui.save"),
+            (Some("scriptcraft"), "ui.save", "file.newSequence"),
+            (Some("bogus"), "file.newSequence", "ui.save"),
+        ] {
+            let r = shortcut_catalog(
+                session(&u),
+                Query(CatalogQuery { app: app.map(str::to_string) }),
+            )
+            .await;
+            let b = axum::body::to_bytes(r.into_body(), usize::MAX).await.unwrap();
+            let s = String::from_utf8_lossy(&b);
+            assert!(s.contains(want), "{app:?} should serve {want}");
+            assert!(!s.contains(not), "{app:?} should not serve {not}");
+        }
+    }
 }
 
 // ---------- locks ----------
@@ -4580,11 +4601,22 @@ async fn put_settings(
 // ---------- keyboard shortcuts ----------
 
 const SHORTCUT_CATALOG: &str = include_str!("../../../filmcraft/shortcuts.json");
+const SCRIPTCRAFT_CATALOG: &str = include_str!("../../../scriptcraft/shortcuts.json");
 
-async fn shortcut_catalog(_session: Session) -> Response {
+#[derive(Deserialize)]
+struct CatalogQuery {
+    app: Option<String>,
+}
+
+async fn shortcut_catalog(_session: Session, Query(q): Query<CatalogQuery>) -> Response {
+    let body = if q.app.as_deref() == Some("scriptcraft") {
+        SCRIPTCRAFT_CATALOG
+    } else {
+        SHORTCUT_CATALOG
+    };
     (
         [(header::CONTENT_TYPE, "application/json; charset=utf-8")],
-        SHORTCUT_CATALOG,
+        body,
     )
         .into_response()
 }

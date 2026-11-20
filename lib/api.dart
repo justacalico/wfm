@@ -504,8 +504,10 @@ class Api {
                 'status': status
               }))['status'] ?? status}';
 
-  Future<List<ShortcutAction>> shortcutCatalog() async => [
-        for (final e in (await get('/shortcuts/catalog')) as List)
+  Future<List<ShortcutAction>> shortcutCatalog(
+          [String app = 'filmcraft']) async =>
+      [
+        for (final e in (await get('/shortcuts/catalog?app=$app')) as List)
           ShortcutAction.fromJson(e)
       ];
 

@@ -80,7 +80,8 @@ String displayKeys(String keys) {
 }
 
 class ShortcutsPage extends StatefulWidget {
-  const ShortcutsPage({super.key});
+  const ShortcutsPage({super.key, this.app = 'filmcraft'});
+  final String app;
   @override
   State<ShortcutsPage> createState() => _ShortcutsPageState();
 }
@@ -97,9 +98,13 @@ class _ShortcutsPageState extends State<ShortcutsPage> {
     _load();
   }
 
+  String get _prefix => widget.app == 'scriptcraft' ? 'sc.' : '';
+
+  String _keyOf(_Row r) => '$_prefix${r.key}';
+
   Future<void> _load() async {
     try {
-      final catalog = await Api.i.shortcutCatalog();
+      final catalog = await Api.i.shortcutCatalog(widget.app);
       final over = await Api.i.shortcuts();
       if (mounted) {
         setState(() {
@@ -116,8 +121,9 @@ class _ShortcutsPageState extends State<ShortcutsPage> {
     }
   }
 
-  String keysFor(_Row r) =>
-      _over.containsKey(r.key) ? _over[r.key]! : r.action.defaultKeys(r.panel);
+  String keysFor(_Row r) => _over.containsKey(_keyOf(r))
+      ? _over[_keyOf(r)]!
+      : r.action.defaultKeys(r.panel);
 
   String? _conflict(_Row self, String keys) {
     for (final o in _rows ?? <_Row>[]) {
@@ -151,20 +157,20 @@ class _ShortcutsPageState extends State<ShortcutsPage> {
     final next = Map<String, String>.of(_over);
     if (res.isEmpty) {
       if (r.action.defaultKeys(r.panel).isEmpty) {
-        next.remove(r.key);
+        next.remove(_keyOf(r));
       } else {
-        next[r.key] = '';
+        next[_keyOf(r)] = '';
       }
     } else {
       for (final o in _rows ?? <_Row>[]) {
         if (o.panel == r.panel && o.key != r.key && keysFor(o) == res) {
-          next[o.key] = '';
+          next[_keyOf(o)] = '';
         }
       }
       if (res == r.action.defaultKeys(r.panel)) {
-        next.remove(r.key);
+        next.remove(_keyOf(r));
       } else {
-        next[r.key] = res;
+        next[_keyOf(r)] = res;
       }
     }
     await _apply(next);
@@ -175,11 +181,16 @@ class _ShortcutsPageState extends State<ShortcutsPage> {
         context.l10n.resetAllShortcutsBody)) {
       return;
     }
-    await _apply({});
+    final mine = widget.app == 'scriptcraft';
+    final next = {
+      for (final e in _over.entries)
+        if (mine != e.key.startsWith('sc.')) e.key: e.value
+    };
+    await _apply(next);
   }
 
   void _resetOne(_Row r) {
-    final next = Map<String, String>.of(_over)..remove(r.key);
+    final next = Map<String, String>.of(_over)..remove(_keyOf(r));
     _apply(next);
   }
 
@@ -187,12 +198,16 @@ class _ShortcutsPageState extends State<ShortcutsPage> {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.filmcraftShortcuts), actions: [
-        IconButton(
-            tooltip: l10n.resetAllShortcuts,
-            icon: const Icon(Icons.restore),
-            onPressed: _resetAll),
-      ]),
+      appBar: AppBar(
+          title: Text(widget.app == 'scriptcraft'
+              ? l10n.scriptcraftShortcuts
+              : l10n.filmcraftShortcuts),
+          actions: [
+            IconButton(
+                tooltip: l10n.resetAllShortcuts,
+                icon: const Icon(Icons.restore),
+                onPressed: _resetAll),
+          ]),
       body: _err.isNotEmpty
           ? errorView(context, _err, _load)
           : _rows == null
@@ -233,7 +248,7 @@ class _ShortcutsPageState extends State<ShortcutsPage> {
                                     color: keysFor(r).isEmpty
                                         ? Theme.of(context).hintColor
                                         : null)),
-                            if (_over.containsKey(r.key))
+                            if (_over.containsKey(_keyOf(r)))
                               IconButton(
                                   tooltip: l10n.resetToDefault,
                                   icon: const Icon(Icons.undo, size: 18),

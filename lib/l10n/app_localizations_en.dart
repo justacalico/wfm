@@ -1044,6 +1044,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get filmcraftShortcuts => 'FilmCraft shortcuts';
 
   @override
+  String get scriptcraftShortcuts => 'ScriptCraft shortcuts';
+
+  @override
   String get searchShortcuts => 'Search actions';
 
   @override
@@ -1446,6 +1449,9 @@ class AppLocalizationsEnGb extends AppLocalizationsEn {
 
   @override
   String get filmcraftShortcuts => 'FilmCraft shortcuts';
+
+  @override
+  String get scriptcraftShortcuts => 'ScriptCraft shortcuts';
 
   @override
   String get searchShortcuts => 'Search actions';

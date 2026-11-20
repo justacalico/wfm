@@ -456,6 +456,7 @@
   "notifReturned": "Thug {from} {project} ar ais go dreacht",
   "editors": "Eagarthóirí",
   "filmcraftShortcuts": "Aicearraí FilmCraft",
+  "scriptcraftShortcuts": "Aicearraí ScriptCraft",
   "searchShortcuts": "Cuardaigh gníomhartha",
   "pressShortcut": "Brúigh an aicearra nua",
   "shortcutConflict": "In úsáid cheana ag {action}",

@@ -109,6 +109,18 @@ window.addEventListener("message", async (ev) => {
 });
 
 async function sendDoc() {
+  try {
+    const sr = await api("/shortcuts");
+    const sc = sr.ok ? await sr.json().catch(() => null) : null;
+    if (sc && sc.bindings) {
+      const b = {};
+      for (const [k, v] of Object.entries(sc.bindings)) {
+        if (k.startsWith("sc.")) b[k.slice(3)] = v;
+      }
+      const meta = "wfm:" + JSON.stringify({ k: "shortcuts", b });
+      $("sc").contentWindow.postMessage({ type: "scriptcraft:open", name: meta, bytes: new Uint8Array(0) }, location.origin);
+    }
+  } catch (_) {}
   const r = await api("/projects/" + projectId + "/download?path=" + encodeURIComponent(docPath));
   if (r.status === 404) return;
   if (!r.ok) { toast("Could not load the script (" + r.status + ")"); return; }
