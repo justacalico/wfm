@@ -467,9 +467,24 @@ void main() {
               ],
           'GET /api/accounts': (_) => [
                 userJson,
-                {'id': 's1', 'username': 'stu', 'role': 'student', 'classId': 'cu'},
-                {'id': 's2', 'username': 'stu2', 'role': 'student', 'classId': 'c1'},
-                {'id': 's3', 'username': 'far', 'role': 'student', 'classId': 'c2'},
+                {
+                  'id': 's1',
+                  'username': 'stu',
+                  'role': 'student',
+                  'classId': 'cu'
+                },
+                {
+                  'id': 's2',
+                  'username': 'stu2',
+                  'role': 'student',
+                  'classId': 'c1'
+                },
+                {
+                  'id': 's3',
+                  'username': 'far',
+                  'role': 'student',
+                  'classId': 'c2'
+                },
               ],
         };
 
@@ -541,8 +556,7 @@ void main() {
       await settle(t);
       expect(find.text('far · student'), findsOneWidget);
       final foreign = find.ancestor(
-          of: find.text('far · student'),
-          matching: find.byType(ExpansionTile));
+          of: find.text('far · student'), matching: find.byType(ExpansionTile));
       expect(
           find.descendant(
               of: foreign,
@@ -551,8 +565,7 @@ void main() {
           reason: 'foreign classes stay read-only');
       expect(
           find.descendant(
-              of: foreign,
-              matching: find.widgetWithText(TextButton, 'Rename')),
+              of: foreign, matching: find.widgetWithText(TextButton, 'Rename')),
           findsNothing);
 
       await t.tap(find.byType(FloatingActionButton));
@@ -604,7 +617,12 @@ void main() {
               },
             ],
         'GET /api/accounts': (_) => [
-              {'id': 's1', 'username': 'stu', 'role': 'student', 'classId': 'c1'}
+              {
+                'id': 's1',
+                'username': 'stu',
+                'role': 'student',
+                'classId': 'c1'
+              }
             ],
         'POST /api/classes': (_) => http.Response('{"error":"x"}', 500),
         'PATCH /api/classes/c1': (_) => http.Response('{"error":"x"}', 500),

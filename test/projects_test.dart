@@ -848,7 +848,12 @@ void main() {
             : {'id': 'l3', 'token': 'tok3'};
       },
       'GET /api/share-targets': (_) => [
-            {'id': 'u9', 'username': 'bob', 'displayName': 'Bob', 'classId': 'c1'},
+            {
+              'id': 'u9',
+              'username': 'bob',
+              'displayName': 'Bob',
+              'classId': 'c1'
+            },
             {'id': 'u10', 'username': 'cat', 'classId': 'cu'}
           ],
       'GET /api/classes': (_) => [

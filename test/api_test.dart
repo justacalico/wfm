@@ -471,8 +471,7 @@ void main() {
       expect(jsonDecode(lastRequest!.body)['name'], 'P1b');
       await api.classDelete('c1');
       expect(lastRequest!.method, 'DELETE');
-      expect(
-          User.fromJson({'id': 's1', 'classId': 'c9'}).classId, 'c9');
+      expect(User.fromJson({'id': 's1', 'classId': 'c9'}).classId, 'c9');
     });
   });
   group('invites', () {
