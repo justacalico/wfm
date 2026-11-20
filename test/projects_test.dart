@@ -945,6 +945,68 @@ void main() {
     expect(rcalls, 2);
   });
 
+  testWidgets('share dialog stacks pickers on narrow screens', (t) async {
+    var created = 0;
+    installApi(extra: {
+      'GET /api/projects/p1/shares': (_) => [],
+      'GET /api/projects/p1/links': (_) => [],
+      'GET /api/share-targets': (_) => [
+            {'id': 'u9', 'username': 'bob', 'displayName': 'Bob'}
+          ],
+      'POST /api/projects/p1/shares': (_) {
+        created++;
+        return {'ok': true};
+      },
+    });
+    t.view.physicalSize = const Size(360, 800);
+    t.view.devicePixelRatio = 1.0;
+    addTearDown(t.view.reset);
+    await pump(t, ProjectPage(project: p1));
+    await t.tap(find.byIcon(Icons.share_outlined));
+    await settle(t);
+    expect(find.text('Share project'), findsOneWidget);
+    await t.tap(find.byType(DropdownMenu<User>));
+    await settle(t);
+    await t.tap(find.text('Bob (bob)').last);
+    await settle(t);
+    await t.tap(find.text('Can view').first);
+    await settle(t);
+    await t.tap(find.text('Can edit').last);
+    await settle(t);
+    await t.tap(find.descendant(
+        of: find.byType(AlertDialog), matching: find.byIcon(Icons.send)));
+    await settle(t);
+    expect(created, 1);
+    expect(find.text('Renders only'), findsOneWidget);
+    expect(find.text('7 days'), findsOneWidget);
+  });
+
+  testWidgets('narrow project page uses icon actions and scrollable tabs',
+      (t) async {
+    var opened = '';
+    openEditorForTesting = (u) => opened = u;
+    pickFilesForTesting = () async => [];
+    installApi(extra: {
+      'GET /api/projects/p1/comments': (_) => [],
+    });
+    t.view.physicalSize = const Size(360, 800);
+    t.view.devicePixelRatio = 1.0;
+    addTearDown(t.view.reset);
+    await pump(t, ProjectPage(project: p1));
+    expect(find.text('Edit'), findsNothing);
+    expect(find.text('Upload'), findsNothing);
+    await t.tap(find.byIcon(Icons.movie_edit));
+    await settle(t);
+    expect(opened, contains('/filmcraft/wfm.html?project=p1'));
+    await t.tap(find.byIcon(Icons.upload_file));
+    await settle(t);
+    await t.ensureVisible(find.text('Comments'));
+    await settle(t);
+    await t.tap(find.text('Comments'));
+    await settle(t);
+    expect(find.text('No comments yet'), findsOneWidget);
+  });
+
   group('ProjectPage', () {
     testWidgets('open filmcraft, rename, delete', (t) async {
       var opened = '';
