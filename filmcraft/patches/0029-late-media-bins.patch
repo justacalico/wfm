@@ -1,0 +1,63 @@
+diff --git a/apps/filmcraft-web/src/host.rs b/apps/filmcraft-web/src/host.rs
+index efce111..82f8454 100644
+--- a/apps/filmcraft-web/src/host.rs
++++ b/apps/filmcraft-web/src/host.rs
+@@ -304,6 +304,7 @@ fn deliver_open(bridge: &Bridge, name0: &str, data: &FileData) {
+                 let dirs = meta["p"].as_str().unwrap_or("").split('/').filter(|d| !d.is_empty()).map(str::to_string).collect::<Vec<_>>();
+                 if !dirs.is_empty() {
+                     FOLDERS.with(|f| f.borrow_mut().push(dirs));
++                    restore_bins_if_open(bridge);
+                 }
+                 return;
+             }
+@@ -315,6 +316,7 @@ fn deliver_open(bridge: &Bridge, name0: &str, data: &FileData) {
+                 let dirs = p.rsplit_once('/').map(|(d, _)| d).unwrap_or("").split('/').filter(|d| !d.is_empty()).map(str::to_string).collect::<Vec<_>>();
+                 let clean: String = p.chars().map(|c| if c == '/' || c == '\\' { '_' } else { c }).collect();
+                 let Some(blob) = blob_from_bytes(array) else { return rejected_open("couldn't wrap the bytes in a Blob".to_string()) };
++                let opened = bridge.clone();
+                 wasm_bindgen_futures::spawn_local(async move {
+                     let path = crate::fs::register_host_blob(&clean, blob.clone());
+                     let mut paths = vec![path.clone()];
+@@ -322,6 +324,7 @@ fn deliver_open(bridge: &Bridge, name0: &str, data: &FileData) {
+                         paths.push(crate::fs::register_host_blob(base, blob));
+                     }
+                     RESTORED.with(|r| r.borrow_mut().push((paths, dirs)));
++                    restore_bins_if_open(&opened);
+                     crate::import::prewarm(&path, len).await;
+                 });
+                 return;
+@@ -338,6 +341,7 @@ fn deliver_open(bridge: &Bridge, name0: &str, data: &FileData) {
+                     paths.push(crate::fs::register_remote(base, &url, size));
+                 }
+                 RESTORED.with(|r| r.borrow_mut().push((paths, dirs)));
++                restore_bins_if_open(bridge);
+                 wasm_bindgen_futures::spawn_local(async move {
+                     crate::import::prewarm(&path, size).await;
+                 });
+@@ -393,9 +397,11 @@ fn deliver_open(bridge: &Bridge, name0: &str, data: &FileData) {
+         ));
+         let Some(blob) = blob_from_bytes(array) else { return rejected_open("couldn't wrap the bytes in a Blob".to_string()) };
+         let file = file.to_string();
++        let opened = bridge.clone();
+         wasm_bindgen_futures::spawn_local(async move {
+             let path = crate::fs::register_host_blob(&file, blob);
+             RESTORED.with(|r| r.borrow_mut().push((vec![path.clone()], dirs)));
++            restore_bins_if_open(&opened);
+             crate::import::prewarm(&path, len).await;
+         });
+     } else if is_project(&name) {
+@@ -446,6 +452,14 @@ fn deliver_open(bridge: &Bridge, name0: &str, data: &FileData) {
+     }
+ }
+ 
++/// Media and folders the host sends after the document opened (a refreshed file list) still
++/// belong in bins: [`restore_bins`] drains what's pending as soon as the document is up.
++fn restore_bins_if_open(bridge: &Bridge) {
++    if bridge.host_document.borrow().is_some() {
++        restore_bins();
++    }
++}
++
+ /// The project is open: every folder the host sent becomes a bin (empty ones too), and every
+ /// file the host sent that the project does not already reference is imported into the bin
+ /// matching its folder on the server, so the project's media shows in the Project panel
