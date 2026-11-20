@@ -1235,4 +1235,59 @@ class AppLocalizationsGa extends AppLocalizations {
 
   @override
   String get inProgress => 'Ar siúl';
+
+  @override
+  String get editorMode => 'Mód eagarthóra';
+
+  @override
+  String get editorModeWeb => 'Gréasán';
+
+  @override
+  String get editorModeNative => 'Dúchasach';
+
+  @override
+  String get craftCheckoutDir => 'Fillteán seiceála tionscadail';
+
+  @override
+  String get craftCheckoutDirBody =>
+      'Coinníonn eagarthóirí dúchais cóip áitiúil de gach tionscadal oscailte anseo.';
+
+  @override
+  String craftAlreadyOpen(Object craft) {
+    return 'Tá an tionscadal seo oscailte ag $craft cheana.';
+  }
+
+  @override
+  String craftMissing(Object craft) {
+    return 'Níl eagarthóir dúchais $craft sa thógáil seo.';
+  }
+
+  @override
+  String craftLocked(Object craft) {
+    return 'Tá $craft oscailte in áit eile agus níorbh fhéidir é a ghabháil.';
+  }
+
+  @override
+  String craftTakeOverBody(Object craft) {
+    return 'Tá an tionscadal seo oscailte ag $craft in áit eile cheana. Gabháil thar agus an seisiún eile a dhúnadh?';
+  }
+
+  @override
+  String get syncPulling => 'Comhaid an tionscadail á n-íoslódáil…';
+
+  @override
+  String get syncPushing => 'Athruithe á n-uaslódáil…';
+
+  @override
+  String get syncLockLost =>
+      'Ghabhadh an tionscadal seo thart in áit eile. Dúnadh an t-eagarthóir chun d’obair a chosaint.';
+
+  @override
+  String get importStorage => 'Stóráil iompórtála';
+
+  @override
+  String get importMixed => 'Cóip áitiúil + uaslódáil';
+
+  @override
+  String get importServer => 'Freastalaí amháin';
 }

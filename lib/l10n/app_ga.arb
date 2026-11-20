@@ -544,5 +544,40 @@
     }
   },
   "notStarted": "Gan tosú",
-  "inProgress": "Ar siúl"
+  "inProgress": "Ar siúl",
+  "editorMode": "Mód eagarthóra",
+  "editorModeWeb": "Gréasán",
+  "editorModeNative": "Dúchasach",
+  "craftCheckoutDir": "Fillteán seiceála tionscadail",
+  "craftCheckoutDirBody": "Coinníonn eagarthóirí dúchais cóip áitiúil de gach tionscadal oscailte anseo.",
+  "craftAlreadyOpen": "Tá an tionscadal seo oscailte ag {craft} cheana.",
+  "craftMissing": "Níl eagarthóir dúchais {craft} sa thógáil seo.",
+  "craftLocked": "Tá {craft} oscailte in áit eile agus níorbh fhéidir é a ghabháil.",
+  "craftTakeOverBody": "Tá an tionscadal seo oscailte ag {craft} in áit eile cheana. Gabháil thar agus an seisiún eile a dhúnadh?",
+  "syncPulling": "Comhaid an tionscadail á n-íoslódáil…",
+  "syncPushing": "Athruithe á n-uaslódáil…",
+  "syncLockLost": "Ghabhadh an tionscadal seo thart in áit eile. Dúnadh an t-eagarthóir chun d’obair a chosaint.",
+  "importStorage": "Stóráil iompórtála",
+  "importMixed": "Cóip áitiúil + uaslódáil",
+  "importServer": "Freastalaí amháin",
+  "@craftAlreadyOpen": {
+    "placeholders": {
+      "craft": {}
+    }
+  },
+  "@craftMissing": {
+    "placeholders": {
+      "craft": {}
+    }
+  },
+  "@craftLocked": {
+    "placeholders": {
+      "craft": {}
+    }
+  },
+  "@craftTakeOverBody": {
+    "placeholders": {
+      "craft": {}
+    }
+  }
 }
