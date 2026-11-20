@@ -1349,7 +1349,7 @@ abstract class AppLocalizations {
   /// No description provided for @takeOver.
   ///
   /// In en, this message translates to:
-  /// **'Take over'**
+  /// **'Take ownership'**
   String get takeOver;
 
   /// No description provided for @takeOverBody.

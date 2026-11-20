@@ -224,9 +224,10 @@ class _ProjectsPageState extends State<ProjectsPage> {
               PopupMenuItem(value: 'assign', child: Text(l10n.assign)),
             if (p.editable)
               PopupMenuItem(value: 'render', child: Text(l10n.render)),
-            if (!p.editable)
-              PopupMenuItem(value: 'take', child: Text(l10n.takeOver))
-            else ...[
+            if (!p.editable) ...[
+              if (p.canTakeOver)
+                PopupMenuItem(value: 'take', child: Text(l10n.takeOver)),
+            ] else ...[
               PopupMenuItem(
                   value: 'pin',
                   child: Text(p.pinned ? l10n.unpinProject : l10n.pinProject)),

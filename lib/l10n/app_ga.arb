@@ -346,7 +346,7 @@
   "sessionLastSeen": "Feicthe go déanaí {time}",
   "lastSeen": "feicthe {when} ó shin",
   "readOnly": "Léamh amháin",
-  "takeOver": "Tóg seilbh",
+  "takeOver": "Tóg úinéireacht",
   "takeOverBody": "Tóg úinéireacht {name}?",
   "ownedBy": "le {name}",
   "selectFiles": "Roghnaigh",

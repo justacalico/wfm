@@ -1362,6 +1362,9 @@ async fn list_projects(State(s): State<Arc<AppState>>, session: Session) -> Resp
                 for p in managed {
                     let mut j = serde_json::to_value(&p).unwrap_or_default();
                     j["ownerName"] = json!(names.get(&p.owner_id).cloned().unwrap_or_default());
+                    // managed_projects applies the same predicate take_over_project checks,
+                    // so the action would succeed for every one of these.
+                    j["takeOver"] = json!(true);
                     out.push(j);
                 }
                 return Json(json!(out)).into_response();
@@ -4346,6 +4349,38 @@ mod tests {
         assert!(
             !t.contains(&outsider.username),
             "other trees' students stay hidden"
+        );
+    }
+
+    #[tokio::test]
+    async fn list_projects_marks_take_over_targets() {
+        let dir = std::env::temp_dir().join(format!("wfm-api-{}", model::new_id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let s = state(&dir);
+        let (_owner, teacher, _teacher2, student, classmate, outsider) = school(&s);
+        for owner in [&student, &classmate, &outsider] {
+            s.db.create_project(&project(owner)).await.unwrap();
+        }
+        let t = body(list_projects(State(s.clone()), session(&teacher)).await).await;
+        let v: Vec<serde_json::Value> = serde_json::from_str(&t).unwrap();
+        let take = |v: &serde_json::Value| v["takeOver"].as_bool().unwrap_or(false);
+        let by_owner = |o: &User| v.iter().find(|p| p["ownerId"] == o.id).cloned();
+        for o in [&student, &classmate] {
+            assert!(
+                take(&by_owner(o).unwrap()),
+                "subtree project {} takeOver",
+                o.id
+            );
+        }
+        assert!(
+            by_owner(&outsider).is_none(),
+            "projects outside the subtree stay off the list"
+        );
+        let t = body(list_projects(State(s.clone()), session(&student)).await).await;
+        let v: Vec<serde_json::Value> = serde_json::from_str(&t).unwrap();
+        assert!(
+            v.iter().all(|p| !take(p)),
+            "students never get a takeOver flag"
         );
     }
 

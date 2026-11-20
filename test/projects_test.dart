@@ -191,6 +191,7 @@ void main() {
                 'displayName': 'Student Work',
                 'ownerId': 's1',
                 'ownerName': 'Sam',
+                'takeOver': true,
                 'createdAt': 1
               }
             ],
@@ -217,7 +218,7 @@ void main() {
       expect(find.text('Read only'), findsWidgets);
       await t.tap(find.byType(PopupMenuButton<String>).first);
       await settle(t);
-      await t.tap(find.text('Take over'));
+      await t.tap(find.text('Take ownership'));
       await settle(t);
       await t.tap(find.widgetWithText(FilledButton, 'Confirm'));
       await settle(t);
@@ -238,6 +239,7 @@ void main() {
                 'displayName': 'Student Work',
                 'ownerId': 's1',
                 'ownerName': 'Sam',
+                'takeOver': true,
                 'createdAt': 1
               }
             ],
@@ -251,19 +253,51 @@ void main() {
       await pump(t, const ProjectsPage());
       await t.tap(find.byType(PopupMenuButton<String>).first);
       await settle(t);
-      await t.tap(find.text('Take over'));
+      await t.tap(find.text('Take ownership'));
       await settle(t);
       await t.tap(find.text('Cancel'));
       await settle(t);
       expect(calls, 0);
       await t.tap(find.byType(PopupMenuButton<String>).first);
       await settle(t);
-      await t.tap(find.text('Take over'));
+      await t.tap(find.text('Take ownership'));
       await settle(t);
       await t.tap(find.widgetWithText(FilledButton, 'Confirm'));
       await settle(t);
       expect(calls, 1);
       expect(find.byType(Notice), findsOneWidget);
+    });
+
+    testWidgets('take over hidden when server would refuse', (t) async {
+      final api = installApi(extra: {
+        'GET /api/projects': (_) => [
+              {
+                'id': 'p9',
+                'name': 'p9',
+                'displayName': 'Student Work',
+                'ownerId': 's1',
+                'ownerName': 'Sam',
+                'createdAt': 1
+              },
+              {
+                'id': 'p8',
+                'name': 'p8',
+                'displayName': 'Locked Own',
+                'status': 'submitted',
+                'createdAt': 1
+              }
+            ],
+      });
+      api.user =
+          User.fromJson({'id': 'u9', 'username': 'teach', 'role': 'teacher'});
+      await pump(t, const ProjectsPage());
+      for (final m in find.byType(PopupMenuButton<String>).evaluate()) {
+        await t.tap(find.byWidget(m.widget));
+        await settle(t);
+        expect(find.text('Take ownership'), findsNothing);
+        await t.tapAt(const Offset(5, 5));
+        await settle(t);
+      }
     });
 
     testWidgets('pin project sorts first', (t) async {

@@ -695,7 +695,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get readOnly => 'Только чтение';
 
   @override
-  String get takeOver => 'Перехватить';
+  String get takeOver => 'Стать владельцем';
 
   @override
   String takeOverBody(Object name) {

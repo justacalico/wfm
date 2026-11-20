@@ -690,7 +690,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get readOnly => '只读';
 
   @override
-  String get takeOver => '接管';
+  String get takeOver => '取得所有权';
 
   @override
   String takeOverBody(Object name) {

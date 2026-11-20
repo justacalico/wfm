@@ -346,7 +346,7 @@
   "revokeSessionBody": "退出此会话？",
   "sessionLastSeen": "最近活动 {time}",
   "readOnly": "只读",
-  "takeOver": "接管",
+  "takeOver": "取得所有权",
   "takeOverBody": "接管项目 {name}？",
   "ownedBy": "{name} 的项目",
   "selectFiles": "选择",
