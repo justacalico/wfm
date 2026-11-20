@@ -2,6 +2,7 @@
 
 // ignore: unused_import
 import 'package:intl/intl.dart' as intl;
+
 import 'app_localizations.dart';
 
 // ignore_for_file: type=lint
@@ -170,10 +171,10 @@ class AppLocalizationsGa extends AppLocalizations {
   String get editInFilmcraft => 'Cuir in eagar';
 
   @override
-  String get openScript => 'Script';
+  String get openScript => 'Scríobh script';
 
   @override
-  String get openBoards => 'Scéalchlár';
+  String get openBoards => 'Pleanáil an scéalchláir';
 
   @override
   String get renameProject => 'Athainmnigh tionscadal';

@@ -65,8 +65,8 @@
     }
   },
   "editInFilmcraft": "Редактировать",
-  "openScript": "Сценарий",
-  "openBoards": "Раскадровка",
+  "openScript": "Писать сценарий",
+  "openBoards": "Планировать раскадровку",
   "renameProject": "Переименовать проект",
   "displayName": "Отображаемое имя",
   "deleteProject": "Удалить проект",

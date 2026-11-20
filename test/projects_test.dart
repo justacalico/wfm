@@ -41,10 +41,10 @@ void main() {
       await t.tap(find.text('Edit'));
       await settle(t);
       expect(opened, contains('/filmcraft/wfm.html?project=p1'));
-      await t.tap(find.text('Script'));
+      await t.tap(find.text('Write script'));
       await settle(t);
       expect(opened, contains('/scriptcraft/wfm.html?project=p1'));
-      await t.tap(find.text('Storyboard'));
+      await t.tap(find.text('Plan storyboard'));
       await settle(t);
       expect(opened, contains('/deckcraft/wfm.html?project=p1'));
       await t.tap(find.text('Short Film'));
@@ -455,10 +455,10 @@ void main() {
       await t.tap(find.text('Edit'));
       await settle(t);
       expect(find.byType(Notice), findsOneWidget);
-      await t.tap(find.text('Script'));
+      await t.tap(find.text('Write script'));
       await settle(t);
       expect(find.byType(Notice), findsWidgets);
-      await t.tap(find.text('Storyboard'));
+      await t.tap(find.text('Plan storyboard'));
       await settle(t);
       expect(find.byType(Notice), findsWidgets);
     });

@@ -2,6 +2,7 @@
 
 // ignore: unused_import
 import 'package:intl/intl.dart' as intl;
+
 import 'app_localizations.dart';
 
 // ignore_for_file: type=lint
@@ -168,10 +169,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get editInFilmcraft => '编辑';
 
   @override
-  String get openScript => '剧本';
+  String get openScript => '写剧本';
 
   @override
-  String get openBoards => '故事板';
+  String get openBoards => '画故事板';
 
   @override
   String get renameProject => '重命名项目';
