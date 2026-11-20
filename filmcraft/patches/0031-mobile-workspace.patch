@@ -1,0 +1,185 @@
+diff --git a/crates/ui-egui/src/app.rs b/crates/ui-egui/src/app.rs
+index 3639ff0..a0b87d8 100644
+--- a/crates/ui-egui/src/app.rs
++++ b/crates/ui-egui/src/app.rs
+@@ -130,6 +130,9 @@ impl FilmcraftApp {
+             workspace_restored: false,
+             workspaces,
+             menu_workspaces: Default::default(),
++            mobile_workspace: false,
++            pre_mobile_dock: None,
++            pre_mobile_workspace: None,
+         }
+     }
+ 
+diff --git a/crates/ui-egui/src/app/frame.rs b/crates/ui-egui/src/app/frame.rs
+index d81f66b..ed63979 100644
+--- a/crates/ui-egui/src/app/frame.rs
++++ b/crates/ui-egui/src/app/frame.rs
+@@ -52,6 +52,31 @@ impl FilmcraftApp {
+         }
+         let t = self.tokens;
+         let full = ui.max_rect();
++        // Phones and other narrow windows get the "Mobile" workspace: one full-width tab group
++        // over the timeline strip instead of a multi-pane grid. Widening restores the layout and
++        // workspace that were in use, unless the user picked another one while narrow.
++        let narrow = self.ui.mode == state::Mode::Edit && full.width() < 820.0;
++        if narrow != self.mobile_workspace {
++            self.mobile_workspace = narrow;
++            if narrow {
++                self.pre_mobile_dock = Some(self.ui.dock.clone());
++                self.pre_mobile_workspace = Some(self.ui.workspace.clone());
++                self.ui.workspace = "Mobile".into();
++                self.ui.dock = crate::dock::workspace("Mobile");
++            } else if self.ui.workspace == "Mobile" {
++                if let Some(layout) = self.pre_mobile_dock.take() {
++                    self.ui.dock = layout;
++                }
++                if let Some(name) = self.pre_mobile_workspace.take() {
++                    self.ui.workspace = name;
++                }
++            } else {
++                self.pre_mobile_dock = None;
++                self.pre_mobile_workspace = None;
++            }
++            self.pending_panel_raise = None;
++            self.ui.keys.maximized = None;
++        }
+         ui.painter().rect_filled(full, 0.0, t.app_bg);
+         if self.ui.fullscreen_program {
+             ui.painter().rect_filled(full, 0.0, egui::Color32::BLACK);
+diff --git a/crates/ui-egui/src/dock.rs b/crates/ui-egui/src/dock.rs
+index b29726d..f4e7237 100644
+--- a/crates/ui-egui/src/dock.rs
++++ b/crates/ui-egui/src/dock.rs
+@@ -151,8 +151,8 @@ fn vsplit(size: SplitSize, a: Node<PanelKind>, b: Node<PanelKind>) -> Node<Panel
+     Node::Split { axis: SplitAxis::Vertical, size, first: Box::new(a), second: Box::new(b) }
+ }
+ 
+-pub const WORKSPACES: [&str; 10] =
+-    ["Editing", "Assembly", "Color", "Effects", "Audio", "Captions and Graphics", "Vertical", "Learning", "Review", "All Panels"];
++pub const WORKSPACES: [&str; 11] =
++    ["Editing", "Assembly", "Color", "Effects", "Audio", "Captions and Graphics", "Vertical", "Learning", "Review", "All Panels", "Mobile"];
+ 
+ /// The user's workspaces file, beside `preferences.json` in the data directory.
+ pub const WORKSPACES_FILE: &str = "workspaces.json";
+@@ -508,6 +508,17 @@ fn workspace_root(name: &str) -> Node<PanelKind> {
+             ),
+             hsplit(Ratio(0.26), tabs(&[Project, MediaBrowser, Libraries, Info, Effects, Markers, History], 0), bottom_editing()),
+         ),
++        // Mobile (phones and other narrow windows): every panel but the timeline strip lives in
++        // one full-width tab group so each gets the whole window.
++        "Mobile" => vsplit(
++            Ratio(0.62),
++            tabs(&[
++                Program, Project, Source, EffectControls, MediaBrowser, Libraries, Effects, Properties, EssentialGraphics, EssentialSound, LumetriColor,
++                LumetriScopes, AudioClipMixer, AudioTrackMixer, Metadata, Text, TextToSpeech, Markers, History, Info, Events, Progress, ReferenceMonitor,
++                Timecode, ProjectNotes,
++            ], 0),
++            bottom_editing(),
++        ),
+         // Editing (default), Learning, Review — Premiere 26 factory layout:
+         // top: Source group | Program | Properties; bottom: Project group | Tools | Timeline | Meters.
+         _ => vsplit(
+diff --git a/crates/ui-egui/src/header.rs b/crates/ui-egui/src/header.rs
+index ff53480..0da75e9 100644
+--- a/crates/ui-egui/src/header.rs
++++ b/crates/ui-egui/src/header.rs
+@@ -63,12 +63,21 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
+     let mut left_end = x;
+     // In-window menus when there is no native menu bar.
+     if app.ui.show_menu_bar {
+-        let menu_rect = Rect::from_min_max(pos2(x + 6.0, rect.min.y + 7.0), pos2(x + 520.0, rect.max.y - 7.0));
++        // The right cluster (three buttons and the workspace name) is drawn later; pre-measure it
++        // so the bar never runs under it. Too little room and the bar becomes one "Menu" button.
++        let ws_w = p.layout_no_wrap(crate::i18n::to_uppercase(crate::i18n::t(&app.ui.workspace)), Tokens::ui(11.0), t.text_dim).size().x;
++        let right_start = rect.max.x - 14.0 - 3.0 * 38.0 - ws_w - 30.0;
++        let menu_end = (x + 520.0).min(right_start - 6.0).max(x + 6.0);
++        let menu_rect = Rect::from_min_max(pos2(x + 6.0, rect.min.y + 7.0), pos2(menu_end, rect.max.y - 7.0));
+         let mut mu = ui.new_child(egui::UiBuilder::new().max_rect(menu_rect).layout(egui::Layout::left_to_right(egui::Align::Center)));
+         mu.style_mut().visuals.widgets.inactive.weak_bg_fill = Color32::TRANSPARENT;
+         mu.style_mut().visuals.widgets.inactive.bg_stroke = Stroke::NONE;
+         mu.style_mut().visuals.override_text_color = Some(t.text_dim);
+-        crate::menus::menu_bar(app, &mut mu);
++        if menu_end - x - 6.0 < 620.0 {
++            crate::menus::menu_bar_compact(app, &mut mu);
++        } else {
++            crate::menus::menu_bar(app, &mut mu);
++        }
+         left_end = mu.min_rect().max.x;
+     }
+     // Document title, centred
+diff --git a/crates/ui-egui/src/lib.rs b/crates/ui-egui/src/lib.rs
+index 3f56f64..a2b0cdc 100644
+--- a/crates/ui-egui/src/lib.rs
++++ b/crates/ui-egui/src/lib.rs
+@@ -396,6 +396,11 @@ pub struct FilmcraftApp {
+     pub workspaces: dock::WorkspacePrefs,
+     /// Workspace names and the current one, as last handed to the native menu.
+     menu_workspaces: (Vec<String>, String),
++    /// A narrow window swapped the dock to the "Mobile" workspace; widening restores the layout
++    /// and workspace name kept here.
++    mobile_workspace: bool,
++    pre_mobile_dock: Option<dock::Layout>,
++    pre_mobile_workspace: Option<String>,
+ }
+ 
+ pub struct GpuState {
+diff --git a/crates/ui-egui/src/menus.rs b/crates/ui-egui/src/menus.rs
+index 2c98bbd..969cf00 100644
+--- a/crates/ui-egui/src/menus.rs
++++ b/crates/ui-egui/src/menus.rs
+@@ -120,6 +120,7 @@ pub const UI_COMMANDS: &[UiCommand] = &[
+     uic!("window.workspace.captionsandgraphics", "Captions and Graphics", ["Window", "Workspaces"], Some("Alt+Shift+6")),
+     uic!("window.workspace.allpanels", "All Panels", ["Window", "Workspaces"], None),
+     uic!("window.workspace.vertical", "Vertical", ["Window", "Workspaces"], None),
++    uic!("window.workspace.mobile", "Mobile", ["Window", "Workspaces"], None),
+     uic!("window.workspace.reset", "Reset to Saved Layout", ["Window", "Workspaces"], Some("Alt+Shift+0")),
+     uic!("window.workspace.saveChanges", "Save Changes to this Workspace", ["Window", "Workspaces"], None),
+     uic!("window.workspace.saveAs", "Save as New Workspace…", ["Window", "Workspaces"], None),
+@@ -1189,6 +1190,33 @@ pub fn menu_bar(app: &mut FilmcraftApp, ui: &mut egui::Ui) {
+     }
+ }
+ 
++/// The menu bar as one "Menu" button for windows too narrow for the full row: the same
++/// top-level menus, each as a submenu.
++pub fn menu_bar_compact(app: &mut FilmcraftApp, ui: &mut egui::Ui) {
++    ui.ctx().data_mut(|d| d.insert_temp(egui::Id::unique("interface-language"), app.ui.language));
++    let items = menu_items_with_focus(app, ui.ctx());
++    let labels = app.session.prefs.labels.clone();
++    let ctx = ui.ctx().clone();
++    let mut clicked: Option<String> = None;
++    egui::MenuBar::new().style(crate::theme::menu_style).config(egui::containers::menu::MenuConfig::new().style(crate::theme::menu_style)).ui(ui, |ui| {
++        ui.menu_button(tl!("Menu"), |ui| {
++            for top in MENUS {
++                let mine: Vec<&MenuItem> = items.iter().filter(|i| i.path.first().map(String::as_str) == Some(top)).collect();
++                ui.menu_button(app.ui.language.tr(top), |ui| {
++                    ui.set_min_width(260.0);
++                    if mine.is_empty() {
++                        ui.add_enabled(false, egui::Button::new(tl!("(empty)")));
++                    }
++                    menu_level(ui, &mine, 1, &mut clicked, &mut app.auto, &labels);
++                });
++            }
++        });
++    });
++    if let Some(id) = clicked {
++        let _ = invoke(app, &ctx, &id, json!({}));
++    }
++}
++
+ /// Like a native menu bar (Windows, macOS): while one top-level menu is open, hovering another
+ /// top-level title opens that menu instead (#1500). egui's `MenuBar` only switches on click.
+ fn switch_on_hover(ctx: &egui::Context, titles: &[egui::Response]) {
+diff --git a/crates/ui-egui/tests/it/workspaces_ui.rs b/crates/ui-egui/tests/it/workspaces_ui.rs
+index 0bebaec..5507f0f 100644
+--- a/crates/ui-egui/tests/it/workspaces_ui.rs
++++ b/crates/ui-egui/tests/it/workspaces_ui.rs
+@@ -187,6 +187,7 @@ fn save_switch_reset_rename_delete_and_restart() {
+             "Editing",
+             "Effects",
+             "Learning",
++            "Mobile",
+             "Review",
+             "Vertical",
+             "Reset to Saved Layout",

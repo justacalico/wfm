@@ -1,0 +1,124 @@
+diff --git a/crates/ui-egui/src/app.rs b/crates/ui-egui/src/app.rs
+index 7047df1..deb7f04 100644
+--- a/crates/ui-egui/src/app.rs
++++ b/crates/ui-egui/src/app.rs
+@@ -317,6 +317,17 @@ impl SlideApp {
+         self.sync_backstage();
+         self.keyboard(&ctx);
+         self.sync_backstage();
++        // Narrow windows (phones): collapse the ribbon on the way in and restore it on the way
++        // back out. A manual toggle while narrow is kept, so the collapse runs only once.
++        let narrow = ui.max_rect().width() < 760.0;
++        if narrow && !self.ui.was_narrow && !self.ui.ribbon_collapsed {
++            self.ui.ribbon_collapsed = true;
++            self.ui.ribbon_auto = true;
++        } else if !narrow && self.ui.ribbon_auto {
++            self.ui.ribbon_auto = false;
++            self.ui.ribbon_collapsed = false;
++        }
++        self.ui.was_narrow = narrow;
+         ribbon::title_bar(self, ui);
+         if self.backstage.is_none() && self.session.active().is_some() {
+             ribbon::show(self, ui);
+diff --git a/crates/ui-egui/src/app/commands.rs b/crates/ui-egui/src/app/commands.rs
+index 65e92b3..1d2b7b4 100644
+--- a/crates/ui-egui/src/app/commands.rs
++++ b/crates/ui-egui/src/app/commands.rs
+@@ -170,8 +170,12 @@ impl SlideApp {
+                 let tab = p.get("tab").and_then(Value::as_str).ok_or("missing `tab`")?;
+                 self.ui.tab = tab.to_string();
+                 self.ui.ribbon_collapsed = false;
++                self.ui.ribbon_auto = false;
++            }
++            "view.collapseRibbon" => {
++                self.ui.ribbon_collapsed = !self.ui.ribbon_collapsed;
++                self.ui.ribbon_auto = false;
+             }
+-            "view.collapseRibbon" => self.ui.ribbon_collapsed = !self.ui.ribbon_collapsed,
+             "view.dark" => {
+                 let on = self.flag(p, self.ui.brightness == theme::Brightness::Dark);
+                 self.ui.brightness = if on { theme::Brightness::Dark } else { theme::Brightness::Light };
+diff --git a/crates/ui-egui/src/control.rs b/crates/ui-egui/src/control.rs
+index 8dc21d9..35999d5 100644
+--- a/crates/ui-egui/src/control.rs
++++ b/crates/ui-egui/src/control.rs
+@@ -253,6 +253,7 @@ pub fn handle(app: &mut SlideApp, ctx: &egui::Context, req: &ControlRequest) ->
+             if let Some(t) = s("tab") {
+                 app.ui.tab = t.to_string();
+                 app.ui.ribbon_collapsed = false;
++                app.ui.ribbon_auto = false;
+             }
+             if let Some(pv) = p.get("pane") {
+                 app.ui.pane = pv.as_str().map(String::from);
+@@ -280,6 +281,7 @@ pub fn handle(app: &mut SlideApp, ctx: &egui::Context, req: &ControlRequest) ->
+             }
+             if let Some(c) = p.get("ribbonCollapsed").and_then(Value::as_bool) {
+                 app.ui.ribbon_collapsed = c;
++                app.ui.ribbon_auto = false;
+             }
+             if let Some(ft) = s("formatTab") {
+                 app.ui.format_tab = ft.to_string();
+diff --git a/crates/ui-egui/src/panels/thumbs.rs b/crates/ui-egui/src/panels/thumbs.rs
+index 4956f2b..e880c9c 100644
+--- a/crates/ui-egui/src/panels/thumbs.rs
++++ b/crates/ui-egui/src/panels/thumbs.rs
+@@ -87,10 +87,13 @@ pub fn show(app: &mut SlideApp, ui: &mut Ui) {
+     if app.session.active().is_some_and(|d| d.selection.target.is_page_master()) {
+         return;
+     }
++    // Narrow windows (phones) cap the pane under half the width so the slide keeps most of the
++    // screen, and let it shrink to a strip; desktop keeps the usual 420 pt ceiling.
++    let max_thumbs = (ui.max_rect().width() * 0.45).clamp(96.0, 420.0);
+     let panel = egui::Panel::left("thumbs")
+         .resizable(true)
+-        .default_size(app.ui.thumbs_width)
+-        .size_range(150.0..=420.0)
++        .default_size(app.ui.thumbs_width.min(max_thumbs))
++        .size_range(96.0..=max_thumbs)
+         .frame(egui::Frame::NONE.fill(t.chrome))
+         .show(ui, |ui| {
+             app.ui.thumbs_width = ui.available_width();
+diff --git a/crates/ui-egui/src/ribbon.rs b/crates/ui-egui/src/ribbon.rs
+index 7d2ab7a..7916940 100644
+--- a/crates/ui-egui/src/ribbon.rs
++++ b/crates/ui-egui/src/ribbon.rs
+@@ -172,9 +172,11 @@ pub fn show(app: &mut SlideApp, ui: &mut Ui) {
+                     app.ui.tab = name.to_string();
+                     app.ui.ribbon_collapsed = false;
+                 }
++                app.ui.ribbon_auto = false;
+             }
+             if resp.double_clicked() {
+                 app.ui.ribbon_collapsed = !app.ui.ribbon_collapsed;
++                app.ui.ribbon_auto = false;
+             }
+             x += w + 2.0;
+         }
+diff --git a/crates/ui-egui/src/state.rs b/crates/ui-egui/src/state.rs
+index e7b1c05..976ef24 100644
+--- a/crates/ui-egui/src/state.rs
++++ b/crates/ui-egui/src/state.rs
+@@ -94,6 +94,14 @@ pub struct UiState {
+     pub comment_focus: Option<(usize, usize)>,
+     /// Quick Access Toolbar buttons, left to right.
+     pub qat: Vec<qat::QatItem>,
++    /// The window was narrow last pass: auto chrome collapsing only acts on the wide-to-narrow
++    /// edge, never undoing what the user then changes while it stays narrow.
++    #[serde(skip)]
++    pub was_narrow: bool,
++    /// `ribbon_collapsed` came from the narrow-window auto collapse, so widening puts it back;
++    /// any manual toggle clears this.
++    #[serde(skip)]
++    pub ribbon_auto: bool,
+ }
+ 
+ impl Default for UiState {
+@@ -127,6 +135,8 @@ impl Default for UiState {
+             grayscale: false,
+             comment_focus: None,
+             qat: qat::defaults(),
++            was_narrow: false,
++            ribbon_auto: false,
+         }
+     }
+ }

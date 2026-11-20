@@ -1,0 +1,62 @@
+diff --git a/crates/ui-egui/src/chrome.rs b/crates/ui-egui/src/chrome.rs
+index 9d2c811..5884ae6 100644
+--- a/crates/ui-egui/src/chrome.rs
++++ b/crates/ui-egui/src/chrome.rs
+@@ -142,6 +142,8 @@ pub fn menu_bar(app: &mut ScriptApp, ui: &mut Ui) {
+     let lang = app.prefs.appearance.language;
+     let t = app.tokens();
+     egui::Panel::top("menu").frame(egui::Frame::NONE.fill(t.chrome).inner_margin(egui::Margin::symmetric(8, 3))).show(ui, |ui| {
++        // Menus that do not fit a narrow window scroll sideways instead of being clipped away.
++        egui::ScrollArea::horizontal().auto_shrink([false, true]).show(ui, |ui| {
+         egui::MenuBar::new().ui(ui, |ui| {
+             ui.menu_button(lang.text("File"), |ui| {
+                 if !app.in_wfm {
+@@ -329,6 +331,7 @@ pub fn menu_bar(app: &mut ScriptApp, ui: &mut Ui) {
+                 }
+             });
+         });
++        });
+     });
+ }
+ 
+@@ -375,7 +378,9 @@ pub fn toolbar(app: &mut ScriptApp, ui: &mut Ui) {
+                 .stroke(egui::Stroke::new(1.0, t.chrome_line)),
+         )
+         .show(ui, |ui| {
+-            ui.horizontal(|ui| {
++            // Wrap instead of clipping: on a narrow window the buttons flow to a second row and
++            // stay reachable.
++            ui.horizontal_wrapped(|ui| {
+                 ui.spacing_mut().item_spacing.x = 2.0;
+                 if icons::button(ui, Icon::Navigator, lang.text("Navigator"), app.navigator).clicked() {
+                     app.run("ui.toggleNavigator", json!({}));
+@@ -594,16 +599,19 @@ pub fn status_bar(app: &mut ScriptApp, ui: &mut Ui, status: Option<String>) {
+ pub fn navigator(app: &mut ScriptApp, ui: &mut Ui) {
+     let lang = app.prefs.appearance.language;
+     let t = app.tokens();
+-    egui::Panel::left("navigator")
+-        .resizable(true)
+-        .default_size(280.0)
+-        .min_size(200.0)
+-        .frame(
+-            egui::Frame::NONE
+-                .fill(t.panel)
+-                .inner_margin(egui::Margin { left: 10, right: 8, top: 10, bottom: 8 })
+-                .stroke(egui::Stroke::new(1.0, t.chrome_line)),
+-        )
++    let frame = egui::Frame::NONE
++        .fill(t.panel)
++        .inner_margin(egui::Margin { left: 10, right: 8, top: 10, bottom: 8 })
++        .stroke(egui::Stroke::new(1.0, t.chrome_line));
++    // Narrow windows (phones): a left panel would leave the page unusably thin, so the navigator
++    // docks as a bottom drawer instead.
++    let panel = if ui.max_rect().width() < 640.0 {
++        egui::Panel::bottom("navigator").resizable(true).default_size(260.0).min_size(140.0)
++    } else {
++        egui::Panel::left("navigator").resizable(true).default_size(280.0).min_size(200.0)
++    };
++    panel
++        .frame(frame)
+         .show(ui, |ui| {
+             ui.horizontal(|ui| {
+                 ui.label(RichText::new(lang.text("NAVIGATOR")).size(11.0).strong().color(t.text_soft));
