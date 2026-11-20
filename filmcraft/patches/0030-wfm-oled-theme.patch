@@ -1,0 +1,109 @@
+diff --git a/apps/filmcraft-web/src/lib.rs b/apps/filmcraft-web/src/lib.rs
+index 964adeb..12d8775 100644
+--- a/apps/filmcraft-web/src/lib.rs
++++ b/apps/filmcraft-web/src/lib.rs
+@@ -209,7 +209,8 @@ pub async fn start(canvas_id: String) -> Result<(), JsValue> {
+                 }
+                 webcodecs::install();
+                 let mut session = Session::new(Arc::new(fs::WebServices));
+-                if let Some(mode) = query_value("theme").and_then(|t| match t.as_str() {
++                let host_theme = query_value("theme");
++                if let Some(mode) = host_theme.as_deref().and_then(|t| match t {
+                     "system" => Some("auto"),
+                     "light" => Some("light"),
+                     "dark" | "oled" => Some("dark"),
+@@ -217,6 +218,10 @@ pub async fn start(canvas_id: String) -> Result<(), JsValue> {
+                 }) {
+                     session.prefs.appearance.appearance_mode = mode.into();
+                 }
++                if host_theme.as_deref() == Some("oled") {
++                    session.prefs.appearance.dark_theme = "oled".into();
++                    session.prefs.appearance.sync_color_theme();
++                }
+                 let mut toast = None;
+                 if let Some((name, bytes)) = recovered {
+                     let path = format!("/recovered/{name}");
+diff --git a/crates/engine/src/settings/schema.rs b/crates/engine/src/settings/schema.rs
+index 75e24df..7adb575 100644
+--- a/crates/engine/src/settings/schema.rs
++++ b/crates/engine/src/settings/schema.rs
+@@ -126,7 +126,7 @@ const BIN_OPEN: &[(&str, &str)] = &[("openInPlace", "Open in place"), ("openNewT
+ 
+ const PROJECT_OPEN: &[(&str, &str)] = &[("openNewTab", "Open new tab"), ("openNewWindow", "Open in new window")];
+ 
+-const THEMES: &[(&str, &str)] = &[("darkest", "Darkest"), ("dark", "Dark"), ("light", "Light")];
++const THEMES: &[(&str, &str)] = &[("darkest", "Darkest"), ("dark", "Dark"), ("oled", "OLED"), ("light", "Light")];
+ 
+ pub const APPEARANCE_MODES: &[(&str, &str)] = &[("auto", "Sync with system"), ("dark", "Dark"), ("light", "Light")];
+ 
+@@ -142,7 +142,7 @@ pub const UI_SCALES: &[(&str, &str)] = &[
+     ("300", "300%"),
+ ];
+ 
+-pub const DARK_THEMES: &[(&str, &str)] = &[("darkest", "Darkest"), ("dark", "Dark")];
++pub const DARK_THEMES: &[(&str, &str)] = &[("darkest", "Darkest"), ("dark", "Dark"), ("oled", "OLED")];
+ 
+ pub const LIGHT_THEMES: &[(&str, &str)] = &[("light", "Light")];
+ 
+diff --git a/crates/ui-egui/src/theme.rs b/crates/ui-egui/src/theme.rs
+index 13a9cc6..f65702b 100644
+--- a/crates/ui-egui/src/theme.rs
++++ b/crates/ui-egui/src/theme.rs
+@@ -16,6 +16,8 @@ pub enum ThemeKind {
+     /// Slightly lighter grey panels (Premiere's brightness slider mid position).
+     Medium,
+     Light,
++    /// Pure-black surfaces for OLED screens; only reachable from the host page's `theme=oled`.
++    Oled,
+ }
+ 
+ impl ThemeKind {
+@@ -25,12 +27,14 @@ impl ThemeKind {
+             ThemeKind::Dark => "darkest",
+             ThemeKind::Medium => "dark",
+             ThemeKind::Light => "light",
++            ThemeKind::Oled => "oled",
+         }
+     }
+     pub fn from_pref(s: &str) -> ThemeKind {
+         match s {
+             "dark" => ThemeKind::Medium,
+             "light" => ThemeKind::Light,
++            "oled" => ThemeKind::Oled,
+             _ => ThemeKind::Dark,
+         }
+     }
+@@ -39,6 +43,7 @@ impl ThemeKind {
+             "dark" | "darkest" => Some(ThemeKind::Dark),
+             "medium" | "grey" | "gray" => Some(ThemeKind::Medium),
+             "light" => Some(ThemeKind::Light),
++            "oled" => Some(ThemeKind::Oled),
+             _ => None,
+         }
+     }
+@@ -259,6 +264,25 @@ impl Tokens {
+                 hover: Color32::from_rgb(64, 64, 64),
+                 ..dark
+             },
++            ThemeKind::Oled => Tokens {
++                header_bg: Color32::BLACK,
++                panel_bg: Color32::BLACK,
++                tab_bg: Color32::BLACK,
++                field_bg: Color32::BLACK,
++                row_alt: Color32::from_rgb(0x0a, 0x0a, 0x0a),
++                control_well: Color32::BLACK,
++                plot_bg: Color32::BLACK,
++                meter_readout_bg: Color32::BLACK,
++                panner_bg: Color32::BLACK,
++                keyframe_plot_bg: Color32::BLACK,
++                tl_bg: Color32::BLACK,
++                tl_track_bg: Color32::BLACK,
++                tl_track_bg_alt: Color32::BLACK,
++                tl_header_bg: Color32::BLACK,
++                tl_ruler_bg: Color32::BLACK,
++                monitor_bg: Color32::BLACK,
++                ..dark
++            },
+             ThemeKind::Light => Tokens {
+                 app_bg: Color32::from_rgb(180, 180, 180),
+                 header_bg: Color32::from_rgb(214, 214, 214),

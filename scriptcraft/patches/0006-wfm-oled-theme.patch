@@ -1,0 +1,65 @@
+diff --git a/apps/scriptcraft-web/src/main.rs b/apps/scriptcraft-web/src/main.rs
+index 72e9b59..527f771 100644
+--- a/apps/scriptcraft-web/src/main.rs
++++ b/apps/scriptcraft-web/src/main.rs
+@@ -352,6 +352,7 @@ mod web {
+                             Some("dark") | Some("oled") => true,
+                             _ => cc.egui_ctx.system_theme() == Some(egui::Theme::Dark),
+                         };
++                        app.oled = theme.as_deref() == Some("oled");
+                         app.prefs.appearance.theme = if app.dark {
+                             scriptcraft_ui_egui::persist::Theme::Dark
+                         } else {
+diff --git a/crates/ui-egui/src/lib.rs b/crates/ui-egui/src/lib.rs
+index 06d8d52..25a28ea 100644
+--- a/crates/ui-egui/src/lib.rs
++++ b/crates/ui-egui/src/lib.rs
+@@ -139,6 +139,8 @@ pub struct ScriptApp {
+     pub session: Session,
+     pub view: View,
+     pub dark: bool,
++    /// Pure-black surfaces for OLED screens; set by the host page (`theme=oled`).
++    pub oled: bool,
+     pub navigator: bool,
+     /// Which navigator tab: 0 scenes, 1 characters, 2 notes, 3 bookmarks.
+     pub nav_tab: usize,
+@@ -252,6 +254,7 @@ impl ScriptApp {
+             session,
+             view: View::Page,
+             dark: false,
++            oled: false,
+             navigator: true,
+             nav_tab: 0,
+             split: split::Split::default(),
+@@ -503,7 +506,7 @@ impl ScriptApp {
+     }
+ 
+     pub fn tokens(&self) -> theme::Tokens {
+-        theme::Tokens::get(self.dark)
++        if self.oled { theme::Tokens::oled() } else { theme::Tokens::get(self.dark) }
+     }
+ 
+     pub fn set_status(&mut self, s: impl Into<String>) {
+diff --git a/crates/ui-egui/src/theme.rs b/crates/ui-egui/src/theme.rs
+index 510b2dd..ddcf4c7 100644
+--- a/crates/ui-egui/src/theme.rs
++++ b/crates/ui-egui/src/theme.rs
+@@ -79,6 +79,18 @@ impl Tokens {
+         }
+     }
+ 
++    /// Pure-black variant for OLED screens (the host page's `theme=oled`).
++    pub fn oled() -> Tokens {
++        Tokens {
++            chrome: Color32::BLACK,
++            panel: Color32::BLACK,
++            desk: Color32::BLACK,
++            paper: Color32::BLACK,
++            card: Color32::from_rgb(0x0d, 0x0e, 0x12),
++            ..Tokens::get(true)
++        }
++    }
++
+     /// egui visuals in our colours.
+     pub fn visuals(&self) -> Visuals {
+         let mut v = if self.dark { Visuals::dark() } else { Visuals::light() };
