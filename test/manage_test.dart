@@ -582,6 +582,118 @@ void main() {
       expect(creates, 1);
     });
 
+    testWidgets('co-teachers list, add, create and remove', (t) async {
+      var added = 0, removed = 0, created = 0;
+      installApi(extra: {
+        'GET /api/classes': (_) => [
+              {
+                'id': 'c1',
+                'name': 'Period 1',
+                'ownerId': 'u1',
+                'members': 1,
+                'teachers': 1,
+                'createdAt': 1
+              },
+              {
+                'id': 'c2',
+                'name': 'Foreign',
+                'ownerId': 't9',
+                'members': 0,
+                'createdAt': 2
+              },
+            ],
+        'GET /api/accounts': (_) => [],
+        'GET /api/classes/c1/teachers': (_) => [
+              {
+                'id': 't2',
+                'username': 'co',
+                'displayName': 'Co Teacher',
+                'role': 'teacher'
+              },
+              {'id': 't3', 'username': 'plain', 'role': 'teacher'},
+            ],
+        'GET /api/classes/c2/teachers': (_) =>
+            http.Response('{"error":"x"}', 500),
+        'POST /api/classes/c1/teachers': (req) {
+          added++;
+          if (added == 1) return http.Response('{"error":"boom"}', 500);
+          return {'id': 't4', 'username': 'linked', 'role': 'teacher'};
+        },
+        'DELETE /api/classes/c1/teachers/t3': (req) {
+          removed++;
+          if (removed == 1) return http.Response('{"error":"boom"}', 500);
+          return {'ok': true};
+        },
+        'POST /api/accounts': (req) {
+          created++;
+          return {'id': 't5', 'username': 'fresh', 'role': 'teacher'};
+        },
+      });
+      Api.i.user = User.fromJson({'id': 'u1', 'role': 'teacher'});
+      await pump(t, const ClassesTab());
+      expect(find.text('1 members · 1 co-teachers'), findsOneWidget);
+
+      await t.tap(find.text('Period 1'));
+      await settle(t);
+      expect(find.text('Co Teacher'), findsOneWidget);
+      expect(find.text('plain'), findsWidgets);
+
+      final foreign = find.ancestor(
+          of: find.text('Foreign'), matching: find.byType(ExpansionTile));
+      expect(
+          find.descendant(
+              of: foreign,
+              matching: find.widgetWithText(TextButton, 'Add co-teacher')),
+          findsNothing,
+          reason: 'foreign classes stay read-only');
+
+      await t.tap(find.text('Add co-teacher'));
+      await settle(t);
+      await t.tap(find.text('Cancel'));
+      await settle(t);
+      expect(added, 0);
+
+      await t.tap(find.text('Add co-teacher'));
+      await settle(t);
+      await t.enterText(find.byType(TextField).first, 'linked');
+      await settle(t);
+      await t.tap(find.text('Add'));
+      await settle(t);
+      expect(added, 1);
+      expect(find.textContaining('boom'), findsOneWidget);
+      await t.tap(find.text('Add'));
+      await settle(t);
+      expect(added, 2);
+
+      await t.tap(find.text('Add co-teacher'));
+      await settle(t);
+      await t.tap(find.byType(CheckboxListTile));
+      await settle(t);
+      await t.enterText(find.byType(TextField).at(0), 'fresh');
+      await t.enterText(find.byType(TextField).at(1), 'Fresh Teach');
+      await t.enterText(find.byType(TextField).at(2), 'password1');
+      await settle(t);
+      await t.tap(find.text('Create'));
+      await settle(t);
+      expect(created, 1);
+
+      await t.tap(find.byIcon(Icons.person_remove_outlined).last);
+      await settle(t);
+      await t.tap(find.text('Cancel'));
+      await settle(t);
+      expect(removed, 0);
+      await t.tap(find.byIcon(Icons.person_remove_outlined).last);
+      await settle(t);
+      await t.tap(find.text('Confirm'));
+      await settle(t);
+      expect(removed, 1);
+      await t.tap(find.byIcon(Icons.person_remove_outlined).last);
+      await settle(t);
+      await t.tap(find.text('Confirm'));
+      await settle(t);
+      expect(removed, 2);
+    });
+
     testWidgets('empty, error and failing actions', (t) async {
       installApi(extra: {
         'GET /api/classes': (_) => [],

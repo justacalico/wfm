@@ -120,13 +120,14 @@ class ProjectGroup {
 class SchoolClass {
   final String id, name, ownerId;
   final bool unmanaged;
-  final int members, createdAt;
+  final int members, teachers, createdAt;
   SchoolClass.fromJson(Map<String, dynamic> j)
       : id = j['id'] ?? '',
         name = j['name'] ?? '',
         ownerId = j['ownerId'] ?? '',
         unmanaged = j['unmanaged'] ?? false,
         members = j['members'] ?? 0,
+        teachers = j['teachers'] ?? 0,
         createdAt = j['createdAt'] ?? 0;
 }
 
@@ -785,6 +786,18 @@ class Api {
       patch('/classes/$id', {'name': name});
 
   Future<void> classDelete(String id) => del('/classes/$id');
+
+  Future<List<User>> classTeachers(String id) async => [
+        for (final e in (await get('/classes/$id/teachers')) as List)
+          User.fromJson(e)
+      ];
+
+  Future<User> classTeacherAdd(String id, String username) async =>
+      User.fromJson(
+          await post('/classes/$id/teachers', {'username': username}));
+
+  Future<void> classTeacherRemove(String id, String uid) =>
+      del('/classes/$id/teachers/$uid');
 
   Future<User> createAccount(Map<String, dynamic> body) async =>
       User.fromJson(await post('/accounts', body));

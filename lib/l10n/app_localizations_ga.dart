@@ -337,6 +337,31 @@ class AppLocalizationsGa extends AppLocalizations {
   }
 
   @override
+  String get add => 'Cuir leis';
+
+  @override
+  String get remove => 'Bain';
+
+  @override
+  String get coTeachers => 'Comh-mhúinteoirí';
+
+  @override
+  String coTeacherCount(Object count) {
+    return '$count chomh-mhúinteoir';
+  }
+
+  @override
+  String get addCoTeacher => 'Cuir comh-mhúinteoir leis';
+
+  @override
+  String get coTeacherNew => 'Cruthaigh cuntas nua';
+
+  @override
+  String removeCoTeacherBody(Object name) {
+    return 'Bain $name mar chomh-mhúinteoir? Fanann a gcuntas ann.';
+  }
+
+  @override
   String get activity => 'Gníomhaíocht';
 
   @override
@@ -1066,6 +1091,11 @@ class AppLocalizationsGa extends AppLocalizations {
 
   @override
   String get statusReviewed => 'Athbhreithnithe';
+
+  @override
+  String notifCoTeacher(Object from, Object name) {
+    return 'Chuir $from tú mar chomh-mhúinteoir ar $name';
+  }
 
   @override
   String notifComment(Object from, Object project) {

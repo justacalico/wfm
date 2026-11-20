@@ -94,10 +94,11 @@ fn row_class(r: sqlx::postgres::PgRow) -> Class {
         unmanaged: r.get::<i32, _>("unmanaged") != 0,
         created_at: r.get("created_at"),
         members: r.get("members"),
+        teachers: r.get("teachers"),
     }
 }
 
-const CLASS_SELECT: &str = "SELECT c.id,c.owner_id,c.name,c.unmanaged,c.created_at,(SELECT COUNT(*) FROM users u WHERE u.class_id=c.id) AS members FROM classes c";
+const CLASS_SELECT: &str = "SELECT c.id,c.owner_id,c.name,c.unmanaged,c.created_at,(SELECT COUNT(*) FROM users u WHERE u.class_id=c.id) AS members,(SELECT COUNT(*) FROM class_teachers ct WHERE ct.class_id=c.id) AS teachers FROM classes c";
 
 fn row_project(r: sqlx::postgres::PgRow) -> Project {
     Project {
@@ -440,6 +441,13 @@ impl Db for PgDb {
         .execute(&mut *tx)
         .await
         .map_err(map_err)?;
+        sqlx::query(
+            "DELETE FROM class_teachers WHERE teacher_id=$1 OR class_id IN (SELECT id FROM classes WHERE owner_id=$1)",
+        )
+        .bind(id)
+        .execute(&mut *tx)
+        .await
+        .map_err(map_err)?;
         sqlx::query("DELETE FROM classes WHERE owner_id=$1")
             .bind(id)
             .execute(&mut *tx)
@@ -473,10 +481,13 @@ impl Db for PgDb {
 
     async fn managed_users(&self, actor: &User) -> DbResult<Vec<User>> {
         sqlx::query(
-            "SELECT * FROM users WHERE role < $1 AND (lineage LIKE $2 OR id=$3) ORDER BY created_at",
+            "SELECT * FROM users WHERE role < $1 AND (lineage LIKE $2 OR id=$3 OR ($4 >= $5 AND class_id IN (SELECT c.id FROM classes c WHERE c.owner_id=$6 OR EXISTS(SELECT 1 FROM class_teachers ct WHERE ct.class_id=c.id AND ct.teacher_id=$6)))) ORDER BY created_at",
         )
         .bind(actor.role as i32)
         .bind(format!("%/{}/%", actor.id))
+        .bind(&actor.id)
+        .bind(actor.role as i32)
+        .bind(crate::model::Role::Teacher as i32)
         .bind(&actor.id)
         .fetch_all(&self.pool)
         .await
@@ -488,7 +499,7 @@ impl Db for PgDb {
         // Classmates only exist for students: an empty class matches nothing for anyone
         // else (the class_id<>'' guard rejects empty matches).
         sqlx::query(
-            "SELECT * FROM users WHERE id<>$1 AND ((role<$2 AND lineage LIKE $3) OR $4 LIKE '%/'||id||'/%' OR (role=$5 AND class_id=$6 AND class_id<>'')) ORDER BY created_at",
+            "SELECT * FROM users WHERE id<>$1 AND ((role<$2 AND lineage LIKE $3) OR $4 LIKE '%/'||id||'/%' OR (role=$5 AND class_id=$6 AND class_id<>'') OR ((role>=$7 OR $2>=$7) AND EXISTS(SELECT 1 FROM classes k WHERE (k.owner_id=users.id OR users.class_id=k.id OR EXISTS(SELECT 1 FROM class_teachers ct WHERE ct.class_id=k.id AND ct.teacher_id=users.id)) AND (k.owner_id=$1 OR k.id=$8 OR EXISTS(SELECT 1 FROM class_teachers ca WHERE ca.class_id=k.id AND ca.teacher_id=$1))))) ORDER BY created_at",
         )
         .bind(&actor.id)
         .bind(actor.role as i32)
@@ -496,6 +507,8 @@ impl Db for PgDb {
         .bind(format!("/{}/", actor.lineage.trim_matches('/')))
         .bind(crate::model::Role::Student as i32)
         .bind(if actor.role == crate::model::Role::Student { actor.class_id.clone() } else { String::new() })
+        .bind(crate::model::Role::Teacher as i32)
+        .bind(&actor.class_id)
         .fetch_all(&self.pool)
         .await
         .map(|rows| rows.into_iter().map(row_user).collect())
@@ -504,7 +517,7 @@ impl Db for PgDb {
 
     async fn classes_for(&self, actor: &User) -> DbResult<Vec<Class>> {
         sqlx::query(&format!(
-            "{CLASS_SELECT} WHERE c.owner_id=$1 OR c.id=$2 OR c.owner_id IN (SELECT id FROM users WHERE lineage LIKE $3) ORDER BY c.unmanaged DESC, c.created_at"
+            "{CLASS_SELECT} WHERE c.owner_id=$1 OR c.id=$2 OR c.owner_id IN (SELECT id FROM users WHERE lineage LIKE $3) OR c.id IN (SELECT class_id FROM class_teachers WHERE teacher_id=$1) ORDER BY c.unmanaged DESC, c.created_at"
         ))
         .bind(&actor.id)
         .bind(&actor.class_id)
@@ -557,6 +570,11 @@ impl Db for PgDb {
             .execute(&mut *tx)
             .await
             .map_err(map_err)?;
+        sqlx::query("DELETE FROM class_teachers WHERE class_id=$1")
+            .bind(id)
+            .execute(&mut *tx)
+            .await
+            .map_err(map_err)?;
         let n = sqlx::query("DELETE FROM classes WHERE id=$1 AND unmanaged=0")
             .bind(id)
             .execute(&mut *tx)
@@ -603,6 +621,90 @@ impl Db for PgDb {
                     .map_err(map_err)
             }
         }
+    }
+
+    async fn class_teachers(&self, class_id: &str) -> DbResult<Vec<User>> {
+        sqlx::query(
+            "SELECT * FROM users WHERE id IN (SELECT teacher_id FROM class_teachers WHERE class_id=$1) ORDER BY created_at",
+        )
+        .bind(class_id)
+        .fetch_all(&self.pool)
+        .await
+        .map(|rows| rows.into_iter().map(row_user).collect())
+        .map_err(map_err)
+    }
+
+    async fn class_teacher_add(&self, class_id: &str, teacher_id: &str, ts: i64) -> DbResult<()> {
+        sqlx::query(
+            "INSERT INTO class_teachers(class_id,teacher_id,created_at) VALUES($1,$2,$3) ON CONFLICT DO NOTHING",
+        )
+        .bind(class_id)
+        .bind(teacher_id)
+        .bind(ts)
+        .execute(&self.pool)
+        .await
+        .map(|_| ())
+        .map_err(map_err)
+    }
+
+    async fn class_teacher_remove(&self, class_id: &str, teacher_id: &str) -> DbResult<bool> {
+        sqlx::query("DELETE FROM class_teachers WHERE class_id=$1 AND teacher_id=$2")
+            .bind(class_id)
+            .bind(teacher_id)
+            .execute(&self.pool)
+            .await
+            .map(|r| r.rows_affected() > 0)
+            .map_err(map_err)
+    }
+
+    async fn class_teacher_purge(&self, teacher_id: &str) -> DbResult<()> {
+        sqlx::query("DELETE FROM class_teachers WHERE teacher_id=$1")
+            .bind(teacher_id)
+            .execute(&self.pool)
+            .await
+            .map(|_| ())
+            .map_err(map_err)
+    }
+
+    async fn co_teaches(&self, class_id: &str, teacher_id: &str) -> DbResult<bool> {
+        sqlx::query_scalar(
+            "SELECT EXISTS(SELECT 1 FROM class_teachers WHERE class_id=$1 AND teacher_id=$2)",
+        )
+        .bind(class_id)
+        .bind(teacher_id)
+        .fetch_one(&self.pool)
+        .await
+        .map_err(map_err)
+    }
+
+    async fn teaches_member(&self, actor: &User, target: &User) -> DbResult<bool> {
+        if actor.role < Role::Teacher || target.class_id.is_empty() {
+            return Ok(false);
+        }
+        sqlx::query_scalar(
+            "SELECT EXISTS(SELECT 1 FROM classes WHERE id=$1 AND (owner_id=$2 OR EXISTS(SELECT 1 FROM class_teachers ct WHERE ct.class_id=classes.id AND ct.teacher_id=$2)))",
+        )
+        .bind(&target.class_id)
+        .bind(&actor.id)
+        .fetch_one(&self.pool)
+        .await
+        .map_err(map_err)
+    }
+
+    async fn shares_taught_class(&self, a: &User, b: &User) -> DbResult<bool> {
+        if a.role < Role::Teacher && b.role < Role::Teacher {
+            return Ok(false);
+        }
+        sqlx::query_scalar(
+            "SELECT EXISTS(SELECT 1 FROM classes k WHERE (k.owner_id=$1 OR k.id=$2 OR EXISTS(SELECT 1 FROM class_teachers ct WHERE ct.class_id=k.id AND ct.teacher_id=$1)) AND (k.owner_id=$3 OR k.id=$4 OR EXISTS(SELECT 1 FROM class_teachers cb WHERE cb.class_id=k.id AND cb.teacher_id=$3)))",
+        )
+        .bind(&a.id)
+        .bind(&a.class_id)
+        .bind(&b.id)
+        .bind(&b.class_id)
+        .fetch_one(&self.pool)
+        .await
+        .map_err(map_err)
     }
 
     async fn create_session(

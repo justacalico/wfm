@@ -57,6 +57,8 @@ void main() {
         notif('n10', 'review', payload: {'from': 'ada', 'projectName': 'Cut'}),
         notif('n11', 'review',
             payload: {'from': 'ada', 'projectName': 'Cut', 'status': 'draft'}),
+        notif('n13', 'co_teacher',
+            payload: {'from': 'ada', 'className': 'Period 1'}),
         notif('n12', 'mystery', readAt: 5),
       ];
 
@@ -79,6 +81,7 @@ void main() {
       'submitted',
       'marked',
       'returned',
+      'co-teacher',
     ]) {
       expect(find.textContaining(s), findsWidgets);
     }

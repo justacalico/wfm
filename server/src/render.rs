@@ -97,10 +97,19 @@ pub fn stage_media(paths: &[String]) -> Vec<RenderStageFile> {
             // The client registers the whole cleaned path first, then the basename when it
             // differs (`host.rs` media-ref/media). Both consume a ` (n)` slot in registration
             // order, so reproduce both registrations or later numbers diverge.
-            let clean: String = p.chars().map(|c| if c == '/' || c == '\\' { '_' } else { c }).collect();
-            let mut files = vec![RenderStageFile { name: stage_name(&mut taken, p), path: p.clone() }];
+            let clean: String = p
+                .chars()
+                .map(|c| if c == '/' || c == '\\' { '_' } else { c })
+                .collect();
+            let mut files = vec![RenderStageFile {
+                name: stage_name(&mut taken, p),
+                path: p.clone(),
+            }];
             if let Some(base) = p.rsplit('/').next().filter(|b| *b != &clean) {
-                files.push(RenderStageFile { name: stage_name(&mut taken, base), path: p.clone() });
+                files.push(RenderStageFile {
+                    name: stage_name(&mut taken, base),
+                    path: p.clone(),
+                });
             }
             files
         })
@@ -787,7 +796,11 @@ mod tests {
         // basename, and same-named files get the same ` (n)` the client's free_path minted:
         // each nested file registers its basename alias too, so `x.mp4` at the root collides
         // with `Raw/x.mp4`'s alias, not just with a root file of the same name.
-        let paths: Vec<String> = vec!["x.mp4".into(), "Raw/A-Roll/x.mp4".into(), "Audio/x.mp4".into()];
+        let paths: Vec<String> = vec![
+            "x.mp4".into(),
+            "Raw/A-Roll/x.mp4".into(),
+            "Audio/x.mp4".into(),
+        ];
         let m = stage_media(&paths);
         let got: Vec<(&str, &str)> = m
             .iter()

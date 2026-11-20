@@ -61,6 +61,11 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/share-targets", get(share_targets))
         .route("/classes", get(list_classes).post(create_class))
         .route("/classes/{id}", patch(rename_class).delete(delete_class))
+        .route(
+            "/classes/{id}/teachers",
+            get(list_class_teachers).post(add_class_teacher),
+        )
+        .route("/classes/{id}/teachers/{uid}", delete(remove_class_teacher))
         .route("/invites", get(list_invites).post(create_invite))
         .route("/invites/{id}", get(invite_preview).delete(revoke_invite))
         .route("/invites/{id}/redeem", post(redeem_invite))
@@ -735,7 +740,14 @@ async fn require_manager(
         s.db.user_by_id(target_id)
             .await
             .map_err(|_| err(StatusCode::NOT_FOUND, "no such account"))?;
-    if !can_manage(&session.user, &t) {
+    // A class's teachers administrate its members exactly like the chain that
+    // created them, so co-teachers can run a co-taught class.
+    let allowed = can_manage(&session.user, &t)
+        || s.db
+            .teaches_member(&session.user, &t)
+            .await
+            .unwrap_or(false);
+    if !allowed {
         return Err(err(StatusCode::FORBIDDEN, "cannot manage this account"));
     }
     Ok(t)
@@ -763,6 +775,60 @@ async fn require_class(
         return Err(err(StatusCode::FORBIDDEN, "cannot manage this class"));
     }
     Ok(c)
+}
+
+/// Fetch a class the actor may put members into: theirs, one they co-teach, or
+/// one owned by an account they manage.
+async fn require_class_open(
+    s: &Arc<AppState>,
+    session: &Session,
+    id: &str,
+) -> Result<model::Class, Response> {
+    let forbidden = match require_class(s, session, id).await {
+        Ok(c) => return Ok(c),
+        Err(r) if r.status() == StatusCode::FORBIDDEN => {
+            drop(r);
+            true
+        }
+        Err(r) => return Err(r),
+    };
+    if forbidden && s.db.co_teaches(id, &session.user.id).await.unwrap_or(false) {
+        return s
+            .db
+            .class_by_id(id)
+            .await
+            .map_err(|_| err(StatusCode::NOT_FOUND, "no such class"));
+    }
+    Err(err(StatusCode::FORBIDDEN, "cannot manage this class"))
+}
+
+/// Whether the actor may view a class's roster: owner, co-teacher, member, or
+/// anyone who manages the owner.
+async fn class_visible(s: &Arc<AppState>, session: &Session, c: &model::Class) -> bool {
+    if c.owner_id == session.user.id || session.user.class_id == c.id {
+        return true;
+    }
+    if s.db
+        .co_teaches(&c.id, &session.user.id)
+        .await
+        .unwrap_or(false)
+    {
+        return true;
+    }
+    match s.db.user_by_id(&c.owner_id).await {
+        Ok(owner) => can_manage(&session.user, &owner),
+        Err(_) => false,
+    }
+}
+
+/// `model::can_see` plus the database side of visibility: co-taught classes
+/// link staff to members and to each other.
+async fn can_see_db(s: &Arc<AppState>, actor: &User, target: &User) -> bool {
+    model::can_see(actor, target)
+        || s.db
+            .shares_taught_class(actor, target)
+            .await
+            .unwrap_or(false)
 }
 
 async fn list_accounts(State(s): State<Arc<AppState>>, session: Session) -> Response {
@@ -813,6 +879,7 @@ async fn create_class(
         name: name.to_string(),
         unmanaged: false,
         members: 0,
+        teachers: 0,
         created_at: AppState::now(),
     };
     if let Err(e) = s.db.create_class(&c).await {
@@ -906,6 +973,103 @@ async fn delete_class(
     }
 }
 
+async fn list_class_teachers(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Path(id): Path<String>,
+) -> Response {
+    let c = match s.db.class_by_id(&id).await {
+        Ok(c) => c,
+        Err(_) => return err(StatusCode::NOT_FOUND, "no such class"),
+    };
+    if !class_visible(&s, &session, &c).await {
+        return err(StatusCode::FORBIDDEN, "cannot see this class");
+    }
+    match s.db.class_teachers(&id).await {
+        Ok(v) => Json(json!(v)).into_response(),
+        Err(e) => db_resp(e),
+    }
+}
+
+#[derive(Deserialize)]
+struct CoTeacherReq {
+    username: String,
+}
+
+/// Attach an existing teacher account to the class as a co-teacher. Only the
+/// main teacher (or anyone who can manage them) does this.
+async fn add_class_teacher(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Path(id): Path<String>,
+    Json(req): Json<CoTeacherReq>,
+) -> Response {
+    let c = match require_class(&s, &session, &id).await {
+        Ok(c) => c,
+        Err(r) => return r,
+    };
+    let t = match s.db.user_by_name(req.username.trim()).await {
+        Ok((u, _)) => u,
+        Err(_) => return err(StatusCode::NOT_FOUND, "unknown user"),
+    };
+    if t.role < Role::Teacher {
+        return err(StatusCode::BAD_REQUEST, "teachers only");
+    }
+    if t.id == c.owner_id {
+        return err(StatusCode::BAD_REQUEST, "already the main teacher");
+    }
+    if let Err(e) = s.db.class_teacher_add(&c.id, &t.id, AppState::now()).await {
+        return db_resp(e);
+    }
+    s.audit(
+        "account",
+        &session.user,
+        "class_teacher_add",
+        &t.username,
+        &c.name,
+        &session.user.lineage,
+    )
+    .await;
+    s.notify(
+        &t.id,
+        "co_teacher",
+        json!({
+            "class": c.id,
+            "className": c.name,
+            "from": session.user.username,
+        }),
+    )
+    .await;
+    Json(json!(t)).into_response()
+}
+
+async fn remove_class_teacher(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Path((id, uid)): Path<(String, String)>,
+) -> Response {
+    let c = match require_class(&s, &session, &id).await {
+        Ok(c) => c,
+        Err(r) => return r,
+    };
+    match s.db.class_teacher_remove(&c.id, &uid).await {
+        Ok(true) => {
+            s.audit(
+                "account",
+                &session.user,
+                "class_teacher_remove",
+                &uid,
+                &c.name,
+                &session.user.lineage,
+            )
+            .await;
+            Json(json!({"ok": true})).into_response()
+        }
+        Ok(false) => err(StatusCode::NOT_FOUND, "not a co-teacher"),
+        Err(e) => db_resp(e),
+    }
+}
+
 #[derive(Deserialize)]
 struct CreateAccountReq {
     username: String,
@@ -928,8 +1092,14 @@ async fn create_account(
     if !session.user.role.can_create() {
         return err(StatusCode::FORBIDDEN, "not allowed");
     }
+    let want_class = req.class_id.trim();
     let role = match Role::parse(&req.role) {
         Some(r) if r < session.user.role && r != Role::Owner => r,
+        // A teacher creates same-rank accounts only as co-teachers of a class
+        // they own; without a class the usual rank rule applies.
+        Some(Role::Teacher) if session.user.role == Role::Teacher && !want_class.is_empty() => {
+            Role::Teacher
+        }
         _ => return err(StatusCode::BAD_REQUEST, "cannot create that role"),
     };
     if !model::valid_username(&req.username) {
@@ -947,17 +1117,22 @@ async fn create_account(
     }
     let note: String = req.note.chars().take(20).collect();
     let student_id: String = req.student_id.trim().chars().take(32).collect();
-    let want_class = req.class_id.trim();
+    let mut co_class: Option<model::Class> = None;
     let class_id = if !want_class.is_empty() {
         if role >= Role::Teacher {
-            return err(
-                StatusCode::BAD_REQUEST,
-                "only students and mods join classes",
-            );
-        }
-        match require_class(&s, &session, want_class).await {
-            Ok(c) => c.id,
-            Err(r) => return r,
+            // Staff never join a class as members; a class id means the new
+            // account co-teaches it, which only the main teacher may set up.
+            let c = match require_class(&s, &session, want_class).await {
+                Ok(c) => c,
+                Err(r) => return r,
+            };
+            co_class = Some(c);
+            String::new()
+        } else {
+            match require_class_open(&s, &session, want_class).await {
+                Ok(c) => c.id,
+                Err(r) => return r,
+            }
         }
     } else if role == Role::Student {
         match s.db.unmanaged_class(&session.user).await {
@@ -993,6 +1168,21 @@ async fn create_account(
             DbError::Conflict => err(StatusCode::CONFLICT, "username taken"),
             other => db_resp(other),
         };
+    }
+    if let Some(c) = co_class {
+        if let Err(e) = s.db.class_teacher_add(&c.id, &u.id, AppState::now()).await {
+            return db_resp(e);
+        }
+        s.notify(
+            &u.id,
+            "co_teacher",
+            json!({
+                "class": c.id,
+                "className": c.name,
+                "from": session.user.username,
+            }),
+        )
+        .await;
     }
     s.audit(
         "account",
@@ -1406,6 +1596,9 @@ async fn update_account(
             _ => return err(StatusCode::BAD_REQUEST, "cannot set that role"),
         };
         if role != target.role {
+            if target.role >= Role::Teacher && role < Role::Teacher {
+                let _ = s.db.class_teacher_purge(&target.id).await;
+            }
             target.role = role;
             target.role_name = role.as_str().into();
             if role >= Role::Teacher && !target.class_id.is_empty() {
@@ -1445,7 +1638,7 @@ async fn update_account(
                 "only students and mods join classes",
             );
         }
-        let c = match require_class(&s, &session, cid.trim()).await {
+        let c = match require_class_open(&s, &session, cid.trim()).await {
             Ok(c) => c,
             Err(r) => return r,
         };
@@ -1763,7 +1956,7 @@ async fn create_share(
         Ok((u, _)) => u,
         Err(_) => return err(StatusCode::NOT_FOUND, "unknown user"),
     };
-    if !model::can_see(&session.user, &invitee) {
+    if !can_see_db(&s, &session.user, &invitee).await {
         return err(StatusCode::NOT_FOUND, "unknown user");
     }
     if invitee.id == session.user.id {
@@ -1907,7 +2100,7 @@ async fn add_auto_share(
         Ok((u, _)) => u,
         Err(_) => return err(StatusCode::NOT_FOUND, "unknown user"),
     };
-    if !model::can_see(&session.user, &invitee) {
+    if !can_see_db(&s, &session.user, &invitee).await {
         return err(StatusCode::NOT_FOUND, "unknown user");
     }
     if invitee.id == session.user.id {
@@ -2285,10 +2478,15 @@ async fn project_access(
             return Ok((p, level));
         }
     }
+    let owner_user = s.db.user_by_id(&p.owner_id).await.ok();
     let in_subtree =
         s.db.user_in_subtree(&session.user, &p.owner_id)
             .await
-            .unwrap_or(false);
+            .unwrap_or(false)
+            || match &owner_user {
+                Some(o) => s.db.teaches_member(&session.user, o).await.unwrap_or(false),
+                None => false,
+            };
     if in_subtree {
         return Ok((p, "view"));
     }
@@ -2981,7 +3179,7 @@ async fn assign_project(
         if st.role != Role::Student {
             return err(StatusCode::BAD_REQUEST, "students only");
         }
-        if !model::can_see(&session.user, &st) {
+        if !can_see_db(&s, &session.user, &st).await {
             return err(StatusCode::NOT_FOUND, "unknown user");
         }
         students.push(st);
@@ -3067,12 +3265,22 @@ async fn project_assignment(
 ) -> Response {
     if let Ok(Some((a, c))) = s.db.assignment_for_project(&id).await {
         let mine = c.student_id == session.user.id;
+        let student_user = s.db.user_by_id(&c.student_id).await.ok();
         let staff = session.user.role == Role::Owner
             || (session.user.role >= Role::Teacher
-                && s.db
+                && (s
+                    .db
                     .user_in_subtree(&session.user, &c.student_id)
                     .await
-                    .unwrap_or(false));
+                    .unwrap_or(false)
+                    || match &student_user {
+                        Some(st) => {
+                            s.db.teaches_member(&session.user, st)
+                                .await
+                                .unwrap_or(false)
+                        }
+                        None => false,
+                    }));
         if !mine && !staff {
             return err(StatusCode::NOT_FOUND, "not found");
         }
@@ -4752,11 +4960,145 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn co_teachers_run_the_class() {
+        let dir = std::env::temp_dir().join(format!("wfm-api-{}", model::new_id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let s = state(&dir);
+        let (_owner, teacher, teacher2, student, _classmate, _outsider) = school(&s);
+        let r = create_class(State(s.clone()), session(&teacher), class_req("Period 1")).await;
+        let cid = body_json(r).await["id"].as_str().unwrap().to_string();
+
+        let r = add_class_teacher(
+            State(s.clone()),
+            session(&teacher),
+            Path(cid.clone()),
+            Json(CoTeacherReq {
+                username: teacher2.username.clone(),
+            }),
+        )
+        .await;
+        assert_eq!(r.status(), StatusCode::OK);
+
+        let v = body_json(list_classes(State(s.clone()), session(&teacher2)).await).await;
+        assert!(
+            v.as_array().unwrap().iter().any(|c| c["id"] == json!(cid)),
+            "co-taught classes are listed"
+        );
+        let r = list_class_teachers(State(s.clone()), session(&teacher2), Path(cid.clone())).await;
+        assert_eq!(r.status(), StatusCode::OK);
+
+        let r = update_account(
+            State(s.clone()),
+            session(&teacher),
+            Path(student.id.clone()),
+            move_class(&cid),
+        )
+        .await;
+        assert_eq!(r.status(), StatusCode::OK);
+        let student = s.db.user_by_id(&student.id).await.unwrap();
+
+        let accounts = body_json(list_accounts(State(s.clone()), session(&teacher2)).await).await;
+        assert!(
+            accounts
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|a| a["id"] == json!(student.id)),
+            "co-teachers manage the roster"
+        );
+        let t = body_json(share_targets(State(s.clone()), session(&teacher2)).await)
+            .await
+            .to_string();
+        assert!(t.contains(&student.username), "members are share targets");
+
+        let r = update_account(
+            State(s.clone()),
+            session(&teacher2),
+            Path(student.id.clone()),
+            Json(UpdateAccountReq {
+                username: None,
+                name: Some("Renamed".into()),
+                role: None,
+                student_id: None,
+                note: None,
+                quota_bytes: None,
+                class_id: None,
+            }),
+        )
+        .await;
+        assert_eq!(r.status(), StatusCode::OK, "co-teachers edit members");
+
+        let r = rename_class(
+            State(s.clone()),
+            session(&teacher2),
+            Path(cid.clone()),
+            class_req("nope"),
+        )
+        .await;
+        assert_eq!(
+            r.status(),
+            StatusCode::FORBIDDEN,
+            "co-teachers do not rename"
+        );
+        let r = delete_class(State(s.clone()), session(&teacher2), Path(cid.clone())).await;
+        assert_eq!(
+            r.status(),
+            StatusCode::FORBIDDEN,
+            "co-teachers do not delete"
+        );
+        let r = add_class_teacher(
+            State(s.clone()),
+            session(&teacher2),
+            Path(cid.clone()),
+            Json(CoTeacherReq {
+                username: "whoever".into(),
+            }),
+        )
+        .await;
+        assert_eq!(
+            r.status(),
+            StatusCode::FORBIDDEN,
+            "co-teachers do not add co-teachers"
+        );
+        let r = remove_class_teacher(
+            State(s.clone()),
+            session(&teacher2),
+            Path((cid.clone(), teacher2.id.clone())),
+        )
+        .await;
+        assert_eq!(
+            r.status(),
+            StatusCode::FORBIDDEN,
+            "co-teachers do not remove themselves"
+        );
+
+        let r = create_share(
+            State(s.clone()),
+            session(&student),
+            Path({
+                let p = project(&student);
+                s.db.create_project(&p).await.unwrap();
+                p.id
+            }),
+            Json(ShareReq {
+                username: teacher2.username.clone(),
+                level: "view".into(),
+            }),
+        )
+        .await;
+        assert_eq!(
+            r.status(),
+            StatusCode::OK,
+            "students can share work with their co-teacher"
+        );
+    }
+
+    #[tokio::test]
     async fn new_students_land_in_unmanaged() {
         let dir = std::env::temp_dir().join(format!("wfm-api-{}", model::new_id()));
         std::fs::create_dir_all(&dir).unwrap();
         let s = state(&dir);
-        let (_owner, teacher, _teacher2, student, _classmate, _outsider) = school(&s);
+        let (_owner, teacher, teacher2, student, _classmate, _outsider) = school(&s);
         let unmanaged = student.class_id.clone();
         let account = |username: &str, class_id: &str| {
             Json(CreateAccountReq {
@@ -4785,11 +5127,65 @@ mod tests {
         let mut staff = account("newt", &cid);
         staff.role = "teacher".into();
         let r = create_account(State(s.clone()), session(&teacher), staff).await;
+        assert_eq!(r.status(), StatusCode::OK, "owner creates a co-teacher");
+        let body = body_json(r).await;
+        assert_eq!(
+            body["classId"],
+            json!(""),
+            "co-teachers never become class members"
+        );
+        assert!(
+            s.db.co_teaches(&cid, body["id"].as_str().unwrap())
+                .await
+                .unwrap(),
+            "the new account co-teaches the class"
+        );
+
+        let r = list_class_teachers(State(s.clone()), session(&teacher), Path(cid.clone())).await;
+        let list = body_json(r).await;
+        assert_eq!(list.as_array().unwrap().len(), 1);
+
+        let other = create_class(State(s.clone()), session(&teacher2), class_req("P2")).await;
+        let cid2 = body_json(other).await["id"].as_str().unwrap().to_string();
+        let mut staff = account("newt2", &cid2);
+        staff.role = "teacher".into();
+        let r = create_account(State(s.clone()), session(&teacher), staff).await;
         assert_eq!(
             r.status(),
-            StatusCode::BAD_REQUEST,
-            "staff cannot be created into a class"
+            StatusCode::FORBIDDEN,
+            "cannot seed co-teachers into a class owned by someone else"
         );
+
+        let r = add_class_teacher(
+            State(s.clone()),
+            session(&teacher),
+            Path(cid.clone()),
+            Json(CoTeacherReq {
+                username: "newt".into(),
+            }),
+        )
+        .await;
+        assert_eq!(r.status(), StatusCode::OK, "existing staff can join too");
+
+        let r = remove_class_teacher(
+            State(s.clone()),
+            session(&teacher2),
+            Path((cid.clone(), "whatever".into())),
+        )
+        .await;
+        assert_eq!(
+            r.status(),
+            StatusCode::FORBIDDEN,
+            "only the main teacher manages co-teachers"
+        );
+
+        let r = remove_class_teacher(
+            State(s.clone()),
+            session(&teacher),
+            Path((cid.clone(), "nope".into())),
+        )
+        .await;
+        assert_eq!(r.status(), StatusCode::NOT_FOUND);
     }
 
     #[tokio::test]

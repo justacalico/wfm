@@ -445,6 +445,7 @@ void main() {
             'ownerId': 'u1',
             'unmanaged': false,
             'members': 2,
+            'teachers': 1,
             'createdAt': 9
           }
         ],
@@ -458,12 +459,22 @@ void main() {
         },
         'PATCH /api/classes/c1': {'ok': true},
         'DELETE /api/classes/c1': {'ok': true},
+        'GET /api/classes/c1/teachers': [
+          {'id': 't2', 'username': 'co', 'role': 'teacher'}
+        ],
+        'POST /api/classes/c1/teachers': {
+          'id': 't3',
+          'username': 'newco',
+          'role': 'teacher'
+        },
+        'DELETE /api/classes/c1/teachers/t2': {'ok': true},
       }));
       final cs = await api.classes();
       expect(cs.single.name, 'Period 1');
       expect(cs.single.members, 2);
       expect(cs.single.unmanaged, isFalse);
       expect(cs.single.ownerId, 'u1');
+      expect(cs.single.teachers, 1);
       expect(cs.single.createdAt, 9);
       expect((await api.classCreate('Period 2')).unmanaged, isTrue);
       expect(jsonDecode(lastRequest!.body)['name'], 'Period 2');
@@ -472,6 +483,13 @@ void main() {
       await api.classDelete('c1');
       expect(lastRequest!.method, 'DELETE');
       expect(User.fromJson({'id': 's1', 'classId': 'c9'}).classId, 'c9');
+
+      final ts = await api.classTeachers('c1');
+      expect(ts.single.username, 'co');
+      expect((await api.classTeacherAdd('c1', 'newco')).id, 't3');
+      expect(jsonDecode(lastRequest!.body)['username'], 'newco');
+      await api.classTeacherRemove('c1', 't2');
+      expect(lastRequest!.method, 'DELETE');
     });
   });
   group('invites', () {

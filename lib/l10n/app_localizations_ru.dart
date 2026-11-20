@@ -336,6 +336,31 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
+  String get add => 'Добавить';
+
+  @override
+  String get remove => 'Убрать';
+
+  @override
+  String get coTeachers => 'Сопреподаватели';
+
+  @override
+  String coTeacherCount(Object count) {
+    return 'сопреподавателей: $count';
+  }
+
+  @override
+  String get addCoTeacher => 'Добавить сопреподавателя';
+
+  @override
+  String get coTeacherNew => 'Создать новую учётную запись';
+
+  @override
+  String removeCoTeacherBody(Object name) {
+    return 'Убрать $name из сопреподавателей? Учётная запись останется.';
+  }
+
+  @override
   String get activity => 'Активность';
 
   @override
@@ -1063,6 +1088,11 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get statusReviewed => 'Проверено';
+
+  @override
+  String notifCoTeacher(Object from, Object name) {
+    return '$from добавил(а) вас сопреподавателем класса «$name»';
+  }
 
   @override
   String notifComment(Object from, Object project) {

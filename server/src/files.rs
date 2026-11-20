@@ -23,8 +23,7 @@ pub const PROJECT_FOLDERS: &[&str] = &[
     "Boards",
 ];
 
-pub const ROOT_FOLDERS: &[&str] =
-    &["Raw", "Audio", "Exports", "Images", "Script", "Boards"];
+pub const ROOT_FOLDERS: &[&str] = &["Raw", "Audio", "Exports", "Images", "Script", "Boards"];
 
 /// Editor documents stored at the project root.
 pub const STATE_FILE: &str = "project.wfm.json";
@@ -119,11 +118,67 @@ pub fn thumbable(path: &str) -> bool {
 /// a browser would execute inline like html, svg or scripts, is refused
 /// before a byte is spooled.
 const UPLOAD_EXTS: &[&str] = &[
-    "mp4", "mov", "mkv", "webm", "avi", "m4v", "mts", "m2ts", "mxf", "mpg", "mpeg", "ts", "vob",
-    "wmv", "3gp", "wav", "mp3", "m4a", "aac", "flac", "ogg", "oga", "opus", "aif", "aiff", "wma",
-    "png", "jpg", "jpeg", "gif", "webp", "bmp", "tif", "tiff", "dng", "exr", "hdr", "srt", "vtt",
-    "ass", "edl", "ale", "otio", "xml", "fcpxml", "fcproj", "fountain", "fdx", "deckcraft", "json",
-    "txt", "md", "pdf", "pptx", "potx", "ppsx", "mogrt", "ttf", "otf", "woff", "woff2",
+    "mp4",
+    "mov",
+    "mkv",
+    "webm",
+    "avi",
+    "m4v",
+    "mts",
+    "m2ts",
+    "mxf",
+    "mpg",
+    "mpeg",
+    "ts",
+    "vob",
+    "wmv",
+    "3gp",
+    "wav",
+    "mp3",
+    "m4a",
+    "aac",
+    "flac",
+    "ogg",
+    "oga",
+    "opus",
+    "aif",
+    "aiff",
+    "wma",
+    "png",
+    "jpg",
+    "jpeg",
+    "gif",
+    "webp",
+    "bmp",
+    "tif",
+    "tiff",
+    "dng",
+    "exr",
+    "hdr",
+    "srt",
+    "vtt",
+    "ass",
+    "edl",
+    "ale",
+    "otio",
+    "xml",
+    "fcpxml",
+    "fcproj",
+    "fountain",
+    "fdx",
+    "deckcraft",
+    "json",
+    "txt",
+    "md",
+    "pdf",
+    "pptx",
+    "potx",
+    "ppsx",
+    "mogrt",
+    "ttf",
+    "otf",
+    "woff",
+    "woff2",
 ];
 
 pub fn upload_allowed(path: &str) -> bool {
@@ -208,7 +263,8 @@ pub fn sniff_ok(path: &str, head: &[u8]) -> bool {
         "mpg" | "mpeg" | "vob" => head.starts_with(&[0x00, 0x00, 0x01]),
         "wav" => riff(head, b"WAVE"),
         "aif" | "aiff" => {
-            head.len() >= 12 && &head[..4] == b"FORM"
+            head.len() >= 12
+                && &head[..4] == b"FORM"
                 && (&head[8..12] == b"AIFF" || &head[8..12] == b"AIFC")
         }
         "flac" => head.starts_with(b"fLaC"),
@@ -219,9 +275,7 @@ pub fn sniff_ok(path: &str, head: &[u8]) -> bool {
         "gif" => head.starts_with(b"GIF8"),
         "webp" => riff(head, b"WEBP"),
         "bmp" => head.starts_with(b"BM"),
-        "tif" | "tiff" | "dng" => {
-            head.starts_with(b"II*\x00") || head.starts_with(b"MM\x00*")
-        }
+        "tif" | "tiff" | "dng" => head.starts_with(b"II*\x00") || head.starts_with(b"MM\x00*"),
         "exr" => head.starts_with(&[0x76, 0x2f, 0x31, 0x01]),
         "hdr" => head.starts_with(b"#?"),
         "pdf" => head.starts_with(b"%PDF-"),
@@ -365,9 +419,18 @@ mod tests {
         assert!(sniff_ok("exports/a.mogrt", b"PK\x03\x04zipbody"));
         assert!(!sniff_ok("boards/a.deckcraft", b"not a zip"));
         assert!(!sniff_ok("exports/a.pptx", b"not a zip"));
-        assert!(sniff_ok("project.fcproj", b"{\"format\":\"filmcraft.project\"}"));
-        assert!(sniff_ok("Script/a.fountain", "Title: Test\n\nINT. ROOM".as_bytes()));
-        assert!(sniff_ok("x.srt", "1\n00:00:01,000 --> 00:00:02,000\nHi".as_bytes()));
+        assert!(sniff_ok(
+            "project.fcproj",
+            b"{\"format\":\"filmcraft.project\"}"
+        ));
+        assert!(sniff_ok(
+            "Script/a.fountain",
+            "Title: Test\n\nINT. ROOM".as_bytes()
+        ));
+        assert!(sniff_ok(
+            "x.srt",
+            "1\n00:00:01,000 --> 00:00:02,000\nHi".as_bytes()
+        ));
         assert!(sniff_ok("x.vtt", b"WEBVTT\n\n00:00.000 --> 00:01.000\nHi"));
         assert!(sniff_ok("x.srt", &[0xff, 0xfe, b'1', 0x00]));
         assert!(sniff_ok("x.srt", b""));

@@ -130,11 +130,12 @@ fn map_class(r: &rusqlite::Row<'_>) -> rusqlite::Result<Class> {
         unmanaged: r.get::<_, i64>(3)? != 0,
         created_at: r.get(4)?,
         members: r.get(5).unwrap_or(0),
+        teachers: r.get(6).unwrap_or(0),
     })
 }
 
 const CLASS_COLS: &str =
-    "id,owner_id,name,unmanaged,created_at,(SELECT COUNT(*) FROM users u WHERE u.class_id=classes.id)";
+    "id,owner_id,name,unmanaged,created_at,(SELECT COUNT(*) FROM users u WHERE u.class_id=classes.id),(SELECT COUNT(*) FROM class_teachers ct WHERE ct.class_id=classes.id)";
 
 const USER_COLS: &str =
     "id,username,display_name,pass_hash,role,student_id,note,disabled,avatar,created_by,lineage,created_at,last_login,quota_bytes,class_id";
@@ -453,6 +454,10 @@ impl Db for SqliteDb {
                 "UPDATE users SET class_id='' WHERE class_id IN (SELECT id FROM classes WHERE owner_id=?)",
                 [&id],
             )?;
+            tx.execute(
+                "DELETE FROM class_teachers WHERE teacher_id=? OR class_id IN (SELECT id FROM classes WHERE owner_id=?)",
+                params![id, id],
+            )?;
             tx.execute("DELETE FROM classes WHERE owner_id=?", [&id])?;
             tx.execute("DELETE FROM users WHERE id=?", [&id])?;
             tx.commit()
@@ -489,9 +494,12 @@ impl Db for SqliteDb {
         );
         self.q(move |c| {
                 let mut st = c.prepare(&format!(
-                    "SELECT {USER_COLS} FROM users WHERE role < ? AND (lineage LIKE ? OR id=?) ORDER BY created_at"
+                    "SELECT {USER_COLS} FROM users WHERE role < ? AND (lineage LIKE ? OR id=? OR (? >= ? AND class_id IN (SELECT c.id FROM classes c WHERE c.owner_id=? OR EXISTS(SELECT 1 FROM class_teachers ct WHERE ct.class_id=c.id AND ct.teacher_id=?)))) ORDER BY created_at"
                 ))?;
-                let rows = st.query_map(params![role, id, aid], map_user)?;
+                let rows = st.query_map(
+                    params![role, id, aid, role, Role::Teacher as i64, aid, aid],
+                    map_user,
+                )?;
                 rows.collect::<rusqlite::Result<Vec<_>>>()
             })
             .await
@@ -501,7 +509,7 @@ impl Db for SqliteDb {
     async fn visible_users(&self, actor: &User) -> DbResult<Vec<User>> {
         // Classmates only exist for students: a sentinel class matches nothing for
         // anyone else (the class_id<>'' guard rejects empty matches).
-        let (role, sub, lin, sib, sid) = (
+        let (role, sub, lin, sib, sid, scls) = (
             actor.role as i64,
             format!("%/{}/%", actor.id),
             format!("/{}/", actor.lineage.trim_matches('/')),
@@ -511,12 +519,29 @@ impl Db for SqliteDb {
                 String::new()
             },
             actor.id.clone(),
+            actor.class_id.clone(),
         );
         self.q(move |c| {
                 let mut st = c.prepare(&format!(
-                    "SELECT {USER_COLS} FROM users WHERE id<>? AND ((role<? AND lineage LIKE ?) OR ? LIKE '%/'||id||'/%' OR (role=? AND class_id=? AND class_id<>'')) ORDER BY created_at"
+                    "SELECT {USER_COLS} FROM users WHERE id<>? AND ((role<? AND lineage LIKE ?) OR ? LIKE '%/'||id||'/%' OR (role=? AND class_id=? AND class_id<>'') OR ((role>=? OR ?>=?) AND EXISTS(SELECT 1 FROM classes k WHERE (k.owner_id=users.id OR users.class_id=k.id OR EXISTS(SELECT 1 FROM class_teachers ct WHERE ct.class_id=k.id AND ct.teacher_id=users.id)) AND (k.owner_id=? OR k.id=? OR EXISTS(SELECT 1 FROM class_teachers ca WHERE ca.class_id=k.id AND ca.teacher_id=?))))) ORDER BY created_at"
                 ))?;
-                let rows = st.query_map(params![sid, role, sub, lin, Role::Student as i64, sib], map_user)?;
+                let rows = st.query_map(
+                    params![
+                        sid,
+                        role,
+                        sub,
+                        lin,
+                        Role::Student as i64,
+                        sib,
+                        Role::Teacher as i64,
+                        role,
+                        Role::Teacher as i64,
+                        sid,
+                        scls,
+                        sid
+                    ],
+                    map_user,
+                )?;
                 rows.collect::<rusqlite::Result<Vec<_>>>()
             })
             .await
@@ -531,9 +556,9 @@ impl Db for SqliteDb {
         );
         self.q(move |c| {
                 let mut st = c.prepare(&format!(
-                    "SELECT {CLASS_COLS} FROM classes WHERE owner_id=? OR id=? OR owner_id IN (SELECT id FROM users WHERE lineage LIKE ?) ORDER BY unmanaged DESC, created_at"
+                    "SELECT {CLASS_COLS} FROM classes WHERE owner_id=? OR id=? OR owner_id IN (SELECT id FROM users WHERE lineage LIKE ?) OR id IN (SELECT class_id FROM class_teachers WHERE teacher_id=?) ORDER BY unmanaged DESC, created_at"
                 ))?;
-                let rows = st.query_map(params![id, cid, sub], map_class)?;
+                let rows = st.query_map(params![id, cid, sub, id], map_class)?;
                 rows.collect::<rusqlite::Result<Vec<_>>>()
             })
             .await
@@ -582,6 +607,7 @@ impl Db for SqliteDb {
                 "UPDATE users SET class_id=? WHERE class_id=?",
                 params![fallback, id],
             )?;
+            tx.execute("DELETE FROM class_teachers WHERE class_id=?", [&id])?;
             let n = tx.execute("DELETE FROM classes WHERE id=? AND unmanaged=0", [&id])?;
             if n == 0 {
                 return Err(rusqlite::Error::QueryReturnedNoRows);
@@ -612,6 +638,108 @@ impl Db for SqliteDb {
                 }
                 Err(e) => Err(e),
             }
+        })
+        .await
+        .map_err(dberr)
+    }
+
+    async fn class_teachers(&self, class_id: &str) -> DbResult<Vec<User>> {
+        let class_id = class_id.to_string();
+        self.q(move |c| {
+                let mut st = c.prepare(&format!(
+                    "SELECT {USER_COLS} FROM users WHERE id IN (SELECT teacher_id FROM class_teachers WHERE class_id=?) ORDER BY created_at"
+                ))?;
+                let rows = st.query_map([&class_id], map_user)?;
+                rows.collect::<rusqlite::Result<Vec<_>>>()
+            })
+            .await
+            .map_err(dberr)
+    }
+
+    async fn class_teacher_add(&self, class_id: &str, teacher_id: &str, ts: i64) -> DbResult<()> {
+        let (class_id, teacher_id) = (class_id.to_string(), teacher_id.to_string());
+        self.q(move |c| {
+            c.execute(
+                "INSERT OR IGNORE INTO class_teachers(class_id,teacher_id,created_at) VALUES(?,?,?)",
+                params![class_id, teacher_id, ts],
+            )
+        })
+        .await
+        .map(|_| ())
+        .map_err(dberr)
+    }
+
+    async fn class_teacher_remove(&self, class_id: &str, teacher_id: &str) -> DbResult<bool> {
+        let (class_id, teacher_id) = (class_id.to_string(), teacher_id.to_string());
+        self.q(move |c| {
+            c.execute(
+                "DELETE FROM class_teachers WHERE class_id=? AND teacher_id=?",
+                params![class_id, teacher_id],
+            )
+        })
+        .await
+        .map(|n| n > 0)
+        .map_err(dberr)
+    }
+
+    async fn class_teacher_purge(&self, teacher_id: &str) -> DbResult<()> {
+        let teacher_id = teacher_id.to_string();
+        self.q(move |c| {
+            c.execute(
+                "DELETE FROM class_teachers WHERE teacher_id=?",
+                [&teacher_id],
+            )
+        })
+        .await
+        .map(|_| ())
+        .map_err(dberr)
+    }
+
+    async fn co_teaches(&self, class_id: &str, teacher_id: &str) -> DbResult<bool> {
+        let (class_id, teacher_id) = (class_id.to_string(), teacher_id.to_string());
+        self.q(move |c| {
+            c.query_row(
+                "SELECT EXISTS(SELECT 1 FROM class_teachers WHERE class_id=? AND teacher_id=?)",
+                params![class_id, teacher_id],
+                |r| r.get(0),
+            )
+        })
+        .await
+        .map_err(dberr)
+    }
+
+    async fn teaches_member(&self, actor: &User, target: &User) -> DbResult<bool> {
+        if actor.role < Role::Teacher || target.class_id.is_empty() {
+            return Ok(false);
+        }
+        let (cid, aid) = (target.class_id.clone(), actor.id.clone());
+        self.q(move |c| {
+            c.query_row(
+                "SELECT EXISTS(SELECT 1 FROM classes WHERE id=? AND (owner_id=? OR EXISTS(SELECT 1 FROM class_teachers ct WHERE ct.class_id=classes.id AND ct.teacher_id=?)))",
+                params![cid, aid, aid],
+                |r| r.get(0),
+            )
+        })
+        .await
+        .map_err(dberr)
+    }
+
+    async fn shares_taught_class(&self, a: &User, b: &User) -> DbResult<bool> {
+        if a.role < Role::Teacher && b.role < Role::Teacher {
+            return Ok(false);
+        }
+        let (aid, acid, bid, bcid) = (
+            a.id.clone(),
+            a.class_id.clone(),
+            b.id.clone(),
+            b.class_id.clone(),
+        );
+        self.q(move |c| {
+            c.query_row(
+                "SELECT EXISTS(SELECT 1 FROM classes k WHERE (k.owner_id=? OR k.id=? OR EXISTS(SELECT 1 FROM class_teachers ct WHERE ct.class_id=k.id AND ct.teacher_id=?)) AND (k.owner_id=? OR k.id=? OR EXISTS(SELECT 1 FROM class_teachers cb WHERE cb.class_id=k.id AND cb.teacher_id=?)))",
+                params![aid, acid, aid, bid, bcid, bid],
+                |r| r.get(0),
+            )
         })
         .await
         .map_err(dberr)
@@ -3022,6 +3150,7 @@ mod tests {
             name: "P1".into(),
             unmanaged: false,
             members: 0,
+            teachers: 0,
             created_at: 1,
         })
         .await
@@ -3032,6 +3161,7 @@ mod tests {
             name: "P2".into(),
             unmanaged: false,
             members: 0,
+            teachers: 0,
             created_at: 1,
         })
         .await
@@ -3065,5 +3195,111 @@ mod tests {
         db.delete_user("t1").await.unwrap();
         assert!(db.class_by_id(&un.id).await.is_err());
         assert!(db.user_by_id("s1").await.unwrap().class_id.is_empty());
+    }
+
+    #[tokio::test]
+    async fn co_teachers() {
+        let db = connect(":memory:").await.unwrap();
+        let u = |id: &str, role: Role, lineage: &str| User {
+            id: id.into(),
+            username: format!("u{id}"),
+            display_name: "n".into(),
+            role,
+            role_name: role.as_str().into(),
+            student_id: String::new(),
+            note: String::new(),
+            disabled: false,
+            avatar: String::new(),
+            quota_bytes: 0,
+            created_by: String::new(),
+            class_id: String::new(),
+            lineage: lineage.into(),
+            created_at: 1,
+            last_login: 0,
+        };
+        let owner = u("o1", Role::Owner, "/");
+        let teacher = u("t1", Role::Teacher, "/o1/");
+        let co = u("t2", Role::Teacher, "/o1/");
+        let stranger = u("t3", Role::Teacher, "/o1/");
+        for u in [&owner, &teacher, &co, &stranger] {
+            db.create_user(u, "h").await.unwrap();
+        }
+        db.create_class(&Class {
+            id: "c1".into(),
+            owner_id: "t1".into(),
+            name: "P1".into(),
+            unmanaged: false,
+            members: 0,
+            teachers: 0,
+            created_at: 1,
+        })
+        .await
+        .unwrap();
+        let mut student = u("s1", Role::Student, "/o1/t1/");
+        student.class_id = "c1".into();
+        db.create_user(&student, "h").await.unwrap();
+
+        db.class_teacher_add("c1", "t2", 1).await.unwrap();
+        db.class_teacher_add("c1", "t2", 2).await.unwrap();
+        let list = db.class_teachers("c1").await.unwrap();
+        assert_eq!(list.len(), 1);
+        assert_eq!(list[0].id, "t2");
+        assert_eq!(db.class_by_id("c1").await.unwrap().teachers, 1);
+        assert!(db.co_teaches("c1", "t2").await.unwrap());
+        assert!(!db.co_teaches("c1", "t3").await.unwrap());
+
+        let seen = db.classes_for(&co).await.unwrap();
+        assert!(
+            seen.iter().any(|c| c.id == "c1"),
+            "co-teachers see co-taught classes"
+        );
+        let managed = db.managed_users(&co).await.unwrap();
+        assert!(
+            managed.iter().any(|u| u.id == "s1"),
+            "co-teachers manage the class roster"
+        );
+        assert!(db.teaches_member(&co, &student).await.unwrap());
+        assert!(!db.teaches_member(&stranger, &student).await.unwrap());
+        assert!(db.shares_taught_class(&co, &teacher).await.unwrap());
+        assert!(!db.shares_taught_class(&co, &stranger).await.unwrap());
+        let visible = db.visible_users(&co).await.unwrap();
+        assert!(
+            visible.iter().any(|u| u.id == "s1"),
+            "co-taught members are visible"
+        );
+        assert!(
+            visible.iter().any(|u| u.id == "t1"),
+            "the main teacher is visible to co-teachers"
+        );
+        let visible = db.visible_users(&stranger).await.unwrap();
+        assert!(
+            visible.iter().all(|u| u.id != "s1"),
+            "unrelated teachers stay out"
+        );
+
+        assert!(db.class_teacher_remove("c1", "t2").await.unwrap());
+        assert!(!db.class_teacher_remove("c1", "t2").await.unwrap());
+        assert!(db.class_teachers("c1").await.unwrap().is_empty());
+        assert!(!db.teaches_member(&co, &student).await.unwrap());
+
+        db.class_teacher_add("c1", "t2", 3).await.unwrap();
+        db.delete_class("c1", "zz").await.unwrap();
+        assert!(db.class_teachers("c1").await.unwrap().is_empty());
+
+        db.create_class(&Class {
+            id: "c2".into(),
+            owner_id: "t1".into(),
+            name: "P2".into(),
+            unmanaged: false,
+            members: 0,
+            teachers: 0,
+            created_at: 1,
+        })
+        .await
+        .unwrap();
+        db.class_teacher_add("c2", "t2", 4).await.unwrap();
+        db.class_teacher_purge("t2").await.unwrap();
+        assert!(db.class_teachers("c2").await.unwrap().is_empty());
+        assert!(!db.shares_taught_class(&co, &teacher).await.unwrap());
     }
 }

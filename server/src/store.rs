@@ -70,15 +70,17 @@ pub trait Db: Send + Sync {
     async fn delete_user(&self, id: &str) -> DbResult<()>;
     async fn touch_login(&self, id: &str, ts: i64) -> DbResult<()>;
     async fn owner_count(&self) -> DbResult<i64>;
+    /// Accounts the actor may administrate: their lower-rank subtree plus, for
+    /// staff, members of classes they own or co-teach.
     async fn managed_users(&self, actor: &User) -> DbResult<Vec<User>>;
-    /// The users `actor` may see for sharing: their subtree, their ancestry, and
-    /// (students only) classmates in the same class. `model::can_see` in SQL
-    /// form.
+    /// The users `actor` may see for sharing: their subtree, their ancestry,
+    /// classmates in the same class (students only), and staff linked by a
+    /// co-taught class. `model::can_see` in SQL form.
     async fn visible_users(&self, actor: &User) -> DbResult<Vec<User>>;
 
     // classes
-    /// Classes the actor may use: their own, classes owned by users in their
-    /// subtree, and the class they themselves sit in.
+    /// Classes the actor may use: their own, classes they co-teach, classes
+    /// owned by users in their subtree, and the class they themselves sit in.
     async fn classes_for(&self, actor: &User) -> DbResult<Vec<Class>>;
     async fn class_by_id(&self, id: &str) -> DbResult<Class>;
     async fn create_class(&self, c: &Class) -> DbResult<()>;
@@ -87,6 +89,21 @@ pub trait Db: Send + Sync {
     async fn delete_class(&self, id: &str, fallback: &str) -> DbResult<()>;
     /// The owner's unmanaged class, created on first use.
     async fn unmanaged_class(&self, owner: &User) -> DbResult<Class>;
+
+    // co-teachers: staff attached to a class by its owner for co-teaching
+    /// Co-teacher accounts attached to the class.
+    async fn class_teachers(&self, class_id: &str) -> DbResult<Vec<User>>;
+    async fn class_teacher_add(&self, class_id: &str, teacher_id: &str, ts: i64) -> DbResult<()>;
+    async fn class_teacher_remove(&self, class_id: &str, teacher_id: &str) -> DbResult<bool>;
+    /// Drop every co-teacher link for the account (demotion or deletion).
+    async fn class_teacher_purge(&self, teacher_id: &str) -> DbResult<()>;
+    /// Whether the actor co-teaches the class; ownership alone does not count.
+    async fn co_teaches(&self, class_id: &str, teacher_id: &str) -> DbResult<bool>;
+    /// Whether the actor teaches (owns or co-teaches) a class `target` sits in.
+    async fn teaches_member(&self, actor: &User, target: &User) -> DbResult<bool>;
+    /// Whether the two users share a class at least one of them teaches:
+    /// co-teachers see their class's members and each other.
+    async fn shares_taught_class(&self, a: &User, b: &User) -> DbResult<bool>;
 
     // sessions
     async fn create_session(
