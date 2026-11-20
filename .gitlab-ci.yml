@@ -161,7 +161,7 @@ pages:
     - git config --global --add safe.directory "$CI_PROJECT_DIR"
     - flutter --version
     - mkdir -p landing/assets/screenshots
-    - cp test/goldens/home.png test/goldens/projects.png test/goldens/project_files.png landing/assets/screenshots/ 2>/dev/null || true
+    - cp test/goldens/light/home.png test/goldens/light/projects.png test/goldens/light/project_files.png landing/assets/screenshots/ 2>/dev/null || true
   script:
     - cd landing && flutter pub get && flutter build web --release --base-href "/" --no-web-resources-cdn && cd ..
     - flutter pub get && flutter build web --release --base-href "/app/" --no-web-resources-cdn --output web-app
