@@ -2,7 +2,6 @@
 
 // ignore: unused_import
 import 'package:intl/intl.dart' as intl;
-
 import 'app_localizations.dart';
 
 // ignore_for_file: type=lint
@@ -714,6 +713,14 @@ class AppLocalizationsGa extends AppLocalizations {
   String ownedBy(Object name) {
     return 'le $name';
   }
+
+  @override
+  String userProjects(Object name) {
+    return 'Tionscadail $name';
+  }
+
+  @override
+  String get userProjectsEmpty => 'Níl aon tionscadal ann fós.';
 
   @override
   String get selectFiles => 'Roghnaigh';

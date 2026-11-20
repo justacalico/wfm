@@ -350,6 +350,8 @@
   "takeOver": "Tóg úinéireacht",
   "takeOverBody": "Tóg úinéireacht {name}?",
   "ownedBy": "le {name}",
+  "userProjects": "Tionscadail {name}",
+  "userProjectsEmpty": "Níl aon tionscadal ann fós.",
   "selectFiles": "Roghnaigh",
   "selectAll": "Roghnaigh go léir",
   "moveSelected": "Bog na roghnaithe",

@@ -636,18 +636,6 @@ impl Db for PgDb {
             .map_err(map_err)
     }
 
-    async fn managed_projects(&self, actor: &User) -> DbResult<Vec<Project>> {
-        sqlx::query(
-            "SELECT p.* FROM projects p JOIN users u ON p.owner_id=u.id WHERE u.role < $1 AND u.lineage LIKE $2 ORDER BY p.created_at DESC",
-        )
-        .bind(actor.role as i32)
-        .bind(format!("%/{}/%", actor.id))
-        .fetch_all(&self.pool)
-        .await
-        .map(|rows| rows.into_iter().map(row_project).collect())
-        .map_err(map_err)
-    }
-
     async fn user_in_subtree(&self, actor: &User, user_id: &str) -> DbResult<bool> {
         sqlx::query("SELECT 1 AS x FROM users WHERE id=$1 AND role < $2 AND lineage LIKE $3")
             .bind(user_id)

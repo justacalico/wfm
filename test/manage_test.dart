@@ -6,6 +6,7 @@ import 'package:wfm/api.dart';
 import 'package:wfm/manage.dart';
 import 'package:wfm/main.dart';
 import 'package:wfm/platform.dart';
+import 'package:wfm/projects.dart';
 import 'helpers.dart';
 
 void main() {
@@ -618,6 +619,117 @@ void main() {
       });
       await pump(t, const NodesTab());
       expect(find.text('node fail'), findsOneWidget);
+    });
+  });
+
+  group('UserProjectsPage', () {
+    final bob =
+        User.fromJson({'id': 'u2', 'username': 'bob', 'role': 'student'});
+
+    Map<String, Object> proj(String id, String name,
+            {String status = 'draft', bool takeOver = false}) =>
+        {
+          'id': id,
+          'name': id,
+          'displayName': name,
+          'ownerId': 'u2',
+          'access': 'view',
+          'takeOver': takeOver,
+          'status': status,
+          'createdAt': 1
+        };
+
+    testWidgets('tapping an account opens their projects', (t) async {
+      installApi(extra: {'GET /api/accounts/u2/projects': (_) => []});
+      await pump(t, const AccountsTab());
+      await t.tap(find.textContaining('bob').first);
+      await settle(t);
+      expect(find.byType(UserProjectsPage), findsOneWidget);
+      expect(find.text("bob's projects"), findsOneWidget);
+      expect(find.text('No projects yet.'), findsOneWidget);
+    });
+
+    testWidgets('lists projects and opens one', (t) async {
+      final named = User.fromJson(
+          {'id': 'u2', 'username': 'bob', 'displayName': 'Bobby'});
+      installApi(extra: {
+        'GET /api/accounts/u2/projects': (_) => [
+              proj('p9', 'Student Work', status: 'submitted'),
+              proj('p8', 'Second Cut', status: 'reviewed'),
+              proj('p7', 'First Draft'),
+            ]
+      });
+      await pump(t, UserProjectsPage(user: named));
+      expect(find.text("Bobby's projects"), findsOneWidget);
+      expect(find.text('Student Work'), findsOneWidget);
+      expect(find.textContaining('Submitted'), findsOneWidget);
+      expect(find.textContaining('Reviewed'), findsOneWidget);
+      await t.tap(find.text('First Draft'));
+      await settle(t);
+      expect(find.byType(ProjectPage), findsOneWidget);
+    });
+
+    testWidgets('take over confirms and reloads', (t) async {
+      var calls = 0;
+      installApi(extra: {
+        'GET /api/accounts/u2/projects': (_) =>
+            [proj('p9', 'Student Work', takeOver: true)],
+        'POST /api/projects/p9/take-over': (_) {
+          calls++;
+          return {'ok': true};
+        },
+      });
+      await pump(t, UserProjectsPage(user: bob));
+      await t.tap(find.byType(PopupMenuButton<String>));
+      await settle(t);
+      await t.tap(find.text('Take ownership'));
+      await settle(t);
+      await t.tap(find.widgetWithText(FilledButton, 'Confirm'));
+      await settle(t);
+      expect(calls, 1);
+    });
+
+    testWidgets('take over cancel and error', (t) async {
+      var calls = 0;
+      installApi(extra: {
+        'GET /api/accounts/u2/projects': (_) =>
+            [proj('p9', 'Student Work', takeOver: true)],
+        'POST /api/projects/p9/take-over': (_) {
+          calls++;
+          return http.Response('{"error":"nope"}', 500);
+        },
+      });
+      await pump(t, UserProjectsPage(user: bob));
+      await t.tap(find.byType(PopupMenuButton<String>));
+      await settle(t);
+      await t.tap(find.text('Take ownership'));
+      await settle(t);
+      await t.tap(find.text('Cancel'));
+      await settle(t);
+      expect(calls, 0);
+      await t.tap(find.byType(PopupMenuButton<String>));
+      await settle(t);
+      await t.tap(find.text('Take ownership'));
+      await settle(t);
+      await t.tap(find.widgetWithText(FilledButton, 'Confirm'));
+      await settle(t);
+      expect(calls, 1);
+      expect(find.byType(Notice), findsOneWidget);
+    });
+
+    testWidgets('load error retries', (t) async {
+      var fails = true;
+      installApi(extra: {
+        'GET /api/accounts/u2/projects': (_) => fails
+            ? http.Response('{"error":"boom"}', 500)
+            : [proj('p9', 'Late Work')],
+      });
+      await pump(t, UserProjectsPage(user: bob));
+      expect(find.text('boom'), findsOneWidget);
+      fails = false;
+      await t.tap(find.text('Retry'));
+      await settle(t);
+      expect(find.text('Late Work'), findsOneWidget);
     });
   });
 }

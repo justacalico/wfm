@@ -57,6 +57,7 @@ pub fn router(state: Arc<AppState>) -> Router {
         )
         .route("/accounts/{id}/password", post(reset_password))
         .route("/accounts/{id}/status", post(set_status))
+        .route("/accounts/{id}/projects", get(account_projects))
         .route("/share-targets", get(share_targets))
         .route("/invites", get(list_invites).post(create_invite))
         .route("/invites/{id}", get(invite_preview).delete(revoke_invite))
@@ -1105,10 +1106,19 @@ async fn delete_account(
         Err(r) => return r,
     };
     match s.db.projects_by_owner(&id).await {
-        Ok(ps) if !ps.is_empty() => {
-            return err(StatusCode::CONFLICT, "account still has projects");
+        Ok(ps) => {
+            for p in &ps {
+                purge_project(&s, p).await;
+            }
         }
-        Ok(_) => {}
+        Err(e) => return db_resp(e),
+    }
+    match s.db.groups_by_owner(&id).await {
+        Ok(gs) => {
+            for g in &gs {
+                let _ = s.db.delete_group(&g.id).await;
+            }
+        }
         Err(e) => return db_resp(e),
     }
     if let Err(e) = s.db.delete_user(&id).await {
@@ -1336,43 +1346,39 @@ async fn list_projects(State(s): State<Arc<AppState>>, session: Session) -> Resp
     if !hidden.is_empty() {
         v.retain(|p| !hidden.contains(&p.id));
     }
-    if session.user.role.can_see_audit() {
-        let names: std::collections::HashMap<String, String> =
-            s.db.managed_users(&session.user)
-                .await
-                .unwrap_or_default()
-                .into_iter()
-                .map(|u| {
-                    (
-                        u.id,
-                        if u.display_name.is_empty() {
-                            u.username
-                        } else {
-                            u.display_name
-                        },
-                    )
-                })
-                .collect();
-        match s.db.managed_projects(&session.user).await {
-            Ok(managed) => {
-                let mut out: Vec<_> = v
-                    .drain(..)
-                    .map(|p| serde_json::to_value(&p).unwrap_or_default())
-                    .collect();
-                for p in managed {
-                    let mut j = serde_json::to_value(&p).unwrap_or_default();
-                    j["ownerName"] = json!(names.get(&p.owner_id).cloned().unwrap_or_default());
-                    // managed_projects applies the same predicate take_over_project checks,
-                    // so the action would succeed for every one of these.
-                    j["takeOver"] = json!(true);
-                    out.push(j);
-                }
-                return Json(json!(out)).into_response();
-            }
-            Err(e) => return db_resp(e),
-        }
-    }
     Json(json!(v)).into_response()
+}
+
+/// A managed account's projects, for the Manage > Accounts drill-down. Entries
+/// are read-only for the caller; taking over is the only write path into them.
+async fn account_projects(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Path(id): Path<String>,
+) -> Response {
+    let target = match require_manager(&s, &session, &id).await {
+        Ok(t) => t,
+        Err(r) => return r,
+    };
+    let ps = match s.db.projects_by_owner(&target.id).await {
+        Ok(v) => v,
+        Err(e) => return db_resp(e),
+    };
+    let take_over = session.user.role == Role::Owner
+        || s.db
+            .user_in_subtree(&session.user, &target.id)
+            .await
+            .unwrap_or(false);
+    let out: Vec<Value> = ps
+        .iter()
+        .map(|p| {
+            let mut j = serde_json::to_value(p).unwrap_or_default();
+            j["access"] = json!("view");
+            j["takeOver"] = json!(take_over);
+            j
+        })
+        .collect();
+    Json(json!(out)).into_response()
 }
 
 #[derive(Deserialize)]
@@ -2043,7 +2049,7 @@ async fn owned_project(
     id: &str,
 ) -> Result<Project, Response> {
     let p = fetch_project(s, id).await?;
-    if p.owner_id != session.user.id && session.user.role != Role::Owner {
+    if p.owner_id != session.user.id {
         return Err(err(StatusCode::FORBIDDEN, "not your project"));
     }
     let _ = s.db.touch_project(&p.id, AppState::now()).await;
@@ -2062,9 +2068,6 @@ async fn project_access(
                 return Err(err(StatusCode::NOT_FOUND, "not found"));
             }
         }
-        return Ok((p, "owner"));
-    }
-    if session.user.role == Role::Owner {
         return Ok((p, "owner"));
     }
     if let Ok(share) = s.db.share_by(&p.id, &session.user.id).await {
@@ -2247,7 +2250,7 @@ async fn owned_group(
         s.db.group_by_id(id)
             .await
             .map_err(|_| err(StatusCode::NOT_FOUND, "no such group"))?;
-    if g.owner_id != session.user.id && session.user.role != Role::Owner {
+    if g.owner_id != session.user.id {
         return Err(err(StatusCode::FORBIDDEN, "not your group"));
     }
     Ok(g)
@@ -2326,6 +2329,16 @@ async fn delete_group(
     Json(json!({"ok": true})).into_response()
 }
 
+/// Remove a project's row, its dependents and its stored blobs.
+async fn purge_project(s: &Arc<AppState>, p: &Project) {
+    let _ = s.db.delete_project(&p.id).await;
+    let _ = s.db.shares_delete_project(&p.id).await;
+    let _ = s.db.links_delete_project(&p.id).await;
+    let _ = s.db.comments_delete_project(&p.id).await;
+    let _ = s.blobs.delete_prefix(&p.dir).await;
+    let _ = s.blobs.delete_prefix(&format!("{}.thumbs", p.dir)).await;
+}
+
 async fn delete_project(
     State(s): State<Arc<AppState>>,
     session: Session,
@@ -2338,11 +2351,7 @@ async fn delete_project(
     if let Err(e) = s.db.delete_project(&id).await {
         return db_resp(e);
     }
-    let _ = s.db.shares_delete_project(&id).await;
-    let _ = s.db.links_delete_project(&id).await;
-    let _ = s.db.comments_delete_project(&id).await;
-    let _ = s.blobs.delete_prefix(&p.dir).await;
-    let _ = s.blobs.delete_prefix(&format!("{}.thumbs", p.dir)).await;
+    purge_project(&s, &p).await;
     s.audit(
         "project",
         &session.user,
@@ -2575,10 +2584,7 @@ async fn delete_comment(
         Ok(p) => p,
         Err(r) => return r,
     };
-    if c.user_id != session.user.id
-        && p.owner_id != session.user.id
-        && session.user.role != Role::Owner
-    {
+    if c.user_id != session.user.id && p.owner_id != session.user.id {
         return err(StatusCode::FORBIDDEN, "not your comment");
     }
     match s.db.comment_delete(&cid).await {
@@ -4353,35 +4359,173 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn list_projects_marks_take_over_targets() {
+    async fn list_projects_only_returns_own() {
         let dir = std::env::temp_dir().join(format!("wfm-api-{}", model::new_id()));
         std::fs::create_dir_all(&dir).unwrap();
         let s = state(&dir);
         let (_owner, teacher, _teacher2, student, classmate, outsider) = school(&s);
+        let mine = project(&teacher);
+        s.db.create_project(&mine).await.unwrap();
         for owner in [&student, &classmate, &outsider] {
             s.db.create_project(&project(owner)).await.unwrap();
         }
+        let body = |r: Response| async move {
+            String::from_utf8_lossy(
+                &axum::body::to_bytes(r.into_body(), usize::MAX)
+                    .await
+                    .unwrap(),
+            )
+            .to_string()
+        };
         let t = body(list_projects(State(s.clone()), session(&teacher)).await).await;
         let v: Vec<serde_json::Value> = serde_json::from_str(&t).unwrap();
-        let take = |v: &serde_json::Value| v["takeOver"].as_bool().unwrap_or(false);
-        let by_owner = |o: &User| v.iter().find(|p| p["ownerId"] == o.id).cloned();
-        for o in [&student, &classmate] {
-            assert!(
-                take(&by_owner(o).unwrap()),
-                "subtree project {} takeOver",
-                o.id
+        assert_eq!(v.len(), 1, "managed projects stay off the list");
+        assert_eq!(v[0]["id"], json!(mine.id));
+    }
+
+    #[tokio::test]
+    async fn account_projects_lists_a_managed_users_projects() {
+        let dir = std::env::temp_dir().join(format!("wfm-api-{}", model::new_id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let s = state(&dir);
+        let (_owner, teacher, teacher2, student, _classmate, _outsider) = school(&s);
+        let p = project(&student);
+        s.db.create_project(&p).await.unwrap();
+        let r = account_projects(
+            State(s.clone()),
+            session(&teacher),
+            Path(student.id.clone()),
+        )
+        .await;
+        assert_eq!(r.status(), StatusCode::OK);
+        let t = String::from_utf8_lossy(
+            &axum::body::to_bytes(r.into_body(), usize::MAX)
+                .await
+                .unwrap(),
+        )
+        .to_string();
+        let v: Vec<serde_json::Value> = serde_json::from_str(&t).unwrap();
+        assert_eq!(v.len(), 1);
+        assert_eq!(v[0]["id"], json!(p.id));
+        assert_eq!(v[0]["access"], json!("view"));
+        assert_eq!(v[0]["takeOver"], json!(true));
+
+        for (who, target) in [
+            (&student, &student),
+            (&teacher2, &student),
+            (&teacher, &teacher),
+        ] {
+            let r = account_projects(State(s.clone()), session(who), Path(target.id.clone())).await;
+            assert_eq!(
+                r.status(),
+                StatusCode::FORBIDDEN,
+                "{} cannot list {}'s projects",
+                who.username,
+                target.username
             );
         }
-        assert!(
-            by_owner(&outsider).is_none(),
-            "projects outside the subtree stay off the list"
+    }
+
+    #[tokio::test]
+    async fn higher_rank_cannot_alter_foreign_projects() {
+        let dir = std::env::temp_dir().join(format!("wfm-api-{}", model::new_id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let s = state(&dir);
+        let (owner, _teacher, _t2, student, _classmate, _outsider) = school(&s);
+        let p = project(&student);
+        s.db.create_project(&p).await.unwrap();
+
+        let (q, h, b) = upload_req("Raw/clip.mp4", b"\x00\x00\x00\x18ftypisomrest");
+        let r = upload_file(
+            State(s.clone()),
+            session(&owner),
+            Path(p.id.clone()),
+            q,
+            h,
+            b,
+        )
+        .await;
+        assert_eq!(r.status(), StatusCode::FORBIDDEN, "view only");
+        let r = update_project(
+            State(s.clone()),
+            session(&owner),
+            Path(p.id.clone()),
+            patch_body(None),
+        )
+        .await;
+        assert_eq!(r.status(), StatusCode::FORBIDDEN);
+        let r = submit_project(State(s.clone()), session(&owner), Path(p.id.clone())).await;
+        assert_eq!(r.status(), StatusCode::FORBIDDEN);
+        let r = delete_project(State(s.clone()), session(&owner), Path(p.id.clone())).await;
+        assert_eq!(r.status(), StatusCode::FORBIDDEN);
+        assert!(s.db.project_by_id(&p.id).await.is_ok());
+
+        // The owner can still read it and take it over explicitly.
+        let (_p, level) = project_access(&s, &session(&owner), &p.id).await.unwrap();
+        assert_eq!(level, "view");
+        let r = take_over_project(State(s.clone()), session(&owner), Path(p.id.clone())).await;
+        assert_eq!(r.status(), StatusCode::OK);
+        let r = delete_project(State(s.clone()), session(&owner), Path(p.id.clone())).await;
+        assert_eq!(
+            r.status(),
+            StatusCode::OK,
+            "yours to delete after take-over"
         );
-        let t = body(list_projects(State(s.clone()), session(&student)).await).await;
-        let v: Vec<serde_json::Value> = serde_json::from_str(&t).unwrap();
-        assert!(
-            v.iter().all(|p| !take(p)),
-            "students never get a takeOver flag"
-        );
+    }
+
+    #[tokio::test]
+    async fn delete_account_purges_projects_and_groups() {
+        let dir = std::env::temp_dir().join(format!("wfm-api-{}", model::new_id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let s = state(&dir);
+        let (_owner, teacher, _t2, student, _classmate, _outsider) = school(&s);
+        let p = project(&student);
+        s.db.create_project(&p).await.unwrap();
+        s.db.create_group(&ProjectGroup {
+            id: model::new_id(),
+            owner_id: student.id.clone(),
+            name: "g".into(),
+            created_at: AppState::now(),
+        })
+        .await
+        .unwrap();
+        let r = delete_account(
+            State(s.clone()),
+            session(&teacher),
+            Path(student.id.clone()),
+        )
+        .await;
+        assert_eq!(r.status(), StatusCode::OK);
+        assert!(s.db.project_by_id(&p.id).await.is_err());
+        assert!(s.db.groups_by_owner(&student.id).await.unwrap().is_empty());
+        assert!(s.db.user_by_id(&student.id).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn comment_delete_is_author_or_project_owner_only() {
+        let dir = std::env::temp_dir().join(format!("wfm-api-{}", model::new_id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let s = state(&dir);
+        let (owner, _teacher, _t2, student, _classmate, _outsider) = school(&s);
+        let p = project(&student);
+        s.db.create_project(&p).await.unwrap();
+        s.db.comment_add("c1", &p.id, &student.id, "hi", AppState::now())
+            .await
+            .unwrap();
+        let r = delete_comment(
+            State(s.clone()),
+            session(&owner),
+            Path((p.id.clone(), "c1".into())),
+        )
+        .await;
+        assert_eq!(r.status(), StatusCode::FORBIDDEN);
+        let r = delete_comment(
+            State(s.clone()),
+            session(&student),
+            Path((p.id.clone(), "c1".into())),
+        )
+        .await;
+        assert_eq!(r.status(), StatusCode::OK);
     }
 
     fn assign_req(students: Vec<String>) -> Json<AssignReq> {
