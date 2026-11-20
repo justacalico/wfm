@@ -2,6 +2,15 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.23.0 - 2026-11-20
+#### Features
+- allow only one active render per project - (5f9afaa) - calico
+#### Bug Fixes
+- 项目模板标记仅限教职工设置 - (afbfad3) - calico
+- retry media bin restore while remote chunks load - (18902ea) - calico
+
+- - -
+
 ## v0.22.2 - 2026-11-20
 #### Bug Fixes
 - block renames that change a file's extension - (87de79e) - calico
