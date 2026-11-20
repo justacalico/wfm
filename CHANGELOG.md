@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.36.2 - 2026-11-20
+#### Bug Fixes
+- 修复窄屏项目页与分享对话框布局 - (8162600) - calico
+
+- - -
+
 ## v0.36.1 - 2026-11-20
 #### Bug Fixes
 - 修复窄屏账号列表文字挤压换行 - (d274a01) - calico
