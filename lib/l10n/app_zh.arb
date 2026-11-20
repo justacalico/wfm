@@ -114,6 +114,7 @@
   "render": "渲染",
   "queuing": "正在排队…",
   "renderStatus": "{status}  ·  {when}",
+  "renderAlreadyActive": "该项目已有一个正在进行的渲染。",
   "@renderStatus": {
     "placeholders": {
       "status": {},

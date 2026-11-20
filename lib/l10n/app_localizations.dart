@@ -578,6 +578,12 @@ abstract class AppLocalizations {
   /// **'{status}  ·  {when}'**
   String renderStatus(Object status, Object when);
 
+  /// No description provided for @renderAlreadyActive.
+  ///
+  /// In en, this message translates to:
+  /// **'A render is already in progress for this project.'**
+  String get renderAlreadyActive;
+
   /// No description provided for @outputName.
   ///
   /// In en, this message translates to:

@@ -267,6 +267,9 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
+  String get renderAlreadyActive => 'Для этого проекта уже идёт рендер.';
+
+  @override
   String get outputName => 'Имя файла';
 
   @override

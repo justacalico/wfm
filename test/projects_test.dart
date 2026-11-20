@@ -1758,6 +1758,23 @@ void main() {
       await t.pumpWidget(const SizedBox());
     });
 
+    testWidgets('new render FAB is disabled while a job is active', (t) async {
+      installApi(extra: {
+        'GET /api/projects/p1/renders': (_) => [
+              {'id': 'r1', 'status': 'running', 'outputName': 'out1'}
+            ],
+        'GET /api/projects/p1/files': (_) => [],
+      });
+      await pump(t, Scaffold(body: RendersTab(project: p1)));
+      expect(find.text('out1'), findsOneWidget);
+      expect(
+          t
+              .widget<FloatingActionButton>(find.byType(FloatingActionButton))
+              .onPressed,
+          isNull);
+      await t.pumpWidget(const SizedBox());
+    });
+
     testWidgets('empty renders state', (t) async {
       installApi(extra: {'GET /api/projects/p1/renders': (_) => []});
       await pump(t, Scaffold(body: RendersTab(project: p1)));

@@ -114,6 +114,7 @@
   "render": "Render",
   "queuing": "Queuing…",
   "renderStatus": "{status}  ·  {when}",
+  "renderAlreadyActive": "A render is already in progress for this project.",
   "@renderStatus": {
     "placeholders": {
       "status": {},

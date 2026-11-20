@@ -114,6 +114,7 @@
   "render": "Рендер",
   "queuing": "В очередь…",
   "renderStatus": "{status}  ·  {when}",
+  "renderAlreadyActive": "Для этого проекта уже идёт рендер.",
   "@renderStatus": {
     "placeholders": {
       "status": {},

@@ -1490,15 +1490,20 @@ class _RendersTabState extends State<RendersTab> {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final jobs = _jobs;
+    final active = jobs?.any((j) => j.active) ?? false;
     return Scaffold(
       floatingActionButton: widget.project.editable
           ? FloatingActionButton.extended(
-              onPressed: () async {
-                final queued = await showDialog<bool>(
-                    context: context,
-                    builder: (_) => RenderDialog(project: widget.project));
-                if (queued == true) _load();
-              },
+              tooltip: active ? l10n.renderAlreadyActive : null,
+              onPressed: active
+                  ? null
+                  : () async {
+                      final queued = await showDialog<bool>(
+                          context: context,
+                          builder: (_) =>
+                              RenderDialog(project: widget.project));
+                      if (queued == true) _load();
+                    },
               icon: const Icon(Icons.add),
               label: Text(l10n.newRender),
             )
@@ -1749,7 +1754,13 @@ class _RenderDialogState extends State<RenderDialog> {
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
       if (mounted) {
-        if (context.mounted) snack(context, e);
+        if (context.mounted) {
+          snack(
+              context,
+              e is ApiException && e.status == 409
+                  ? context.l10n.renderAlreadyActive
+                  : e);
+        }
         setState(() => _busy = false);
       }
     }

@@ -941,9 +941,12 @@ impl Db for PgDb {
     }
 
     async fn job_create(&self, j: &RenderJob) -> DbResult<()> {
-        sqlx::query(
+        let r = sqlx::query(
             "INSERT INTO render_jobs(id,project_id,user_id,status,mode,spec,output_name,progress,error,worker,attempts,lease_until,created_at,finished_at)
-             VALUES($1,$2,$3,$4,$5,$6,$7,0,'','',0,0,$8,0)",
+             SELECT $1,$2,$3,$4,$5,$6,$7,0,'','',0,0,$8,0
+             WHERE NOT EXISTS(
+               SELECT 1 FROM render_jobs
+               WHERE project_id=$2 AND status IN('queued','running'))",
         )
         .bind(&j.id)
         .bind(&j.project_id)
@@ -955,8 +958,11 @@ impl Db for PgDb {
         .bind(j.created_at)
         .execute(&self.pool)
         .await
-        .map(|_| ())
-        .map_err(map_err)
+        .map_err(map_err)?;
+        if r.rows_affected() == 0 {
+            return Err(DbError::Conflict);
+        }
+        Ok(())
     }
 
     async fn job_by_id(&self, id: &str) -> DbResult<RenderJob> {
