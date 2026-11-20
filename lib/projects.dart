@@ -202,6 +202,8 @@ class _ProjectsPageState extends State<ProjectsPage> {
           onSelected: (v) => switch (v) {
             'share' =>
               showDialog(context: c, builder: (_) => _ShareDialog(project: p)),
+            'assign' =>
+              showDialog(context: c, builder: (_) => _AssignDialog(project: p)),
             'render' => showDialog<bool>(
                   context: c,
                   builder: (_) => RenderDialog(project: p)).then((queued) {
@@ -218,6 +220,8 @@ class _ProjectsPageState extends State<ProjectsPage> {
           },
           itemBuilder: (_) => [
             PopupMenuItem(value: 'share', child: Text(l10n.share)),
+            if (p.editable && (Api.i.user?.isStaff ?? false))
+              PopupMenuItem(value: 'assign', child: Text(l10n.assign)),
             if (p.editable)
               PopupMenuItem(value: 'render', child: Text(l10n.render)),
             if (!p.editable)
@@ -576,6 +580,26 @@ class _ProjectPageState extends State<ProjectPage> {
   late int _tab = widget.initialTab;
   String _filesPath = '';
   late Project _p = widget.project;
+  AssignmentInfo? _info;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadInfo();
+  }
+
+  Future<void> _loadInfo() async {
+    final i = await Api.i.projectAssignment(_p.id);
+    if (mounted) setState(() => _info = i);
+  }
+
+  bool get _submitBlocked {
+    final a = _info?.assignment, c = _info?.copy;
+    if (a == null || c == null || !_p.mine) return false;
+    if (a.locked) return true;
+    if (_p.status == 'submitted') return !a.allowWithdraw;
+    return a.maxSubmissions > 0 && c.submissions >= a.maxSubmissions;
+  }
 
   @override
   void didUpdateWidget(ProjectPage old) {
@@ -584,6 +608,8 @@ class _ProjectPageState extends State<ProjectPage> {
       _p = widget.project;
       _tab = 0;
       _filesPath = '';
+      _info = null;
+      _loadInfo();
     }
   }
 
@@ -626,6 +652,7 @@ class _ProjectPageState extends State<ProjectPage> {
     try {
       final st = await Api.i.submitProject(_p.id);
       setState(() => _p = _p.copyWith(status: st));
+      _loadInfo();
     } catch (e) {
       if (mounted) snack(context, e);
     }
@@ -682,6 +709,16 @@ class _ProjectPageState extends State<ProjectPage> {
                 _p.status == 'reviewed'
                     ? l10n.statusReviewed
                     : l10n.statusSubmitted),
+          ],
+          if (_info?.copy != null) ...[
+            const SizedBox(width: 8),
+            tagChip(context, l10n.assignment),
+          ],
+          if ((_info?.assignment.dueAt ?? 0) > 0 &&
+              _info!.assignment.dueAt <
+                  DateTime.now().millisecondsSinceEpoch ~/ 1000) ...[
+            const SizedBox(width: 8),
+            tagChip(context, l10n.overdue),
           ],
         ]),
         actions: [
@@ -741,7 +778,7 @@ class _ProjectPageState extends State<ProjectPage> {
               tooltip: _p.status == 'submitted'
                   ? l10n.withdrawSubmission
                   : l10n.submitForReview,
-              onPressed: _submit,
+              onPressed: _submitBlocked ? null : _submit,
             ),
           if (!_p.mine &&
               _p.status == 'submitted' &&
@@ -768,6 +805,9 @@ class _ProjectPageState extends State<ProjectPage> {
                 'rename' => _rename(),
                 'dup' => _duplicate(),
                 'tpl' => _toggleTemplate(),
+                'assign' => showDialog(
+                    context: context,
+                    builder: (_) => _AssignDialog(project: _p)),
                 _ => _delete(),
               },
               itemBuilder: (_) => [
@@ -777,6 +817,8 @@ class _ProjectPageState extends State<ProjectPage> {
                     value: 'tpl',
                     child: Text(
                         _p.template ? l10n.unmarkTemplate : l10n.markTemplate)),
+                if (Api.i.user?.isStaff ?? false)
+                  PopupMenuItem(value: 'assign', child: Text(l10n.assign)),
                 PopupMenuItem(value: 'delete', child: Text(l10n.delete)),
               ],
             ),
@@ -2365,4 +2407,287 @@ class _ShareDialogState extends State<_ShareDialog> {
       ],
     );
   }
+}
+
+class _AssignDialog extends StatefulWidget {
+  final Project project;
+  const _AssignDialog({required this.project});
+  @override
+  State<_AssignDialog> createState() => _AssignDialogState();
+}
+
+class _AssignDialogState extends State<_AssignDialog> {
+  AssignmentInfo? _info;
+  List<User>? _students;
+  final _picked = <String>{};
+  final _maxCtl = TextEditingController(text: '0');
+  bool _ready = false, _busy = false;
+  bool _withdraw = true, _hidden = false, _lock = false;
+  int _dueAt = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void dispose() {
+    _maxCtl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    try {
+      _info = await Api.i.projectAssignment(widget.project.id);
+      if (_info != null) {
+        _sync(_info!.assignment);
+      } else {
+        final t = await Api.i.shareTargets();
+        _students = [
+          for (final u in t)
+            if (u.role == 'student') u
+        ];
+      }
+    } catch (e) {
+      _students ??= const [];
+      if (mounted) snack(context, e);
+    }
+    if (mounted) setState(() => _ready = true);
+  }
+
+  void _sync(Assignment a) {
+    _withdraw = a.allowWithdraw;
+    _hidden = a.hidden;
+    _lock = a.locked;
+    _dueAt = a.dueAt;
+    _maxCtl.text = '${a.maxSubmissions}';
+  }
+
+  int get _max => int.tryParse(_maxCtl.text.trim()) ?? 0;
+
+  void _opt(String k, bool v) {
+    setState(() {
+      if (k == 'allowWithdraw') _withdraw = v;
+      if (k == 'hidden') _hidden = v;
+      if (k == 'locked') _lock = v;
+    });
+    if (_info != null) _patch({k: v});
+  }
+
+  Future<void> _patch(Map<String, dynamic> body) async {
+    try {
+      await Api.i.updateAssignment(_info!.assignment.id, body);
+      final i = await Api.i.projectAssignment(widget.project.id);
+      if (mounted && i != null) {
+        setState(() {
+          _info = i;
+          _sync(i.assignment);
+        });
+      }
+    } catch (e) {
+      if (mounted) snack(context, e);
+    }
+  }
+
+  Future<void> _pickDue() async {
+    final now = DateTime.now();
+    final d = await showDatePicker(
+        context: context,
+        initialDate: _dueAt > 0
+            ? DateTime.fromMillisecondsSinceEpoch(_dueAt * 1000)
+            : now,
+        firstDate: now.subtract(const Duration(days: 365)),
+        lastDate: now.add(const Duration(days: 365 * 5)));
+    if (d == null || !mounted) return;
+    final at =
+        DateTime(d.year, d.month, d.day, 23, 59).millisecondsSinceEpoch ~/ 1000;
+    if (_info == null) {
+      setState(() => _dueAt = at);
+    } else {
+      _patch({'dueAt': at});
+    }
+  }
+
+  Future<void> _assign() async {
+    if (_picked.isEmpty || _busy) return;
+    setState(() => _busy = true);
+    try {
+      await Api.i.assignProject(widget.project.id, {
+        'students': _picked.toList(),
+        'allowWithdraw': _withdraw,
+        'maxSubmissions': _max,
+        'dueAt': _dueAt,
+        'hidden': _hidden,
+        'locked': _lock,
+      });
+      _picked.clear();
+      await _load();
+    } catch (e) {
+      if (mounted) snack(context, e);
+    }
+    if (mounted) setState(() => _busy = false);
+  }
+
+  Future<void> _unassign() async {
+    final l10n = context.l10n;
+    if (!await confirm(context, l10n.unassign, l10n.unassignBody)) return;
+    try {
+      await Api.i.deleteAssignment(_info!.assignment.id);
+      if (mounted) Navigator.of(context).pop();
+    } catch (e) {
+      if (mounted) snack(context, e);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    return AlertDialog(
+      title: Text(l10n.assignProject),
+      content: SizedBox(
+        width: 420,
+        height: 460,
+        child: !_ready
+            ? const Center(child: CircularProgressIndicator())
+            : SingleChildScrollView(
+                child: _info != null ? _manage(l10n) : _form(l10n)),
+      ),
+      actions: [
+        TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(l10n.cancel)),
+        if (_info == null && _ready)
+          FilledButton(
+              onPressed: _picked.isEmpty || _busy ? null : _assign,
+              child: Text(l10n.assign)),
+      ],
+    );
+  }
+
+  Widget _form(AppLocalizations l10n) => Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              height: 180,
+              child: (_students ?? []).isEmpty
+                  ? Center(child: Text(l10n.noStudents))
+                  : ListView(shrinkWrap: true, children: [
+                      for (final u in _students!)
+                        CheckboxListTile(
+                            dense: true,
+                            value: _picked.contains(u.id),
+                            title: Text(u.name.isEmpty
+                                ? u.username
+                                : '${u.name} (${u.username})'),
+                            onChanged: (v) => setState(() => v == true
+                                ? _picked.add(u.id)
+                                : _picked.remove(u.id))),
+                    ]),
+            ),
+            _options(l10n),
+          ]);
+
+  Widget _manage(AppLocalizations l10n) {
+    final a = _info!.assignment;
+    return Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _options(l10n),
+          const Divider(),
+          Text(l10n.submissions, style: Theme.of(context).textTheme.titleSmall),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 200),
+            child: _info!.submissions.isEmpty
+                ? Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: Text(l10n.noStudents))
+                : ListView(shrinkWrap: true, children: [
+                    for (final s in _info!.submissions)
+                      ListTile(
+                        dense: true,
+                        title: Text(s.studentName.isEmpty
+                            ? s.studentUsername
+                            : '${s.studentName} (${s.studentUsername})'),
+                        subtitle: Text(a.maxSubmissions > 0
+                            ? l10n.attemptsUsed(a.maxSubmissions, s.submissions)
+                            : '${s.submissions}'),
+                        trailing:
+                            Row(mainAxisSize: MainAxisSize.min, children: [
+                          if (s.late) ...[
+                            tagChip(context, l10n.lateSubmission),
+                            const SizedBox(width: 4),
+                          ],
+                          if (s.status != 'draft')
+                            tagChip(
+                                context,
+                                s.status == 'reviewed'
+                                    ? l10n.statusReviewed
+                                    : l10n.statusSubmitted),
+                        ]),
+                      ),
+                  ]),
+          ),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+                icon: const Icon(Icons.link_off, size: 18),
+                label: Text(l10n.unassign),
+                onPressed: _unassign),
+          ),
+        ]);
+  }
+
+  Widget _options(AppLocalizations l10n) =>
+      Column(mainAxisSize: MainAxisSize.min, children: [
+        SwitchListTile(
+            dense: true,
+            title: Text(l10n.allowWithdraw),
+            value: _withdraw,
+            onChanged: (v) => _opt('allowWithdraw', v)),
+        SwitchListTile(
+            dense: true,
+            title: Text(l10n.hiddenFromStudents),
+            value: _hidden,
+            onChanged: (v) => _opt('hidden', v)),
+        SwitchListTile(
+            dense: true,
+            title: Text(l10n.lockedForStudents),
+            value: _lock,
+            onChanged: (v) => _opt('locked', v)),
+        Row(children: [
+          Expanded(child: Text(l10n.maxSubmissions)),
+          SizedBox(
+            width: 72,
+            child: TextField(
+                controller: _maxCtl,
+                keyboardType: TextInputType.number,
+                textAlign: TextAlign.end,
+                decoration: const InputDecoration(isDense: true),
+                onSubmitted: (_) {
+                  if (_info != null) {
+                    _patch({'maxSubmissions': _max});
+                  }
+                }),
+          ),
+        ]),
+        Row(children: [
+          Expanded(
+              child: Text(_dueAt > 0
+                  ? '${l10n.dueDate}: ${fmtTime(l10n, _dueAt)}'
+                  : l10n.noDueDate)),
+          IconButton(
+              icon: const Icon(Icons.event_outlined, size: 20),
+              tooltip: l10n.dueDate,
+              onPressed: _pickDue),
+          if (_dueAt > 0)
+            IconButton(
+                icon: const Icon(Icons.clear, size: 18),
+                onPressed: () => _info == null
+                    ? setState(() => _dueAt = 0)
+                    : _patch({'dueAt': 0})),
+        ]),
+      ]);
 }

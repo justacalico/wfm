@@ -465,5 +465,21 @@
   "resetToDefault": "Athshocraigh go réamhshocraithe",
   "resetAllShortcuts": "Athshocraigh gach aicearra",
   "resetAllShortcutsBody": "Gach aicearra a chur ar ais go dtí a réamhshocrú?",
-  "unsupportedUploadType": "Cineál comhaid nach dtacaítear leis: {names}"
+  "unsupportedUploadType": "Cineál comhaid nach dtacaítear leis: {names}",
+  "assign": "Sanntaigh",
+  "assignProject": "Sanntaigh do dhaltaí",
+  "assignment": "Tasc",
+  "dueDate": "Dáta dílis",
+  "noDueDate": "Gan dháta dílis",
+  "allowWithdraw": "Ceadaigh ais-tharraingt",
+  "maxSubmissions": "Uaslíon iarrachtaí (0 = gan teorainn)",
+  "hiddenFromStudents": "I bhfolach ar dhaltaí",
+  "lockedForStudents": "Faoi ghlas",
+  "submissions": "Aighneachtaí",
+  "attemptsUsed": "{used} as {max} iarracht",
+  "overdue": "Thar téarma",
+  "unassign": "Bain an tasc",
+  "unassignBody": "Bain an tasc seo? Fanfaidh cóipeanna na ndaltaí mar ghnáththionscadail.",
+  "noStudents": "Níl daltaí le sannadh",
+  "lateSubmission": "déanach"
 }

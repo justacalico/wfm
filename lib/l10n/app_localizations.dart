@@ -2029,6 +2029,102 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'File type isn\'t allowed: {names}'**
   String unsupportedUploadType(Object names);
+
+  /// No description provided for @assign.
+  ///
+  /// In en, this message translates to:
+  /// **'Assign'**
+  String get assign;
+
+  /// No description provided for @assignProject.
+  ///
+  /// In en, this message translates to:
+  /// **'Assign to students'**
+  String get assignProject;
+
+  /// No description provided for @assignment.
+  ///
+  /// In en, this message translates to:
+  /// **'Assignment'**
+  String get assignment;
+
+  /// No description provided for @dueDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Due date'**
+  String get dueDate;
+
+  /// No description provided for @noDueDate.
+  ///
+  /// In en, this message translates to:
+  /// **'No due date'**
+  String get noDueDate;
+
+  /// No description provided for @allowWithdraw.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow unsubmission'**
+  String get allowWithdraw;
+
+  /// No description provided for @maxSubmissions.
+  ///
+  /// In en, this message translates to:
+  /// **'Max submissions (0 = unlimited)'**
+  String get maxSubmissions;
+
+  /// No description provided for @hiddenFromStudents.
+  ///
+  /// In en, this message translates to:
+  /// **'Hidden from students'**
+  String get hiddenFromStudents;
+
+  /// No description provided for @lockedForStudents.
+  ///
+  /// In en, this message translates to:
+  /// **'Locked'**
+  String get lockedForStudents;
+
+  /// No description provided for @submissions.
+  ///
+  /// In en, this message translates to:
+  /// **'Submissions'**
+  String get submissions;
+
+  /// No description provided for @attemptsUsed.
+  ///
+  /// In en, this message translates to:
+  /// **'{used} of {max} attempts'**
+  String attemptsUsed(Object max, Object used);
+
+  /// No description provided for @overdue.
+  ///
+  /// In en, this message translates to:
+  /// **'Overdue'**
+  String get overdue;
+
+  /// No description provided for @unassign.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove assignment'**
+  String get unassign;
+
+  /// No description provided for @unassignBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove this assignment? Student copies stay as ordinary projects.'**
+  String get unassignBody;
+
+  /// No description provided for @noStudents.
+  ///
+  /// In en, this message translates to:
+  /// **'No students to assign'**
+  String get noStudents;
+
+  /// No description provided for @lateSubmission.
+  ///
+  /// In en, this message translates to:
+  /// **'late'**
+  String get lateSubmission;
 }
 
 class _AppLocalizationsDelegate

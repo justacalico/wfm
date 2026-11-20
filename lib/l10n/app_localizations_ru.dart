@@ -1077,4 +1077,54 @@ class AppLocalizationsRu extends AppLocalizations {
   String unsupportedUploadType(Object names) {
     return 'Тип файла не поддерживается: $names';
   }
+
+  @override
+  String get assign => '';
+
+  @override
+  String get assignProject => ' ';
+
+  @override
+  String get assignment => '';
+
+  @override
+  String get dueDate => ' ';
+
+  @override
+  String get noDueDate => ' ';
+
+  @override
+  String get allowWithdraw => '  ';
+
+  @override
+  String get maxSubmissions => '.  (0 =  )';
+
+  @override
+  String get hiddenFromStudents => '  ';
+
+  @override
+  String get lockedForStudents => '';
+
+  @override
+  String get submissions => ' ';
+
+  @override
+  String attemptsUsed(Object max, Object used) {
+    return '$used  $max ';
+  }
+
+  @override
+  String get overdue => '';
+
+  @override
+  String get unassign => ' ';
+
+  @override
+  String get unassignBody => '  ?     .';
+
+  @override
+  String get noStudents => '   ';
+
+  @override
+  String get lateSubmission => ' ';
 }

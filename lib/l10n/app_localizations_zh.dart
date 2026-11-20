@@ -1070,4 +1070,54 @@ class AppLocalizationsZh extends AppLocalizations {
   String unsupportedUploadType(Object names) {
     return '不允许的文件类型：$names';
   }
+
+  @override
+  String get assign => '分配';
+
+  @override
+  String get assignProject => '分配给学生';
+
+  @override
+  String get assignment => '作业';
+
+  @override
+  String get dueDate => '截止日期';
+
+  @override
+  String get noDueDate => '无截止日期';
+
+  @override
+  String get allowWithdraw => '允许撤回提交';
+
+  @override
+  String get maxSubmissions => '最大提交次数（0 为不限）';
+
+  @override
+  String get hiddenFromStudents => '对学生隐藏';
+
+  @override
+  String get lockedForStudents => '锁定';
+
+  @override
+  String get submissions => '提交情况';
+
+  @override
+  String attemptsUsed(Object max, Object used) {
+    return '已用 $used/$max 次';
+  }
+
+  @override
+  String get overdue => '已逾期';
+
+  @override
+  String get unassign => '移除作业';
+
+  @override
+  String get unassignBody => '移除该作业？学生的副本将保留为普通项目。';
+
+  @override
+  String get noStudents => '没有可分配的学生';
+
+  @override
+  String get lateSubmission => '迟交';
 }

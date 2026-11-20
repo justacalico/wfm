@@ -250,6 +250,24 @@ pub trait Db: Send + Sync {
     async fn auto_shares_all(&self) -> DbResult<Vec<AutoShare>>;
     async fn share_by_id(&self, id: &str) -> DbResult<ProjectShare>;
 
+    // assignments
+    async fn create_assignment(&self, a: &Assignment, copies: &[AssignmentCopy]) -> DbResult<()>;
+    async fn assignment(&self, id: &str) -> DbResult<Assignment>;
+    async fn assignment_for_source(&self, project: &str) -> DbResult<Assignment>;
+    /// The assignment + copy row a student project belongs to, if any.
+    async fn assignment_for_project(
+        &self,
+        project: &str,
+    ) -> DbResult<Option<(Assignment, AssignmentCopy)>>;
+    async fn submissions(&self, assignment: &str) -> DbResult<Vec<SubmissionView>>;
+    /// A student's revealed copies joined with their assignments and projects.
+    async fn assignments_for_student(&self, student: &str) -> DbResult<Vec<MyAssignment>>;
+    /// Copy project ids the student must not see (hidden assignments).
+    async fn hidden_assignment_projects(&self, student: &str) -> DbResult<Vec<String>>;
+    async fn update_assignment(&self, a: &Assignment) -> DbResult<()>;
+    async fn delete_assignment(&self, id: &str) -> DbResult<()>;
+    async fn bump_submissions(&self, project: &str) -> DbResult<()>;
+
     // notifications
     async fn notify(&self, user: &str, kind: &str, payload: &str, ts: i64) -> DbResult<()>;
     async fn notifications_for(

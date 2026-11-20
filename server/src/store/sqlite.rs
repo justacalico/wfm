@@ -255,6 +255,23 @@ fn map_share_view(r: &rusqlite::Row) -> rusqlite::Result<ShareView> {
     })
 }
 
+fn map_assignment(r: &rusqlite::Row) -> rusqlite::Result<Assignment> {
+    Ok(Assignment {
+        id: r.get(0)?,
+        project_id: r.get(1)?,
+        teacher_id: r.get(2)?,
+        allow_withdraw: r.get::<_, i64>(3)? != 0,
+        max_submissions: r.get(4)?,
+        due_at: r.get(5)?,
+        hidden: r.get::<_, i64>(6)? != 0,
+        locked: r.get::<_, i64>(7)? != 0,
+        created_at: r.get(8)?,
+    })
+}
+
+const ASSIGNMENT_COLS: &str =
+    "id,project_id,teacher_id,allow_withdraw,max_submissions,due_at,hidden,locked,created_at";
+
 fn map_comment(r: &rusqlite::Row) -> rusqlite::Result<CommentView> {
     Ok(CommentView {
         id: r.get(0)?,
@@ -466,7 +483,11 @@ impl Db for SqliteDb {
             actor.role as i64,
             format!("%/{}/%", actor.id),
             format!("/{}/", actor.lineage.trim_matches('/')),
-            if actor.role == crate::model::Role::Student { actor.created_by.clone() } else { String::new() },
+            if actor.role == crate::model::Role::Student {
+                actor.created_by.clone()
+            } else {
+                String::new()
+            },
             actor.id.clone(),
         );
         self.q(move |c| {
@@ -1723,6 +1744,181 @@ impl Db for SqliteDb {
             })
             .await
             .map_err(dberr)
+    }
+
+    async fn create_assignment(&self, a: &Assignment, copies: &[AssignmentCopy]) -> DbResult<()> {
+        let a = a.clone();
+        let copies = copies.to_vec();
+        self.q(move |c| {
+                let tx = c.transaction()?;
+                tx.execute(
+                    "INSERT INTO assignments(id,project_id,teacher_id,allow_withdraw,max_submissions,due_at,hidden,locked,created_at) VALUES(?,?,?,?,?,?,?,?,?)",
+                    params![a.id, a.project_id, a.teacher_id, a.allow_withdraw as i64, a.max_submissions, a.due_at, a.hidden as i64, a.locked as i64, a.created_at],
+                )?;
+                for cp in &copies {
+                    tx.execute(
+                        "INSERT INTO assignment_copies(project_id,assignment_id,student_id,submissions) VALUES(?,?,?,0)",
+                        params![cp.project_id, cp.assignment_id, cp.student_id],
+                    )?;
+                }
+                tx.commit()
+            })
+            .await
+            .map_err(dberr)
+    }
+
+    async fn assignment(&self, id: &str) -> DbResult<Assignment> {
+        let id = id.to_string();
+        self.q(move |c| {
+            c.query_row(
+                &format!("SELECT {ASSIGNMENT_COLS} FROM assignments WHERE id=?"),
+                params![id],
+                map_assignment,
+            )
+        })
+        .await
+        .map_err(dberr)
+    }
+
+    async fn assignment_for_source(&self, project: &str) -> DbResult<Assignment> {
+        let project = project.to_string();
+        self.q(move |c| {
+                c.query_row(
+                    &format!("SELECT {ASSIGNMENT_COLS} FROM assignments WHERE project_id=? ORDER BY created_at DESC"),
+                    params![project],
+                    map_assignment,
+                )
+            })
+            .await
+            .map_err(dberr)
+    }
+
+    async fn assignment_for_project(
+        &self,
+        project: &str,
+    ) -> DbResult<Option<(Assignment, AssignmentCopy)>> {
+        let project = project.to_string();
+        self.q(move |c| {
+                c.query_row(
+                    "SELECT a.id,a.project_id,a.teacher_id,a.allow_withdraw,a.max_submissions,a.due_at,a.hidden,a.locked,a.created_at,c.project_id,c.assignment_id,c.student_id,c.submissions FROM assignment_copies c JOIN assignments a ON a.id=c.assignment_id WHERE c.project_id=?",
+                    params![project],
+                    |r| Ok((map_assignment(r)?, AssignmentCopy {
+                        project_id: r.get(9)?,
+                        assignment_id: r.get(10)?,
+                        student_id: r.get(11)?,
+                        submissions: r.get(12)?,
+                    })),
+                )
+                .optional()
+            })
+            .await
+            .map_err(dberr)
+    }
+
+    async fn submissions(&self, assignment: &str) -> DbResult<Vec<SubmissionView>> {
+        let assignment = assignment.to_string();
+        self.q(move |c| {
+                let mut st = c.prepare(
+                    "SELECT c.project_id,p.display_name AS proj_name,c.student_id,u.username,u.display_name AS student_name,p.status,p.submitted_at,c.submissions,a.due_at FROM assignment_copies c JOIN projects p ON p.id=c.project_id JOIN users u ON u.id=c.student_id JOIN assignments a ON a.id=c.assignment_id WHERE c.assignment_id=? ORDER BY u.username",
+                )?;
+                let rows = st.query_map(params![assignment], |r| {
+                    let submitted_at: i64 = r.get(6)?;
+                    let due_at: i64 = r.get(8)?;
+                    Ok(SubmissionView {
+                        project_id: r.get(0)?,
+                        project_name: r.get(1)?,
+                        student_id: r.get(2)?,
+                        student_username: r.get(3)?,
+                        student_name: r.get(4)?,
+                        status: r.get(5)?,
+                        submitted_at,
+                        submissions: r.get(7)?,
+                        late: due_at > 0 && submitted_at > due_at,
+                    })
+                })?;
+                rows.collect::<rusqlite::Result<Vec<_>>>()
+            })
+            .await
+            .map_err(dberr)
+    }
+
+    async fn assignments_for_student(&self, student: &str) -> DbResult<Vec<MyAssignment>> {
+        let student = student.to_string();
+        self.q(move |c| {
+                let mut st = c.prepare(
+                    "SELECT a.id,a.project_id,a.teacher_id,a.allow_withdraw,a.max_submissions,a.due_at,a.hidden,a.locked,a.created_at,c.project_id,c.assignment_id,c.student_id,c.submissions,p.display_name,p.status FROM assignment_copies c JOIN assignments a ON a.id=c.assignment_id JOIN projects p ON p.id=c.project_id WHERE c.student_id=? AND a.hidden=0 ORDER BY a.created_at DESC",
+                )?;
+                let rows = st.query_map(params![student], |r| {
+                    Ok(MyAssignment {
+                        assignment: map_assignment(r)?,
+                        copy: AssignmentCopy {
+                            project_id: r.get(9)?,
+                            assignment_id: r.get(10)?,
+                            student_id: r.get(11)?,
+                            submissions: r.get(12)?,
+                        },
+                        project_name: r.get(13)?,
+                        status: r.get(14)?,
+                    })
+                })?;
+                rows.collect::<rusqlite::Result<Vec<_>>>()
+            })
+            .await
+            .map_err(dberr)
+    }
+
+    async fn hidden_assignment_projects(&self, student: &str) -> DbResult<Vec<String>> {
+        let student = student.to_string();
+        self.q(move |c| {
+                let mut st = c.prepare(
+                    "SELECT c.project_id FROM assignment_copies c JOIN assignments a ON a.id=c.assignment_id WHERE c.student_id=? AND a.hidden<>0",
+                )?;
+                let rows = st.query_map(params![student], |r| r.get(0))?;
+                rows.collect::<rusqlite::Result<Vec<_>>>()
+            })
+            .await
+            .map_err(dberr)
+    }
+
+    async fn update_assignment(&self, a: &Assignment) -> DbResult<()> {
+        let a = a.clone();
+        self.q(move |c| {
+                c.execute(
+                    "UPDATE assignments SET allow_withdraw=?,max_submissions=?,due_at=?,hidden=?,locked=? WHERE id=?",
+                    params![a.allow_withdraw as i64, a.max_submissions, a.due_at, a.hidden as i64, a.locked as i64, a.id],
+                )
+            })
+            .await
+            .map(|_| ())
+            .map_err(dberr)
+    }
+
+    async fn delete_assignment(&self, id: &str) -> DbResult<()> {
+        let id = id.to_string();
+        self.q(move |c| {
+            let tx = c.transaction()?;
+            tx.execute(
+                "DELETE FROM assignment_copies WHERE assignment_id=?",
+                params![id],
+            )?;
+            tx.execute("DELETE FROM assignments WHERE id=?", params![id])?;
+            tx.commit()
+        })
+        .await
+        .map_err(dberr)
+    }
+
+    async fn bump_submissions(&self, project: &str) -> DbResult<()> {
+        let project = project.to_string();
+        self.q(move |c| {
+            c.execute(
+                "UPDATE assignment_copies SET submissions=submissions+1 WHERE project_id=?",
+                params![project],
+            )
+        })
+        .await
+        .map(|_| ())
+        .map_err(dberr)
     }
 
     async fn notify(&self, user: &str, kind: &str, payload: &str, ts: i64) -> DbResult<()> {

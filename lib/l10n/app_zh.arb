@@ -465,5 +465,21 @@
   "resetToDefault": "恢复默认",
   "resetAllShortcuts": "重置所有快捷键",
   "resetAllShortcutsBody": "将所有快捷键恢复为默认？",
-  "unsupportedUploadType": "不允许的文件类型：{names}"
+  "unsupportedUploadType": "不允许的文件类型：{names}",
+  "assign": "分配",
+  "assignProject": "分配给学生",
+  "assignment": "作业",
+  "dueDate": "截止日期",
+  "noDueDate": "无截止日期",
+  "allowWithdraw": "允许撤回提交",
+  "maxSubmissions": "最大提交次数（0 为不限）",
+  "hiddenFromStudents": "对学生隐藏",
+  "lockedForStudents": "锁定",
+  "submissions": "提交情况",
+  "attemptsUsed": "已用 {used}/{max} 次",
+  "overdue": "已逾期",
+  "unassign": "移除作业",
+  "unassignBody": "移除该作业？学生的副本将保留为普通项目。",
+  "noStudents": "没有可分配的学生",
+  "lateSubmission": "迟交"
 }

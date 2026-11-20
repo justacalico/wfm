@@ -560,6 +560,86 @@ void main() {
       expect(p.copyWith(template: false).template, isFalse);
     });
 
+    test('Assignment models and endpoints', () async {
+      final api = Api(client({
+        'POST /api/projects/p1/assign': {
+          'assignment': {'id': 'a1', 'projectId': 'p1', 'teacherId': 'u1'},
+          'copies': [
+            {
+              'projectId': 'c1',
+              'assignmentId': 'a1',
+              'studentId': 'u2',
+              'submissions': 0
+            }
+          ]
+        },
+        'GET /api/projects/p1/assignment': {
+          'assignment': {
+            'id': 'a1',
+            'projectId': 'p1',
+            'teacherId': 'u1',
+            'allowWithdraw': true,
+            'maxSubmissions': 2,
+            'dueAt': 9,
+            'hidden': true,
+            'locked': true,
+            'createdAt': 1
+          },
+          'copy': {
+            'projectId': 'c1',
+            'assignmentId': 'a1',
+            'studentId': 'u2',
+            'submissions': 1
+          },
+          'submissions': [
+            {
+              'projectId': 'c1',
+              'projectName': 'P - K',
+              'studentId': 'u2',
+              'studentUsername': 'kid',
+              'studentName': 'Kid',
+              'status': 'submitted',
+              'submittedAt': 2,
+              'submissions': 1,
+              'late': true
+            }
+          ]
+        },
+        'PATCH /api/assignments/a1': {'id': 'a1', 'locked': false},
+        'DELETE /api/assignments/a1': {'ok': true},
+        'GET /api/assignments': [
+          {
+            'id': 'a1',
+            'copy': {'projectId': 'c1', 'submissions': 3},
+            'projectName': 'P - K',
+            'status': 'draft'
+          }
+        ],
+      }));
+      final res = await api.assignProject('p1', {
+        'students': ['u2'],
+        'allowWithdraw': true,
+        'maxSubmissions': 2,
+        'dueAt': 9,
+        'hidden': true,
+        'locked': true
+      });
+      expect(lastRequest!.url.path, '/api/projects/p1/assign');
+      expect(res['copies'], hasLength(1));
+      final info = await api.projectAssignment('p1');
+      expect(info!.assignment.hidden, isTrue);
+      expect(info.assignment.maxSubmissions, 2);
+      expect(info.copy!.submissions, 1);
+      expect(info.submissions.single.late, isTrue);
+      expect(info.submissions.single.studentUsername, 'kid');
+      expect((await api.updateAssignment('a1', {'locked': false})).id, 'a1');
+      await api.deleteAssignment('a1');
+      final mine = await api.myAssignments();
+      expect(mine.single.projectName, 'P - K');
+      expect(mine.single.copy.submissions, 3);
+      expect(mine.single.status, 'draft');
+    });
+
     test('AutoShare model and endpoints', () async {
       final api = Api(client({
         'GET /api/auto-shares': [

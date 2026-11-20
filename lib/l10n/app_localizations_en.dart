@@ -1076,6 +1076,57 @@ class AppLocalizationsEn extends AppLocalizations {
   String unsupportedUploadType(Object names) {
     return 'File type isn\'t allowed: $names';
   }
+
+  @override
+  String get assign => 'Assign';
+
+  @override
+  String get assignProject => 'Assign to students';
+
+  @override
+  String get assignment => 'Assignment';
+
+  @override
+  String get dueDate => 'Due date';
+
+  @override
+  String get noDueDate => 'No due date';
+
+  @override
+  String get allowWithdraw => 'Allow unsubmission';
+
+  @override
+  String get maxSubmissions => 'Max submissions (0 = unlimited)';
+
+  @override
+  String get hiddenFromStudents => 'Hidden from students';
+
+  @override
+  String get lockedForStudents => 'Locked';
+
+  @override
+  String get submissions => 'Submissions';
+
+  @override
+  String attemptsUsed(Object max, Object used) {
+    return '$used of $max attempts';
+  }
+
+  @override
+  String get overdue => 'Overdue';
+
+  @override
+  String get unassign => 'Remove assignment';
+
+  @override
+  String get unassignBody =>
+      'Remove this assignment? Student copies stay as ordinary projects.';
+
+  @override
+  String get noStudents => 'No students to assign';
+
+  @override
+  String get lateSubmission => 'late';
 }
 
 /// The translations for English, as used in the United Kingdom (`en_GB`).

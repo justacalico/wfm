@@ -465,5 +465,21 @@
   "resetToDefault": "Reset to default",
   "resetAllShortcuts": "Reset all shortcuts",
   "resetAllShortcutsBody": "Restore every shortcut to its default?",
-  "unsupportedUploadType": "File type isn't allowed: {names}"
+  "unsupportedUploadType": "File type isn't allowed: {names}",
+  "assign": "Assign",
+  "assignProject": "Assign to students",
+  "assignment": "Assignment",
+  "dueDate": "Due date",
+  "noDueDate": "No due date",
+  "allowWithdraw": "Allow unsubmission",
+  "maxSubmissions": "Max submissions (0 = unlimited)",
+  "hiddenFromStudents": "Hidden from students",
+  "lockedForStudents": "Locked",
+  "submissions": "Submissions",
+  "attemptsUsed": "{used} of {max} attempts",
+  "overdue": "Overdue",
+  "unassign": "Remove assignment",
+  "unassignBody": "Remove this assignment? Student copies stay as ordinary projects.",
+  "noStudents": "No students to assign",
+  "lateSubmission": "late"
 }

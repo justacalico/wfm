@@ -1895,4 +1895,258 @@ void main() {
       await settle(t);
     });
   });
+
+  group('Assignments', () {
+    Map<String, dynamic> aJson(
+            {bool? locked, bool? withdraw, int? max, int? due}) =>
+        {
+          'id': 'a1',
+          'projectId': 'p0',
+          'teacherId': 'u9',
+          'allowWithdraw': withdraw ?? true,
+          'maxSubmissions': max ?? 0,
+          'dueAt': due ?? 0,
+          'hidden': false,
+          'locked': locked ?? false,
+          'createdAt': 1
+        };
+
+    testWidgets('assign dialog picks students and manages submissions',
+        (t) async {
+      var assigned = false, patchFails = true, unassignFails = true;
+      var patches = 0;
+      var subs = [
+        {
+          'projectId': 'c1',
+          'projectName': 'P - Kid',
+          'studentId': 'u2',
+          'studentUsername': 'kid',
+          'studentName': 'Kid',
+          'status': 'submitted',
+          'submittedAt': 1,
+          'submissions': 1,
+          'late': true
+        },
+        {
+          'projectId': 'c2',
+          'projectName': 'P - x',
+          'studentId': 'u4',
+          'studentUsername': 'noname',
+          'studentName': '',
+          'status': 'reviewed',
+          'submittedAt': 1,
+          'submissions': 3,
+          'late': false
+        },
+      ];
+      final allSubs = List.of(subs);
+      final due = DateTime.now().millisecondsSinceEpoch ~/ 1000 + 86400;
+      installApi(extra: {
+        'GET /api/share-targets': (_) => [
+              {
+                'id': 'u2',
+                'username': 'kid',
+                'displayName': 'Kid',
+                'role': 'student'
+              },
+              {'id': 'u3', 'username': 'teachx', 'role': 'teacher'},
+            ],
+        'GET /api/projects/p1/assignment': (_) => assigned
+            ? {
+                'assignment': aJson(due: due, max: patches < 2 ? 5 : 0),
+                'submissions': subs
+              }
+            : http.Response('{"error":"no"}', 404),
+        'POST /api/projects/p1/assign': (_) {
+          assigned = true;
+          return {'assignment': {}, 'copies': [], 'failed': []};
+        },
+        'PATCH /api/assignments/a1': (_) {
+          if (patchFails) {
+            patchFails = false;
+            return http.Response('{"error":"nope"}', 500);
+          }
+          subs = ++patches == 1 ? [] : allSubs;
+          return aJson(due: due);
+        },
+        'DELETE /api/assignments/a1': (_) {
+          if (unassignFails) {
+            unassignFails = false;
+            return http.Response('{"error":"nope"}', 500);
+          }
+          return {'ok': true};
+        },
+      });
+      await pump(t, ProjectPage(project: p1));
+      await t.tap(find.descendant(
+          of: find.byType(AppBar),
+          matching: find.byType(PopupMenuButton<String>)));
+      await settle(t);
+      await t.tap(find.text('Assign'));
+      await settle(t);
+      expect(find.text('Kid (kid)'), findsOneWidget);
+      expect(find.text('teachx'), findsNothing);
+      await t.tap(find.text('Kid (kid)'));
+      await settle(t);
+      await t.tap(find.text('Kid (kid)'));
+      await settle(t);
+      await t.tap(find.text('Kid (kid)'));
+      await settle(t);
+      await t.tap(find.descendant(
+          of: find.byType(AlertDialog), matching: find.text('Assign')));
+      await settle(t);
+      expect(find.text('Submissions'), findsOneWidget);
+      expect(find.textContaining('Kid'), findsWidgets);
+      expect(find.text('late'), findsOneWidget);
+      expect(find.text('Reviewed'), findsOneWidget);
+      expect(find.text('3 of 5 attempts'), findsOneWidget);
+      expect(find.textContaining('Due date'), findsOneWidget);
+      await t.tap(find.byType(SwitchListTile).at(0));
+      await settle(t);
+      expect(find.byType(Notice), findsWidgets);
+      await t.tap(find.byType(SwitchListTile).at(0));
+      await settle(t);
+      await t.tap(find.byType(SwitchListTile).at(2));
+      await settle(t);
+      expect(find.text('No student copies yet'), findsNothing);
+      await t.enterText(find.byType(TextField).last, '5');
+      await t.testTextInput.receiveAction(TextInputAction.done);
+      await settle(t);
+      await t.tap(find.byIcon(Icons.event_outlined));
+      await settle(t);
+      await t.tap(find.text('OK').last);
+      await settle(t);
+      await t.tap(find.byIcon(Icons.clear));
+      await settle(t);
+      await t.ensureVisible(find.text('Remove assignment'));
+      await settle(t);
+      await t.tap(find.text('Remove assignment'));
+      await settle(t);
+      await t.tap(find.text('Confirm'));
+      await settle(t);
+      expect(find.byType(AlertDialog), findsWidgets);
+      await t.ensureVisible(find.text('Remove assignment'));
+      await settle(t);
+      await t.tap(find.text('Remove assignment'));
+      await settle(t);
+      await t.tap(find.text('Confirm'));
+      await settle(t);
+      expect(find.byType(AlertDialog), findsNothing);
+    });
+
+    testWidgets('assign form picks due date and reports errors', (t) async {
+      installApi(extra: {
+        'GET /api/share-targets': (_) => [
+              {'id': 'u2', 'username': 'kid', 'role': 'student'},
+            ],
+        'POST /api/projects/p1/assign': (_) =>
+            http.Response('{"error":"nope"}', 500),
+        'GET /api/projects/p1/assignment': (_) =>
+            http.Response('{"error":"no"}', 404),
+      });
+      await pump(t, ProjectPage(project: p1));
+      await t.tap(find.descendant(
+          of: find.byType(AppBar),
+          matching: find.byType(PopupMenuButton<String>)));
+      await settle(t);
+      await t.tap(find.text('Assign'));
+      await settle(t);
+      expect(find.text('kid'), findsOneWidget);
+      await t.tap(find.text('kid'));
+      await settle(t);
+      await t.ensureVisible(find.byIcon(Icons.event_outlined));
+      await settle(t);
+      await t.tap(find.byIcon(Icons.event_outlined));
+      await settle(t);
+      await t.tap(find.text('OK').last);
+      await settle(t);
+      expect(find.textContaining('Due date'), findsOneWidget);
+      await t.ensureVisible(find.byIcon(Icons.clear));
+      await settle(t);
+      await t.tap(find.byIcon(Icons.clear));
+      await settle(t);
+      await t.ensureVisible(find.byType(SwitchListTile).at(1));
+      await settle(t);
+      await t.tap(find.byType(SwitchListTile).at(1));
+      await settle(t);
+      await t.tap(find.byType(SwitchListTile).at(2));
+      await settle(t);
+      await t.ensureVisible(find.byType(TextField).last);
+      await settle(t);
+      await t.enterText(find.byType(TextField).last, '3');
+      await t.testTextInput.receiveAction(TextInputAction.done);
+      await settle(t);
+      await t.tap(find.descendant(
+          of: find.byType(AlertDialog), matching: find.text('Assign')));
+      await settle(t);
+      expect(find.byType(Notice), findsWidgets);
+      await t.tap(find.text('Cancel'));
+      await settle(t);
+      expect(find.byType(AlertDialog), findsNothing);
+    });
+
+    testWidgets('card menu opens assign dialog and empty targets', (t) async {
+      installApi(extra: {
+        'GET /api/share-targets': (_) => http.Response('{"error":"nope"}', 500),
+      });
+      await pump(t, const ProjectsPage());
+      await t.tap(find.byType(PopupMenuButton<String>).first);
+      await settle(t);
+      await t.tap(find.text('Assign'));
+      await settle(t);
+      expect(find.text('No students to assign'), findsOneWidget);
+      expect(find.byType(Notice), findsWidgets);
+      await t.tap(find.text('Cancel'));
+      await settle(t);
+      expect(find.byType(AlertDialog), findsNothing);
+    });
+
+    testWidgets('assignment copy shows chips and locks submit', (t) async {
+      installApi(extra: {
+        'GET /api/projects/p1/assignment': (_) => {
+              'assignment': aJson(locked: true, due: 1),
+              'copy': {
+                'projectId': 'p1',
+                'assignmentId': 'a1',
+                'studentId': 'u1',
+                'submissions': 0
+              }
+            },
+      });
+      await pump(t, ProjectPage(project: p1));
+      expect(find.text('Assignment'), findsOneWidget);
+      expect(find.text('Overdue'), findsOneWidget);
+      final send = t.widget<IconButton>(find.descendant(
+          of: find.byType(AppBar),
+          matching: find.widgetWithIcon(IconButton, Icons.send_outlined)));
+      expect(send.onPressed, isNull);
+    });
+
+    testWidgets('assignment copy gates withdraw and the attempts cap',
+        (t) async {
+      installApi(extra: {
+        'GET /api/projects/p1/assignment': (_) => {
+              'assignment': aJson(withdraw: false, max: 1),
+              'copy': {
+                'projectId': 'p1',
+                'assignmentId': 'a1',
+                'studentId': 'u1',
+                'submissions': 1
+              }
+            },
+      });
+      final submitted = Project.fromJson(
+          {'id': 'p1', 'name': 'x', 'displayName': 'X', 'status': 'submitted'});
+      await pump(t, ProjectPage(project: submitted));
+      final undo = t.widget<IconButton>(find.descendant(
+          of: find.byType(AppBar),
+          matching: find.widgetWithIcon(IconButton, Icons.undo_outlined)));
+      expect(undo.onPressed, isNull);
+      await pump(t, ProjectPage(project: p1));
+      final send = t.widget<IconButton>(find.descendant(
+          of: find.byType(AppBar),
+          matching: find.widgetWithIcon(IconButton, Icons.send_outlined)));
+      expect(send.onPressed, isNull);
+    });
+  });
 }
