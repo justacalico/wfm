@@ -93,9 +93,16 @@ pub fn stage_media(paths: &[String]) -> Vec<RenderStageFile> {
     media.sort();
     media
         .into_iter()
-        .map(|p| RenderStageFile {
-            name: stage_name(&mut taken, p.rsplit('/').next().unwrap_or(p)),
-            path: p.clone(),
+        .flat_map(|p| {
+            // The client registers the whole cleaned path first, then the basename when it
+            // differs (`host.rs` media-ref/media). Both consume a ` (n)` slot in registration
+            // order, so reproduce both registrations or later numbers diverge.
+            let clean: String = p.chars().map(|c| if c == '/' || c == '\\' { '_' } else { c }).collect();
+            let mut files = vec![RenderStageFile { name: stage_name(&mut taken, p), path: p.clone() }];
+            if let Some(base) = p.rsplit('/').next().filter(|b| *b != &clean) {
+                files.push(RenderStageFile { name: stage_name(&mut taken, base), path: p.clone() });
+            }
+            files
         })
         .collect()
 }
@@ -764,9 +771,36 @@ mod tests {
         assert_eq!(
             got,
             [
+                ("Audio_song.mp3", "Audio/song.mp3"),
                 ("song.mp3", "Audio/song.mp3"),
+                ("Raw_a.mp4", "Raw/a.mp4"),
                 ("a.mp4", "Raw/a.mp4"),
+                ("Raw_b.mp4", "Raw/b.mp4"),
                 ("b.mp4", "Raw/b.mp4")
+            ]
+        );
+    }
+
+    #[test]
+    fn media_stage_names_match_client_registration_order() {
+        // Nested paths stage under the cleaned whole path the client registered, not the
+        // basename, and same-named files get the same ` (n)` the client's free_path minted:
+        // each nested file registers its basename alias too, so `x.mp4` at the root collides
+        // with `Raw/x.mp4`'s alias, not just with a root file of the same name.
+        let paths: Vec<String> = vec!["x.mp4".into(), "Raw/A-Roll/x.mp4".into(), "Audio/x.mp4".into()];
+        let m = stage_media(&paths);
+        let got: Vec<(&str, &str)> = m
+            .iter()
+            .map(|f| (f.name.as_str(), f.path.as_str()))
+            .collect();
+        assert_eq!(
+            got,
+            [
+                ("Audio_x.mp4", "Audio/x.mp4"),
+                ("x.mp4", "Audio/x.mp4"),
+                ("Raw_A-Roll_x.mp4", "Raw/A-Roll/x.mp4"),
+                ("x (2).mp4", "Raw/A-Roll/x.mp4"),
+                ("x (3).mp4", "x.mp4")
             ]
         );
     }
