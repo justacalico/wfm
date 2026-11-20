@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.30.1 - 2026-11-20
+#### Bug Fixes
+- FilmCraft 宿主模式禁止本地文件导入 - (9740655) - calico
+
+- - -
+
 ## v0.30.0 - 2026-11-20
 #### Features
 - 首页展示布置给我的作业 - (67cdbeb) - calico
