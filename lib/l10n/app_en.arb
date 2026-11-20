@@ -463,5 +463,6 @@
   "unbound": "Unbound",
   "resetToDefault": "Reset to default",
   "resetAllShortcuts": "Reset all shortcuts",
-  "resetAllShortcutsBody": "Restore every shortcut to its default?"
+  "resetAllShortcutsBody": "Restore every shortcut to its default?",
+  "unsupportedUploadType": "File type isn't allowed: {names}"
 }

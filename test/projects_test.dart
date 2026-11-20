@@ -1537,6 +1537,7 @@ void main() {
       var uploads = 0;
       pickFilesForTesting = () async => [
             PickedFile('a.mp4', Uint8List(3)),
+            PickedFile('evil.exe', Uint8List(1)),
             PickedFile('b.mp4', Uint8List(1))
           ];
       installApi(extra: {
@@ -1548,7 +1549,13 @@ void main() {
       await pump(t, Scaffold(body: FilesTab(project: p1)));
       await t.tap(find.text('Upload'));
       await settle(t);
+      expect(find.textContaining("isn't allowed: evil.exe"), findsOneWidget);
       expect(find.text('Uploading files'), findsNothing);
+      expect(uploads, 2);
+      pickFilesForTesting = () async => [PickedFile('x.sh', Uint8List(2))];
+      await t.tap(find.text('Upload'));
+      await settle(t);
+      expect(find.textContaining("isn't allowed: x.sh"), findsOneWidget);
       expect(uploads, 2);
     });
 

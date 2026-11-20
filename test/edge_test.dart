@@ -120,7 +120,7 @@ void main() {
       installApi(extra: {
         'PUT /api/projects/p1/files': (_) async => done.future,
       });
-      pickFilesForTesting = () async => [PickedFile('a.bin', Uint8List(4))];
+      pickFilesForTesting = () async => [PickedFile('a.mp4', Uint8List(4))];
       await pump(t, FilesTab(project: p1));
       await t.tap(find.text('Upload'));
       await t.pump();

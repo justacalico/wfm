@@ -1069,4 +1069,9 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get resetAllShortcutsBody =>
       'Вернуть все сочетания к значениям по умолчанию?';
+
+  @override
+  String unsupportedUploadType(Object names) {
+    return 'Тип файла не поддерживается: $names';
+  }
 }

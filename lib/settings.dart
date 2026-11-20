@@ -124,7 +124,7 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _changeAvatar() async {
     try {
       final files =
-          await pickFiles(accept: 'image/png,image/jpeg,image/gif,image/webp');
+          await pickFiles(exts: const ['png', 'jpg', 'jpeg', 'gif', 'webp']);
       if (files.isEmpty || !mounted) return;
       await uploadAvatarPicked(Api.i, files.first);
       await Api.i.me();

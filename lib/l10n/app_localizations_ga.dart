@@ -1072,4 +1072,9 @@ class AppLocalizationsGa extends AppLocalizations {
   @override
   String get resetAllShortcutsBody =>
       'Gach aicearra a chur ar ais go dtí a réamhshocrú?';
+
+  @override
+  String unsupportedUploadType(Object names) {
+    return 'Cineál comhaid nach dtacaítear leis: $names';
+  }
 }

@@ -1062,4 +1062,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get resetAllShortcutsBody => '将所有快捷键恢复为默认？';
+
+  @override
+  String unsupportedUploadType(Object names) {
+    return '不允许的文件类型：$names';
+  }
 }

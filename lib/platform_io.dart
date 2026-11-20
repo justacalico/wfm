@@ -61,11 +61,13 @@ Future<void> openEditor(BuildContext context, Api api, String url) async {
   }
 }
 
-Future<List<PickedFile>> pickFiles({String? accept}) async {
+Future<List<PickedFile>> pickFiles({List<String>? exts}) async {
   final test = pickFilesForTesting;
   if (test != null) return test();
   // coverage:ignore-start
-  final r = await fp.FilePicker.pickFiles();
+  final r = await fp.FilePicker.pickFiles(
+      type: exts == null ? fp.FileType.any : fp.FileType.custom,
+      allowedExtensions: exts);
   final out = <PickedFile>[];
   for (final f in r) {
     final p = f.path;
