@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.32.0 - 2026-11-20
+#### Features
+- 卡片按钮改为动词优先标签 - (4aa67c6) - calico
+
+- - -
+
 ## v0.31.2 - 2026-11-20
 #### Bug Fixes
 - 项目卡片只在服务端允许时显示接管入口 - (bc1f645) - calico
