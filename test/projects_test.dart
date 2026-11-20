@@ -1290,6 +1290,19 @@ void main() {
       await settle(t);
       await t.tap(find.text('Rename'));
       await settle(t);
+      await t.enterText(find.byType(TextField).last, 'clip.txt');
+      await t.tap(find.text('OK'));
+      await settle(t);
+      expect(moved, 0);
+      expect(
+          find.text(
+              'Changing the file extension would break the file, so this action is blocked.'),
+          findsWidgets);
+
+      await t.tap(find.byType(PopupMenuButton<String>).first);
+      await settle(t);
+      await t.tap(find.text('Rename'));
+      await settle(t);
       await t.enterText(find.byType(TextField).last, 'taken.mp4');
       await t.tap(find.text('OK'));
       await settle(t);

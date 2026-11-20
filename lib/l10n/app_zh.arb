@@ -9,6 +9,7 @@
   "delete": "删除",
   "rename": "重命名",
   "fileExists": "同名文件已存在。",
+  "extensionLocked": "更改文件扩展名会破坏文件，此操作已被阻止。",
   "renameFailed": "重命名文件失败。",
   "download": "下载",
   "close": "关闭",

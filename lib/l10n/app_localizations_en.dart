@@ -38,6 +38,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get fileExists => 'A file with that name already exists.';
 
   @override
+  String get extensionLocked =>
+      'Changing the file extension would break the file, so this action is blocked.';
+
+  @override
   String get renameFailed => 'Couldn\'t rename the file.';
 
   @override

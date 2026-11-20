@@ -9,6 +9,7 @@
   "delete": "Scrios",
   "rename": "Athainmnigh",
   "fileExists": "Tá comhad leis an ainm sin ann cheana.",
+  "extensionLocked": "Bhrisfeadh athrú ar an iarmhír an comhad, mar sin tá an gníomh seo blocáilte.",
   "renameFailed": "Níorbh fhéidir an comhad a athainmniú.",
   "download": "Íoslódáil",
   "close": "Dún",

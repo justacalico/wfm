@@ -38,6 +38,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get fileExists => '同名文件已存在。';
 
   @override
+  String get extensionLocked => '更改文件扩展名会破坏文件，此操作已被阻止。';
+
+  @override
   String get renameFailed => '重命名文件失败。';
 
   @override
