@@ -48,6 +48,7 @@ FROM rust:1-slim-bookworm AS build
 WORKDIR /src
 COPY server/ ./server/
 COPY filmcraft/shortcuts.json ./filmcraft/shortcuts.json
+COPY scriptcraft/shortcuts.json ./scriptcraft/shortcuts.json
 COPY --from=web /app/build/web ./server/web/app/
 WORKDIR /src/server
 RUN cargo build --release --features postgres
