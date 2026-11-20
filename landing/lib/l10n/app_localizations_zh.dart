@@ -18,22 +18,23 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get heroBody =>
-      'WFM 是一个自托管的媒体管理器，面向学校影视课程。学生上传素材，在浏览器编辑器中剪辑，并排队渲染。教师则掌控账户、权限和活动记录。';
+      'WFM 是一个自托管的媒体管理器，面向学校影视课程。学生上传素材、写剧本、画分镜，在浏览器编辑器中剪辑，并排队渲染。教师则掌控账户、作业和活动记录。';
 
   @override
   String get openApp => '打开应用';
 
   @override
-  String get featureEditTitle => '在浏览器中剪辑';
+  String get featureEditTitle => '编剧、分镜、剪辑';
 
   @override
-  String get featureEditBody => '由 FilmCraft 驱动的时间线剪辑，无需安装。';
+  String get featureEditBody =>
+      'ScriptCraft 剧本、DeckCraft 分镜和 FilmCraft 时间线，全部在浏览器中完成。';
 
   @override
   String get featureMediaTitle => '媒体井井有条';
 
   @override
-  String get featureMediaBody => '每个项目都有 Raw、Audio、Images 和 Exports 文件夹。';
+  String get featureMediaBody => '每个项目都有素材、音频、图片、剧本、分镜和导出的托管文件夹。';
 
   @override
   String get featureRenderTitle => '服务器渲染';
@@ -45,7 +46,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get featureSchoolTitle => '为学校打造';
 
   @override
-  String get featureSchoolBody => '学生、协管、教师和管理员角色，带审计日志。';
+  String get featureSchoolBody => '学生、协管、教师和管理员角色，带作业布置和审计日志。';
 
   @override
   String get downloadsTitle => '下载';
@@ -79,6 +80,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get langSystem => '跟随系统';
+
+  @override
+  String get showcaseScript => '开拍前先写好剧本';
 
   @override
   String get showcaseTimeline => '在浏览器的时间线上剪辑';

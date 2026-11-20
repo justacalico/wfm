@@ -5,7 +5,7 @@
     "display": "standalone",
     "background_color": "#0F0F14",
     "theme_color": "#8B5CF6",
-    "description": "Web Film Manager",
+    "description": "Film projects for a whole class, in one place.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

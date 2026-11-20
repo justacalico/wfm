@@ -18,24 +18,24 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get heroBody =>
-      'WFM — это самостоятельно размещаемый менеджер медиа для школьных кинопрограмм. Ученики загружают отснятое, монтируют в браузерном редакторе и ставят рендеры в очередь. Учителя управляют аккаунтами, правами и активностью.';
+      'WFM: самостоятельно размещаемый менеджер медиа для школьных кинопрограмм. Ученики загружают отснятое, пишут сценарии, рисуют раскадровки, монтируют в браузерном редакторе и ставят рендеры в очередь. Учителя управляют аккаунтами, заданиями и активностью.';
 
   @override
   String get openApp => 'Открыть приложение';
 
   @override
-  String get featureEditTitle => 'Монтаж в браузере';
+  String get featureEditTitle => 'Сценарий, раскадровка, монтаж';
 
   @override
   String get featureEditBody =>
-      'Таймлайн-монтаж на базе FilmCraft, без установки.';
+      'Сценарии в ScriptCraft, раскадровки в DeckCraft и таймлайн в FilmCraft: всё в браузере.';
 
   @override
   String get featureMediaTitle => 'Порядок в медиа';
 
   @override
   String get featureMediaBody =>
-      'Папки Raw, Audio, Images и Exports для каждого проекта.';
+      'Папки для футажа, аудио, изображений, сценариев, раскадровок и экспортов.';
 
   @override
   String get featureRenderTitle => 'Рендер на сервере';
@@ -49,7 +49,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get featureSchoolBody =>
-      'Роли ученик, модератор, учитель и админ с журналом аудита.';
+      'Роли ученик, модератор, учитель и админ, задания и журнал аудита.';
 
   @override
   String get downloadsTitle => 'Загрузки';
@@ -83,6 +83,9 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get langSystem => 'Системный';
+
+  @override
+  String get showcaseScript => 'Напишите сценарий до съёмок';
 
   @override
   String get showcaseTimeline => 'Монтаж на таймлайне в браузере';

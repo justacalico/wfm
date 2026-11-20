@@ -19,24 +19,24 @@ class AppLocalizationsGa extends AppLocalizations {
 
   @override
   String get heroBody =>
-      'Is bainisteoir meán féin-óstáilte é WFM do chláir scannánaíochta scoile. Uaslódálann daltaí físeán, gearrann siad in eagarthóir brabhsála, agus cuireann siad rindreálacha sa scuaine. Coinníonn múinteoirí cuntais, ceadanna agus gníomhaíocht faoi smacht.';
+      'Is bainisteoir meán féin-óstáilte é WFM do chláir scannánaíochta scoile. Uaslódálann daltaí físeán, scríobhann siad scripteanna, pleanáilann siad scéalchláir, gearrann siad in eagarthóir brabhsála agus cuireann siad rindreálacha sa scuaine. Coinníonn múinteoirí cuntais, tascanna agus gníomhaíocht faoi smacht.';
 
   @override
   String get openApp => 'Oscail an aip';
 
   @override
-  String get featureEditTitle => 'Gearr sa bhrabhsálaí';
+  String get featureEditTitle => 'Scríobh, pleanáil, gearr';
 
   @override
   String get featureEditBody =>
-      'Eagarthóireacht amlíne cumhachtaithe ag FilmCraft, gan aon shuiteáil.';
+      'Scripteanna ScriptCraft, scéalchláir DeckCraft agus amlínte FilmCraft, ar fad sa bhrabhsálaí.';
 
   @override
   String get featureMediaTitle => 'Meáin eagraithe';
 
   @override
   String get featureMediaBody =>
-      'Fillteáin Raw, Audio, Images agus Exports do gach tionscadal.';
+      'Fillteáin bhainistithe do fhíseán, fuaim, íomhánna, scripteanna, cláir agus easpórtálacha.';
 
   @override
   String get featureRenderTitle => 'Rindreálacha freastalaí';
@@ -50,7 +50,7 @@ class AppLocalizationsGa extends AppLocalizations {
 
   @override
   String get featureSchoolBody =>
-      'Róil dalta, modhnóir, múinteoir agus riarthóir le loga iniúchta.';
+      'Róil dalta, modhnóir, múinteoir agus riarthóir, tascanna agus loga iniúchta.';
 
   @override
   String get downloadsTitle => 'Íoslódálacha';
@@ -85,6 +85,9 @@ class AppLocalizationsGa extends AppLocalizations {
 
   @override
   String get langSystem => 'Córas';
+
+  @override
+  String get showcaseScript => 'Dréachtaigh an script roimh an scannánú';
 
   @override
   String get showcaseTimeline => 'Gearr ar amlíne sa bhrabhsálaí';

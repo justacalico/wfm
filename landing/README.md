@@ -1,17 +1,32 @@
-# wfm_landing
+# WFM landing page
 
-A new Flutter project.
+Standalone Flutter web page served at the site root; the app itself lives under
+`/app/`. Shows a short feature overview, screenshots, and the latest releases
+fetched from the GitLab API.
 
-## Getting Started
+## Develop
 
-This project is a starting point for a Flutter application.
+```sh
+flutter pub get
+flutter run -d chrome
+```
 
-A few resources to get you started if this is your first Flutter project:
+## Test
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+```sh
+flutter test                    # widget + golden tests
+flutter test --update-goldens   # regenerate test/goldens/*.png
+```
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Layout
+
+- `lib/main.dart` - page layout, theme and locale switching
+- `lib/showcase.dart` - hand-drawn feature mockups
+- `lib/releases.dart` - GitLab releases fetcher (injected in tests)
+- `lib/l10n/` - own ARB set (en, en_GB, zh, ru, ga), separate from the app
+- `assets/screenshots/` - app golden PNGs, refreshed from `../test/goldens/`
+  by CI on deploy
+- `web/` - index.html, manifest and icons
+
+All user-facing strings go through the ARB files; the release fetcher is
+injected so tests never hit the network.

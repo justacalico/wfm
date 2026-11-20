@@ -119,7 +119,7 @@ abstract class AppLocalizations {
   /// No description provided for @heroBody.
   ///
   /// In en, this message translates to:
-  /// **'WFM is a self-hosted media manager for school film programs. Students upload footage, cut in a browser editor, and queue renders. Teachers keep accounts, permissions and activity under control.'**
+  /// **'WFM is a self-hosted media manager for school film programs. Students upload footage, write scripts, plan storyboards, cut in a browser editor and queue renders. Teachers keep accounts, assignments and activity under control.'**
   String get heroBody;
 
   /// No description provided for @openApp.
@@ -131,13 +131,13 @@ abstract class AppLocalizations {
   /// No description provided for @featureEditTitle.
   ///
   /// In en, this message translates to:
-  /// **'Edit in the browser'**
+  /// **'Write, board and cut'**
   String get featureEditTitle;
 
   /// No description provided for @featureEditBody.
   ///
   /// In en, this message translates to:
-  /// **'Timeline editing powered by FilmCraft, no installs needed.'**
+  /// **'ScriptCraft screenplays, DeckCraft storyboards and FilmCraft timelines, all in the browser.'**
   String get featureEditBody;
 
   /// No description provided for @featureMediaTitle.
@@ -149,7 +149,7 @@ abstract class AppLocalizations {
   /// No description provided for @featureMediaBody.
   ///
   /// In en, this message translates to:
-  /// **'Raw, Audio, Images and Exports folders for every project.'**
+  /// **'Managed folders for footage, audio, images, scripts, boards and exports.'**
   String get featureMediaBody;
 
   /// No description provided for @featureRenderTitle.
@@ -173,7 +173,7 @@ abstract class AppLocalizations {
   /// No description provided for @featureSchoolBody.
   ///
   /// In en, this message translates to:
-  /// **'Student, mod, teacher and admin roles with an audit log.'**
+  /// **'Student, mod, teacher and admin roles, assignments and an audit log.'**
   String get featureSchoolBody;
 
   /// No description provided for @downloadsTitle.
@@ -241,6 +241,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'System'**
   String get langSystem;
+
+  /// No description provided for @showcaseScript.
+  ///
+  /// In en, this message translates to:
+  /// **'Draft the script before the shoot'**
+  String get showcaseScript;
 
   /// No description provided for @showcaseTimeline.
   ///
