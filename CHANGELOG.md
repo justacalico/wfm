@@ -2,6 +2,14 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.22.0 - 2026-11-20
+#### Features
+- navigate to the renders tab after queuing a render - (37f02a4) - calico
+#### Bug Fixes
+- drop the worker name from render job status lines - (4cd40e9) - calico
+
+- - -
+
 ## v0.21.2 - 2026-11-19
 #### Bug Fixes
 - keep the files tab's folder across project tab switches - (05cbc50) - calico
