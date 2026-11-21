@@ -64,7 +64,7 @@ jobs:
             BUILD_ALL="true"
           fi
           if [ "$BUILD_ALL" = "true" ]; then
-            TARGETS='[{"target":"linux","os":"ubuntu-latest","arch":"x86_64"},{"target":"linux-arm64","os":"ubuntu-24.04-arm","arch":"aarch64"},{"target":"web","os":"ubuntu-latest"},{"target":"desktop-linux","os":"ubuntu-latest","arch":"x86_64"},{"target":"desktop-windows","os":"windows-latest","arch":"x86_64"},{"target":"desktop-macos","os":"macos-13","arch":"x86_64"}]'
+            TARGETS='[{"target":"linux","os":"ubuntu-latest","arch":"x86_64"},{"target":"linux-arm64","os":"ubuntu-24.04-arm","arch":"aarch64"},{"target":"web","os":"ubuntu-latest"},{"target":"desktop-linux","os":"ubuntu-latest","arch":"x86_64"},{"target":"desktop-windows","os":"windows-latest","arch":"x86_64"}]'
           else
             TARGETS='[]'
           fi
@@ -238,10 +238,8 @@ jobs:
             triple: aarch64-unknown-linux-gnu
           - os: windows-latest
             triple: x86_64-pc-windows-msvc
-          - os: macos-13
-            triple: aarch64-apple-darwin
-          - os: macos-13
-            triple: x86_64-apple-darwin
+          # macos-* targets disabled: no macOS runner capacity in the fleet.
+          # Re-add aarch64/x86_64-apple-darwin on macos-13 when one is back.
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
