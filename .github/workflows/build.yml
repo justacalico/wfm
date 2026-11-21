@@ -398,13 +398,12 @@ jobs:
 
       - name: Package Windows desktop
         if: matrix.target == 'desktop-windows'
-        shell: bash
         run: |
-          B=build/windows/x64/runner/Release
-          mkdir -p "$B/craft" artifacts
-          cp desktop/craft/*/wfm-* "$B/craft/"
-          (cd "$B" && zip -qr "../../../../artifacts/wfm-${VERSION}-windows.zip" .)
-          ls -la artifacts/
+          $B = "build/windows/x64/runner/Release"
+          New-Item -ItemType Directory -Force "$B/craft", "artifacts" | Out-Null
+          Copy-Item "desktop/craft/*/wfm-*" "$B/craft/"
+          Compress-Archive -Path "$B/*" -DestinationPath "artifacts/wfm-${env:VERSION}-windows.zip"
+          Get-ChildItem artifacts/
 
       - name: Build macOS desktop
         if: matrix.target == 'desktop-macos'
