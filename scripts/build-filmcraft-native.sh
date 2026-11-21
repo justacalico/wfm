@@ -18,7 +18,7 @@ DEST="$ROOT/desktop/craft/filmcraft-$TARGET"
 SRC="${FILMCRAFT_SRC:-}"
 if [ -z "$SRC" ]; then
   SRC="$(mktemp -d)/filmcraft"
-  git clone --depth 1 --branch "v${VER}" https://github.com/storytold/filmcraft "$SRC"
+  git -c core.autocrlf=false clone --depth 1 --branch "v${VER}" https://github.com/storytold/filmcraft "$SRC"
 fi
 cd "$SRC"
 git restore .

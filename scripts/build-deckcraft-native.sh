@@ -18,7 +18,7 @@ DEST="$ROOT/desktop/craft/deckcraft-$TARGET"
 SRC="${DECKCRAFT_SRC:-}"
 if [ -z "$SRC" ]; then
   SRC="$(mktemp -d)/deckcraft"
-  git clone --depth 1 --branch "v${VER}" https://github.com/storytold/deckcraft "$SRC"
+  git -c core.autocrlf=false clone --depth 1 --branch "v${VER}" https://github.com/storytold/deckcraft "$SRC"
 fi
 cd "$SRC"
 git restore .

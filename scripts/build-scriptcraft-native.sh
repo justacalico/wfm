@@ -18,7 +18,7 @@ DEST="$ROOT/desktop/craft/scriptcraft-$TARGET"
 SRC="${SCRIPTCRAFT_SRC:-}"
 if [ -z "$SRC" ]; then
   SRC="$(mktemp -d)/scriptcraft"
-  git clone --depth 1 --branch "v${VER}" https://github.com/NoJuanNobody/scriptcraft "$SRC"
+  git -c core.autocrlf=false clone --depth 1 --branch "v${VER}" https://github.com/NoJuanNobody/scriptcraft "$SRC"
 fi
 cd "$SRC"
 git restore .
