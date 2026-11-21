@@ -64,7 +64,7 @@ jobs:
             BUILD_ALL="true"
           fi
           if [ "$BUILD_ALL" = "true" ]; then
-            TARGETS='[{"target":"linux","os":"ubuntu-latest","arch":"x86_64"},{"target":"linux-arm64","os":"ubuntu-24.04-arm","arch":"aarch64"},{"target":"web","os":"ubuntu-latest"},{"target":"desktop-linux","os":"ubuntu-latest","arch":"x86_64"},{"target":"desktop-windows","os":"windows-latest","arch":"x86_64"},{"target":"desktop-macos","os":"macos-14","arch":"aarch64"}]'
+            TARGETS='[{"target":"linux","os":"ubuntu-latest","arch":"x86_64"},{"target":"linux-arm64","os":"ubuntu-24.04-arm","arch":"aarch64"},{"target":"web","os":"ubuntu-latest"},{"target":"desktop-linux","os":"ubuntu-latest","arch":"x86_64"},{"target":"desktop-windows","os":"windows-latest","arch":"x86_64"},{"target":"desktop-macos","os":"macos-13","arch":"x86_64"}]'
           else
             TARGETS='[]'
           fi
@@ -238,13 +238,16 @@ jobs:
             triple: aarch64-unknown-linux-gnu
           - os: windows-latest
             triple: x86_64-pc-windows-msvc
-          - os: macos-14
+          - os: macos-13
             triple: aarch64-apple-darwin
           - os: macos-13
             triple: x86_64-apple-darwin
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Rust target
+        run: rustup target add ${{ matrix.triple }}
 
       - name: Linux deps
         if: runner.os == 'Linux'
@@ -412,7 +415,7 @@ jobs:
       - uses: actions/download-artifact@v4
         if: matrix.target == 'desktop-macos'
         with:
-          name: craft-aarch64-apple-darwin
+          name: craft-x86_64-apple-darwin
           path: desktop/craft
 
       - name: Package macOS desktop
