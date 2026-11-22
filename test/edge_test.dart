@@ -351,7 +351,7 @@ void main() {
       await t.tap(find.text('Render'));
       await settle(t);
       final body = posted();
-      expect(body['mode'], 'device');
+      expect(body['mode'], 'server');
       expect(body['sequence'], 21);
       expect(body['output'], 'export');
       final p = body['params'] as Map<String, dynamic>;

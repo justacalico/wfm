@@ -1739,6 +1739,7 @@ class _RenderDialogState extends State<RenderDialog> {
           _info = i;
           _seq = i.activeSequence ??
               (i.sequences.isEmpty ? 0 : i.sequences.first.id);
+          if (i.serverRender) _mode = 'server';
         });
       }
     }).catchError((e) {
