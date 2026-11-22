@@ -2,6 +2,18 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.39.0 - 2026-11-22
+#### Features
+- (**app**) 原生编辑器模式与本地检出同步 - (c4fee53) - calico
+- (**crafts**) 原生缺失文档补丁与构建脚本 - (4d9bcce) - calico
+- (**server**) 文件修订号与写前置条件，支持桌面同步 - (657413a) - calico
+#### Bug Fixes
+- (**app**) 首次打开时创建文档父目录 - (eb075fe) - calico
+- (**crafts**) 强制 LF 检出以修复 Windows 补丁应用 - (bb40f9e) - calico
+- (**windows**) 兼容 MSVC 移除实验协程后的插件编译 - (1d4d894) - calico
+
+- - -
+
 ## v0.38.0 - 2026-11-20
 #### Features
 - DeckCraft 故事板锁定为编辑器并托管文件生成 - (cae0738) - calico

@@ -1,7 +1,7 @@
 name: wfm
 description: "Web Film Manager - film projects for a whole class."
 publish_to: 'none'
-version: 0.38.0+79
+version: 0.39.0+80
 
 environment:
   sdk: ^3.5.0
