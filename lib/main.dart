@@ -933,9 +933,7 @@ class ShellState extends State<Shell> {
                       onTap: () => Navigator.of(context).pop()))),
           body: _open != null
               ? ProjectPage(
-                  project: _open!,
-                  onBack: closeProject,
-                  initialTab: _openTab)
+                  project: _open!, onBack: closeProject, initialTab: _openTab)
               : pages[_page],
         );
       }
