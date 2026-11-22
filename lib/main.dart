@@ -758,6 +758,7 @@ class Shell extends StatefulWidget {
 class ShellState extends State<Shell> {
   int _page = 0;
   Project? _open;
+  int _openTab = 0;
   int _pending = 0;
   int _unread = 0;
 
@@ -790,7 +791,10 @@ class ShellState extends State<Shell> {
         _open = null;
       });
 
-  void openProject(Project p) => setState(() => _open = p);
+  void openProject(Project p, {int tab = 0}) => setState(() {
+        _open = p;
+        _openTab = tab;
+      });
 
   void closeProject() => setState(() => _open = null);
 
@@ -928,7 +932,10 @@ class ShellState extends State<Shell> {
                   child: _navColumn(l10n,
                       onTap: () => Navigator.of(context).pop()))),
           body: _open != null
-              ? ProjectPage(project: _open!, onBack: closeProject)
+              ? ProjectPage(
+                  project: _open!,
+                  onBack: closeProject,
+                  initialTab: _openTab)
               : pages[_page],
         );
       }
@@ -938,7 +945,10 @@ class ShellState extends State<Shell> {
           const VerticalDivider(width: 1),
           Expanded(
               child: _open != null
-                  ? ProjectPage(project: _open!, onBack: closeProject)
+                  ? ProjectPage(
+                      project: _open!,
+                      onBack: closeProject,
+                      initialTab: _openTab)
                   : pages[_page]),
         ]),
       );

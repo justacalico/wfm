@@ -135,6 +135,7 @@ void main() {
     await t.tap(find.textContaining('Render finished'));
     await settle(t);
     expect(find.byType(ProjectPage), findsOneWidget);
+    expect(find.byType(RendersTab), findsOneWidget);
     await t
         .tap(find.widgetWithText(ListTile, 'Notifications').first)
         .then((_) => settle(t));
@@ -202,6 +203,7 @@ void main() {
     await t.tap(find.textContaining('Render finished'));
     await settle(t);
     expect(find.byType(ProjectPage), findsOneWidget);
+    expect(find.byType(RendersTab), findsOneWidget);
   });
 
   testWidgets('load more pages and error snack', (t) async {

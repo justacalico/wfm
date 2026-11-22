@@ -623,7 +623,7 @@ class _ProjectPageState extends State<ProjectPage> {
     super.didUpdateWidget(old);
     if (!identical(old.project, widget.project)) {
       _p = widget.project;
-      _tab = 0;
+      _tab = widget.initialTab;
       _filesPath = '';
       _info = null;
       _loadInfo();

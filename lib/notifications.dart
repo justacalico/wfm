@@ -147,6 +147,8 @@ class _NotificationsPageState extends State<NotificationsPage> {
             'submit' ||
             'review':
         if (pid.isEmpty) return;
+        final tab =
+            n.kind == 'render_done' || n.kind == 'render_failed' ? 1 : 0;
         final p = Project.fromJson({
           'id': pid,
           'name': '${n.payload['projectName'] ?? ''}',
@@ -155,10 +157,10 @@ class _NotificationsPageState extends State<NotificationsPage> {
           'ownerName': '',
         });
         if (shell != null) {
-          shell.openProject(p);
+          shell.openProject(p, tab: tab);
         } else {
-          Navigator.of(context)
-              .push(MaterialPageRoute(builder: (_) => ProjectPage(project: p)));
+          Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => ProjectPage(project: p, initialTab: tab)));
         }
     }
   }
