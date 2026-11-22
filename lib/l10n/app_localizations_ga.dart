@@ -585,6 +585,22 @@ class AppLocalizationsGa extends AppLocalizations {
   String get renderOnServer => 'Freastalaí';
 
   @override
+  String get renderNameTaken => 'Tá an t-ainm in úsáid cheana';
+
+  @override
+  String renderNameTakenBody(Object name) {
+    return 'Tá rindreáil darb ainm \"$name\" ann cheana. Scriosfaidh forscríobh an rindreáil shean.';
+  }
+
+  @override
+  String get overwrite => 'Forscríobh';
+
+  @override
+  String useOtherName(Object name) {
+    return 'Úsáid \"$name\"';
+  }
+
+  @override
   String get sequence => 'Seicheamh';
 
   @override

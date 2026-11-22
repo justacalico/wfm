@@ -1829,16 +1829,58 @@ class _RenderDialogState extends State<RenderDialog> {
     return p;
   }
 
+  Future<String?> _outputName() async {
+    final name = _out.text.trim().isEmpty ? 'export' : _out.text.trim();
+    Set<String> taken;
+    try {
+      taken = {
+        for (final j in await Api.i.renders(widget.project.id)) j.outputName,
+        for (final f in await Api.i.files(widget.project.id, 'Exports'))
+          if (!f.isDir && f.name.contains('.'))
+            f.name.substring(0, f.name.lastIndexOf('.')),
+      };
+    } catch (e) {
+      if (mounted) snack(context, e);
+      return null;
+    }
+    if (!taken.contains(name)) return name;
+    var i = 1;
+    var next = '$name($i)';
+    while (taken.contains(next)) {
+      next = '$name(${++i})';
+    }
+    if (!mounted) return null;
+    final overwrite = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+              title: Text(ctx.l10n.renderNameTaken),
+              content: Text(ctx.l10n.renderNameTakenBody(name)),
+              actions: [
+                TextButton(
+                    onPressed: () => Navigator.pop(ctx, false),
+                    child: Text(ctx.l10n.useOtherName(next))),
+                FilledButton(
+                    onPressed: () => Navigator.pop(ctx, true),
+                    child: Text(ctx.l10n.overwrite)),
+              ],
+            ));
+    if (overwrite == null) return null;
+    return overwrite ? name : next;
+  }
+
   Future<void> _submit() async {
     final params = _params();
     if (params == null) return;
+    final output = await _outputName();
+    if (output == null || !mounted) return;
     setState(() => _busy = true);
     final theme = _theme(context);
     try {
+      await Api.i.mkdir(widget.project.id, 'Exports');
       final job = await Api.i.createRender(widget.project.id, {
         'mode': _mode,
         'sequence': _seq,
-        'output': _out.text.trim().isEmpty ? 'export' : _out.text.trim(),
+        'output': output,
         'params': params,
       });
       if (_mode == 'device' && mounted) {

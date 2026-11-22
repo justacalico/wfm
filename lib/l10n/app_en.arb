@@ -312,6 +312,20 @@
   "renderMode": "Render on",
   "renderOnDevice": "This device",
   "renderOnServer": "Server",
+  "renderNameTaken": "Name already in use",
+  "renderNameTakenBody": "A render named \"{name}\" already exists. Overwriting it will wipe the old render.",
+  "@renderNameTakenBody": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "overwrite": "Overwrite",
+  "useOtherName": "Use \"{name}\"",
+  "@useOtherName": {
+    "placeholders": {
+      "name": {}
+    }
+  },
   "sequence": "Sequence",
   "matchSource": "Match source",
   "outputFormat": "Format",
