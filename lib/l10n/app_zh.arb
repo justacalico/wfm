@@ -58,8 +58,8 @@
   "newProject": "新建项目",
   "projectName": "项目名称",
   "noProjects": "还没有项目，创建一个开始使用。",
-  "createdAgo": "创建于 {when}",
-  "@createdAgo": {
+  "editedAgo": "编辑于 {when}",
+  "@editedAgo": {
     "placeholders": {
       "when": {}
     }

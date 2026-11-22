@@ -58,8 +58,8 @@
   "newProject": "Новый проект",
   "projectName": "Название проекта",
   "noProjects": "Проектов пока нет. Создайте первый.",
-  "createdAgo": "Создан {when}",
-  "@createdAgo": {
+  "editedAgo": "Изменён {when}",
+  "@editedAgo": {
     "placeholders": {
       "when": {}
     }

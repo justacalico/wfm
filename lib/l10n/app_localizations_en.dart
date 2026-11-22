@@ -161,8 +161,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noProjects => 'No projects yet. Create one to get started.';
 
   @override
-  String createdAgo(Object when) {
-    return 'Created $when';
+  String editedAgo(Object when) {
+    return 'Edited $when';
   }
 
   @override

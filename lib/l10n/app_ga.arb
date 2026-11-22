@@ -58,8 +58,8 @@
   "newProject": "Tionscadal nua",
   "projectName": "Ainm an tionscadail",
   "noProjects": "Níl aon tionscadal ann fós. Cruthaigh ceann chun tosú.",
-  "createdAgo": "Cruthaithe {when}",
-  "@createdAgo": {
+  "editedAgo": "Curtha in eagar {when}",
+  "@editedAgo": {
     "placeholders": {
       "when": {}
     }

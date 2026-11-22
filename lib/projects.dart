@@ -316,7 +316,7 @@ class _ProjectsPageState extends State<ProjectsPage> {
               ]),
               Text(
                   [
-                    l10n.createdAgo(fmtAgo(l10n, p.createdAt)),
+                    l10n.editedAgo(fmtAgo(l10n, p.lastActivity)),
                     if (p.ownerName.isNotEmpty) l10n.ownedBy(p.ownerName),
                   ].join('  ·  '),
                   style: Theme.of(c).textTheme.bodySmall),
@@ -369,7 +369,7 @@ class _ProjectsPageState extends State<ProjectsPage> {
                         style: const TextStyle(
                             fontWeight: FontWeight.bold, fontSize: 16),
                         overflow: TextOverflow.ellipsis),
-                    Text(l10n.createdAgo(fmtAgo(l10n, p.createdAt)),
+                    Text(l10n.editedAgo(fmtAgo(l10n, p.lastActivity)),
                         style: Theme.of(c).textTheme.bodySmall),
                     if (p.status != 'draft')
                       Padding(

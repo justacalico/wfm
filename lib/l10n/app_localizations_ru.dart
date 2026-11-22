@@ -162,8 +162,8 @@ class AppLocalizationsRu extends AppLocalizations {
   String get noProjects => 'Проектов пока нет. Создайте первый.';
 
   @override
-  String createdAgo(Object when) {
-    return 'Создан $when';
+  String editedAgo(Object when) {
+    return 'Изменён $when';
   }
 
   @override

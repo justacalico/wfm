@@ -162,8 +162,8 @@ class AppLocalizationsGa extends AppLocalizations {
       'Níl aon tionscadal ann fós. Cruthaigh ceann chun tosú.';
 
   @override
-  String createdAgo(Object when) {
-    return 'Cruthaithe $when';
+  String editedAgo(Object when) {
+    return 'Curtha in eagar $when';
   }
 
   @override
