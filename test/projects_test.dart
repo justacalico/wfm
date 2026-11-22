@@ -69,8 +69,7 @@ void main() {
           .then((_) => settle(t));
       await t.tap(find.text('Write script'));
       await settle(t);
-      expect(opened,
-          contains('/scriptcraft/wfm.html?project=p1&theme=light'));
+      expect(opened, contains('/scriptcraft/wfm.html?project=p1&theme=light'));
       t.platformDispatcher.platformBrightnessTestValue = Brightness.dark;
       addTearDown(t.platformDispatcher.clearPlatformBrightnessTestValue);
       await settle(t);
