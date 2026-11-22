@@ -134,7 +134,7 @@ async function sendDoc() {
 async function handleSave(d) {
   if (lockLost) return;
   const name = (d.name || "export.bin").split("/").pop();
-  const path = name === docName ? docPath : "Exports/" + name;
+  const path = /\.(fountain|fdx)$/i.test(name) ? docPath : "Exports/" + name;
   const bin = atob(d.data || "");
   const bytes = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
