@@ -445,7 +445,12 @@ class Api {
 
   Future<dynamic> _go(Future<http.Response> Function() send) async {
     final r = await send();
-    final body = r.body.isEmpty ? null : jsonDecode(r.body);
+    dynamic body;
+    try {
+      body = r.body.isEmpty ? null : jsonDecode(r.body);
+    } on FormatException {
+      throw ApiException(r.statusCode, 'error ${r.statusCode}');
+    }
     if (r.statusCode == 401) {
       if (user != null) {
         user = null;
@@ -544,6 +549,9 @@ class Api {
 
   Future<List<Project>> projects() async =>
       [for (final e in (await get('/projects')) as List) Project.fromJson(e)];
+
+  Future<Project> project(String id) async =>
+      Project.fromJson(await get('/projects/$id'));
 
   Future<Project> createProject(String name, {String groupId = ''}) async =>
       Project.fromJson(await post('/projects', {

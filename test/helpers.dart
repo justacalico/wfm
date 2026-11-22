@@ -71,6 +71,15 @@ FakeClient sessionClient({Map<String, dynamic> extra = const {}}) =>
             },
           ],
       'GET /api/groups': (_) => [],
+      'GET /api/projects/p1': (_) => {
+            'id': 'p1',
+            'name': 'short-film',
+            'displayName': 'Short Film',
+            'ownerId': 'u1',
+            'ownerName': 'Ada Lovelace',
+            'access': 'edit',
+            'createdAt': 1700000000
+          },
       'GET /api/projects/p1/files': (_) => [
             {'name': 'Raw', 'path': 'Raw', 'type': 'dir'},
             {

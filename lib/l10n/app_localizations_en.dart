@@ -583,6 +583,22 @@ class AppLocalizationsEn extends AppLocalizations {
   String get renderOnServer => 'Server';
 
   @override
+  String get renderNameTaken => 'Name already in use';
+
+  @override
+  String renderNameTakenBody(Object name) {
+    return 'A render named \"$name\" already exists. Overwriting it will wipe the old render.';
+  }
+
+  @override
+  String get overwrite => 'Overwrite';
+
+  @override
+  String useOtherName(Object name) {
+    return 'Use \"$name\"';
+  }
+
+  @override
   String get sequence => 'Sequence';
 
   @override
@@ -1054,6 +1070,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get projectDuplicated => 'Copy created';
+
+  @override
+  String get projectGone => 'This project no longer exists.';
 
   @override
   String get comments => 'Comments';

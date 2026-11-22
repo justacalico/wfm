@@ -584,6 +584,22 @@ class AppLocalizationsRu extends AppLocalizations {
   String get renderOnServer => 'Сервер';
 
   @override
+  String get renderNameTaken => 'Имя уже занято';
+
+  @override
+  String renderNameTakenBody(Object name) {
+    return 'Рендер с именем «$name» уже существует. Перезапись удалит старый рендер.';
+  }
+
+  @override
+  String get overwrite => 'Перезаписать';
+
+  @override
+  String useOtherName(Object name) {
+    return 'Использовать «$name»';
+  }
+
+  @override
   String get sequence => 'Секвенция';
 
   @override
@@ -1055,6 +1071,9 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get projectDuplicated => 'Копия создана';
+
+  @override
+  String get projectGone => 'Этот проект больше не существует.';
 
   @override
   String get comments => 'Комментарии';

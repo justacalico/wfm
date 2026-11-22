@@ -579,6 +579,22 @@ class AppLocalizationsZh extends AppLocalizations {
   String get renderOnServer => '服务器渲染';
 
   @override
+  String get renderNameTaken => '名称已被使用';
+
+  @override
+  String renderNameTakenBody(Object name) {
+    return '已存在名为“$name”的渲染，覆盖将清除旧渲染。';
+  }
+
+  @override
+  String get overwrite => '覆盖';
+
+  @override
+  String useOtherName(Object name) {
+    return '使用“$name”';
+  }
+
+  @override
   String get sequence => '序列';
 
   @override
@@ -1047,6 +1063,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get projectDuplicated => '已创建副本';
+
+  @override
+  String get projectGone => '该项目已不存在。';
 
   @override
   String get comments => '评论';

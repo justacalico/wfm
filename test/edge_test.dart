@@ -351,7 +351,7 @@ void main() {
       await t.tap(find.text('Render'));
       await settle(t);
       final body = posted();
-      expect(body['mode'], 'device');
+      expect(body['mode'], 'server');
       expect(body['sequence'], 21);
       expect(body['output'], 'export');
       final p = body['params'] as Map<String, dynamic>;
@@ -553,6 +553,87 @@ void main() {
       await t.tap(find.text('Render'));
       await settle(t);
       expect(find.byType(Notice), findsOneWidget);
+      await t.pumpWidget(const SizedBox());
+    });
+
+    testWidgets('taken output name offers overwrite or a suffixed name',
+        (t) async {
+      var posts = 0;
+      openEditorForTesting = (_) {};
+      await openDialog(t, extra: {
+        'GET /api/projects/p1/renders': (_) => [
+              {'id': 'r1', 'status': 'done', 'outputName': 'export'},
+              {'id': 'r2', 'status': 'done', 'outputName': 'export(1)'},
+            ],
+        'POST /api/projects/p1/renders': (_) {
+          posts++;
+          return {'id': 'r9', 'status': 'queued'};
+        },
+      });
+      await t.tap(find.text('Render'));
+      await settle(t);
+      expect(find.text('Name already in use'), findsOneWidget);
+      await t.tap(find.text('Use "export(2)"'));
+      await settle(t);
+      expect(posts, 1);
+      expect(posted()['output'], 'export(2)');
+      await t.pumpWidget(const SizedBox());
+    });
+
+    testWidgets('taken output name can be overwritten', (t) async {
+      var posts = 0;
+      openEditorForTesting = (_) {};
+      await openDialog(t, extra: {
+        'GET /api/projects/p1/renders': (_) => [
+              {'id': 'r1', 'status': 'done', 'outputName': 'export'},
+            ],
+        'POST /api/projects/p1/renders': (_) {
+          posts++;
+          return {'id': 'r9', 'status': 'queued'};
+        },
+      });
+      await t.tap(find.text('Render'));
+      await settle(t);
+      await t.tap(find.text('Overwrite'));
+      await settle(t);
+      expect(posts, 1);
+      expect(posted()['output'], 'export');
+      await t.pumpWidget(const SizedBox());
+    });
+
+    testWidgets('taken output name cancel aborts the submit', (t) async {
+      var posts = 0;
+      await openDialog(t, extra: {
+        'GET /api/projects/p1/renders': (_) => [
+              {'id': 'r1', 'status': 'done', 'outputName': 'export'},
+            ],
+        'POST /api/projects/p1/renders': (_) {
+          posts++;
+          return {'id': 'r9', 'status': 'queued'};
+        },
+      });
+      await t.tap(find.text('Render'));
+      await settle(t);
+      await t.tapAt(const Offset(5, 5));
+      await settle(t);
+      expect(posts, 0);
+      await t.pumpWidget(const SizedBox());
+    });
+
+    testWidgets('output name lookup failure shows a snack', (t) async {
+      var posts = 0;
+      await openDialog(t, extra: {
+        'GET /api/projects/p1/renders': (_) =>
+            http.Response('{"error":"list broke"}', 500),
+        'POST /api/projects/p1/renders': (_) {
+          posts++;
+          return {'id': 'r9', 'status': 'queued'};
+        },
+      });
+      await t.tap(find.text('Render'));
+      await settle(t);
+      expect(find.byType(Notice), findsOneWidget);
+      expect(posts, 0);
       await t.pumpWidget(const SizedBox());
     });
   });

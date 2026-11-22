@@ -1124,6 +1124,30 @@ abstract class AppLocalizations {
   /// **'Server'**
   String get renderOnServer;
 
+  /// No description provided for @renderNameTaken.
+  ///
+  /// In en, this message translates to:
+  /// **'Name already in use'**
+  String get renderNameTaken;
+
+  /// No description provided for @renderNameTakenBody.
+  ///
+  /// In en, this message translates to:
+  /// **'A render named \"{name}\" already exists. Overwriting it will wipe the old render.'**
+  String renderNameTakenBody(Object name);
+
+  /// No description provided for @overwrite.
+  ///
+  /// In en, this message translates to:
+  /// **'Overwrite'**
+  String get overwrite;
+
+  /// No description provided for @useOtherName.
+  ///
+  /// In en, this message translates to:
+  /// **'Use \"{name}\"'**
+  String useOtherName(Object name);
+
   /// No description provided for @sequence.
   ///
   /// In en, this message translates to:
@@ -1987,6 +2011,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Copy created'**
   String get projectDuplicated;
+
+  /// No description provided for @projectGone.
+  ///
+  /// In en, this message translates to:
+  /// **'This project no longer exists.'**
+  String get projectGone;
 
   /// No description provided for @comments.
   ///
