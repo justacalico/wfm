@@ -1,0 +1,68 @@
+diff --git a/crates/ui-egui/src/annotations.rs b/crates/ui-egui/src/annotations.rs
+index facf808..9224852 100644
+--- a/crates/ui-egui/src/annotations.rs
++++ b/crates/ui-egui/src/annotations.rs
+@@ -398,7 +398,6 @@ pub fn tools_menu(app: &mut ScriptApp, ui: &mut Ui) {
+             ui.close();
+         }
+         menu_item(app, ui, "Breakdown Report", "ui.breakdown");
+-        menu_item(app, ui, "Export Breakdown (CSV)…", "ui.exportBreakdown");
+     });
+ }
+ 
+@@ -496,9 +495,6 @@ pub fn breakdown_section(app: &mut ScriptApp, ui: &mut Ui, goto: &mut Option<usi
+     ui.add_space(18.0);
+     ui.horizontal(|ui| {
+         ui.label(RichText::new(lang.text("BREAKDOWN")).strong().size(12.0).color(t.accent));
+-        if ui.small_button(lang.text("Export CSV…")).clicked() {
+-            app.run("ui.exportBreakdown", json!({}));
+-        }
+     });
+     if cats.is_empty() {
+         ui.label(
+diff --git a/crates/ui-egui/src/chrome.rs b/crates/ui-egui/src/chrome.rs
+index 5884ae6..9a98626 100644
+--- a/crates/ui-egui/src/chrome.rs
++++ b/crates/ui-egui/src/chrome.rs
+@@ -172,13 +172,6 @@ pub fn menu_bar(app: &mut ScriptApp, ui: &mut Ui) {
+                 item(app, ui, "Save", "ui.save", "Mod+S");
+                 if !app.in_wfm {
+                     item(app, ui, "Save As…", "ui.saveAs", "Mod+Shift+S");
+-                }
+-                ui.separator();
+-                item(app, ui, "Print…", "ui.print", "Mod+P");
+-                item(app, ui, "Export PDF…", "ui.exportPdf", "");
+-                item(app, ui, "Export Final Draft (FDX)…", "ui.exportFdx", "");
+-                item(app, ui, "Export Fountain…", "ui.exportFountain", "");
+-                if !app.in_wfm {
+                     ui.separator();
+                     item(app, ui, "Collaborate…", "ui.collaborate", "");
+                     ui.separator();
+@@ -390,9 +383,8 @@ pub fn toolbar(app: &mut ScriptApp, ui: &mut Ui) {
+                     (Icon::New, lang.text("New script"), "file.new"),
+                     (Icon::Open, lang.text("Open…"), "ui.open"),
+                     (Icon::Save, lang.text("Save"), "ui.save"),
+-                    (Icon::Pdf, lang.text("Export PDF…"), "ui.exportPdf"),
+                 ] {
+-                    if app.in_wfm && !matches!(id, "ui.save" | "ui.exportPdf") {
++                    if app.in_wfm && id != "ui.save" {
+                         continue;
+                     }
+                     if icons::button(ui, icon, lang.text(tip), false).clicked() {
+diff --git a/crates/ui-egui/src/lib.rs b/crates/ui-egui/src/lib.rs
+index 25a28ea..1495926 100644
+--- a/crates/ui-egui/src/lib.rs
++++ b/crates/ui-egui/src/lib.rs
+@@ -531,6 +531,12 @@ impl ScriptApp {
+         {
+             return Err(CmdError::Disabled("not available inside WFM".into()));
+         }
++        // Scripts stay in the project: no printing, no exporting files out.
++        if matches!(id,
++            "ui.print" | "ui.printNow" | "ui.exportPdf" | "ui.exportFdx" | "ui.exportFountain" | "ui.exportBreakdown")
++        {
++            return Err(CmdError::Disabled("not available inside WFM".into()));
++        }
+         // Replacing a script with unsaved changes asks first (interactive windows only).
+         if self.dialogs
+             && self.session.dirty
