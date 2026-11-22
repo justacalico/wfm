@@ -392,11 +392,11 @@ abstract class AppLocalizations {
   /// **'No projects yet. Create one to get started.'**
   String get noProjects;
 
-  /// No description provided for @createdAgo.
+  /// No description provided for @editedAgo.
   ///
   /// In en, this message translates to:
-  /// **'Created {when}'**
-  String createdAgo(Object when);
+  /// **'Edited {when}'**
+  String editedAgo(Object when);
 
   /// No description provided for @editInFilmcraft.
   ///

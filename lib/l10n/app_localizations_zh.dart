@@ -160,8 +160,8 @@ class AppLocalizationsZh extends AppLocalizations {
   String get noProjects => '还没有项目，创建一个开始使用。';
 
   @override
-  String createdAgo(Object when) {
-    return '创建于 $when';
+  String editedAgo(Object when) {
+    return '编辑于 $when';
   }
 
   @override

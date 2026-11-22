@@ -719,7 +719,7 @@ class _UserProjectsPageState extends State<UserProjectsPage> {
                           child: ListTile(
                             title: Text(p.displayName),
                             subtitle: Text([
-                              l10n.createdAgo(fmtAgo(l10n, p.createdAt)),
+                              l10n.editedAgo(fmtAgo(l10n, p.lastActivity)),
                               if (p.status == 'submitted')
                                 l10n.statusSubmitted
                               else if (p.status == 'reviewed')

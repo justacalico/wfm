@@ -58,8 +58,8 @@
   "newProject": "New project",
   "projectName": "Project name",
   "noProjects": "No projects yet. Create one to get started.",
-  "createdAgo": "Created {when}",
-  "@createdAgo": {
+  "editedAgo": "Edited {when}",
+  "@editedAgo": {
     "placeholders": {
       "when": {}
     }
