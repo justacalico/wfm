@@ -2,6 +2,14 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.40.1 - 2026-11-22
+#### Bug Fixes
+- (**app**) 项目卡片显示上次编辑时间 - (6c113f8) - calico
+- (**app**) 系统主题按平台亮度传给编辑器 - (b95ee02) - calico
+- (**server**) 项目活动时间只在编辑操作时更新 - (036c3a2) - calico
+
+- - -
+
 ## v0.40.0 - 2026-11-22
 #### Features
 - (**scriptcraft**) 移除打印与文件导出 - (709142f) - calico
