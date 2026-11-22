@@ -2496,7 +2496,6 @@ async fn project_access(
 
 async fn read_project(s: &Arc<AppState>, session: &Session, id: &str) -> Result<Project, Response> {
     let (p, _) = project_access(s, session, id).await?;
-    let _ = s.db.touch_project(&p.id, AppState::now()).await;
     Ok(p)
 }
 
@@ -2561,7 +2560,6 @@ async fn get_project(
 ) -> Response {
     match project_access(&s, &session, &id).await {
         Ok((p, level)) => {
-            let _ = s.db.touch_project(&p.id, AppState::now()).await;
             let mut v = serde_json::to_value(&p).unwrap_or_default();
             if let Some(o) = v.as_object_mut() {
                 o.insert("access".into(), json!(level));
