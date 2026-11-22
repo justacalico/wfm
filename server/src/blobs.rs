@@ -331,6 +331,9 @@ impl Blobs for S3Blobs {
             .get_object_stream(self.key(key))
             .await
             .map_err(s3_err)?;
+        if !(200..300).contains(&resp.status_code) {
+            return Err("not found".into());
+        }
         // ResponseDataStream carries no headers; a HEAD is the only way to
         // learn the object's size.
         let len = self.head(key).await.unwrap_or(0);
@@ -364,11 +367,14 @@ impl Blobs for S3Blobs {
     }
 
     async fn head(&self, key: &str) -> Result<u64, String> {
-        let (obj, _code) = self
+        let (obj, code) = self
             .bucket
             .head_object(self.key(key))
             .await
             .map_err(s3_err)?;
+        if !(200..300).contains(&code) {
+            return Err(format!("not found ({code})"));
+        }
         Ok(obj.content_length.unwrap_or(0) as u64)
     }
 
