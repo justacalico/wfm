@@ -1060,6 +1060,9 @@ class AppLocalizationsGa extends AppLocalizations {
   String get projectDuplicated => 'Cóip cruthaithe';
 
   @override
+  String get projectGone => 'Níl an tionscadal seo ann a thuilleadh.';
+
+  @override
   String get comments => 'Nótaí tráchta';
 
   @override

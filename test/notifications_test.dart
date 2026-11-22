@@ -206,6 +206,31 @@ void main() {
     expect(find.byType(RendersTab), findsOneWidget);
   });
 
+  testWidgets('deleted project notification snacks instead of opening', (
+    t,
+  ) async {
+    installApi(extra: {
+      'GET /api/notifications': (_) => {
+            'list': [
+              notif('n5', 'render_done', payload: {
+                'name': 'final.mp4',
+                'project': 'p2',
+                'projectName': 'Gone'
+              }),
+            ],
+            'unread': 1
+          },
+      'GET /api/projects/p2': (_) =>
+          http.Response('{"error":"not found"}', 404),
+    });
+    await pump(t, const NotificationsPage());
+    await t.tap(find.textContaining('Render finished'));
+    await settle(t);
+    expect(find.byType(ProjectPage), findsNothing);
+    expect(find.textContaining('no longer exists'), findsWidgets);
+    await t.pumpWidget(const SizedBox());
+  });
+
   testWidgets('load more pages and error snack', (t) async {
     var calls = 0;
     installApi(extra: {

@@ -1057,6 +1057,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get projectDuplicated => 'Копия создана';
 
   @override
+  String get projectGone => 'Этот проект больше не существует.';
+
+  @override
   String get comments => 'Комментарии';
 
   @override

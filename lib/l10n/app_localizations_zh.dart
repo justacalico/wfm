@@ -1049,6 +1049,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get projectDuplicated => '已创建副本';
 
   @override
+  String get projectGone => '该项目已不存在。';
+
+  @override
   String get comments => '评论';
 
   @override

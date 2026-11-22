@@ -1056,6 +1056,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get projectDuplicated => 'Copy created';
 
   @override
+  String get projectGone => 'This project no longer exists.';
+
+  @override
   String get comments => 'Comments';
 
   @override

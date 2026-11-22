@@ -1988,6 +1988,12 @@ abstract class AppLocalizations {
   /// **'Copy created'**
   String get projectDuplicated;
 
+  /// No description provided for @projectGone.
+  ///
+  /// In en, this message translates to:
+  /// **'This project no longer exists.'**
+  String get projectGone;
+
   /// No description provided for @comments.
   ///
   /// In en, this message translates to:

@@ -479,6 +479,7 @@
   "markTemplate": "Mark as template",
   "unmarkTemplate": "Unmark template",
   "projectDuplicated": "Copy created",
+  "projectGone": "This project no longer exists.",
   "comments": "Comments",
   "noComments": "No comments yet",
   "writeComment": "Write a comment",

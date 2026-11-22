@@ -187,6 +187,12 @@ void main() {
           {'id': 'p1', 'name': 'n', 'displayName': 'N', 'createdAt': 1}
         ],
         'POST /api/projects': {'id': 'p2', 'name': 'n2', 'displayName': 'n2'},
+        'GET /api/projects/p1': {
+          'id': 'p1',
+          'name': 'n',
+          'displayName': 'N',
+          'createdAt': 1
+        },
         'GET /api/groups': [
           {'id': 'g1', 'name': 'Class A'}
         ],
@@ -204,6 +210,8 @@ void main() {
       }));
       final ps = await api.projects();
       expect(ps.single.id, 'p1');
+      final p1 = await api.project('p1');
+      expect(p1.displayName, 'N');
       final managed = await api.accountProjects('u2');
       expect(managed.single.id, 'sp');
       final p2 = await api.createProject('n2');

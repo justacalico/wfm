@@ -149,13 +149,20 @@ class _NotificationsPageState extends State<NotificationsPage> {
         if (pid.isEmpty) return;
         final tab =
             n.kind == 'render_done' || n.kind == 'render_failed' ? 1 : 0;
-        final p = Project.fromJson({
-          'id': pid,
-          'name': '${n.payload['projectName'] ?? ''}',
-          'access': 'edit',
-          'ownerId': 'x',
-          'ownerName': '',
-        });
+        final Project p;
+        try {
+          p = await Api.i.project(pid);
+        } catch (e) {
+          if (mounted) {
+            snack(
+                context,
+                e is ApiException && e.status == 404
+                    ? context.l10n.projectGone
+                    : e);
+          }
+          return;
+        }
+        if (!mounted) return;
         if (shell != null) {
           shell.openProject(p, tab: tab);
         } else {

@@ -479,6 +479,7 @@
   "markTemplate": "标记为模板",
   "unmarkTemplate": "取消模板标记",
   "projectDuplicated": "已创建副本",
+  "projectGone": "该项目已不存在。",
   "comments": "评论",
   "noComments": "还没有评论",
   "writeComment": "写评论",

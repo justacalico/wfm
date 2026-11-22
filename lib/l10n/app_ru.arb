@@ -479,6 +479,7 @@
   "markTemplate": "Сделать шаблоном",
   "unmarkTemplate": "Убрать шаблон",
   "projectDuplicated": "Копия создана",
+  "projectGone": "Этот проект больше не существует.",
   "comments": "Комментарии",
   "noComments": "Пока нет комментариев",
   "writeComment": "Написать комментарий",

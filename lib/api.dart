@@ -545,6 +545,9 @@ class Api {
   Future<List<Project>> projects() async =>
       [for (final e in (await get('/projects')) as List) Project.fromJson(e)];
 
+  Future<Project> project(String id) async =>
+      Project.fromJson(await get('/projects/$id'));
+
   Future<Project> createProject(String name, {String groupId = ''}) async =>
       Project.fromJson(await post('/projects', {
         'name': name,

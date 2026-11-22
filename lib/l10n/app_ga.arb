@@ -479,6 +479,7 @@
   "markTemplate": "Marcáil mar theimpléad",
   "unmarkTemplate": "Bain an marc teimpléid",
   "projectDuplicated": "Cóip cruthaithe",
+  "projectGone": "Níl an tionscadal seo ann a thuilleadh.",
   "comments": "Nótaí tráchta",
   "noComments": "Níl aon nóta tráchta fós",
   "writeComment": "Scríobh nóta tráchta",
