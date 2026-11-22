@@ -1,0 +1,28 @@
+diff --git a/apps/deckcraft/src/main.rs b/apps/deckcraft/src/main.rs
+index d71817c..7142408 100644
+--- a/apps/deckcraft/src/main.rs
++++ b/apps/deckcraft/src/main.rs
+@@ -316,9 +316,22 @@ fn main() -> eframe::Result {
+                 log::error!("sample: {e}");
+             }
+             // A .ppsx opened last starts its slide show (#862).
+-            for (f, e) in app.open_from_system(&files) {
++            let present: Vec<String> = files
++                .iter()
++                .filter(|f| std::path::Path::new(f.as_str()).exists())
++                .cloned()
++                .collect();
++            for (f, e) in app.open_from_system(&present) {
+                 log::error!("{f}: {e}");
+             }
++            if let Some(f) = files
++                .iter()
++                .rfind(|f| !std::path::Path::new(f.as_str()).exists())
++            {
++                if let Ok(doc) = app.session.doc_mut() {
++                    doc.path = Some(f.clone());
++                }
++            }
+             if show {
+                 app.start_show(0, false);
+             }

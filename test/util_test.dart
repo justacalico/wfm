@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wfm/api.dart';
 import 'package:wfm/l10n/app_localizations_en.dart';
 import 'package:wfm/platform.dart';
@@ -9,6 +10,7 @@ import 'package:wfm/util.dart';
 import 'helpers.dart';
 
 void main() {
+  setUp(() => SharedPreferences.setMockInitialValues({}));
   final l10n = AppLocalizationsEn();
 
   test('fmtBytes', () {
