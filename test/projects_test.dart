@@ -56,6 +56,30 @@ void main() {
       expect(find.byType(ProjectPage), findsNothing);
     });
 
+    testWidgets('system theme resolves to platform brightness for crafts',
+        (t) async {
+      installApi();
+      await t.binding.setSurfaceSize(const Size(1280, 800));
+      var opened = '';
+      openEditorForTesting = (u) => opened = u;
+      await t.pumpWidget(const WfmApp());
+      await settle(t);
+      await t
+          .tap(find.widgetWithText(ListTile, 'Projects').first)
+          .then((_) => settle(t));
+      await t.tap(find.text('Write script'));
+      await settle(t);
+      expect(opened,
+          contains('/scriptcraft/wfm.html?project=p1&theme=light'));
+      t.platformDispatcher.platformBrightnessTestValue = Brightness.dark;
+      addTearDown(t.platformDispatcher.clearPlatformBrightnessTestValue);
+      await settle(t);
+      await t.tap(find.text('Plan storyboard'));
+      await settle(t);
+      expect(opened, contains('/deckcraft/wfm.html?project=p1&theme=dark'));
+      await t.binding.setSurfaceSize(const Size(800, 600));
+    });
+
     testWidgets('project opens inside the shell and back returns', (t) async {
       installApi();
       await t.binding.setSurfaceSize(const Size(1280, 800));

@@ -12,8 +12,15 @@ import 'platform.dart';
 import 'uploads.dart';
 import 'util.dart';
 
-String? _theme(BuildContext c) =>
-    c.findAncestorStateOfType<WfmAppState>()?.appTheme.name;
+String? _theme(BuildContext c) {
+  final t = c.findAncestorStateOfType<WfmAppState>()?.appTheme;
+  if (t == AppTheme.system) {
+    return MediaQuery.platformBrightnessOf(c) == Brightness.dark
+        ? 'dark'
+        : 'light';
+  }
+  return t?.name;
+}
 
 class ProjectsPage extends StatefulWidget {
   const ProjectsPage({super.key});
