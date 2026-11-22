@@ -445,7 +445,12 @@ class Api {
 
   Future<dynamic> _go(Future<http.Response> Function() send) async {
     final r = await send();
-    final body = r.body.isEmpty ? null : jsonDecode(r.body);
+    dynamic body;
+    try {
+      body = r.body.isEmpty ? null : jsonDecode(r.body);
+    } on FormatException {
+      throw ApiException(r.statusCode, 'error ${r.statusCode}');
+    }
     if (r.statusCode == 401) {
       if (user != null) {
         user = null;

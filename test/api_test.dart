@@ -146,7 +146,7 @@ void main() {
         'GET /api/version': (_) => http.Response('garbage{', 200),
       });
       final api2 = Api(c2);
-      expect(() => api2.serverVersion(), throwsA(anything));
+      expect(() => api2.serverVersion(), throwsA(isA<ApiException>()));
       final c3 = FakeClient({
         'GET /api/version': (_) => http.Response('', 400),
       });

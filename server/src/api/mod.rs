@@ -6254,7 +6254,10 @@ async fn render_info(
     )
     .await
     {
-        Ok(()) => true,
+        Ok(()) => tokio::fs::metadata(&fcproj)
+            .await
+            .map(|m| m.len() > 0)
+            .unwrap_or(false),
         Err(_) => false,
     };
     if !got {
