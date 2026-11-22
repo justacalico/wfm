@@ -2,6 +2,14 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.40.0 - 2026-11-22
+#### Features
+- (**scriptcraft**) 移除打印与文件导出 - (709142f) - calico
+#### Bug Fixes
+- (**scriptcraft**) 脚本保存按文档格式写回原路径 - (2b15874) - calico
+
+- - -
+
 ## v0.39.0 - 2026-11-22
 #### Features
 - (**app**) 原生编辑器模式与本地检出同步 - (c4fee53) - calico
