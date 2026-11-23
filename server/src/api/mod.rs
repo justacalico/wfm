@@ -2985,6 +2985,8 @@ async fn list_comments(
 #[derive(Deserialize)]
 struct CommentReq {
     body: String,
+    #[serde(default, rename = "parentId")]
+    parent_id: String,
 }
 
 fn clean_comment(body: &str) -> Result<String, Response> {
@@ -3009,12 +3011,21 @@ async fn add_comment(
         Ok(b) => b,
         Err(r) => return r,
     };
+    let parent = req.parent_id.trim().to_string();
+    let mut parent_author = String::new();
+    if !parent.is_empty() {
+        match s.db.comment_by_id(&parent).await {
+            Ok(c) if c.project_id == id => parent_author = c.user_id,
+            _ => return err(StatusCode::NOT_FOUND, "no such comment"),
+        }
+    }
     if let Err(e) =
         s.db.comment_add(
             &model::new_id(),
             &id,
             &session.user.id,
             &body,
+            &parent,
             AppState::now(),
         )
         .await
@@ -3025,6 +3036,18 @@ async fn add_comment(
         s.notify(
             &p.owner_id,
             "comment",
+            json!({
+                "project": p.id,
+                "projectName": p.display_name,
+                "from": session.user.username,
+            }),
+        )
+        .await;
+    }
+    if !parent_author.is_empty() && parent_author != session.user.id {
+        s.notify(
+            &parent_author,
+            "reply",
             json!({
                 "project": p.id,
                 "projectName": p.display_name,

@@ -225,7 +225,14 @@ class RenderNode {
 }
 
 class ProjectComment {
-  final String id, projectId, userId, username, displayName, avatar, body;
+  final String id,
+      projectId,
+      userId,
+      username,
+      displayName,
+      avatar,
+      body,
+      parentId;
   final int createdAt, editedAt;
   ProjectComment.fromJson(Map<String, dynamic> j)
       : id = j['id'] ?? '',
@@ -235,6 +242,7 @@ class ProjectComment {
         displayName = j['displayName'] ?? j['username'] ?? '',
         avatar = j['avatar'] ?? '',
         body = j['body'] ?? '',
+        parentId = j['parentId'] ?? '',
         createdAt = j['createdAt'] ?? 0,
         editedAt = j['editedAt'] ?? 0;
   String get author => displayName.isEmpty ? username : displayName;
@@ -644,8 +652,9 @@ class Api {
           ProjectComment.fromJson(e)
       ];
 
-  Future<void> addComment(String pid, String body) =>
-      post('/projects/$pid/comments', {'body': body});
+  Future<void> addComment(String pid, String body, {String parentId = ''}) =>
+      post('/projects/$pid/comments',
+          {'body': body, if (parentId.isNotEmpty) 'parentId': parentId});
 
   Future<void> editComment(String pid, String cid, String body) =>
       patch('/projects/$pid/comments/$cid', {'body': body});

@@ -297,6 +297,7 @@ fn map_comment(r: &rusqlite::Row) -> rusqlite::Result<CommentView> {
         display_name: r.get(4)?,
         avatar: r.get(8)?,
         body: r.get(5)?,
+        parent_id: r.get(9)?,
         created_at: r.get(6)?,
         edited_at: r.get(7)?,
     })
@@ -1079,7 +1080,7 @@ impl Db for SqliteDb {
         let project = project.to_string();
         self.q(move |c| {
                 let mut st = c.prepare(
-                    "SELECT c.id,c.project_id,c.user_id,u.username,u.display_name,c.body,c.created_at,c.edited_at,u.avatar FROM project_comments c JOIN users u ON u.id=c.user_id WHERE c.project_id=? ORDER BY c.created_at"
+                    "SELECT c.id,c.project_id,c.user_id,u.username,u.display_name,c.body,c.created_at,c.edited_at,u.avatar,c.parent_id FROM project_comments c JOIN users u ON u.id=c.user_id WHERE c.project_id=? ORDER BY c.created_at"
                 )?;
                 let rows = st.query_map(params![project], map_comment)?;
                 rows.collect::<rusqlite::Result<Vec<_>>>()
@@ -1092,7 +1093,7 @@ impl Db for SqliteDb {
         let id = id.to_string();
         self.q(move |c| {
                 c.query_row(
-                    "SELECT c.id,c.project_id,c.user_id,u.username,u.display_name,c.body,c.created_at,c.edited_at,u.avatar FROM project_comments c JOIN users u ON u.id=c.user_id WHERE c.id=?",
+                    "SELECT c.id,c.project_id,c.user_id,u.username,u.display_name,c.body,c.created_at,c.edited_at,u.avatar,c.parent_id FROM project_comments c JOIN users u ON u.id=c.user_id WHERE c.id=?",
                     params![id],
                     map_comment,
                 )
@@ -1116,10 +1117,16 @@ impl Db for SqliteDb {
 
     async fn comment_delete(&self, id: &str) -> DbResult<bool> {
         let id = id.to_string();
-        self.q(move |c| c.execute("DELETE FROM project_comments WHERE id=?", params![id]))
-            .await
-            .map(|n| n > 0)
-            .map_err(dberr)
+        self.q(move |c| {
+            c.execute(
+                "UPDATE project_comments SET parent_id=(SELECT parent_id FROM project_comments WHERE id=?) WHERE parent_id=?",
+                params![id, id],
+            )?;
+            c.execute("DELETE FROM project_comments WHERE id=?", params![id])
+        })
+        .await
+        .map(|n| n > 0)
+        .map_err(dberr)
     }
 
     async fn comments_delete_project(&self, project: &str) -> DbResult<()> {

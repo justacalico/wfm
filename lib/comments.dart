@@ -14,6 +14,7 @@ class CommentsTab extends StatefulWidget {
 class _CommentsTabState extends State<CommentsTab> {
   final _c = TextEditingController();
   List<ProjectComment>? _items;
+  ProjectComment? _replyTo;
   String _err = '';
   bool _sending = false;
 
@@ -46,9 +47,15 @@ class _CommentsTabState extends State<CommentsTab> {
     if (body.isEmpty) return;
     setState(() => _sending = true);
     try {
-      await Api.i.addComment(widget.project.id, body);
+      await Api.i
+          .addComment(widget.project.id, body, parentId: _replyTo?.id ?? '');
       _c.clear();
-      if (mounted) setState(() => _sending = false);
+      if (mounted) {
+        setState(() {
+          _sending = false;
+          _replyTo = null;
+        });
+      }
       _load();
     } catch (e) {
       if (mounted) {
@@ -84,30 +91,54 @@ class _CommentsTabState extends State<CommentsTab> {
     final own = c.userId == Api.i.user?.id;
     final canDel = own || widget.project.mine;
     return Card(
-      child: ListTile(
-        leading: CircleAvatar(
-          radius: 16,
-          backgroundImage: c.avatar.isNotEmpty
-              ? NetworkImage(Api.i.avatarUrl(c.userId, c.avatar))
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        ListTile(
+          leading: CircleAvatar(
+            radius: 16,
+            backgroundImage: c.avatar.isNotEmpty
+                ? NetworkImage(Api.i.avatarUrl(c.userId, c.avatar))
+                : null,
+            onBackgroundImageError: c.avatar.isNotEmpty ? (_, __) {} : null,
+            child:
+                c.avatar.isNotEmpty ? null : const Icon(Icons.person_outline),
+          ),
+          title: Text(c.body),
+          subtitle: Text(
+              '${c.author}  ·  ${fmtAgo(l10n, c.createdAt)}${c.editedAt > 0 ? '  ·  ${l10n.edited}' : ''}'),
+          trailing: (own || canDel)
+              ? PopupMenuButton<String>(
+                  onSelected: (v) => v == 'edit' ? _edit(c) : _delete(c),
+                  itemBuilder: (_) => [
+                    if (own)
+                      PopupMenuItem(
+                          value: 'edit', child: Text(l10n.editComment)),
+                    PopupMenuItem(value: 'del', child: Text(l10n.delete)),
+                  ],
+                )
               : null,
-          onBackgroundImageError: c.avatar.isNotEmpty ? (_, __) {} : null,
-          child: c.avatar.isNotEmpty ? null : const Icon(Icons.person_outline),
         ),
-        title: Text(c.body),
-        subtitle: Text(
-            '${c.author}  ·  ${fmtAgo(l10n, c.createdAt)}${c.editedAt > 0 ? '  ·  ${l10n.edited}' : ''}'),
-        trailing: (own || canDel)
-            ? PopupMenuButton<String>(
-                onSelected: (v) => v == 'edit' ? _edit(c) : _delete(c),
-                itemBuilder: (_) => [
-                  if (own)
-                    PopupMenuItem(value: 'edit', child: Text(l10n.editComment)),
-                  PopupMenuItem(value: 'del', child: Text(l10n.delete)),
-                ],
-              )
-            : null,
-      ),
+        Padding(
+          padding: const EdgeInsets.only(left: 12, bottom: 4),
+          child: TextButton(
+            onPressed: () => setState(() => _replyTo = c),
+            child: Text(l10n.reply),
+          ),
+        ),
+      ]),
     );
+  }
+
+  List<Widget> _thread(AppLocalizations l10n, List<ProjectComment> all,
+      String parent, int depth) {
+    return [
+      for (final c in all.where((c) => c.parentId == parent)) ...[
+        Padding(
+          padding: EdgeInsets.only(left: depth > 6 ? 96.0 : depth * 16.0),
+          child: _comment(l10n, c),
+        ),
+        ..._thread(l10n, all, c.id, depth + 1),
+      ],
+    ];
   }
 
   @override
@@ -115,6 +146,7 @@ class _CommentsTabState extends State<CommentsTab> {
     final l10n = context.l10n;
     if (_err.isNotEmpty) return errorView(context, _err, _load);
     final items = _items;
+    final replyTo = _replyTo;
     return Column(children: [
       Expanded(
         child: items == null
@@ -123,9 +155,22 @@ class _CommentsTabState extends State<CommentsTab> {
                 ? Center(child: Text(l10n.noComments))
                 : ListView(
                     padding: const EdgeInsets.all(16),
-                    children: [for (final c in items) _comment(l10n, c)],
+                    children: _thread(l10n, items, '', 0),
                   ),
       ),
+      if (replyTo != null)
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 8, 0),
+          child: Row(children: [
+            Expanded(
+                child: Text(l10n.replyingTo(replyTo.author),
+                    overflow: TextOverflow.ellipsis)),
+            IconButton(
+              icon: const Icon(Icons.close, size: 18),
+              onPressed: () => setState(() => _replyTo = null),
+            ),
+          ]),
+        ),
       SafeArea(
         top: false,
         child: Padding(
@@ -134,7 +179,9 @@ class _CommentsTabState extends State<CommentsTab> {
             Expanded(
               child: TextField(
                 controller: _c,
-                decoration: InputDecoration(hintText: l10n.writeComment),
+                decoration: InputDecoration(
+                    hintText:
+                        replyTo == null ? l10n.writeComment : l10n.writeReply),
                 onSubmitted: (_) => _post(),
               ),
             ),

@@ -155,6 +155,7 @@ pub trait Db: Send + Sync {
         project: &str,
         user: &str,
         body: &str,
+        parent: &str,
         ts: i64,
     ) -> DbResult<()>;
     async fn comments_for(&self, project: &str) -> DbResult<Vec<CommentView>>;
