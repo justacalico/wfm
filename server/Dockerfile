@@ -51,6 +51,7 @@ WORKDIR /src
 COPY server/ ./server/
 COPY filmcraft/shortcuts.json ./filmcraft/shortcuts.json
 COPY scriptcraft/shortcuts.json ./scriptcraft/shortcuts.json
+COPY deckcraft/shortcuts.json ./deckcraft/shortcuts.json
 COPY --from=web /app/build/web ./server/web/app/
 WORKDIR /src/server
 RUN cargo build --release --features postgres
