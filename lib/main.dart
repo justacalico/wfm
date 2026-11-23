@@ -759,6 +759,7 @@ class ShellState extends State<Shell> {
   int _page = 0;
   Project? _open;
   int _openTab = 0;
+  User? _openUser;
   int _pending = 0;
   int _unread = 0;
 
@@ -789,6 +790,7 @@ class ShellState extends State<Shell> {
   void go(int i) => setState(() {
         _page = i;
         _open = null;
+        _openUser = null;
       });
 
   void openProject(Project p, {int tab = 0}) => setState(() {
@@ -797,6 +799,21 @@ class ShellState extends State<Shell> {
       });
 
   void closeProject() => setState(() => _open = null);
+
+  void openUser(User u) => setState(() => _openUser = u);
+
+  void closeUser() => setState(() => _openUser = null);
+
+  Widget _body(List<Widget> pages) {
+    if (_open != null) {
+      return ProjectPage(
+          project: _open!, onBack: closeProject, initialTab: _openTab);
+    }
+    if (_openUser != null) {
+      return UserProjectsPage(user: _openUser!, onBack: closeUser);
+    }
+    return pages[_page];
+  }
 
   List<(IconData, String)> _items(AppLocalizations l10n, bool showManage) => [
         (Icons.home_outlined, l10n.navHome),
@@ -924,30 +941,21 @@ class ShellState extends State<Shell> {
     return LayoutBuilder(builder: (context, box) {
       if (box.maxWidth < 720) {
         return Scaffold(
-          appBar: _open == null
+          appBar: _open == null && _openUser == null
               ? AppBar(title: Text(_items(l10n, showManage)[_page].$2))
               : null,
           drawer: Drawer(
               child: SafeArea(
                   child: _navColumn(l10n,
                       onTap: () => Navigator.of(context).pop()))),
-          body: _open != null
-              ? ProjectPage(
-                  project: _open!, onBack: closeProject, initialTab: _openTab)
-              : pages[_page],
+          body: _body(pages),
         );
       }
       return Scaffold(
         body: Row(children: [
           SizedBox(width: 240, child: SafeArea(child: _navColumn(l10n))),
           const VerticalDivider(width: 1),
-          Expanded(
-              child: _open != null
-                  ? ProjectPage(
-                      project: _open!,
-                      onBack: closeProject,
-                      initialTab: _openTab)
-                  : pages[_page]),
+          Expanded(child: _body(pages)),
         ]),
       );
     });

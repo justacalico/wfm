@@ -298,8 +298,15 @@ class _AccountsTabState extends State<AccountsTab> {
                                 '${u.username}${u.studentId.isNotEmpty ? " · ${u.studentId}" : ""}${u.note.isNotEmpty ? " · ${u.note}" : ""}',
                                 fmtAgo(l10n, u.lastLogin))),
                         trailing: tight ? null : actions,
-                        onTap: () => Navigator.of(c).push(MaterialPageRoute(
-                            builder: (_) => UserProjectsPage(user: u))),
+                        onTap: () {
+                          final shell = c.findAncestorStateOfType<ShellState>();
+                          if (shell != null) {
+                            shell.openUser(u);
+                          } else {
+                            Navigator.of(c).push(MaterialPageRoute(
+                                builder: (_) => UserProjectsPage(user: u)));
+                          }
+                        },
                       );
                     },
                   );
@@ -664,7 +671,8 @@ class _CoTeacherDialogState extends State<_CoTeacherDialog> {
 /// action offered since everything else stays under the owner's control.
 class UserProjectsPage extends StatefulWidget {
   final User user;
-  const UserProjectsPage({super.key, required this.user});
+  final VoidCallback? onBack;
+  const UserProjectsPage({super.key, required this.user, this.onBack});
   @override
   State<UserProjectsPage> createState() => _UserProjectsPageState();
 }
@@ -709,45 +717,60 @@ class _UserProjectsPageState extends State<UserProjectsPage> {
     final l10n = context.l10n;
     final u = widget.user;
     final items = _items;
+    final body = _err.isNotEmpty
+        ? errorView(context, _err, _load)
+        : items == null
+            ? const Center(child: CircularProgressIndicator())
+            : items.isEmpty
+                ? Center(child: Text(l10n.userProjectsEmpty))
+                : ListView(padding: const EdgeInsets.all(16), children: [
+                    for (final p in items)
+                      Card(
+                        clipBehavior: Clip.antiAlias,
+                        child: ListTile(
+                          title: Text(p.displayName),
+                          subtitle: Text([
+                            l10n.editedAgo(fmtAgo(l10n, p.lastActivity)),
+                            if (p.status == 'submitted')
+                              l10n.statusSubmitted
+                            else if (p.status == 'reviewed')
+                              l10n.statusReviewed,
+                          ].join('  ·  ')),
+                          trailing: p.canTakeOver
+                              ? PopupMenuButton<String>(
+                                  iconSize: 18,
+                                  onSelected: (_) => _takeOver(p),
+                                  itemBuilder: (_) => [
+                                    PopupMenuItem(
+                                        value: 'take',
+                                        child: Text(l10n.takeOver)),
+                                  ],
+                                )
+                              : null,
+                          onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                  builder: (_) => ProjectPage(project: p))),
+                        ),
+                      ),
+                  ]);
+    if (widget.onBack != null) {
+      return Column(children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(8, 8, 16, 0),
+          child: Row(children: [
+            IconButton(
+                icon: const Icon(Icons.arrow_back), onPressed: widget.onBack),
+            Text(l10n.userProjects(u.name.isEmpty ? u.username : u.name),
+                style: Theme.of(context).textTheme.titleLarge),
+          ]),
+        ),
+        Expanded(child: body),
+      ]);
+    }
     return Scaffold(
       appBar: AppBar(
           title: Text(l10n.userProjects(u.name.isEmpty ? u.username : u.name))),
-      body: _err.isNotEmpty
-          ? errorView(context, _err, _load)
-          : items == null
-              ? const Center(child: CircularProgressIndicator())
-              : items.isEmpty
-                  ? Center(child: Text(l10n.userProjectsEmpty))
-                  : ListView(padding: const EdgeInsets.all(16), children: [
-                      for (final p in items)
-                        Card(
-                          clipBehavior: Clip.antiAlias,
-                          child: ListTile(
-                            title: Text(p.displayName),
-                            subtitle: Text([
-                              l10n.editedAgo(fmtAgo(l10n, p.lastActivity)),
-                              if (p.status == 'submitted')
-                                l10n.statusSubmitted
-                              else if (p.status == 'reviewed')
-                                l10n.statusReviewed,
-                            ].join('  ·  ')),
-                            trailing: p.canTakeOver
-                                ? PopupMenuButton<String>(
-                                    iconSize: 18,
-                                    onSelected: (_) => _takeOver(p),
-                                    itemBuilder: (_) => [
-                                      PopupMenuItem(
-                                          value: 'take',
-                                          child: Text(l10n.takeOver)),
-                                    ],
-                                  )
-                                : null,
-                            onTap: () => Navigator.of(context).push(
-                                MaterialPageRoute(
-                                    builder: (_) => ProjectPage(project: p))),
-                          ),
-                        ),
-                    ]),
+      body: body,
     );
   }
 }
