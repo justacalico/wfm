@@ -1142,6 +1142,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get scriptcraftShortcuts => 'ScriptCraft shortcuts';
 
   @override
+  String get deckcraftShortcuts => 'DeckCraft shortcuts';
+
+  @override
   String get searchShortcuts => 'Search actions';
 
   @override
@@ -1681,6 +1684,9 @@ class AppLocalizationsEnGb extends AppLocalizationsEn {
 
   @override
   String get scriptcraftShortcuts => 'ScriptCraft shortcuts';
+
+  @override
+  String get deckcraftShortcuts => 'DeckCraft shortcuts';
 
   @override
   String get searchShortcuts => 'Search actions';

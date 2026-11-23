@@ -2132,6 +2132,12 @@ abstract class AppLocalizations {
   /// **'ScriptCraft shortcuts'**
   String get scriptcraftShortcuts;
 
+  /// No description provided for @deckcraftShortcuts.
+  ///
+  /// In en, this message translates to:
+  /// **'DeckCraft shortcuts'**
+  String get deckcraftShortcuts;
+
   /// No description provided for @searchShortcuts.
   ///
   /// In en, this message translates to:

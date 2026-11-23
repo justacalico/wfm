@@ -1,0 +1,450 @@
+diff --git a/crates/engine/src/keys.rs b/crates/engine/src/keys.rs
+index 0501a02..b571cd6 100644
+--- a/crates/engine/src/keys.rs
++++ b/crates/engine/src/keys.rs
+@@ -44,7 +44,31 @@ pub fn key_token(key: &str) -> String {
+     .to_string()
+ }
+ 
++/// File commands and dialogs have a UI twin: the engine default and the host binding live under
++/// different ids, so a rebind must hide the twin's default too.
++fn ui_alias(id: &str) -> Option<&'static str> {
++    Some(match id {
++        "file.open" => "app.openDialog",
++        "app.openDialog" => "file.open",
++        "file.saveAs" => "app.saveAsDialog",
++        "app.saveAsDialog" => "file.saveAs",
++        "file.close" => "app.closePresentation",
++        "app.closePresentation" => "file.close",
++        _ => return None,
++    })
++}
++
+ impl Session {
++    /// The binding a host page set for `id` (or its twin), or the compiled-in `default` when the
++    /// page manages no shortcuts. `""` unbinds a command; ` / ` lists alternates.
++    pub fn bound_key<'a>(&'a self, id: &str, default: Option<&'a str>) -> Option<&'a str> {
++        self.wfm_keys
++            .get(id)
++            .or_else(|| ui_alias(id).and_then(|a| self.wfm_keys.get(a)))
++            .map(String::as_str)
++            .or(default)
++    }
++
+     /// Handle one key press. `key` is a name (`Enter`, `Escape`, `Backspace`, `Delete`, `Tab`,
+     /// `ArrowLeft`…, `Home`, `End`, `PageUp`, `PageDown`, `F5`) or a character (`b`, `]`).
+     /// Returns `{handled: bool, …}`.
+@@ -177,7 +201,10 @@ impl Session {
+             "space" | " " => "Space",
+             _ => k,
+         };
+-        let found = crate::command_specs().iter().find(|c| c.shortcut.is_some_and(|s| shortcut_matches(s, key_name, mods))).map(|c| c.id);
++        let found = crate::command_specs()
++            .iter()
++            .find(|c| self.bound_key(c.id, c.shortcut).is_some_and(|s| s.split(" / ").any(|k| shortcut_matches(k, key_name, mods))))
++            .map(|c| c.id);
+         if let Some(id) = found {
+             let r = self.execute(id, &json!({}))?;
+             return Ok(json!({"handled": true, "command": id, "result": r}));
+@@ -353,6 +380,23 @@ mod tests {
+         assert!(shortcut_matches("Delete", "Delete", m(false, false, false)));
+     }
+ 
++    #[test]
++    fn host_bindings_replace_default_shortcuts() {
++        let mut s = Session::with_new();
++        let title = s.doc().unwrap().current_slide().unwrap().shapes[0].id.0;
++        s.execute("edit.select", &json!({"ids": [title]})).unwrap();
++        s.wfm_keys.insert("format.bold".to_string(), "Cmd+Shift+B".to_string());
++        s.wfm_keys.insert("format.italic".to_string(), String::new());
++        s.wfm_keys.insert("app.openDialog".to_string(), "Cmd+Alt+O".to_string());
++        assert_eq!(s.bound_key("file.open", Some("Cmd+O")), Some("Cmd+Alt+O"), "the UI twin's binding covers the engine id");
++        let r = s.key("b", Mods { cmd: true, ..Default::default() }).unwrap();
++        assert_eq!(r["handled"], false, "rebound away, Cmd+B no longer bolds");
++        let r = s.key("b", Mods { cmd: true, shift: true, ..Default::default() }).unwrap();
++        assert_eq!(r["command"], "format.bold");
++        let r = s.key("i", Mods { cmd: true, ..Default::default() }).unwrap();
++        assert_eq!(r["handled"], false, "an empty binding unbinds");
++    }
++
+     #[test]
+     fn keys_drive_editing() {
+         let mut s = Session::with_new();
+diff --git a/crates/engine/src/lib.rs b/crates/engine/src/lib.rs
+index 754a64f..a28a673 100644
+--- a/crates/engine/src/lib.rs
++++ b/crates/engine/src/lib.rs
+@@ -510,6 +510,9 @@ pub struct Session {
+     /// ends) instead of Windows and Linux (Ctrl+arrows by word or paragraph). Defaults to the
+     /// platform DeckCraft was built for.
+     pub mac_keys: bool,
++    /// Key bindings a host page pushed (`command id` → keys, `""` unbinds, ` / ` lists
++    /// alternates); the only source of shortcuts when the page manages them.
++    pub wfm_keys: std::collections::HashMap<String, String>,
+     /// Command panics caught by the guard (the document was rolled back); soak tests require 0.
+     pub panics_caught: u64,
+     /// Presentations a host read off the UI thread, waiting for `file.adopt` (by token).
+@@ -547,6 +550,7 @@ impl Session {
+             media_status: Default::default(),
+             gif_paused: Default::default(),
+             mac_keys: cfg!(target_os = "macos"),
++            wfm_keys: Default::default(),
+             panics_caught: 0,
+             loaded: vec![],
+             next_loaded: 0,
+diff --git a/crates/ui-egui/src/app.rs b/crates/ui-egui/src/app.rs
+index 7b39262..786b6f5 100644
+--- a/crates/ui-egui/src/app.rs
++++ b/crates/ui-egui/src/app.rs
+@@ -17,7 +17,7 @@ pub(crate) mod files;
+ mod frame;
+ mod ime;
+ mod input;
+-mod keys;
++pub(crate) mod keys;
+ mod playback;
+ 
+ #[cfg(test)]
+diff --git a/crates/ui-egui/src/app/files.rs b/crates/ui-egui/src/app/files.rs
+index 114df21..0ede35e 100644
+--- a/crates/ui-egui/src/app/files.rs
++++ b/crates/ui-egui/src/app/files.rs
+@@ -556,6 +556,23 @@ impl SlideApp {
+     /// readable presentation, instead names that empty presentation: the page has no usable file
+     /// yet, so the first Save creates the one it asked for.
+     pub fn open_from_host(&mut self, name: Option<&str>, bytes: &[u8]) {
++        // A `wfm:` name is a page control message, not a file: `{"k":"shortcuts","b":{…}}` carries
++        // the user's key map, the only bindings the session keeps ("" unbinds a command).
++        if let Some(meta) = name.and_then(|n| n.strip_prefix("wfm:")) {
++            if let Ok(meta) = serde_json::from_str::<Value>(meta)
++                && meta["k"].as_str() == Some("shortcuts")
++                && let Some(b) = meta["b"].as_object()
++            {
++                self.session.wfm_keys = b
++                    .iter()
++                    .filter_map(|(k, v)| {
++                        let keys = v.as_str().filter(|s| s.chars().count() <= 100)?;
++                        (!k.is_empty()).then(|| (k.clone(), keys.to_string()))
++                    })
++                    .collect();
++            }
++            return;
++        }
+         let blank = self.host_start.filter(|&uid| self.session.documents().iter().any(|d| d.uid == uid && d.path.is_none() && !d.is_dirty()));
+         let before = self.session.documents().len();
+         let shown = name.unwrap_or("Presentation");
+diff --git a/crates/ui-egui/src/host_save_tests.rs b/crates/ui-egui/src/host_save_tests.rs
+index 035db82..db2bf46 100644
+--- a/crates/ui-egui/src/host_save_tests.rs
++++ b/crates/ui-egui/src/host_save_tests.rs
+@@ -266,6 +266,21 @@ fn an_unreadable_file_still_names_the_empty_presentation() {
+     assert_eq!(calls(&got), [("boards.deckcraft".to_string(), false)]);
+ }
+ 
++/// A `wfm:` name is the page's control channel, not a file: `{"k":"shortcuts"}` replaces the
++/// session's key map, malformed entries are dropped, and nothing opens.
++#[test]
++fn host_shortcut_messages_set_the_key_map() {
++    let (mut app, _got) = host_app(false);
++    app.open_from_host(Some("wfm:{\"k\":\"shortcuts\",\"b\":{\"file.save\":\"Cmd+Alt+S\",\"edit.undo\":\"\",\"bad\":2,\"\":\"K\"}}"), &[]);
++    assert_eq!(app.session.wfm_keys.len(), 2);
++    assert_eq!(app.session.bound_key("file.save", Some("Cmd+S")), Some("Cmd+Alt+S"));
++    assert_eq!(app.session.bound_key("edit.undo", Some("Cmd+Z")), Some(""));
++    assert_eq!(app.session.documents().len(), 1, "the message opened no file");
++    app.open_from_host(Some("wfm:not json"), &[]);
++    assert_eq!(app.session.documents().len(), 1);
++    assert_eq!(path(&app), None, "a bogus control message named nothing");
++}
++
+ /// A hosted page has no File tab: the Backstage never opens, the theme is the page's, and the
+ /// Design Ideas pane does not exist.
+ #[test]
+diff --git a/crates/ui-egui/src/lib.rs b/crates/ui-egui/src/lib.rs
+index 6937971..08171a2 100644
+--- a/crates/ui-egui/src/lib.rs
++++ b/crates/ui-egui/src/lib.rs
+@@ -110,7 +110,7 @@ pub const UI_COMMANDS: &[(&str, &str, Option<&str>, &str)] = &[
+     ("view.zoomOut", "Zoom Out", Some("Cmd+-"), "{}"),
+     ("view.zoom", "Set Zoom", None, "{percent}"),
+     ("view.zoomDialog", "Zoom…", None, "{}"),
+-    ("view.fit", "Fit to Window", None, "{}"),
++    ("view.fit", "Fit to Window", Some("Cmd+0"), "{}"),
+     ("view.pane", "Task Pane", None, "{pane: format|animation|selection|comments|designer|background|smartart|null}"),
+     ("review.thesaurusPane", "Thesaurus", Some("Shift+F7"), "{word?}: open the Thesaurus pane on the selected word"),
+     ("view.tab", "Ribbon Tab", None, "{tab}"),
+@@ -141,14 +141,14 @@ pub const UI_COMMANDS: &[(&str, &str, Option<&str>, &str)] = &[
+     ("app.checkUpdates", "Check for Updates…", None, "{}"),
+     ("app.palette", "Command Palette", Some("Cmd+Shift+P"), "{}"),
+     ("app.preferences", "Preferences…", Some("Cmd+,"), "{}"),
+-    ("app.openDialog", "Open…", None, "{purpose?}"),
++    ("app.openDialog", "Open…", Some("Cmd+O"), "{purpose?}"),
+     ("app.insertPictureDialog", "Picture from File…", None, "{}"),
+     ("app.smartArtPictureDialog", "Insert Picture in SmartArt…", None, "{id?, index}"),
+     ("app.changePictureDialog", "Change Picture…", None, "{}"),
+     ("app.insertAudioDialog", "Audio from File…", None, "{}"),
+     ("app.reuseSlidesDialog", "Reuse Slides…", None, "{keepFormatting?: bool}"),
+     ("app.insertVideoDialog", "Video from File…", None, "{}"),
+-    ("app.saveAsDialog", "Save As…", None, "{}"),
++    ("app.saveAsDialog", "Save As…", Some("Cmd+Shift+S"), "{}"),
+     ("app.exportDialog", "Export…", None, "{}"),
+     ("app.browseThemeDialog", "Browse for Themes…", None, "{}"),
+     ("app.compareDialog", "Compare…", None, "{}"),
+diff --git a/crates/ui-egui/src/menus.rs b/crates/ui-egui/src/menus.rs
+index fb4c50f..1918961 100644
+--- a/crates/ui-egui/src/menus.rs
++++ b/crates/ui-egui/src/menus.rs
+@@ -7,71 +7,115 @@ use serde_json::json;
+ use crate::SlideApp;
+ use crate::theme::{self, Tokens};
+ 
++/// The press `sc` still belongs to `id`: true while the host leaves the command unbound or keeps
++/// `sc` among its pushed bindings (`""` unbinds, ` / ` lists alternates).
++fn still(app: &SlideApp, id: &str, sc: &str) -> bool {
++    app.session.bound_key(id, Some(sc)).is_some_and(|b| b.split(" / ").any(|k| k.eq_ignore_ascii_case(sc)))
++}
++
++/// The command the host page bound to this press, if any. A rebound key beats every built-in
++/// default below; modifier-free presses still type text, so only function and navigation keys
++/// can own a binding without a modifier.
++fn bound_command(app: &SlideApp, key: egui::Key, m: Mods) -> Option<String> {
++    if app.session.wfm_keys.is_empty() {
++        return None;
++    }
++    let token = deckcraft_engine::keys::key_token(crate::app::keys::key_name(key));
++    let token = token.strip_prefix("num").map_or_else(|| token.clone(), str::to_string);
++    if !m.cmd && !m.alt {
++        let fn_key = token.strip_prefix('f').is_some_and(|n| !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()));
++        if !fn_key && !matches!(token.as_str(), "insert" | "pageup" | "pagedown") {
++            return None;
++        }
++    }
++    let hits = |id: &str| {
++        app.session.bound_key(id, Some("")).is_some_and(|b| {
++            !b.is_empty() && b.split(" / ").any(|k| deckcraft_engine::keys::shortcut_matches(k, &token, m))
++        })
++    };
++    crate::UI_COMMANDS
++        .iter()
++        .map(|c| c.0)
++        .chain(deckcraft_engine::command_specs().iter().map(|c| c.id))
++        .find(|id| hits(id))
++        .map(str::to_string)
++}
++
+ /// Shortcuts the UI handles itself (views, show, zoom, palette, file dialogs). True when consumed.
+ pub fn ui_shortcut(app: &mut SlideApp, key: egui::Key, m: Mods) -> bool {
+     use egui::Key::*;
+-    if key == A && m.cmd && !m.shift && !m.alt && app.slides_list_focused() {
++    if let Some(id) = bound_command(app, key, m) {
++        let p = if id == "edit.selectAll" && app.slides_list_focused() { json!({"scope": "slides"}) } else { json!({}) };
++        let _ = app.run(&id, p);
++        return true;
++    }
++    if key == A && m.cmd && !m.shift && !m.alt && still(app, "edit.selectAll", "Cmd+A") && app.slides_list_focused() {
+         // The engine can't see which pane has focus, so the UI says so through the scope param.
+         let _ = app.run("edit.selectAll", json!({"scope": "slides"}));
+         return true;
+     }
+     let id = match (key, m.cmd, m.shift, m.alt) {
+-        (F5, _, false, _) => {
++        (F5, _, false, _) if still(app, "show.start", "F5") => {
+             app.start_show(app.show_start_index(), false);
+             return true;
+         }
+-        (F5, _, true, _) | (Enter, true, false, false) => {
++        (F5, _, true, _) if still(app, "show.fromCurrent", "Shift+F5") => {
++            let i = app.session.active().map(|d| d.selection.slide).unwrap_or(0);
++            app.start_show(i, false);
++            return true;
++        }
++        (Enter, true, false, false) if still(app, "show.fromCurrent", "Cmd+Enter") => {
+             let i = app.session.active().map(|d| d.selection.slide).unwrap_or(0);
+             app.start_show(i, false);
+             return true;
+         }
+-        (Enter, true, true, _) => {
++        (Enter, true, true, _) if still(app, "show.fromStart", "Cmd+Shift+Enter") => {
+             app.start_show(app.show_start_index(), false);
+             return true;
+         }
+-        (S, true, false, false) => {
++        (S, true, false, false) if still(app, "file.save", "Cmd+S") => {
+             app.save();
+             return true;
+         }
+-        (S, true, true, false) => "app.saveAsDialog",
++        (S, true, true, false) if still(app, "app.saveAsDialog", "Cmd+Shift+S") => "app.saveAsDialog",
+         // File tab: Alt+F opens it on Home with the keyboard in its side menu; Ctrl+P on Print.
+-        (F, false, false, true) => {
++        (F, false, false, true) if still(app, "app.backstage", "Alt+F") => {
+             app.open_backstage(crate::backstage::Page::Home);
+             if let Some(b) = app.backstage.as_mut() {
+                 b.focus = Some(0);
+             }
+             return true;
+         }
+-        (P, true, false, false) => {
++        (P, true, false, false) if still(app, "app.print", "Cmd+P") => {
+             if app.session.active().is_none() {
+                 return false;
+             }
+             app.open_backstage(crate::backstage::Page::Print);
+             return true;
+         }
+-        (W, true, false, false) => {
++        (W, true, false, false) if still(app, "app.closePresentation", "Cmd+W") => {
+             app.close_presentation();
+             return true;
+         }
+-        (O, true, false, false) => "app.openDialog",
+-        (V, true, false, true) if app.session.active().is_some() => {
++        (O, true, false, false) if still(app, "app.openDialog", "Cmd+O") => "app.openDialog",
++        (V, true, false, true) if app.session.active().is_some() && still(app, "app.pasteSpecial", "Cmd+Alt+V") => {
+             app.dialog = Some(crate::dialogs::Dialog::new("pasteSpecial"));
+             return true;
+         }
+-        (P, true, true, false) => "app.palette",
+-        (Comma, true, false, false) => "app.preferences",
+-        (Equals | Plus, true, false, false) => "view.zoomIn",
+-        (Minus, true, false, false) => "view.zoomOut",
+-        (Num0, true, false, false) => "view.fit",
+-        (F1, true, false, false) => "view.collapseRibbon",
+-        (F9, false, true, false) => "view.gridlines",
+-        (F9, false, false, true) => "view.guides",
+-        (K, true, false, false) => {
++        (P, true, true, false) if still(app, "app.palette", "Cmd+Shift+P") => "app.palette",
++        (Comma, true, false, false) if still(app, "app.preferences", "Cmd+,") => "app.preferences",
++        (Equals | Plus, true, false, false) if still(app, "view.zoomIn", "Cmd+=") => "view.zoomIn",
++        (Minus, true, false, false) if still(app, "view.zoomOut", "Cmd+-") => "view.zoomOut",
++        (Num0, true, false, false) if still(app, "view.fit", "Cmd+0") => "view.fit",
++        (F1, true, false, false) if still(app, "view.collapseRibbon", "Cmd+F1") => "view.collapseRibbon",
++        (F9, false, true, false) if still(app, "view.gridlines", "Shift+F9") => "view.gridlines",
++        (F9, false, false, true) if still(app, "view.guides", "Alt+F9") => "view.guides",
++        (K, true, false, false) if still(app, "insert.hyperlink", "Cmd+K") => {
+             app.dialog = Some(crate::dialogs::Dialog::new("hyperlink"));
+             return true;
+         }
+-        (F, true, false, false) => "app.find",
+-        (H, true, false, false) => "app.replace",
++        (F, true, false, false) if still(app, "app.find", "Cmd+F") => "app.find",
++        (H, true, false, false) if still(app, "app.replace", "Cmd+H") => "app.replace",
+         (Num1 | Num2 | Num3 | Num4 | Num5 | Num6 | Num7 | Num8 | Num9, false, false, true) => {
+             if app.session.mac_keys || app.backstage.is_some() || app.session.active().is_some_and(|d| d.selection.text.is_some()) {
+                 return false;
+@@ -98,14 +142,19 @@ pub fn ui_shortcut(app: &mut SlideApp, key: egui::Key, m: Mods) -> bool {
+ 
+ /// The palette's entries for the lowercase query `q`. An engine command is hidden when a UI command has the same label: Open…, Save As…,
+ /// Export… and Audio/Video from File… need a `path` the palette can't give, so the one entry left opens the dialog instead of failing.
+-fn palette_items(session: &deckcraft_engine::Session, q: &str) -> Vec<(String, String, Option<&'static str>)> {
+-    let mut items: Vec<(String, String, Option<&'static str>)> = session
++fn palette_items(session: &deckcraft_engine::Session, q: &str) -> Vec<(String, String, Option<String>)> {
++    let mut items: Vec<(String, String, Option<String>)> = session
+         .commands()
+         .into_iter()
+         // Commands that need a path or other value fail when the palette runs them with `{}`.
+         .filter(|c| c.enabled && !crate::UI_COMMANDS.iter().any(|u| u.1 == c.label) && !deckcraft_engine::cmd::needs_arguments(c.params))
+-        .map(|c| (c.id.to_string(), c.label.to_string(), c.shortcut))
+-        .chain(crate::UI_COMMANDS.iter().filter(|c| !deckcraft_engine::cmd::needs_arguments(c.3)).map(|c| (c.0.to_string(), c.1.to_string(), c.2)))
++        .map(|c| (c.id.to_string(), c.label.to_string(), session.bound_key(c.id, c.shortcut).map(str::to_string)))
++        .chain(
++            crate::UI_COMMANDS
++                .iter()
++                .filter(|c| !deckcraft_engine::cmd::needs_arguments(c.3))
++                .map(|c| (c.0.to_string(), c.1.to_string(), session.bound_key(c.0, c.2).map(str::to_string))),
++        )
+         .filter(|(id, label, _)| q.is_empty() || label.to_lowercase().contains(q) || id.to_lowercase().contains(q))
+         .collect();
+     items.sort_by_key(|(_, l, _)| !l.to_lowercase().starts_with(q));
+diff --git a/crates/ui-egui/src/ribbon.rs b/crates/ui-egui/src/ribbon.rs
+index a33ab67..182d235 100644
+--- a/crates/ui-egui/src/ribbon.rs
++++ b/crates/ui-egui/src/ribbon.rs
+@@ -307,7 +307,7 @@ fn big(app: &mut SlideApp, ui: &mut Ui, icon: Icon, label: &str, id: &str, p: Va
+         let name = label.replace('\n', " ");
+         r.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, en, &name));
+     }
+-    let r = r.on_hover_text(tip(id, label));
++    let r = r.on_hover_text(tip(app, id, label));
+     if r.clicked() {
+         run(app, id, p.clone());
+     }
+@@ -316,7 +316,7 @@ fn big(app: &mut SlideApp, ui: &mut Ui, icon: Icon, label: &str, id: &str, p: Va
+ 
+ fn small(app: &mut SlideApp, ui: &mut Ui, icon: Icon, label: &str, id: &str, p: Value) {
+     let en = enabled(app, id);
+-    let r = small_button(ui, icon, label, en, false).on_hover_text(tip(id, label));
++    let r = small_button(ui, icon, label, en, false).on_hover_text(tip(app, id, label));
+     if r.clicked() {
+         run(app, id, p.clone());
+     }
+@@ -325,14 +325,14 @@ fn small(app: &mut SlideApp, ui: &mut Ui, icon: Icon, label: &str, id: &str, p:
+ 
+ fn toggle(app: &mut SlideApp, ui: &mut Ui, icon: Icon, label: &str, id: &str, on: bool) {
+     let en = enabled(app, id);
+-    if icon_toggle(ui, icon, &tip(id, label), en, on).clicked() {
++    if icon_toggle(ui, icon, &tip(app, id, label), en, on).clicked() {
+         run(app, id, json!({}));
+     }
+ }
+ 
+-fn tip(id: &str, label: &str) -> String {
+-    let sc = deckcraft_engine::find_command(id).and_then(|c| c.shortcut).or_else(|| crate::UI_COMMANDS.iter().find(|c| c.0 == id).and_then(|c| c.2));
+-    match sc {
++fn tip(app: &SlideApp, id: &str, label: &str) -> String {
++    let default = deckcraft_engine::find_command(id).and_then(|c| c.shortcut).or_else(|| crate::UI_COMMANDS.iter().find(|c| c.0 == id).and_then(|c| c.2));
++    match app.session.bound_key(id, default).filter(|s| !s.is_empty()) {
+         Some(s) => format!("{label} ({})", pretty_shortcut(s)),
+         None => label.to_string(),
+     }
+diff --git a/crates/ui-egui/src/ribbon/insert.rs b/crates/ui-egui/src/ribbon/insert.rs
+index fab6e31..7e1c666 100644
+--- a/crates/ui-egui/src/ribbon/insert.rs
++++ b/crates/ui-egui/src/ribbon/insert.rs
+@@ -10,7 +10,7 @@ use super::{
+ fn photo_album_button(app: &mut SlideApp, ui: &mut Ui) {
+     let en = enabled(app, "insert.photoAlbum");
+     let (main, arrow) = big_button_ex(ui, Icon::Picture, "Photo\nAlbum", en, true, false);
+-    let _ = main.clone().on_hover_text(tip("insert.photoAlbum", "Photo Album…"));
++    let _ = main.clone().on_hover_text(tip(app, "insert.photoAlbum", "Photo Album…"));
+     main.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, en, "Photo Album…"));
+     if let Some(a) = &arrow {
+         let _ = a.clone().on_hover_text("Photo Album options");
+diff --git a/crates/ui-egui/src/ribbon/qat.rs b/crates/ui-egui/src/ribbon/qat.rs
+index 7edde77..eb8a9e0 100644
+--- a/crates/ui-egui/src/ribbon/qat.rs
++++ b/crates/ui-egui/src/ribbon/qat.rs
+@@ -120,9 +120,10 @@ pub fn run_index(app: &mut SlideApp, index: usize) -> bool {
+     true
+ }
+ 
+-fn tip(q: &QatItem, index: usize, mac: bool) -> String {
+-    let sc =
++fn tip(app: &SlideApp, q: &QatItem, index: usize, mac: bool) -> String {
++    let default =
+         deckcraft_engine::find_command(&q.id).and_then(|c| c.shortcut).or_else(|| crate::UI_COMMANDS.iter().find(|c| c.0 == q.id).and_then(|c| c.2));
++    let sc = app.session.bound_key(&q.id, default).filter(|s| !s.is_empty());
+     let qat_sc = if !mac && index < 9 { Some(format!("Alt+{}", index + 1)) } else { None };
+     match (sc, qat_sc) {
+         (Some(s), Some(qsc)) => format!("{} ({}, {})", q.label, crate::ribbon::pretty_shortcut(s), qsc),
+@@ -139,7 +140,7 @@ pub fn show(app: &mut SlideApp, ui: &mut Ui) {
+     for (i, q) in items.iter().enumerate() {
+         let on = q.id == "app.home" && app.backstage_open();
+         let en = is_enabled(app, &q.id);
+-        let r = crate::widgets::icon_toggle(ui, q.icon(), &tip(q, i, mac), en, on);
++        let r = crate::widgets::icon_toggle(ui, q.icon(), &tip(app, q, i, mac), en, on);
+         if r.clicked() {
+             run(app, q);
+         }
+diff --git a/crates/ui-egui/src/ribbon/review.rs b/crates/ui-egui/src/ribbon/review.rs
+index 7c5db24..9d1ce73 100644
+--- a/crates/ui-egui/src/ribbon/review.rs
++++ b/crates/ui-egui/src/ribbon/review.rs
+@@ -2,7 +2,7 @@ use super::{Icon, SlideApp, Ui, Value, big, big_button, big_button_ex, enabled,
+ 
+ fn comment_nav(app: &mut SlideApp, ui: &mut Ui, forward: bool) {
+     let (icon, label, id) = if forward { (Icon::NextComment, "Next", "comment.next") } else { (Icon::PrevComment, "Previous", "comment.prev") };
+-    if small_button(ui, icon, label, enabled(app, id), false).on_hover_text(tip(id, label)).clicked() {
++    if small_button(ui, icon, label, enabled(app, id), false).on_hover_text(tip(app, id, label)).clicked() {
+         let params = match app.ui.comment_focus {
+             Some((slide, index)) if app.session.active().is_some_and(|d| d.selection.slide == slide) => json!({"slide": slide, "index": index}),
+             _ => json!({}),

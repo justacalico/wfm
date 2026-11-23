@@ -87,6 +87,8 @@ class ShortcutsPage extends StatefulWidget {
 }
 
 class _ShortcutsPageState extends State<ShortcutsPage> {
+  static const _prefixes = {'scriptcraft': 'sc.', 'deckcraft': 'dc.'};
+
   List<_Row>? _rows;
   Map<String, String> _over = {};
   String _q = '', _err = '';
@@ -98,7 +100,11 @@ class _ShortcutsPageState extends State<ShortcutsPage> {
     _load();
   }
 
-  String get _prefix => widget.app == 'scriptcraft' ? 'sc.' : '';
+  String get _prefix => _prefixes[widget.app] ?? '';
+
+  bool _mine(String key) => _prefix.isEmpty
+      ? !_prefixes.values.any(key.startsWith)
+      : key.startsWith(_prefix);
 
   String _keyOf(_Row r) => '$_prefix${r.key}';
 
@@ -181,10 +187,9 @@ class _ShortcutsPageState extends State<ShortcutsPage> {
         context.l10n.resetAllShortcutsBody)) {
       return;
     }
-    final mine = widget.app == 'scriptcraft';
     final next = {
       for (final e in _over.entries)
-        if (mine != e.key.startsWith('sc.')) e.key: e.value
+        if (!_mine(e.key)) e.key: e.value
     };
     await _apply(next);
   }
@@ -199,9 +204,11 @@ class _ShortcutsPageState extends State<ShortcutsPage> {
     final l10n = context.l10n;
     return Scaffold(
       appBar: AppBar(
-          title: Text(widget.app == 'scriptcraft'
-              ? l10n.scriptcraftShortcuts
-              : l10n.filmcraftShortcuts),
+          title: Text(switch (widget.app) {
+            'scriptcraft' => l10n.scriptcraftShortcuts,
+            'deckcraft' => l10n.deckcraftShortcuts,
+            _ => l10n.filmcraftShortcuts,
+          }),
           actions: [
             IconButton(
                 tooltip: l10n.resetAllShortcuts,

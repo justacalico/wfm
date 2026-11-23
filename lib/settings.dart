@@ -239,6 +239,15 @@ class _SettingsPageState extends State<SettingsPage> {
         onTap: () => Navigator.of(context).push(MaterialPageRoute(
             builder: (_) => const ShortcutsPage(app: 'scriptcraft'))),
       ),
+      ListTile(
+        dense: true,
+        contentPadding: EdgeInsets.zero,
+        leading: const Icon(Icons.keyboard_outlined, size: 18),
+        title: Text(l10n.deckcraftShortcuts),
+        trailing: const Icon(Icons.chevron_right, size: 18),
+        onTap: () => Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => const ShortcutsPage(app: 'deckcraft'))),
+      ),
       if (Api.i.caps.creatable.isNotEmpty) ...[
         const SizedBox(height: 16),
         Align(
