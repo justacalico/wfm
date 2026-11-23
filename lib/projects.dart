@@ -668,6 +668,12 @@ class _ProjectPageState extends State<ProjectPage> {
   }
 
   Future<void> _submit() async {
+    final l10n = context.l10n;
+    if (_p.status != 'submitted' &&
+        !await confirm(context, l10n.submitForReview,
+            l10n.submitConfirmBody(_p.displayName))) {
+      return;
+    }
     try {
       final st = await Api.i.submitProject(_p.id);
       setState(() => _p = _p.copyWith(status: st));
