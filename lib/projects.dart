@@ -75,8 +75,7 @@ class _ProjectsPageState extends State<ProjectsPage> {
       setState(() {
         _items = res[0] as List<Project>;
         _folders = res[1] as List<Folder>;
-        if (_folderId.isNotEmpty &&
-            !_folders.any((f) => f.id == _folderId)) {
+        if (_folderId.isNotEmpty && !_folders.any((f) => f.id == _folderId)) {
           _folderId = '';
         }
       });
@@ -420,8 +419,8 @@ class _ProjectsPageState extends State<ProjectsPage> {
     );
   }
 
-  Widget _cards(
-      List<Folder> folders, List<Project> ps, AppLocalizations l10n, bool tight) {
+  Widget _cards(List<Folder> folders, List<Project> ps, AppLocalizations l10n,
+      bool tight) {
     if (_view == 1) {
       return Column(children: [
         for (final f in folders) _folderRow(f),

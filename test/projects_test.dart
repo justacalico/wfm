@@ -132,12 +132,7 @@ void main() {
     testWidgets('list view toggle persists and restores', (t) async {
       installApi(extra: {
         'GET /api/projects': (_) => [
-              {
-                'id': 'p1',
-                'name': 'p1',
-                'displayName': 'Alpha',
-                'createdAt': 1
-              }
+              {'id': 'p1', 'name': 'p1', 'displayName': 'Alpha', 'createdAt': 1}
             ],
       });
       await pump(t, const ProjectsPage());
@@ -711,12 +706,7 @@ void main() {
             ],
         'POST /api/projects': (req) {
           body = req.body;
-          return {
-            'id': 'p9',
-            'name': 'x',
-            'displayName': 'x',
-            'createdAt': 1
-          };
+          return {'id': 'p9', 'name': 'x', 'displayName': 'x', 'createdAt': 1};
         },
       });
       await pump(t, const ProjectsPage());
