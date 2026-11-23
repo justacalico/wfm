@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.41.1 - 2026-11-23
+#### Bug Fixes
+- (**server**) docker 镜像构建时应用 deckcraft 补丁 - (aaf0f62) - calico
+
+- - -
+
 ## v0.41.0 - 2026-11-22
 #### Features
 - (**app**) 渲染输出名冲突时确认覆盖或自动改名 - (0233d6b) - calico
