@@ -1559,12 +1559,13 @@ impl Db for PgDb {
     }
 
     async fn invites_by_creator(&self, uid: &str) -> DbResult<Vec<InviteCode>> {
-        let rows =
-            sqlx::query("SELECT * FROM invite_codes WHERE created_by=$1 ORDER BY created_at DESC")
-                .bind(uid)
-                .fetch_all(&self.pool)
-                .await
-                .map_err(map_err)?;
+        let rows = sqlx::query(
+            "SELECT * FROM invite_codes WHERE created_by=$1 AND revoked=0 ORDER BY created_at DESC",
+        )
+        .bind(uid)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(map_err)?;
         Ok(rows.into_iter().map(row_invite).collect())
     }
 
@@ -1592,15 +1593,13 @@ impl Db for PgDb {
     }
 
     async fn invite_revoke(&self, id: &str, creator: &str) -> DbResult<bool> {
-        sqlx::query(
-            "UPDATE invite_codes SET revoked=1 WHERE id=$1 AND created_by=$2 AND used_by=''",
-        )
-        .bind(id)
-        .bind(creator)
-        .execute(&self.pool)
-        .await
-        .map(|r| r.rows_affected() > 0)
-        .map_err(map_err)
+        sqlx::query("DELETE FROM invite_codes WHERE id=$1 AND created_by=$2 AND used_by=''")
+            .bind(id)
+            .bind(creator)
+            .execute(&self.pool)
+            .await
+            .map(|r| r.rows_affected() > 0)
+            .map_err(map_err)
     }
 
     async fn setting_get(&self, k: &str) -> DbResult<Option<String>> {

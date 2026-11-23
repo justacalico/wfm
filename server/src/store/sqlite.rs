@@ -1690,7 +1690,7 @@ impl Db for SqliteDb {
         let uid = uid.to_string();
         self.q(move |c| {
                 let mut st = c.prepare(
-                    "SELECT id,code_hash,created_by,role,preset_username,preset_name,used_by,used_at,expires_at,revoked,created_at FROM invite_codes WHERE created_by=? ORDER BY created_at DESC",
+                    "SELECT id,code_hash,created_by,role,preset_username,preset_name,used_by,used_at,expires_at,revoked,created_at FROM invite_codes WHERE created_by=? AND revoked=0 ORDER BY created_at DESC",
                 )?;
                 let rows = st.query_map(params![uid], map_invite)?;
                 rows.collect::<rusqlite::Result<Vec<_>>>()
@@ -1731,7 +1731,7 @@ impl Db for SqliteDb {
         let creator = creator.to_string();
         self.q(move |c| {
             c.execute(
-                "UPDATE invite_codes SET revoked=1 WHERE id=? AND created_by=? AND used_by=''",
+                "DELETE FROM invite_codes WHERE id=? AND created_by=? AND used_by=''",
                 params![id, creator],
             )
         })

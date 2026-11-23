@@ -1272,7 +1272,20 @@ async fn create_invite(
 
 async fn list_invites(State(s): State<Arc<AppState>>, session: Session) -> Response {
     match s.db.invites_by_creator(&session.user.id).await {
-        Ok(v) => Json(json!(v)).into_response(),
+        Ok(v) => {
+            let mut out = Vec::with_capacity(v.len());
+            for i in &v {
+                let mut j = serde_json::to_value(i).unwrap_or_default();
+                if !i.used_by.is_empty() {
+                    if let Ok(u) = s.db.user_by_id(&i.used_by).await {
+                        j["usedByUsername"] = json!(u.username);
+                        j["usedByName"] = json!(u.display_name);
+                    }
+                }
+                out.push(j);
+            }
+            Json(json!(out)).into_response()
+        }
         Err(e) => db_resp(e),
     }
 }

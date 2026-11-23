@@ -84,7 +84,9 @@ class _AccountsTabState extends State<AccountsTab> {
   Future<void> _load() async {
     try {
       _users = await Api.i.accounts();
-      _invites = await Api.i.invites().catchError((_) => <Invite>[]);
+      _invites = (await Api.i.invites().catchError((_) => <Invite>[]))
+          .where((i) => !i.revoked)
+          .toList();
       setState(() {});
     } catch (e) {
       setState(() => _err = '$e');
@@ -204,13 +206,13 @@ class _AccountsTabState extends State<AccountsTab> {
                         final inv = _invites[j - 1];
                         final now =
                             DateTime.now().millisecondsSinceEpoch ~/ 1000;
-                        final status = inv.revoked
-                            ? l10n.revoked
-                            : inv.usedBy.isNotEmpty
-                                ? l10n.used
-                                : inv.expired(now)
-                                    ? l10n.expired
-                                    : l10n.pending;
+                        final status = inv.usedBy.isNotEmpty
+                            ? l10n.inviteUsedBy(inv.usedByName.isNotEmpty
+                                ? inv.usedByName
+                                : inv.usedBy)
+                            : inv.expired(now)
+                                ? l10n.expired
+                                : l10n.pending;
                         return ListTile(
                           leading: const Icon(Icons.link),
                           title: Text(

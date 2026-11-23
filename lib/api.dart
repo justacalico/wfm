@@ -368,6 +368,7 @@ class AppNotification {
 
 class Invite {
   final String id, role, presetUsername, presetName, usedBy;
+  final String usedByUsername, usedByName;
   final int usedAt, expiresAt, createdAt;
   final bool revoked;
   Invite.fromJson(Map<String, dynamic> j)
@@ -376,6 +377,8 @@ class Invite {
         presetUsername = j['presetUsername'] ?? '',
         presetName = j['presetName'] ?? '',
         usedBy = j['usedBy'] ?? '',
+        usedByUsername = j['usedByUsername'] ?? '',
+        usedByName = j['usedByName'] ?? j['usedByUsername'] ?? '',
         usedAt = j['usedAt'] ?? 0,
         expiresAt = j['expiresAt'] ?? 0,
         createdAt = j['createdAt'] ?? 0,
