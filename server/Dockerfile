@@ -40,9 +40,11 @@ RUN rustup target add wasm32-unknown-unknown \
  && ln -s /opt/trunk/trunk /usr/local/bin/trunk
 WORKDIR /dc
 COPY deckcraft/VERSION /wfm/VERSION
+COPY deckcraft/patches/ /wfm/patches/
 RUN git clone --depth 1 --branch "v$(cat /wfm/VERSION)" https://github.com/storytold/deckcraft /dc/src
 WORKDIR /dc/src
-RUN (cd apps/deckcraft-web && trunk build --release)
+RUN for p in /wfm/patches/*.patch; do git apply "$p"; done \
+ && (cd apps/deckcraft-web && trunk build --release)
 
 FROM rust:1-slim-bookworm AS build
 WORKDIR /src
