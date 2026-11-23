@@ -557,8 +557,9 @@ class Api {
     return '$origin/api/mcp';
   }
 
-  Future<List<McpToken>> mcpTokens() async =>
-      [for (final t in (await get('/mcp/tokens')) as List) McpToken.fromJson(t)];
+  Future<List<McpToken>> mcpTokens() async => [
+        for (final t in (await get('/mcp/tokens')) as List) McpToken.fromJson(t)
+      ];
 
   Future<McpToken> mcpTokenCreate(String name) async =>
       McpToken.fromJson(await post('/mcp/tokens', {'name': name}));

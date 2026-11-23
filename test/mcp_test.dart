@@ -68,8 +68,11 @@ void main() {
   testWidgets('create flow names the token and reveals it once', (t) async {
     var created = '';
     await pumpPage(t, extra: {
-      'GET /api/mcp/tokens': (_) =>
-          created.isEmpty ? [] : [{...tokenJson, 'name': created}],
+      'GET /api/mcp/tokens': (_) => created.isEmpty
+          ? []
+          : [
+              {...tokenJson, 'name': created}
+            ],
       'POST /api/mcp/tokens': (req) {
         created = 'my agent';
         return {...tokenJson, 'name': created, 'token': 'sekrit'};
@@ -109,8 +112,7 @@ void main() {
 
   testWidgets('create failure snacks', (t) async {
     await pumpPage(t,
-        extra: routes(
-            post: (_) => http.Response('{"error":"no room"}', 500)));
+        extra: routes(post: (_) => http.Response('{"error":"no room"}', 500)));
     await t.tap(find.text('New token'));
     await settle(t);
     await t.enterText(find.byType(TextField), 'x');
@@ -135,8 +137,7 @@ void main() {
 
   testWidgets('revoke failure snacks', (t) async {
     await pumpPage(t,
-        extra: routes(
-            del: (_) => http.Response('{"error":"stuck"}', 500)));
+        extra: routes(del: (_) => http.Response('{"error":"stuck"}', 500)));
     await t.tap(find.text('Revoke'));
     await settle(t);
     await t.tap(find.text('Confirm'));
@@ -154,8 +155,7 @@ void main() {
     await t.scrollUntilVisible(
         find.widgetWithText(ListTile, 'AI assistant'), 300,
         scrollable: find.descendant(
-            of: find.byType(SettingsPage),
-            matching: find.byType(Scrollable)));
+            of: find.byType(SettingsPage), matching: find.byType(Scrollable)));
     await settle(t);
     await t.tap(find.widgetWithText(ListTile, 'AI assistant'));
     await settle(t);

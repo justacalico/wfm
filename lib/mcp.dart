@@ -52,7 +52,8 @@ class _McpPageState extends State<McpPage> {
   }
 
   Future<void> _revoke(McpToken t) async {
-    if (!await confirm(context, context.l10n.revoke, context.l10n.mcpRevokeBody)) {
+    if (!await confirm(
+        context, context.l10n.revoke, context.l10n.mcpRevokeBody)) {
       return;
     }
     try {
@@ -89,8 +90,7 @@ class _McpPageState extends State<McpPage> {
                       icon: const Icon(Icons.copy_outlined, size: 18),
                       tooltip: l10n.copy,
                       onPressed: () {
-                        Clipboard.setData(
-                            ClipboardData(text: Api.i.mcpUrl));
+                        Clipboard.setData(ClipboardData(text: Api.i.mcpUrl));
                         snack(context, l10n.copied, good: true);
                       },
                     ),
@@ -113,13 +113,10 @@ class _McpPageState extends State<McpPage> {
                     ListTile(
                       dense: true,
                       contentPadding: EdgeInsets.zero,
-                      leading:
-                          const Icon(Icons.smart_toy_outlined, size: 18),
-                      title:
-                          Text(t.name.isEmpty ? '—' : t.name),
+                      leading: const Icon(Icons.smart_toy_outlined, size: 18),
+                      title: Text(t.name.isEmpty ? '—' : t.name),
                       subtitle: t.lastSeen > 0
-                          ? Text(
-                              l10n.sessionLastSeen(fmtAgo(l10n, t.lastSeen)))
+                          ? Text(l10n.sessionLastSeen(fmtAgo(l10n, t.lastSeen)))
                           : null,
                       trailing: TextButton(
                           onPressed: () => _revoke(t),
@@ -239,8 +236,7 @@ class _McpTokenDialog extends StatelessWidget {
         width: 480,
         child: SingleChildScrollView(
           child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Text(l10n.mcpOnce,
-                style: Theme.of(context).textTheme.bodySmall),
+            Text(l10n.mcpOnce, style: Theme.of(context).textTheme.bodySmall),
             const SizedBox(height: 12),
             block(l10n.mcpPrompt, prompt(url, token.token)),
             block(l10n.mcpConfig, config(url, token.token)),
@@ -249,8 +245,7 @@ class _McpTokenDialog extends StatelessWidget {
       ),
       actions: [
         FilledButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(l10n.done)),
+            onPressed: () => Navigator.pop(context), child: Text(l10n.done)),
       ],
     );
   }
