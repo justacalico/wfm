@@ -5006,6 +5006,7 @@ mod tests {
             (None, "file.newSequence", "ui.save"),
             (Some("filmcraft"), "file.newSequence", "ui.save"),
             (Some("scriptcraft"), "ui.save", "file.newSequence"),
+            (Some("deckcraft"), "format.bold", "ui.save"),
             (Some("bogus"), "file.newSequence", "ui.save"),
         ] {
             let r = shortcut_catalog(
@@ -6648,6 +6649,7 @@ async fn put_settings(
 
 const SHORTCUT_CATALOG: &str = include_str!("../../../filmcraft/shortcuts.json");
 const SCRIPTCRAFT_CATALOG: &str = include_str!("../../../scriptcraft/shortcuts.json");
+const DECKCRAFT_CATALOG: &str = include_str!("../../../deckcraft/shortcuts.json");
 
 #[derive(Deserialize)]
 struct CatalogQuery {
@@ -6655,10 +6657,10 @@ struct CatalogQuery {
 }
 
 async fn shortcut_catalog(_session: Session, Query(q): Query<CatalogQuery>) -> Response {
-    let body = if q.app.as_deref() == Some("scriptcraft") {
-        SCRIPTCRAFT_CATALOG
-    } else {
-        SHORTCUT_CATALOG
+    let body = match q.app.as_deref() {
+        Some("scriptcraft") => SCRIPTCRAFT_CATALOG,
+        Some("deckcraft") => DECKCRAFT_CATALOG,
+        _ => SHORTCUT_CATALOG,
     };
     (
         [(header::CONTENT_TYPE, "application/json; charset=utf-8")],

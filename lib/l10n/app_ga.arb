@@ -503,6 +503,7 @@
   "editors": "Eagarthóirí",
   "filmcraftShortcuts": "Aicearraí FilmCraft",
   "scriptcraftShortcuts": "Aicearraí ScriptCraft",
+  "deckcraftShortcuts": "Aicearraí DeckCraft",
   "searchShortcuts": "Cuardaigh gníomhartha",
   "pressShortcut": "Brúigh an aicearra nua",
   "shortcutConflict": "In úsáid cheana ag {action}",

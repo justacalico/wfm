@@ -1146,6 +1146,9 @@ class AppLocalizationsGa extends AppLocalizations {
   String get scriptcraftShortcuts => 'Aicearraí ScriptCraft';
 
   @override
+  String get deckcraftShortcuts => 'Aicearraí DeckCraft';
+
+  @override
   String get searchShortcuts => 'Cuardaigh gníomhartha';
 
   @override

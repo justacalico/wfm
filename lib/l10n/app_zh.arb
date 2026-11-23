@@ -503,6 +503,7 @@
   "editors": "编辑器",
   "filmcraftShortcuts": "FilmCraft 快捷键",
   "scriptcraftShortcuts": "ScriptCraft 快捷键",
+  "deckcraftShortcuts": "DeckCraft 快捷键",
   "searchShortcuts": "搜索操作",
   "pressShortcut": "按下新的快捷键",
   "shortcutConflict": "已被 {action} 使用",

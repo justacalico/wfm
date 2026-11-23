@@ -67,6 +67,8 @@ void main() {
     expect(find.textContaining('ada'), findsWidgets);
     expect(find.byType(DropdownButtonFormField<Locale?>), findsOneWidget);
     expect(find.byType(DropdownButtonFormField<AppTheme>), findsOneWidget);
+    await t.ensureVisible(find.byType(DropdownButtonFormField<AppTheme>));
+    await settle(t);
     await t.tap(find.byType(DropdownButtonFormField<AppTheme>));
     await settle(t);
     await t.tap(find.text('Dark').last);

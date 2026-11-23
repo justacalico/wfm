@@ -1143,6 +1143,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get scriptcraftShortcuts => 'Горячие клавиши ScriptCraft';
 
   @override
+  String get deckcraftShortcuts => 'Горячие клавиши DeckCraft';
+
+  @override
   String get searchShortcuts => 'Поиск действий';
 
   @override
