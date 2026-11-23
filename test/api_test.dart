@@ -193,10 +193,10 @@ void main() {
           'displayName': 'N',
           'createdAt': 1
         },
-        'GET /api/groups': [
-          {'id': 'g1', 'name': 'Class A'}
+        'GET /api/folders': [
+          {'id': 'f1', 'name': 'Class A'}
         ],
-        'POST /api/groups': {'id': 'g2', 'name': 'g2'},
+        'POST /api/folders': {'id': 'f2', 'name': 'f2'},
         'PATCH *': {'ok': true},
         'DELETE *': {'ok': true},
         'GET /api/projects/p1/files': [
@@ -216,19 +216,17 @@ void main() {
       expect(managed.single.id, 'sp');
       final p2 = await api.createProject('n2');
       expect(p2.id, 'p2');
-      await api.updateProject('p1',
-          displayName: 'New', groupId: 'g1', tags: ['a', 'b']);
+      await api.updateProject('p1', displayName: 'New', folderId: 'f1');
       final patchBody = jsonDecode(lastRequest!.body);
       expect(patchBody['displayName'], 'New');
-      expect(patchBody['groupId'], 'g1');
-      expect(patchBody['tags'], ['a', 'b']);
-      final gs = await api.groups();
-      expect(gs.single.id, 'g1');
-      final g2 = await api.createGroup('g2');
-      expect(g2.id, 'g2');
-      await api.renameGroup('g1', 'Renamed');
+      expect(patchBody['folderId'], 'f1');
+      final fs2 = await api.folders();
+      expect(fs2.single.id, 'f1');
+      final f2 = await api.createFolder('f2');
+      expect(f2.id, 'f2');
+      await api.renameFolder('f1', 'Renamed');
       expect(jsonDecode(lastRequest!.body)['name'], 'Renamed');
-      await api.deleteGroup('g1');
+      await api.deleteFolder('f1');
       await api.deleteProject('p1');
       final fs = await api.files('p1', 'Raw');
       expect(fs.single.name, 'a.txt');

@@ -82,21 +82,17 @@
       "name": {}
     }
   },
-  "newGroup": "Новая группа",
-  "groupName": "Название группы",
-  "ungrouped": "Без группы",
-  "noGroup": "Без группы",
-  "moveToGroup": "Переместить в группу",
-  "renameGroup": "Переименовать группу",
-  "deleteGroupBody": "Удалить группу «{name}»? Проекты сохранятся без группы.",
-  "@deleteGroupBody": {
+  "back": "Назад",
+  "addToFolder": "Добавить в папку",
+  "noFolder": "Без папки",
+  "renameFolder": "Переименовать папку",
+  "deleteFolderBody": "Удалить папку «{name}»? Проекты сохранятся вне папок.",
+  "@deleteFolderBody": {
     "placeholders": {
       "name": {}
     }
   },
-  "editTags": "Изменить теги",
-  "tagsHint": "Теги через запятую",
-  "noMatchingProjects": "Нет проектов с этим тегом.",
+  "noMatchingProjects": "Нет проектов, подходящих под поиск.",
   "files": "Файлы",
   "renders": "Рендеры",
   "emptyFolder": "Пустая папка",

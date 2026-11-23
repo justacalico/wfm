@@ -194,36 +194,24 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get newGroup => 'New group';
+  String get back => 'Back';
 
   @override
-  String get groupName => 'Group name';
+  String get addToFolder => 'Add to folder';
 
   @override
-  String get ungrouped => 'Ungrouped';
+  String get noFolder => 'No folder';
 
   @override
-  String get noGroup => 'No group';
+  String get renameFolder => 'Rename folder';
 
   @override
-  String get moveToGroup => 'Move to group';
-
-  @override
-  String get renameGroup => 'Rename group';
-
-  @override
-  String deleteGroupBody(Object name) {
-    return 'Delete group \"$name\"? Its projects are kept and become ungrouped.';
+  String deleteFolderBody(Object name) {
+    return 'Delete folder \"$name\"? Its projects are kept and moved out.';
   }
 
   @override
-  String get editTags => 'Edit tags';
-
-  @override
-  String get tagsHint => 'Tags, comma separated';
-
-  @override
-  String get noMatchingProjects => 'No projects match this tag.';
+  String get noMatchingProjects => 'No projects match your search.';
 
   @override
   String get files => 'Files';

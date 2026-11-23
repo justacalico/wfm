@@ -195,36 +195,25 @@ class AppLocalizationsGa extends AppLocalizations {
   }
 
   @override
-  String get newGroup => 'Grúpa nua';
+  String get back => 'Ar ais';
 
   @override
-  String get groupName => 'Ainm an ghrúpa';
+  String get addToFolder => 'Cuir le fillteán';
 
   @override
-  String get ungrouped => 'Gan ghrúpa';
+  String get noFolder => 'Gan fhillteán';
 
   @override
-  String get noGroup => 'Gan ghrúpa';
+  String get renameFolder => 'Athainmnigh an fillteán';
 
   @override
-  String get moveToGroup => 'Bog go grúpa';
-
-  @override
-  String get renameGroup => 'Athainmnigh an grúpa';
-
-  @override
-  String deleteGroupBody(Object name) {
-    return 'Scrios an grúpa \"$name\"? Coinnítear na tionscadail gan ghrúpa.';
+  String deleteFolderBody(Object name) {
+    return 'Scrios an fillteán \"$name\"? Coinnítear na tionscadail agus bogtar iad amach.';
   }
 
   @override
-  String get editTags => 'Cuir clibeanna in eagar';
-
-  @override
-  String get tagsHint => 'Clibeanna, scartha le camóga';
-
-  @override
-  String get noMatchingProjects => 'Níl aon tionscadal leis an gclib seo.';
+  String get noMatchingProjects =>
+      'Níl aon tionscadal a mheaitseálann an cuardach.';
 
   @override
   String get files => 'Comhaid';

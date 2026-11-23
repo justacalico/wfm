@@ -140,7 +140,7 @@ const CLASS_COLS: &str =
 const USER_COLS: &str =
     "id,username,display_name,pass_hash,role,student_id,note,disabled,avatar,created_by,lineage,created_at,last_login,quota_bytes,class_id";
 
-const PROJECT_COLS: &str = "id,owner_id,name,display_name,dir,group_id,tags,created_at,last_activity,pinned,template,status,submitted_at,reviewed_by";
+const PROJECT_COLS: &str = "id,owner_id,name,display_name,dir,folder_id,created_at,last_activity,pinned,template,status,submitted_at,reviewed_by";
 
 fn map_project(r: &rusqlite::Row<'_>) -> rusqlite::Result<Project> {
     Ok(Project {
@@ -149,20 +149,19 @@ fn map_project(r: &rusqlite::Row<'_>) -> rusqlite::Result<Project> {
         name: r.get(2)?,
         display_name: r.get(3)?,
         dir: r.get(4)?,
-        group_id: r.get(5)?,
-        tags: tags_split(&r.get::<_, String>(6)?),
-        created_at: r.get(7)?,
-        last_activity: r.get(8)?,
-        pinned: r.get::<_, i64>(9)? != 0,
-        template: r.get::<_, i64>(10)? != 0,
-        status: r.get(11)?,
-        submitted_at: r.get(12)?,
-        reviewed_by: r.get(13)?,
+        folder_id: r.get(5)?,
+        created_at: r.get(6)?,
+        last_activity: r.get(7)?,
+        pinned: r.get::<_, i64>(8)? != 0,
+        template: r.get::<_, i64>(9)? != 0,
+        status: r.get(10)?,
+        submitted_at: r.get(11)?,
+        reviewed_by: r.get(12)?,
     })
 }
 
-fn map_group(r: &rusqlite::Row<'_>) -> rusqlite::Result<ProjectGroup> {
-    Ok(ProjectGroup {
+fn map_folder(r: &rusqlite::Row<'_>) -> rusqlite::Result<Folder> {
+    Ok(Folder {
         id: r.get(0)?,
         owner_id: r.get(1)?,
         name: r.get(2)?,
@@ -883,8 +882,8 @@ impl Db for SqliteDb {
         let p = p.clone();
         self.q(move |c| {
                 c.execute(
-                    "INSERT INTO projects(id,owner_id,name,display_name,dir,group_id,tags,created_at,last_activity,pinned,template,status,submitted_at,reviewed_by) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                    params![p.id, p.owner_id, p.name, p.display_name, p.dir, p.group_id, tags_csv(&p.tags), p.created_at, p.last_activity, p.pinned, p.template, p.status, p.submitted_at, p.reviewed_by],
+                    "INSERT INTO projects(id,owner_id,name,display_name,dir,folder_id,created_at,last_activity,pinned,template,status,submitted_at,reviewed_by) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    params![p.id, p.owner_id, p.name, p.display_name, p.dir, p.folder_id, p.created_at, p.last_activity, p.pinned, p.template, p.status, p.submitted_at, p.reviewed_by],
                 )
             })
             .await
@@ -957,19 +956,17 @@ impl Db for SqliteDb {
         &self,
         id: &str,
         display_name: &str,
-        group_id: &str,
-        tags: &str,
+        folder_id: &str,
     ) -> DbResult<()> {
-        let (id, name, gid, tags) = (
+        let (id, name, fid) = (
             id.to_string(),
             display_name.to_string(),
-            group_id.to_string(),
-            tags.to_string(),
+            folder_id.to_string(),
         );
         self.q(move |c| {
             c.execute(
-                "UPDATE projects SET display_name=?, group_id=?, tags=? WHERE id=?",
-                params![name, gid, tags, id],
+                "UPDATE projects SET display_name=?, folder_id=? WHERE id=?",
+                params![name, fid, id],
             )
         })
         .await
@@ -1135,12 +1132,12 @@ impl Db for SqliteDb {
         .map_err(dberr)
     }
 
-    async fn create_group(&self, g: &ProjectGroup) -> DbResult<()> {
-        let g = g.clone();
+    async fn create_folder(&self, f: &Folder) -> DbResult<()> {
+        let f = f.clone();
         self.q(move |c| {
             c.execute(
-                "INSERT INTO project_groups(id,owner_id,name,created_at) VALUES(?,?,?,?)",
-                params![g.id, g.owner_id, g.name, g.created_at],
+                "INSERT INTO folders(id,owner_id,name,created_at) VALUES(?,?,?,?)",
+                params![f.id, f.owner_id, f.name, f.created_at],
             )
         })
         .await
@@ -1148,37 +1145,37 @@ impl Db for SqliteDb {
         .map_err(dberr)
     }
 
-    async fn group_by_id(&self, id: &str) -> DbResult<ProjectGroup> {
+    async fn folder_by_id(&self, id: &str) -> DbResult<Folder> {
         let id = id.to_string();
         self.q(move |c| {
             c.query_row(
-                "SELECT id,owner_id,name,created_at FROM project_groups WHERE id=?",
+                "SELECT id,owner_id,name,created_at FROM folders WHERE id=?",
                 [id],
-                map_group,
+                map_folder,
             )
         })
         .await
         .map_err(dberr)
     }
 
-    async fn groups_by_owner(&self, owner_id: &str) -> DbResult<Vec<ProjectGroup>> {
+    async fn folders_by_owner(&self, owner_id: &str) -> DbResult<Vec<Folder>> {
         let oid = owner_id.to_string();
         self.q(move |c| {
                 let mut st = c.prepare(
-                    "SELECT id,owner_id,name,created_at FROM project_groups WHERE owner_id=? ORDER BY name COLLATE NOCASE",
+                    "SELECT id,owner_id,name,created_at FROM folders WHERE owner_id=? ORDER BY name COLLATE NOCASE",
                 )?;
-                let rows = st.query_map([oid], map_group)?;
+                let rows = st.query_map([oid], map_folder)?;
                 rows.collect::<rusqlite::Result<Vec<_>>>()
             })
             .await
             .map_err(dberr)
     }
 
-    async fn rename_group(&self, id: &str, name: &str) -> DbResult<()> {
+    async fn rename_folder(&self, id: &str, name: &str) -> DbResult<()> {
         let (id, name) = (id.to_string(), name.to_string());
         self.q(move |c| {
             c.execute(
-                "UPDATE project_groups SET name=? WHERE id=?",
+                "UPDATE folders SET name=? WHERE id=?",
                 params![name, id],
             )
         })
@@ -1187,12 +1184,12 @@ impl Db for SqliteDb {
         .map_err(dberr)
     }
 
-    async fn delete_group(&self, id: &str) -> DbResult<()> {
+    async fn delete_folder(&self, id: &str) -> DbResult<()> {
         let id = id.to_string();
         self.q(move |c| {
             let tx = c.transaction()?;
-            tx.execute("DELETE FROM project_groups WHERE id=?", [&id])?;
-            tx.execute("UPDATE projects SET group_id='' WHERE group_id=?", [&id])?;
+            tx.execute("DELETE FROM folders WHERE id=?", [&id])?;
+            tx.execute("UPDATE projects SET folder_id='' WHERE folder_id=?", [&id])?;
             tx.commit()
         })
         .await
@@ -2484,8 +2481,7 @@ mod tests {
             name: "p".into(),
             display_name: "p".into(),
             dir: "d".into(),
-            group_id: String::new(),
-            tags: vec![],
+            folder_id: String::new(),
             created_at: 1,
             last_activity: 1,
             pinned: false,
@@ -2538,8 +2534,7 @@ mod tests {
             name: id.into(),
             display_name: id.into(),
             dir: "d".into(),
-            group_id: String::new(),
-            tags: vec![],
+            folder_id: String::new(),
             created_at: 1,
             last_activity: 1,
             pinned: false,
@@ -2709,8 +2704,7 @@ mod tests {
             name: "p1".into(),
             display_name: "P1".into(),
             dir: "d".into(),
-            group_id: String::new(),
-            tags: vec![],
+            folder_id: String::new(),
             created_at: 1,
             last_activity: 1,
             pinned: false,
@@ -2795,8 +2789,7 @@ mod tests {
             name: "p1".into(),
             display_name: "P1".into(),
             dir: "d".into(),
-            group_id: String::new(),
-            tags: vec![],
+            folder_id: String::new(),
             created_at: 1,
             last_activity: 1,
             pinned: false,

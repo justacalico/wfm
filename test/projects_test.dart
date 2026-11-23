@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -131,20 +132,14 @@ void main() {
     testWidgets('list view toggle persists and restores', (t) async {
       installApi(extra: {
         'GET /api/projects': (_) => [
-              {
-                'id': 'p1',
-                'name': 'p1',
-                'displayName': 'Alpha',
-                'tags': ['doc'],
-                'createdAt': 1
-              }
+              {'id': 'p1', 'name': 'p1', 'displayName': 'Alpha', 'createdAt': 1}
             ],
       });
       await pump(t, const ProjectsPage());
       await t.tap(find.byIcon(Icons.view_list));
       await settle(t);
       expect(find.byIcon(Icons.grid_view), findsOneWidget);
-      expect(find.text('doc'), findsWidgets);
+      expect(find.text('Alpha'), findsWidgets);
       var opened = '';
       openEditorForTesting = (u) => opened = u;
       await t.tap(find.text('Edit'));
@@ -184,6 +179,9 @@ void main() {
       await settle(t);
       expect(find.text('Alpha'), findsOneWidget);
       expect(find.text('Beta'), findsNothing);
+      await t.enterText(find.byType(TextField).first, 'zzz');
+      await settle(t);
+      expect(find.text('No projects match your search.'), findsOneWidget);
       await t.enterText(find.byType(TextField).first, '');
       await settle(t);
       await t.tap(find.byIcon(Icons.sort));
@@ -539,66 +537,80 @@ void main() {
       expect(find.byType(Notice), findsOneWidget);
     });
 
-    Map<String, dynamic> proj(String id, String name,
-            [String gid = '', List<String> tags = const []]) =>
-        {
+    Map<String, dynamic> proj(String id, String name, [String fid = '']) => {
           'id': id,
           'name': id,
           'displayName': name,
-          'groupId': gid,
-          'tags': tags,
+          'folderId': fid,
           'createdAt': 1
         };
 
-    testWidgets('group sections, tag filter and orphan group', (t) async {
+    Future<void> openFolder(WidgetTester t, String name) async {
+      await t.tap(find.text(name));
+      await t.pump(kDoubleTapMinTime);
+      await t.tap(find.text(name));
+      await settle(t);
+    }
+
+    testWidgets('folder card opens folder view and back returns', (t) async {
       installApi(extra: {
         'GET /api/projects': (_) => [
-              proj('p1', 'Alpha', 'g1', ['doc']),
-              proj('p2', 'Beta', '', ['doc']),
-              proj('p3', 'Gamma', 'gone', ['other']),
+              proj('p1', 'Alpha', 'f1'),
+              proj('p2', 'Beta'),
+              proj('p3', 'Gamma', 'gone'),
             ],
-        'GET /api/groups': (_) => [
-              {'id': 'g1', 'name': 'Class A'}
+        'GET /api/folders': (_) => [
+              {'id': 'f1', 'name': 'Class A'}
             ],
       });
       await pump(t, const ProjectsPage());
       expect(find.text('Class A'), findsOneWidget);
-      expect(find.text('Ungrouped'), findsOneWidget);
-      expect(find.text('Alpha'), findsOneWidget);
+      expect(find.byIcon(Icons.folder_outlined), findsWidgets);
+      expect(find.text('Alpha'), findsNothing);
+      expect(find.text('Beta'), findsOneWidget);
       expect(find.text('Gamma'), findsOneWidget);
-      expect(find.byType(FilterChip), findsNWidgets(2));
-      await t.tap(find.byType(FilterChip).first);
-      await settle(t);
-      expect(find.text('Gamma'), findsNothing);
+      await openFolder(t, 'Class A');
       expect(find.text('Alpha'), findsOneWidget);
-      await t.tap(find.byType(FilterChip).at(1));
-      await settle(t);
-      expect(find.text('Gamma'), findsOneWidget);
       expect(find.text('Beta'), findsNothing);
-      await t.tap(find.byType(FilterChip).at(1));
+      await t.tap(find.byIcon(Icons.arrow_back));
       await settle(t);
       expect(find.text('Beta'), findsOneWidget);
     });
 
-    testWidgets('new group, rename, delete group', (t) async {
+    testWidgets('empty folder and list view folder rows', (t) async {
+      installApi(extra: {
+        'GET /api/projects': (_) => [],
+        'GET /api/folders': (_) => [
+              {'id': 'f1', 'name': 'Class A'}
+            ],
+      });
+      await pump(t, const ProjectsPage());
+      await t.tap(find.byIcon(Icons.view_list));
+      await settle(t);
+      expect(find.text('Class A'), findsOneWidget);
+      await openFolder(t, 'Class A');
+      expect(find.text('Empty folder'), findsOneWidget);
+    });
+
+    testWidgets('new folder, rename, delete folder', (t) async {
       var have = false;
       var calls = <String>[];
       installApi(extra: {
-        'GET /api/groups': (_) => have
+        'GET /api/folders': (_) => have
             ? [
-                {'id': 'g1', 'name': 'Class A'}
+                {'id': 'f1', 'name': 'Class A'}
               ]
             : [],
-        'POST /api/groups': (_) {
+        'POST /api/folders': (_) {
           have = true;
           calls.add('create');
-          return {'id': 'g1', 'name': 'Class A'};
+          return {'id': 'f1', 'name': 'Class A'};
         },
-        'PATCH /api/groups/g1': (_) {
+        'PATCH /api/folders/f1': (_) {
           calls.add('rename');
           return {'ok': true};
         },
-        'DELETE /api/groups/g1': (_) {
+        'DELETE /api/folders/f1': (_) {
           have = false;
           calls.add('delete');
           return {'ok': true};
@@ -606,12 +618,12 @@ void main() {
       });
       await pump(t, const ProjectsPage());
       expect(find.text('Class A'), findsNothing);
-      await t.tap(find.text('New group'));
+      await t.tap(find.text('New folder'));
       await settle(t);
       await t.tap(find.text('Cancel'));
       await settle(t);
       expect(calls, isEmpty);
-      await t.tap(find.text('New group'));
+      await t.tap(find.text('New folder'));
       await settle(t);
       await t.enterText(find.byType(TextField).last, 'Class A');
       await t.tap(find.text('OK'));
@@ -619,6 +631,7 @@ void main() {
       expect(calls, ['create']);
       expect(find.text('Class A'), findsOneWidget);
 
+      await openFolder(t, 'Class A');
       await t.tap(find.byType(PopupMenuButton<String>).first);
       await settle(t);
       await t.tap(find.text('Rename'));
@@ -643,14 +656,14 @@ void main() {
       await settle(t);
       expect(calls, ['create', 'rename', 'delete']);
       expect(find.text('Class A'), findsNothing);
-      expect(find.text('Ungrouped'), findsNothing);
+      expect(find.text('Short Film'), findsOneWidget);
     });
 
-    testWidgets('move to group dialog', (t) async {
+    testWidgets('add to folder dialog', (t) async {
       var patched = <String>[];
       installApi(extra: {
-        'GET /api/groups': (_) => [
-              {'id': 'g1', 'name': 'Class A'}
+        'GET /api/folders': (_) => [
+              {'id': 'f1', 'name': 'Class A'}
             ],
         'PATCH /api/projects/p1': (req) {
           patched.add(req.body);
@@ -660,7 +673,7 @@ void main() {
       await pump(t, const ProjectsPage());
       await t.tap(find.byType(PopupMenuButton<String>).last);
       await settle(t);
-      await t.tap(find.text('Move to group'));
+      await t.tap(find.text('Add to folder'));
       await settle(t);
       Navigator.of(t.element(find.byType(SimpleDialog)), rootNavigator: true)
           .pop();
@@ -669,64 +682,55 @@ void main() {
 
       await t.tap(find.byType(PopupMenuButton<String>).last);
       await settle(t);
-      await t.tap(find.text('Move to group'));
+      await t.tap(find.text('Add to folder'));
       await settle(t);
-      await t.tap(find.text('No group'));
+      await t.tap(find.text('No folder'));
       await settle(t);
       expect(patched, isEmpty);
 
       await t.tap(find.byType(PopupMenuButton<String>).last);
       await settle(t);
-      await t.tap(find.text('Move to group'));
+      await t.tap(find.text('Add to folder'));
       await settle(t);
       await t.tap(find.descendant(
           of: find.byType(SimpleDialog), matching: find.text('Class A')));
       await settle(t);
-      expect(patched.single, contains('"groupId":"g1"'));
+      expect(patched.single, contains('"folderId":"f1"'));
     });
 
-    testWidgets('edit tags and stale tag filter', (t) async {
-      var tagged = true;
+    testWidgets('project created inside a folder lands in it', (t) async {
+      var body = '';
       installApi(extra: {
-        'GET /api/projects': (_) => [
-              proj('p1', 'Alpha', '', tagged ? ['doc'] : ['x'])
+        'GET /api/folders': (_) => [
+              {'id': 'f1', 'name': 'Class A'}
             ],
-        'PATCH /api/projects/p1': (_) {
-          tagged = false;
-          return {'ok': true};
+        'POST /api/projects': (req) {
+          body = req.body;
+          return {'id': 'p9', 'name': 'x', 'displayName': 'x', 'createdAt': 1};
         },
       });
       await pump(t, const ProjectsPage());
-      expect(find.text('doc'), findsWidgets);
-      await t.tap(find.byType(PopupMenuButton<String>));
-      await settle(t);
-      await t.tap(find.text('Edit tags'));
-      await settle(t);
-      await t.tap(find.text('Cancel'));
-      await settle(t);
-      await t.tap(find.byType(FilterChip));
-      await settle(t);
-      await t.tap(find.byType(PopupMenuButton<String>));
-      await settle(t);
-      await t.tap(find.text('Edit tags'));
+      await openFolder(t, 'Class A');
+      await t.tap(find.byType(FloatingActionButton));
       await settle(t);
       await t.enterText(find.byType(TextField).last, 'x');
       await t.tap(find.text('OK'));
       await settle(t);
-      expect(find.text('No projects match this tag.'), findsOneWidget);
+      expect(body, contains('"folderId":"f1"'));
+      expect(find.byType(ProjectPage), findsOneWidget);
     });
 
-    testWidgets('group and tag errors show snack', (t) async {
+    testWidgets('folder errors show snack', (t) async {
       installApi(extra: {
-        'GET /api/groups': (_) => [
-              {'id': 'g1', 'name': 'Class A'}
+        'GET /api/folders': (_) => [
+              {'id': 'f1', 'name': 'Class A'}
             ],
-        'POST /api/groups': (_) => http.Response('{"error":"dup"}', 409),
+        'POST /api/folders': (_) => http.Response('{"error":"dup"}', 409),
         'PATCH *': (_) => http.Response('{"error":"nope"}', 500),
         'DELETE *': (_) => http.Response('{"error":"nope"}', 500),
       });
       await pump(t, const ProjectsPage());
-      await t.tap(find.text('New group'));
+      await t.tap(find.text('New folder'));
       await settle(t);
       await t.enterText(find.byType(TextField).last, 'x');
       await t.tap(find.text('OK'));
@@ -734,14 +738,17 @@ void main() {
       expect(find.byType(Notice), findsOneWidget);
       await t.pumpWidget(const SizedBox());
 
-      installApi(extra: {
-        'GET /api/groups': (_) => [
-              {'id': 'g1', 'name': 'Class A'}
-            ],
-        'PATCH *': (_) => http.Response('{"error":"nope"}', 500),
-        'DELETE *': (_) => http.Response('{"error":"nope"}', 500),
-      });
       await pump(t, const ProjectsPage());
+      await t.tap(find.byType(PopupMenuButton<String>).last);
+      await settle(t);
+      await t.tap(find.text('Add to folder'));
+      await settle(t);
+      await t.tap(find.descendant(
+          of: find.byType(SimpleDialog), matching: find.text('Class A')));
+      await settle(t);
+      expect(find.byType(Notice), findsWidgets);
+
+      await openFolder(t, 'Class A');
       await t.tap(find.byType(PopupMenuButton<String>).first);
       await settle(t);
       await t.tap(find.text('Rename'));
@@ -749,25 +756,12 @@ void main() {
       await t.enterText(find.byType(TextField).last, 'y');
       await t.tap(find.text('OK'));
       await settle(t);
+      expect(find.byType(Notice), findsWidgets);
       await t.tap(find.byType(PopupMenuButton<String>).first);
       await settle(t);
       await t.tap(find.text('Delete'));
       await settle(t);
       await t.tap(find.text('Confirm'));
-      await settle(t);
-      await t.tap(find.byType(PopupMenuButton<String>).last);
-      await settle(t);
-      await t.tap(find.text('Move to group'));
-      await settle(t);
-      await t.tap(find.descendant(
-          of: find.byType(SimpleDialog), matching: find.text('Class A')));
-      await settle(t);
-      await t.tap(find.byType(PopupMenuButton<String>).last);
-      await settle(t);
-      await t.tap(find.text('Edit tags'));
-      await settle(t);
-      await t.enterText(find.byType(TextField).last, 'a');
-      await t.tap(find.text('OK'));
       await settle(t);
       expect(find.byType(Notice), findsWidgets);
     });

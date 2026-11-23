@@ -82,21 +82,17 @@
       "name": {}
     }
   },
-  "newGroup": "Grúpa nua",
-  "groupName": "Ainm an ghrúpa",
-  "ungrouped": "Gan ghrúpa",
-  "noGroup": "Gan ghrúpa",
-  "moveToGroup": "Bog go grúpa",
-  "renameGroup": "Athainmnigh an grúpa",
-  "deleteGroupBody": "Scrios an grúpa \"{name}\"? Coinnítear na tionscadail gan ghrúpa.",
-  "@deleteGroupBody": {
+  "back": "Ar ais",
+  "addToFolder": "Cuir le fillteán",
+  "noFolder": "Gan fhillteán",
+  "renameFolder": "Athainmnigh an fillteán",
+  "deleteFolderBody": "Scrios an fillteán \"{name}\"? Coinnítear na tionscadail agus bogtar iad amach.",
+  "@deleteFolderBody": {
     "placeholders": {
       "name": {}
     }
   },
-  "editTags": "Cuir clibeanna in eagar",
-  "tagsHint": "Clibeanna, scartha le camóga",
-  "noMatchingProjects": "Níl aon tionscadal leis an gclib seo.",
+  "noMatchingProjects": "Níl aon tionscadal a mheaitseálann an cuardach.",
   "files": "Comhaid",
   "renders": "Rindreálacha",
   "emptyFolder": "Fillteán folamh",

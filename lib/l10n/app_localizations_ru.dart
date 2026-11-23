@@ -195,36 +195,24 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
-  String get newGroup => 'Новая группа';
+  String get back => 'Назад';
 
   @override
-  String get groupName => 'Название группы';
+  String get addToFolder => 'Добавить в папку';
 
   @override
-  String get ungrouped => 'Без группы';
+  String get noFolder => 'Без папки';
 
   @override
-  String get noGroup => 'Без группы';
+  String get renameFolder => 'Переименовать папку';
 
   @override
-  String get moveToGroup => 'Переместить в группу';
-
-  @override
-  String get renameGroup => 'Переименовать группу';
-
-  @override
-  String deleteGroupBody(Object name) {
-    return 'Удалить группу «$name»? Проекты сохранятся без группы.';
+  String deleteFolderBody(Object name) {
+    return 'Удалить папку «$name»? Проекты сохранятся вне папок.';
   }
 
   @override
-  String get editTags => 'Изменить теги';
-
-  @override
-  String get tagsHint => 'Теги через запятую';
-
-  @override
-  String get noMatchingProjects => 'Нет проектов с этим тегом.';
+  String get noMatchingProjects => 'Нет проектов, подходящих под поиск.';
 
   @override
   String get files => 'Файлы';

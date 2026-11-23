@@ -70,7 +70,7 @@ FakeClient sessionClient({Map<String, dynamic> extra = const {}}) =>
               'createdAt': 1700000000
             },
           ],
-      'GET /api/groups': (_) => [],
+      'GET /api/folders': (_) => [],
       'GET /api/projects/p1': (_) => {
             'id': 'p1',
             'name': 'short-film',

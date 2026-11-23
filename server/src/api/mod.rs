@@ -16,7 +16,7 @@ use crate::auth::{
 };
 use crate::files::{self, FsError};
 use crate::model::{
-    self, can_manage, lineage_has, Assignment, AssignmentCopy, InviteCode, Project, ProjectGroup,
+    self, can_manage, lineage_has, Assignment, AssignmentCopy, Folder, InviteCode, Project,
     ProjectLink, ProjectShare, RenderJob, RenderSpec, Role, User,
 };
 use crate::render;
@@ -118,8 +118,8 @@ pub fn router(state: Arc<AppState>) -> Router {
                 .patch(update_project)
                 .delete(delete_project),
         )
-        .route("/groups", get(list_groups).post(create_group))
-        .route("/groups/{id}", patch(rename_group).delete(delete_group))
+        .route("/folders", get(list_folders).post(create_folder))
+        .route("/folders/{id}", patch(rename_folder).delete(delete_folder))
         .route(
             "/projects/{id}/files",
             get(list_files).put(upload_file).delete(delete_file),
@@ -1487,10 +1487,10 @@ async fn delete_account(
         }
         Err(e) => return db_resp(e),
     }
-    match s.db.groups_by_owner(&id).await {
-        Ok(gs) => {
-            for g in &gs {
-                let _ = s.db.delete_group(&g.id).await;
+    match s.db.folders_by_owner(&id).await {
+        Ok(fs) => {
+            for f in &fs {
+                let _ = s.db.delete_folder(&f.id).await;
             }
         }
         Err(e) => return db_resp(e),
@@ -1785,10 +1785,8 @@ struct CreateProjectReq {
     name: String,
     #[serde(default, rename = "displayName")]
     display_name: String,
-    #[serde(default, rename = "groupId")]
-    group_id: String,
-    #[serde(default)]
-    tags: Vec<String>,
+    #[serde(default, rename = "folderId")]
+    folder_id: String,
 }
 
 async fn create_project(
@@ -1816,15 +1814,14 @@ async fn create_project(
     } else {
         req.display_name.trim().chars().take(100).collect()
     };
-    let group_id = req.group_id.trim().to_string();
-    if !group_id.is_empty() {
-        match s.db.group_by_id(&group_id).await {
-            Ok(g) if g.owner_id == session.user.id => {}
-            Ok(_) => return err(StatusCode::FORBIDDEN, "not your group"),
-            Err(_) => return err(StatusCode::NOT_FOUND, "no such group"),
+    let folder_id = req.folder_id.trim().to_string();
+    if !folder_id.is_empty() {
+        match s.db.folder_by_id(&folder_id).await {
+            Ok(f) if f.owner_id == session.user.id => {}
+            Ok(_) => return err(StatusCode::FORBIDDEN, "not your folder"),
+            Err(_) => return err(StatusCode::NOT_FOUND, "no such folder"),
         }
     }
-    let tags = model::norm_tags(&req.tags);
     let id = model::new_id();
     let dir = files::rel_project_dir(&session.user.username, &session.user.id, &name, &id);
     for f in files::PROJECT_FOLDERS {
@@ -1838,8 +1835,7 @@ async fn create_project(
         name,
         display_name: display,
         dir,
-        group_id,
-        tags,
+        folder_id,
         created_at: AppState::now(),
         last_activity: AppState::now(),
         pinned: false,
@@ -2574,10 +2570,8 @@ async fn get_project(
 struct UpdateProjectReq {
     #[serde(default, rename = "displayName")]
     display_name: Option<String>,
-    #[serde(default, rename = "groupId")]
-    group_id: Option<String>,
-    #[serde(default)]
-    tags: Option<Vec<String>>,
+    #[serde(default, rename = "folderId")]
+    folder_id: Option<String>,
     #[serde(default)]
     pinned: Option<bool>,
     #[serde(default)]
@@ -2607,25 +2601,21 @@ async fn update_project(
         }
         None => p.display_name.clone(),
     };
-    let group_id = match req.group_id {
-        Some(g) => {
-            let g = g.trim().to_string();
-            if !g.is_empty() {
-                match s.db.group_by_id(&g).await {
-                    Ok(gr) if gr.owner_id == p.owner_id => {}
-                    Ok(_) => return err(StatusCode::FORBIDDEN, "not your group"),
-                    Err(_) => return err(StatusCode::NOT_FOUND, "no such group"),
+    let folder_id = match req.folder_id {
+        Some(f) => {
+            let f = f.trim().to_string();
+            if !f.is_empty() {
+                match s.db.folder_by_id(&f).await {
+                    Ok(fd) if fd.owner_id == p.owner_id => {}
+                    Ok(_) => return err(StatusCode::FORBIDDEN, "not your folder"),
+                    Err(_) => return err(StatusCode::NOT_FOUND, "no such folder"),
                 }
             }
-            g
+            f
         }
-        None => p.group_id.clone(),
+        None => p.folder_id.clone(),
     };
-    let tags = model::norm_tags(req.tags.as_deref().unwrap_or(&p.tags));
-    if let Err(e) =
-        s.db.update_project(&id, &name, &group_id, &model::tags_csv(&tags))
-            .await
-    {
+    if let Err(e) = s.db.update_project(&id, &name, &folder_id).await {
         return db_resp(e);
     }
     if let Some(pin) = req.pinned {
@@ -2643,90 +2633,90 @@ async fn update_project(
     Json(json!({"ok": true})).into_response()
 }
 
-async fn owned_group(
+async fn owned_folder(
     s: &Arc<AppState>,
     session: &Session,
     id: &str,
-) -> Result<ProjectGroup, Response> {
-    let g =
-        s.db.group_by_id(id)
+) -> Result<Folder, Response> {
+    let f =
+        s.db.folder_by_id(id)
             .await
-            .map_err(|_| err(StatusCode::NOT_FOUND, "no such group"))?;
-    if g.owner_id != session.user.id {
-        return Err(err(StatusCode::FORBIDDEN, "not your group"));
+            .map_err(|_| err(StatusCode::NOT_FOUND, "no such folder"))?;
+    if f.owner_id != session.user.id {
+        return Err(err(StatusCode::FORBIDDEN, "not your folder"));
     }
-    Ok(g)
+    Ok(f)
 }
 
-async fn list_groups(State(s): State<Arc<AppState>>, session: Session) -> Response {
-    match s.db.groups_by_owner(&session.user.id).await {
-        Ok(groups) => Json(json!(groups)).into_response(),
+async fn list_folders(State(s): State<Arc<AppState>>, session: Session) -> Response {
+    match s.db.folders_by_owner(&session.user.id).await {
+        Ok(folders) => Json(json!(folders)).into_response(),
         Err(e) => db_resp(e),
     }
 }
 
 #[derive(Deserialize)]
-struct GroupReq {
+struct FolderReq {
     name: String,
 }
 
-async fn create_group(
+async fn create_folder(
     State(s): State<Arc<AppState>>,
     session: Session,
-    Json(req): Json<GroupReq>,
+    Json(req): Json<FolderReq>,
 ) -> Response {
     let name: String = req.name.trim().chars().take(64).collect();
     if name.is_empty() {
-        return err(StatusCode::BAD_REQUEST, "empty group name");
+        return err(StatusCode::BAD_REQUEST, "empty folder name");
     }
-    let g = ProjectGroup {
+    let f = Folder {
         id: model::new_id(),
         owner_id: session.user.id.clone(),
         name: name.clone(),
         created_at: AppState::now(),
     };
-    if let Err(e) = s.db.create_group(&g).await {
+    if let Err(e) = s.db.create_folder(&f).await {
         return db_resp(e);
     }
-    s.audit("project", &session.user, "create_group", &name, "", "")
+    s.audit("project", &session.user, "create_folder", &name, "", "")
         .await;
-    Json(json!(g)).into_response()
+    Json(json!(f)).into_response()
 }
 
-async fn rename_group(
+async fn rename_folder(
     State(s): State<Arc<AppState>>,
     session: Session,
     Path(id): Path<String>,
-    Json(req): Json<GroupReq>,
+    Json(req): Json<FolderReq>,
 ) -> Response {
-    if let Err(r) = owned_group(&s, &session, &id).await {
+    if let Err(r) = owned_folder(&s, &session, &id).await {
         return r;
     }
     let name: String = req.name.trim().chars().take(64).collect();
     if name.is_empty() {
-        return err(StatusCode::BAD_REQUEST, "empty group name");
+        return err(StatusCode::BAD_REQUEST, "empty folder name");
     }
-    if let Err(e) = s.db.rename_group(&id, &name).await {
+    if let Err(e) = s.db.rename_folder(&id, &name).await {
         return db_resp(e);
     }
-    s.audit("project", &session.user, "rename_group", &name, "", "")
+    s.audit("project", &session.user, "rename_folder", &name, "", "")
         .await;
     Json(json!({"ok": true})).into_response()
 }
 
-async fn delete_group(
+async fn delete_folder(
     State(s): State<Arc<AppState>>,
     session: Session,
     Path(id): Path<String>,
 ) -> Response {
-    let g = match owned_group(&s, &session, &id).await {
-        Ok(g) => g,
+    let f = match owned_folder(&s, &session, &id).await {
+        Ok(f) => f,
         Err(r) => return r,
     };
-    if let Err(e) = s.db.delete_group(&id).await {
+    if let Err(e) = s.db.delete_folder(&id).await {
         return db_resp(e);
     }
-    s.audit("project", &session.user, "delete_group", &g.name, "", "")
+    s.audit("project", &session.user, "delete_folder", &f.name, "", "")
         .await;
     Json(json!({"ok": true})).into_response()
 }
@@ -2827,8 +2817,7 @@ async fn clone_project(
         name,
         display_name: display,
         dir,
-        group_id: String::new(),
-        tags: src.tags.clone(),
+        folder_id: String::new(),
         created_at: AppState::now(),
         last_activity: AppState::now(),
         pinned: false,
@@ -4562,8 +4551,7 @@ mod tests {
             name: "p".into(),
             display_name: "p".into(),
             dir: format!("d/{}", model::new_id()),
-            group_id: String::new(),
-            tags: vec![],
+            folder_id: String::new(),
             created_at: AppState::now(),
             last_activity: AppState::now(),
             pinned: false,
@@ -4585,8 +4573,7 @@ mod tests {
     fn patch_body(template: Option<bool>) -> Json<UpdateProjectReq> {
         Json(UpdateProjectReq {
             display_name: None,
-            group_id: None,
-            tags: None,
+            folder_id: None,
             pinned: None,
             template,
         })
@@ -4640,8 +4627,7 @@ mod tests {
             Path(p.id.clone()),
             Json(UpdateProjectReq {
                 display_name: Some("new name".into()),
-                group_id: None,
-                tags: None,
+                folder_id: None,
                 pinned: Some(true),
                 template: None,
             }),
@@ -5644,17 +5630,17 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn delete_account_purges_projects_and_groups() {
+    async fn delete_account_purges_projects_and_folders() {
         let dir = std::env::temp_dir().join(format!("wfm-api-{}", model::new_id()));
         std::fs::create_dir_all(&dir).unwrap();
         let s = state(&dir);
         let (_owner, teacher, _t2, student, _classmate, _outsider) = school(&s);
         let p = project(&student);
         s.db.create_project(&p).await.unwrap();
-        s.db.create_group(&ProjectGroup {
+        s.db.create_folder(&Folder {
             id: model::new_id(),
             owner_id: student.id.clone(),
-            name: "g".into(),
+            name: "f".into(),
             created_at: AppState::now(),
         })
         .await
@@ -5667,7 +5653,7 @@ mod tests {
         .await;
         assert_eq!(r.status(), StatusCode::OK);
         assert!(s.db.project_by_id(&p.id).await.is_err());
-        assert!(s.db.groups_by_owner(&student.id).await.unwrap().is_empty());
+        assert!(s.db.folders_by_owner(&student.id).await.unwrap().is_empty());
         assert!(s.db.user_by_id(&student.id).await.is_err());
     }
 

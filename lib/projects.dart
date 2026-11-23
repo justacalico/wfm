@@ -30,9 +30,9 @@ class ProjectsPage extends StatefulWidget {
 
 class _ProjectsPageState extends State<ProjectsPage> {
   List<Project>? _items;
-  List<ProjectGroup> _groups = [];
+  List<Folder> _folders = [];
   String _err = '';
-  String? _tagFilter;
+  String _folderId = '';
   int _view = 0;
   int _sort = 0;
   final _query = TextEditingController();
@@ -71,10 +71,13 @@ class _ProjectsPageState extends State<ProjectsPage> {
 
   Future<void> _load() async {
     try {
-      final res = await Future.wait([Api.i.projects(), Api.i.groups()]);
+      final res = await Future.wait([Api.i.projects(), Api.i.folders()]);
       setState(() {
         _items = res[0] as List<Project>;
-        _groups = res[1] as List<ProjectGroup>;
+        _folders = res[1] as List<Folder>;
+        if (_folderId.isNotEmpty && !_folders.any((f) => f.id == _folderId)) {
+          _folderId = '';
+        }
       });
     } catch (e) {
       setState(() => _err = '$e');
@@ -86,7 +89,7 @@ class _ProjectsPageState extends State<ProjectsPage> {
         context, context.l10n.newProject, context.l10n.projectName);
     if (name == null || name.isEmpty || !mounted) return;
     try {
-      final p = await Api.i.createProject(name);
+      final p = await Api.i.createProject(name, folderId: _folderId);
       _load();
       if (!mounted) return;
       final shell = context.findAncestorStateOfType<ShellState>();
@@ -101,75 +104,62 @@ class _ProjectsPageState extends State<ProjectsPage> {
     }
   }
 
-  Future<void> _newGroup() async {
+  Future<void> _newFolder() async {
     final name = await promptText(
-        context, context.l10n.newGroup, context.l10n.groupName);
+        context, context.l10n.newFolder, context.l10n.folderName);
     if (name == null || name.isEmpty || !mounted) return;
     try {
-      await Api.i.createGroup(name);
+      await Api.i.createFolder(name);
       _load();
     } catch (e) {
       if (mounted) snack(context, e);
     }
   }
 
-  Future<void> _renameGroup(ProjectGroup g) async {
+  Future<void> _renameFolder(Folder f) async {
     final name = await promptText(
-        context, context.l10n.renameGroup, context.l10n.groupName, g.name);
+        context, context.l10n.renameFolder, context.l10n.folderName, f.name);
     if (name == null || name.isEmpty || !mounted) return;
     try {
-      await Api.i.renameGroup(g.id, name);
+      await Api.i.renameFolder(f.id, name);
       _load();
     } catch (e) {
       if (mounted) snack(context, e);
     }
   }
 
-  Future<void> _deleteGroup(ProjectGroup g) async {
+  Future<void> _deleteFolder(Folder f) async {
     if (!await confirm(
-        context, context.l10n.delete, context.l10n.deleteGroupBody(g.name))) {
+        context, context.l10n.delete, context.l10n.deleteFolderBody(f.name))) {
       return;
     }
     try {
-      await Api.i.deleteGroup(g.id);
+      await Api.i.deleteFolder(f.id);
       _load();
     } catch (e) {
       if (mounted) snack(context, e);
     }
   }
 
-  Future<void> _moveToGroup(Project p) async {
+  Future<void> _addToFolder(Project p) async {
     final l10n = context.l10n;
-    final gid = await showDialog<String>(
+    final fid = await showDialog<String>(
       context: context,
       builder: (ctx) => SimpleDialog(
-        title: Text(l10n.moveToGroup),
+        title: Text(l10n.addToFolder),
         children: [
           SimpleDialogOption(
               onPressed: () => Navigator.pop(ctx, ''),
-              child: Text(l10n.noGroup)),
-          for (final g in _groups)
+              child: Text(l10n.noFolder)),
+          for (final f in _folders)
             SimpleDialogOption(
-                onPressed: () => Navigator.pop(ctx, g.id), child: Text(g.name)),
+                onPressed: () => Navigator.pop(ctx, f.id), child: Text(f.name)),
         ],
       ),
     );
-    if (gid == null || gid == p.groupId || !mounted) return;
+    if (fid == null || fid == p.folderId || !mounted) return;
     try {
-      await Api.i.updateProject(p.id, groupId: gid);
-      _load();
-    } catch (e) {
-      if (mounted) snack(context, e);
-    }
-  }
-
-  Future<void> _editTags(Project p) async {
-    final v = await promptText(context, context.l10n.editTags,
-        context.l10n.tagsHint, p.tags.join(', '));
-    if (v == null || !mounted) return;
-    try {
-      await Api.i
-          .updateProject(p.id, tags: [for (final t in v.split(',')) t.trim()]);
+      await Api.i.updateProject(p.id, folderId: fid);
       _load();
     } catch (e) {
       if (mounted) snack(context, e);
@@ -228,10 +218,9 @@ class _ProjectsPageState extends State<ProjectsPage> {
                 }
               }),
             'pin' => _togglePin(p),
-            'tags' => _editTags(p),
             'take' => _takeOver(p),
             'dup' => _duplicate(p),
-            _ => _moveToGroup(p),
+            _ => _addToFolder(p),
           },
           itemBuilder: (_) => [
             PopupMenuItem(value: 'share', child: Text(l10n.share)),
@@ -246,8 +235,7 @@ class _ProjectsPageState extends State<ProjectsPage> {
               PopupMenuItem(
                   value: 'pin',
                   child: Text(p.pinned ? l10n.unpinProject : l10n.pinProject)),
-              PopupMenuItem(value: 'tags', child: Text(l10n.editTags)),
-              PopupMenuItem(value: 'group', child: Text(l10n.moveToGroup)),
+              PopupMenuItem(value: 'folder', child: Text(l10n.addToFolder)),
             ],
             PopupMenuItem(value: 'dup', child: Text(l10n.duplicate)),
           ],
@@ -329,13 +317,6 @@ class _ProjectsPageState extends State<ProjectsPage> {
                           ? l10n.statusReviewed
                           : l10n.statusSubmitted),
                 ),
-              if (p.tags.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: Wrap(spacing: 6, runSpacing: 6, children: [
-                    for (final t in p.tags) tagChip(context, t),
-                  ]),
-                ),
               const SizedBox(height: 4),
               _actions(c, l10n, p, expand: true),
             ]),
@@ -380,13 +361,6 @@ class _ProjectsPageState extends State<ProjectsPage> {
                                 ? l10n.statusReviewed
                                 : l10n.statusSubmitted),
                       ),
-                    if (p.tags.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 4),
-                        child: Wrap(spacing: 6, runSpacing: 6, children: [
-                          for (final t in p.tags) tagChip(context, t),
-                        ]),
-                      ),
                   ]),
             ),
             _menu(c, l10n, p),
@@ -399,9 +373,57 @@ class _ProjectsPageState extends State<ProjectsPage> {
     );
   }
 
-  Widget _cards(List<Project> ps, AppLocalizations l10n, bool tight) {
+  Widget _folderCard(Folder f, double w) {
+    return SizedBox(
+      width: w,
+      child: Card(
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onDoubleTap: () => setState(() => _folderId = f.id),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Icon(Icons.folder_outlined, size: 28),
+              const SizedBox(height: 8),
+              Text(f.name,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold, fontSize: 16),
+                  overflow: TextOverflow.ellipsis),
+            ]),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _folderRow(Folder f) {
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onDoubleTap: () => setState(() => _folderId = f.id),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(children: [
+            const Icon(Icons.folder_outlined, size: 20),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(f.name,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold, fontSize: 16),
+                  overflow: TextOverflow.ellipsis),
+            ),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  Widget _cards(List<Folder> folders, List<Project> ps, AppLocalizations l10n,
+      bool tight) {
     if (_view == 1) {
       return Column(children: [
+        for (final f in folders) _folderRow(f),
         for (final p in ps) _row(context, l10n, p),
       ]);
     }
@@ -409,9 +431,17 @@ class _ProjectsPageState extends State<ProjectsPage> {
       final cols = tight ? 1 : (cons.maxWidth / 300).floor();
       final w = (cons.maxWidth - 12 * (cols - 1)) / cols;
       return Wrap(spacing: 12, runSpacing: 12, children: [
+        for (final f in folders) _folderCard(f, w),
         for (final p in ps) _card(c, l10n, p, w),
       ]);
     });
+  }
+
+  Folder? get _openFolder {
+    for (final f in _folders) {
+      if (f.id == _folderId) return f;
+    }
+    return null;
   }
 
   @override
@@ -421,9 +451,13 @@ class _ProjectsPageState extends State<ProjectsPage> {
     final items = _items;
     final tight = MediaQuery.sizeOf(context).width < 720;
     final q = _query.text.trim().toLowerCase();
+    final open = _openFolder;
+    final known = {for (final f in _folders) f.id};
     final filtered = [
       for (final p in items ?? <Project>[])
-        if ((_tagFilter == null || p.tags.contains(_tagFilter)) &&
+        if ((open != null
+                ? p.folderId == open.id
+                : !known.contains(p.folderId)) &&
             (q.isEmpty ||
                 p.name.toLowerCase().contains(q) ||
                 p.displayName.toLowerCase().contains(q)))
@@ -437,19 +471,10 @@ class _ProjectsPageState extends State<ProjectsPage> {
             a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase()),
         };
       });
-    final allTags = {
-      for (final p in items ?? <Project>[]) ...p.tags,
-    }.toList()
-      ..sort();
-    final byGroup = <String, List<Project>>{};
-    for (final p in filtered) {
-      byGroup.putIfAbsent(p.groupId, () => []).add(p);
-    }
-    final orphans = [
-      for (final e in byGroup.entries)
-        if (e.key.isNotEmpty && !_groups.any((g) => g.id == e.key)) ...e.value,
+    final folders = [
+      for (final f in _folders)
+        if (open == null && (q.isEmpty || f.name.toLowerCase().contains(q))) f,
     ];
-    final ungrouped = [...?byGroup[''], ...orphans];
     return Scaffold(
       appBar: tight ? null : AppBar(title: Text(l10n.projects)),
       floatingActionButton: FloatingActionButton.extended(
@@ -490,69 +515,51 @@ class _ProjectsPageState extends State<ProjectsPage> {
                 ),
               ]),
               const SizedBox(height: 8),
-              Row(children: [
-                if (allTags.isNotEmpty)
-                  Expanded(
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(children: [
-                        for (final t in allTags)
-                          Padding(
-                            padding: const EdgeInsets.only(right: 8),
-                            child: FilterChip(
-                              label: Text(t),
-                              selected: _tagFilter == t,
-                              onSelected: (v) =>
-                                  setState(() => _tagFilter = v ? t : null),
-                            ),
-                          ),
-                      ]),
-                    ),
-                  )
-                else
+              if (open != null)
+                _folderHeader(l10n, open)
+              else
+                Row(children: [
                   const Spacer(),
-                TextButton.icon(
-                  onPressed: _newGroup,
-                  icon: const Icon(Icons.create_new_folder_outlined, size: 18),
-                  label: Text(l10n.newGroup),
-                ),
-              ]),
+                  TextButton.icon(
+                    onPressed: _newFolder,
+                    icon:
+                        const Icon(Icons.create_new_folder_outlined, size: 18),
+                    label: Text(l10n.newFolder),
+                  ),
+                ]),
               const SizedBox(height: 8),
-              if (items.isEmpty)
+              if (items.isEmpty && _folders.isEmpty)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 60),
                   child: Center(child: Text(l10n.noProjects)),
                 )
-              else if (filtered.isEmpty)
+              else if (filtered.isEmpty && folders.isEmpty)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 60),
-                  child: Center(child: Text(l10n.noMatchingProjects)),
+                  child: Center(
+                      child: Text(open != null
+                          ? l10n.emptyFolder
+                          : l10n.noMatchingProjects)),
                 )
-              else ...[
-                for (final g in _groups) ...[
-                  _groupHeader(l10n, g),
-                  _cards(byGroup[g.id] ?? <Project>[], l10n, tight),
-                ],
-                if (_groups.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8, bottom: 4),
-                    child: Text(l10n.ungrouped,
-                        style: Theme.of(context).textTheme.titleSmall),
-                  ),
-                _cards(ungrouped, l10n, tight),
-              ],
+              else
+                _cards(folders, filtered, l10n, tight),
             ]),
     );
   }
 
-  Widget _groupHeader(AppLocalizations l10n, ProjectGroup g) {
+  Widget _folderHeader(AppLocalizations l10n, Folder f) {
     return Padding(
-      padding: const EdgeInsets.only(top: 8, bottom: 4),
+      padding: const EdgeInsets.only(bottom: 4),
       child: Row(children: [
-        const Icon(Icons.folder_outlined, size: 18),
+        IconButton(
+          icon: const Icon(Icons.arrow_back, size: 20),
+          tooltip: l10n.back,
+          onPressed: () => setState(() => _folderId = ''),
+        ),
+        const Icon(Icons.folder_outlined, size: 20),
         const SizedBox(width: 8),
         Expanded(
-            child: Text(g.name, style: Theme.of(context).textTheme.titleSmall)),
+            child: Text(f.name, style: Theme.of(context).textTheme.titleSmall)),
         SizedBox(
           width: 28,
           height: 28,
@@ -560,7 +567,7 @@ class _ProjectsPageState extends State<ProjectsPage> {
             iconSize: 18,
             padding: EdgeInsets.zero,
             onSelected: (v) =>
-                v == 'rename' ? _renameGroup(g) : _deleteGroup(g),
+                v == 'rename' ? _renameFolder(f) : _deleteFolder(f),
             itemBuilder: (_) => [
               PopupMenuItem(value: 'rename', child: Text(l10n.rename)),
               PopupMenuItem(value: 'delete', child: Text(l10n.delete)),
