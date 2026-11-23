@@ -724,7 +724,10 @@ async fn roles(session: Session) -> Json<Value> {
     let all = ["student", "mod", "teacher", "admin"];
     let creatable: Vec<&str> = if me.can_create() {
         all.iter()
-            .filter(|r| Role::parse(r).unwrap() < me)
+            .filter(|r| {
+                let role = Role::parse(r).unwrap();
+                role < me && (role != Role::Student || me == Role::Teacher)
+            })
             .copied()
             .collect()
     } else {
@@ -872,7 +875,7 @@ async fn create_class(
     session: Session,
     Json(req): Json<ClassReq>,
 ) -> Response {
-    if !session.user.role.can_create() {
+    if session.user.role != Role::Teacher {
         return err(StatusCode::FORBIDDEN, "teachers only");
     }
     let name = req.name.trim();
@@ -1108,6 +1111,9 @@ async fn create_account(
         }
         _ => return err(StatusCode::BAD_REQUEST, "cannot create that role"),
     };
+    if role == Role::Student && session.user.role != Role::Teacher {
+        return err(StatusCode::FORBIDDEN, "only teachers enroll students");
+    }
     if !model::valid_username(&req.username) {
         return err(StatusCode::BAD_REQUEST, "invalid username");
     }
@@ -1223,6 +1229,9 @@ async fn create_invite(
         Some(r) if r < session.user.role && r != Role::Owner => r,
         _ => return err(StatusCode::BAD_REQUEST, "cannot create that role"),
     };
+    if role == Role::Student && session.user.role != Role::Teacher {
+        return err(StatusCode::FORBIDDEN, "only teachers enroll students");
+    }
     let username = req.username.trim();
     if !username.is_empty() && !model::valid_username(username) {
         return err(StatusCode::BAD_REQUEST, "invalid username");
@@ -1353,6 +1362,15 @@ async fn redeem_invite(
         Ok(u) => u,
         Err(e) => return db_resp(e),
     };
+    let inv_role = Role::parse(&inv.role).unwrap_or(Role::Student);
+    let still_valid = if inv_role == Role::Student {
+        inviter.role == Role::Teacher
+    } else {
+        inviter.role.can_create() && inv_role < inviter.role
+    };
+    if !still_valid {
+        return err(StatusCode::GONE, "invite expired");
+    }
     let username = if inv.preset_username.is_empty() {
         req.username.trim().to_string()
     } else {

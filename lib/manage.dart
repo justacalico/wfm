@@ -402,10 +402,12 @@ class _ClassesTabState extends State<ClassesTab> {
     if (_err.isNotEmpty) return errorView(context, _err, _load);
     final classes = _classes;
     return Scaffold(
-      floatingActionButton: FloatingActionButton.extended(
-          onPressed: _create,
-          icon: const Icon(Icons.group_add),
-          label: Text(l10n.newClass)),
+      floatingActionButton: Api.i.user?.role == 'teacher'
+          ? FloatingActionButton.extended(
+              onPressed: _create,
+              icon: const Icon(Icons.group_add),
+              label: Text(l10n.newClass))
+          : null,
       body: classes == null
           ? const Center(child: CircularProgressIndicator())
           : classes.isEmpty
