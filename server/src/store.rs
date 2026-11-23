@@ -129,12 +129,7 @@ pub trait Db: Send + Sync {
     async fn projects_by_owner(&self, owner_id: &str) -> DbResult<Vec<Project>>;
     async fn user_in_subtree(&self, actor: &User, user_id: &str) -> DbResult<bool>;
     async fn set_project_owner(&self, id: &str, owner_id: &str) -> DbResult<()>;
-    async fn update_project(
-        &self,
-        id: &str,
-        display_name: &str,
-        folder_id: &str,
-    ) -> DbResult<()>;
+    async fn update_project(&self, id: &str, display_name: &str, folder_id: &str) -> DbResult<()>;
     async fn delete_project(&self, id: &str) -> DbResult<()>;
     async fn touch_project(&self, id: &str, ts: i64) -> DbResult<()>;
     async fn set_project_pinned(&self, id: &str, pinned: bool) -> DbResult<()>;

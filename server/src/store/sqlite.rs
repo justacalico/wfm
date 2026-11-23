@@ -954,12 +954,7 @@ impl Db for SqliteDb {
         .map_err(dberr)
     }
 
-    async fn update_project(
-        &self,
-        id: &str,
-        display_name: &str,
-        folder_id: &str,
-    ) -> DbResult<()> {
+    async fn update_project(&self, id: &str, display_name: &str, folder_id: &str) -> DbResult<()> {
         let (id, name, fid) = (
             id.to_string(),
             display_name.to_string(),
@@ -1196,15 +1191,10 @@ impl Db for SqliteDb {
 
     async fn rename_folder(&self, id: &str, name: &str) -> DbResult<()> {
         let (id, name) = (id.to_string(), name.to_string());
-        self.q(move |c| {
-            c.execute(
-                "UPDATE folders SET name=? WHERE id=?",
-                params![name, id],
-            )
-        })
-        .await
-        .map(|_| ())
-        .map_err(dberr)
+        self.q(move |c| c.execute("UPDATE folders SET name=? WHERE id=?", params![name, id]))
+            .await
+            .map(|_| ())
+            .map_err(dberr)
     }
 
     async fn delete_folder(&self, id: &str) -> DbResult<()> {

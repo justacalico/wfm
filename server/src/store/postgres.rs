@@ -891,12 +891,7 @@ impl Db for PgDb {
             .map_err(map_err)
     }
 
-    async fn update_project(
-        &self,
-        id: &str,
-        display_name: &str,
-        folder_id: &str,
-    ) -> DbResult<()> {
+    async fn update_project(&self, id: &str, display_name: &str, folder_id: &str) -> DbResult<()> {
         sqlx::query("UPDATE projects SET display_name=$1, folder_id=$2 WHERE id=$3")
             .bind(display_name)
             .bind(folder_id)

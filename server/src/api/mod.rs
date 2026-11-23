@@ -2732,11 +2732,7 @@ async fn update_project(
     Json(json!({"ok": true})).into_response()
 }
 
-async fn owned_folder(
-    s: &Arc<AppState>,
-    session: &Session,
-    id: &str,
-) -> Result<Folder, Response> {
+async fn owned_folder(s: &Arc<AppState>, session: &Session, id: &str) -> Result<Folder, Response> {
     let f =
         s.db.folder_by_id(id)
             .await
@@ -3687,11 +3683,7 @@ async fn project_manifest(
             Ok((folders, objects)) => {
                 stack.extend(folders);
                 for o in objects {
-                    let rel = o
-                        .key
-                        .strip_prefix(&strip)
-                        .unwrap_or(&o.key)
-                        .to_string();
+                    let rel = o.key.strip_prefix(&strip).unwrap_or(&o.key).to_string();
                     if files::clean_rel_key(&rel).is_err() {
                         continue;
                     }
@@ -3718,20 +3710,12 @@ async fn blob_rev(s: &AppState, dir: &str, key: &str) -> Result<Option<String>, 
     let full = blob_key(dir, key);
     let parent = full.rsplit_once('/').map(|(p, _)| p).unwrap_or("");
     let (_, objects) = s.blobs.list(parent).await?;
-    Ok(objects
-        .into_iter()
-        .find(|o| o.key == full)
-        .map(|o| o.rev))
+    Ok(objects.into_iter().find(|o| o.key == full).map(|o| o.rev))
 }
 
 /// `base` is the rev the client last synced. `"none"` means the file must
 /// not exist yet. An empty base skips the check (legacy callers).
-async fn check_base(
-    s: &AppState,
-    dir: &str,
-    key: &str,
-    base: &str,
-) -> Result<(), Response> {
+async fn check_base(s: &AppState, dir: &str, key: &str, base: &str) -> Result<(), Response> {
     if base.is_empty() {
         return Ok(());
     }
