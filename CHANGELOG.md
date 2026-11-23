@@ -2,6 +2,24 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.43.0 - 2026-11-23
+#### Features
+- (**app**) 首页显示任务与动态 - (04b0498) - calico
+- (**app**) 评论支持嵌套回复 - (9187467) - calico
+- (**app**) 提交前弹出确认 - (1de31d7) - calico
+- (**app**) 创建项目后停留当前页 - (607cea3) - calico
+- (**app**) 用户项目页在应用壳内打开 - (c019040) - calico
+- (**app**) 渲染节点加入设置说明 - (2432ec9) - calico
+- (**server**) 项目提交需教师批准 - (64d4132) - calico
+- (**server**) 新增存储用量统计 - (c4fbc02) - calico
+- (**server**) 所有者可清空审计日志 - (2457e68) - calico
+- (**server**) 撤销邀请直接删除并显示使用人 - (020e03e) - calico
+- (**server**) 仅教师可创建学生和班级 - (3df6df2) - calico
+#### Bug Fixes
+- (**app**) 文件夹卡片支持单击并匹配高度 - (d43e5fd) - calico
+
+- - -
+
 ## v0.42.0 - 2026-11-23
 #### Features
 - (**app**) 设置页添加 AI 助手令牌管理 - (fe284b4) - calico
