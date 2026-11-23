@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'api.dart';
 import 'main.dart';
+import 'mcp.dart';
 import 'platform.dart';
 import 'sessions.dart';
 import 'shortcuts.dart';
@@ -388,6 +389,16 @@ class _SettingsPageState extends State<SettingsPage> {
             ],
           ],
         ]),
+      ),
+      ListTile(
+        dense: true,
+        contentPadding: EdgeInsets.zero,
+        leading: const Icon(Icons.smart_toy_outlined, size: 18),
+        title: Text(l10n.mcp),
+        subtitle: Text(l10n.mcpSubtitle),
+        trailing: const Icon(Icons.chevron_right, size: 18),
+        onTap: () => Navigator.of(context)
+            .push(MaterialPageRoute(builder: (_) => const McpPage())),
       ),
       if (u.isOwner && _proxies != null) ...[
         const SizedBox(height: 24),

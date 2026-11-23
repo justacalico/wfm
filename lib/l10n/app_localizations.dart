@@ -1448,6 +1448,96 @@ abstract class AppLocalizations {
   /// **'Last seen {time}'**
   String sessionLastSeen(Object time);
 
+  /// No description provided for @mcp.
+  ///
+  /// In en, this message translates to:
+  /// **'AI assistant'**
+  String get mcp;
+
+  /// No description provided for @mcpSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Let an agent run WFM for you'**
+  String get mcpSubtitle;
+
+  /// No description provided for @mcpHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Point an AI agent at this server and it can create projects, upload footage and edit timelines on your behalf. Nothing installs on your device; the agent connects over the network with a token you create here.'**
+  String get mcpHint;
+
+  /// No description provided for @mcpUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'Server URL'**
+  String get mcpUrl;
+
+  /// No description provided for @mcpTokens.
+  ///
+  /// In en, this message translates to:
+  /// **'Agent tokens'**
+  String get mcpTokens;
+
+  /// No description provided for @mcpTokensHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Each token works like a password for one agent. Revoke it at any time.'**
+  String get mcpTokensHint;
+
+  /// No description provided for @mcpEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No tokens yet. Create one to let an agent in.'**
+  String get mcpEmpty;
+
+  /// No description provided for @mcpNew.
+  ///
+  /// In en, this message translates to:
+  /// **'New token'**
+  String get mcpNew;
+
+  /// No description provided for @mcpName.
+  ///
+  /// In en, this message translates to:
+  /// **'Token name'**
+  String get mcpName;
+
+  /// No description provided for @mcpNameHint.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. Claude desktop'**
+  String get mcpNameHint;
+
+  /// No description provided for @mcpReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Token ready'**
+  String get mcpReady;
+
+  /// No description provided for @mcpOnce.
+  ///
+  /// In en, this message translates to:
+  /// **'The token is only shown this once. Copy the prompt or the config below into your agent.'**
+  String get mcpOnce;
+
+  /// No description provided for @mcpPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Prompt to paste'**
+  String get mcpPrompt;
+
+  /// No description provided for @mcpConfig.
+  ///
+  /// In en, this message translates to:
+  /// **'Config to paste'**
+  String get mcpConfig;
+
+  /// No description provided for @mcpRevokeBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The agent using this token loses access immediately. Revoke it?'**
+  String get mcpRevokeBody;
+
   /// No description provided for @readOnly.
   ///
   /// In en, this message translates to:

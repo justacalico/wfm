@@ -763,6 +763,56 @@ class AppLocalizationsGa extends AppLocalizations {
   }
 
   @override
+  String get mcp => 'Cúntóir AI';
+
+  @override
+  String get mcpSubtitle => 'Lig do ghníomhaire WFM a rith ar do shon';
+
+  @override
+  String get mcpHint =>
+      'Dírigh gníomhaire AI ar an bhfreastalaí seo agus is féidir leis tionscadail a chruthú, físeáin a uaslódáil agus amlínte a chur in eagar ar do shon. Ní shuiteáiltear aon rud ar do ghléas; nascann an gníomhaire thar an líonra le comhartha a chruthaíonn tú anseo.';
+
+  @override
+  String get mcpUrl => 'URL an fhreastalaí';
+
+  @override
+  String get mcpTokens => 'Comharthaí gníomhaire';
+
+  @override
+  String get mcpTokensHint =>
+      'Oibríonn gach comhartha mar phasfhocal do ghníomhaire amháin. Is féidir é a chúlghairm am ar bith.';
+
+  @override
+  String get mcpEmpty =>
+      'Níl aon chomhartha go fóill. Cruthaigh ceann chun gníomhaire a ligean isteach.';
+
+  @override
+  String get mcpNew => 'Comhartha nua';
+
+  @override
+  String get mcpName => 'Ainm an chomhartha';
+
+  @override
+  String get mcpNameHint => 'm.sh. Claude deisce';
+
+  @override
+  String get mcpReady => 'Comhartha réidh';
+
+  @override
+  String get mcpOnce =>
+      'Ní thaispeánfar an comhartha ach uair amháin. Cóipeáil an leid nó an cumraíocht thíos isteach i do ghníomhaire.';
+
+  @override
+  String get mcpPrompt => 'Leid le greamú';
+
+  @override
+  String get mcpConfig => 'Cumraíocht le greamú';
+
+  @override
+  String get mcpRevokeBody =>
+      'Caillfidh an gníomhaire a úsáideann an comhartha seo rochtain láithreach. Cúlghairm?';
+
+  @override
   String get readOnly => 'Léamh amháin';
 
   @override
