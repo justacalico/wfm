@@ -758,6 +758,55 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get mcp => 'AI assistant';
+
+  @override
+  String get mcpSubtitle => 'Let an agent run WFM for you';
+
+  @override
+  String get mcpHint =>
+      'Point an AI agent at this server and it can create projects, upload footage and edit timelines on your behalf. Nothing installs on your device; the agent connects over the network with a token you create here.';
+
+  @override
+  String get mcpUrl => 'Server URL';
+
+  @override
+  String get mcpTokens => 'Agent tokens';
+
+  @override
+  String get mcpTokensHint =>
+      'Each token works like a password for one agent. Revoke it at any time.';
+
+  @override
+  String get mcpEmpty => 'No tokens yet. Create one to let an agent in.';
+
+  @override
+  String get mcpNew => 'New token';
+
+  @override
+  String get mcpName => 'Token name';
+
+  @override
+  String get mcpNameHint => 'e.g. Claude desktop';
+
+  @override
+  String get mcpReady => 'Token ready';
+
+  @override
+  String get mcpOnce =>
+      'The token is only shown this once. Copy the prompt or the config below into your agent.';
+
+  @override
+  String get mcpPrompt => 'Prompt to paste';
+
+  @override
+  String get mcpConfig => 'Config to paste';
+
+  @override
+  String get mcpRevokeBody =>
+      'The agent using this token loses access immediately. Revoke it?';
+
+  @override
   String get readOnly => 'Read only';
 
   @override
@@ -1355,6 +1404,55 @@ class AppLocalizationsEnGb extends AppLocalizationsEn {
 
   @override
   String get revoke => 'Revoke';
+
+  @override
+  String get mcp => 'AI assistant';
+
+  @override
+  String get mcpSubtitle => 'Let an agent run WFM for you';
+
+  @override
+  String get mcpHint =>
+      'Point an AI agent at this server and it can create projects, upload footage and edit timelines on your behalf. Nothing installs on your device; the agent connects over the network with a token you create here.';
+
+  @override
+  String get mcpUrl => 'Server URL';
+
+  @override
+  String get mcpTokens => 'Agent tokens';
+
+  @override
+  String get mcpTokensHint =>
+      'Each token works like a password for one agent. Revoke it at any time.';
+
+  @override
+  String get mcpEmpty => 'No tokens yet. Create one to let an agent in.';
+
+  @override
+  String get mcpNew => 'New token';
+
+  @override
+  String get mcpName => 'Token name';
+
+  @override
+  String get mcpNameHint => 'e.g. Claude desktop';
+
+  @override
+  String get mcpReady => 'Token ready';
+
+  @override
+  String get mcpOnce =>
+      'The token is only shown this once. Copy the prompt or the config below into your agent.';
+
+  @override
+  String get mcpPrompt => 'Prompt to paste';
+
+  @override
+  String get mcpConfig => 'Config to paste';
+
+  @override
+  String get mcpRevokeBody =>
+      'The agent using this token loses access immediately. Revoke it?';
 
   @override
   String get changePhoto => 'Change photo';

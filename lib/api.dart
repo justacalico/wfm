@@ -156,6 +156,18 @@ class SessionInfo {
         current = j['current'] == true;
 }
 
+class McpToken {
+  final String id, name, token;
+  final int createdAt, expiresAt, lastSeen;
+  McpToken.fromJson(Map<String, dynamic> j)
+      : id = j['id'] ?? '',
+        name = j['name'] ?? '',
+        token = j['token'] ?? '',
+        createdAt = j['createdAt'] ?? 0,
+        expiresAt = j['expiresAt'] ?? 0,
+        lastSeen = j['lastSeen'] ?? 0;
+}
+
 class RenderJob {
   final String id, status, outputName, error, worker, mode;
   final double progress;
@@ -534,6 +546,25 @@ class Api {
       ];
 
   Future<void> revokeSession(String id) => del('/sessions/$id');
+
+  String get mcpUrl {
+    var origin = baseUrl;
+    // coverage:ignore-start
+    if (origin.isEmpty && Uri.base.scheme.startsWith('http')) {
+      origin = Uri.base.origin;
+    }
+    // coverage:ignore-end
+    return '$origin/api/mcp';
+  }
+
+  Future<List<McpToken>> mcpTokens() async => [
+        for (final t in (await get('/mcp/tokens')) as List) McpToken.fromJson(t)
+      ];
+
+  Future<McpToken> mcpTokenCreate(String name) async =>
+      McpToken.fromJson(await post('/mcp/tokens', {'name': name}));
+
+  Future<void> mcpTokenDelete(String id) => del('/mcp/tokens/$id');
 
   Future<String> serverVersion() async =>
       '${(await get('/version'))['version'] ?? ''}';

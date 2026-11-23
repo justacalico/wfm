@@ -35,6 +35,8 @@ rust-s3 = { version = "0.38", default-features = false, features = ["with-tokio"
 sqlx = { version = "0.8", optional = true, default-features = false, features = ["runtime-tokio", "tls-rustls", "postgres"] }
 async-stream = "0.3.6"
 crc32fast = "1.5.5"
+base64 = "0.22"
+tower = { version = "0.5", features = ["util"] }
 
 [features]
 default = []

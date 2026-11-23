@@ -759,6 +759,56 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
+  String get mcp => 'ИИ-ассистент';
+
+  @override
+  String get mcpSubtitle => 'Дайте агенту управлять WFM за вас';
+
+  @override
+  String get mcpHint =>
+      'Укажите ИИ-агенту этот сервер, и он сможет создавать проекты, загружать материал и монтировать таймлайн от вашего имени. На ваше устройство ничего не устанавливается: агент подключается по сети с токеном, который вы создаёте здесь.';
+
+  @override
+  String get mcpUrl => 'URL сервера';
+
+  @override
+  String get mcpTokens => 'Токены агентов';
+
+  @override
+  String get mcpTokensHint =>
+      'Каждый токен работает как пароль для одного агента. Его можно отозвать в любой момент.';
+
+  @override
+  String get mcpEmpty =>
+      'Токенов пока нет. Создайте один, чтобы подключить агента.';
+
+  @override
+  String get mcpNew => 'Новый токен';
+
+  @override
+  String get mcpName => 'Имя токена';
+
+  @override
+  String get mcpNameHint => 'например, Claude desktop';
+
+  @override
+  String get mcpReady => 'Токен готов';
+
+  @override
+  String get mcpOnce =>
+      'Токен показывается только один раз. Скопируйте промпт или конфиг ниже в вашего агента.';
+
+  @override
+  String get mcpPrompt => 'Промпт для вставки';
+
+  @override
+  String get mcpConfig => 'Конфиг для вставки';
+
+  @override
+  String get mcpRevokeBody =>
+      'Агент, использующий этот токен, сразу потеряет доступ. Отозвать?';
+
+  @override
   String get readOnly => 'Только чтение';
 
   @override

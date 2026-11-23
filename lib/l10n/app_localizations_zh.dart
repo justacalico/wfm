@@ -753,6 +753,52 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get mcp => 'AI 助手';
+
+  @override
+  String get mcpSubtitle => '让代理帮你操作 WFM';
+
+  @override
+  String get mcpHint =>
+      '把 AI 代理指向本服务器，它就能帮你创建项目、上传素材、剪辑时间线。你的设备无需安装任何东西，代理通过网络凭你创建的令牌连接。';
+
+  @override
+  String get mcpUrl => '服务器地址';
+
+  @override
+  String get mcpTokens => '代理令牌';
+
+  @override
+  String get mcpTokensHint => '每个令牌相当于一个代理的密码，可随时吊销。';
+
+  @override
+  String get mcpEmpty => '还没有令牌。创建一个即可让代理接入。';
+
+  @override
+  String get mcpNew => '新建令牌';
+
+  @override
+  String get mcpName => '令牌名称';
+
+  @override
+  String get mcpNameHint => '例如：Claude 桌面版';
+
+  @override
+  String get mcpReady => '令牌已生成';
+
+  @override
+  String get mcpOnce => '令牌仅显示这一次。请复制下面的提示词或配置到你的代理。';
+
+  @override
+  String get mcpPrompt => '待粘贴的提示词';
+
+  @override
+  String get mcpConfig => '待粘贴的配置';
+
+  @override
+  String get mcpRevokeBody => '使用该令牌的代理将立即失去访问权限。确定吊销？';
+
+  @override
   String get readOnly => '只读';
 
   @override
