@@ -2,6 +2,13 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.42.0 - 2026-11-23
+#### Features
+- (**app**) 设置页添加 AI 助手令牌管理 - (fe284b4) - calico
+- (**server**) 新增 MCP 远程接口与代理令牌 - (493d567) - calico
+
+- - -
+
 ## v0.41.2 - 2026-11-23
 #### Bug Fixes
 - (**deckcraft**) 由 WFM 托管 DeckCraft 快捷键 - (a610685) - calico
