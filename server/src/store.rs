@@ -133,8 +133,7 @@ pub trait Db: Send + Sync {
         &self,
         id: &str,
         display_name: &str,
-        group_id: &str,
-        tags: &str,
+        folder_id: &str,
     ) -> DbResult<()>;
     async fn delete_project(&self, id: &str) -> DbResult<()>;
     async fn touch_project(&self, id: &str, ts: i64) -> DbResult<()>;
@@ -163,12 +162,12 @@ pub trait Db: Send + Sync {
     async fn comment_delete(&self, id: &str) -> DbResult<bool>;
     async fn comments_delete_project(&self, project: &str) -> DbResult<()>;
 
-    // project groups
-    async fn create_group(&self, g: &ProjectGroup) -> DbResult<()>;
-    async fn group_by_id(&self, id: &str) -> DbResult<ProjectGroup>;
-    async fn groups_by_owner(&self, owner_id: &str) -> DbResult<Vec<ProjectGroup>>;
-    async fn rename_group(&self, id: &str, name: &str) -> DbResult<()>;
-    async fn delete_group(&self, id: &str) -> DbResult<()>;
+    // project folders
+    async fn create_folder(&self, f: &Folder) -> DbResult<()>;
+    async fn folder_by_id(&self, id: &str) -> DbResult<Folder>;
+    async fn folders_by_owner(&self, owner_id: &str) -> DbResult<Vec<Folder>>;
+    async fn rename_folder(&self, id: &str, name: &str) -> DbResult<()>;
+    async fn delete_folder(&self, id: &str) -> DbResult<()>;
 
     // locks
     #[allow(dead_code)]

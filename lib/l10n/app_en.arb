@@ -82,21 +82,17 @@
       "name": {}
     }
   },
-  "newGroup": "New group",
-  "groupName": "Group name",
-  "ungrouped": "Ungrouped",
-  "noGroup": "No group",
-  "moveToGroup": "Move to group",
-  "renameGroup": "Rename group",
-  "deleteGroupBody": "Delete group \"{name}\"? Its projects are kept and become ungrouped.",
-  "@deleteGroupBody": {
+  "back": "Back",
+  "addToFolder": "Add to folder",
+  "noFolder": "No folder",
+  "renameFolder": "Rename folder",
+  "deleteFolderBody": "Delete folder \"{name}\"? Its projects are kept and moved out.",
+  "@deleteFolderBody": {
     "placeholders": {
       "name": {}
     }
   },
-  "editTags": "Edit tags",
-  "tagsHint": "Tags, comma separated",
-  "noMatchingProjects": "No projects match this tag.",
+  "noMatchingProjects": "No projects match your search.",
   "files": "Files",
   "renders": "Renders",
   "emptyFolder": "Empty folder",

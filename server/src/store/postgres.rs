@@ -107,8 +107,7 @@ fn row_project(r: sqlx::postgres::PgRow) -> Project {
         name: r.get("name"),
         display_name: r.get("display_name"),
         dir: r.get("dir"),
-        group_id: r.get("group_id"),
-        tags: tags_split(&r.get::<String, _>("tags")),
+        folder_id: r.get("folder_id"),
         created_at: r.get("created_at"),
         last_activity: r.get("last_activity"),
         pinned: r.get::<i32, _>("pinned") != 0,
@@ -133,8 +132,8 @@ fn row_comment(r: sqlx::postgres::PgRow) -> CommentView {
     }
 }
 
-fn row_group(r: sqlx::postgres::PgRow) -> ProjectGroup {
-    ProjectGroup {
+fn row_folder(r: sqlx::postgres::PgRow) -> Folder {
+    Folder {
         id: r.get("id"),
         owner_id: r.get("owner_id"),
         name: r.get("name"),
@@ -830,15 +829,14 @@ impl Db for PgDb {
 
     async fn create_project(&self, p: &Project) -> DbResult<()> {
         sqlx::query(
-            "INSERT INTO projects(id,owner_id,name,display_name,dir,group_id,tags,created_at,last_activity,pinned,template,status,submitted_at,reviewed_by) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)",
+            "INSERT INTO projects(id,owner_id,name,display_name,dir,folder_id,created_at,last_activity,pinned,template,status,submitted_at,reviewed_by) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)",
         )
         .bind(&p.id)
         .bind(&p.owner_id)
         .bind(&p.name)
         .bind(&p.display_name)
         .bind(&p.dir)
-        .bind(&p.group_id)
-        .bind(tags_csv(&p.tags))
+        .bind(&p.folder_id)
         .bind(p.created_at)
         .bind(p.last_activity)
         .bind(p.pinned as i64)
@@ -895,13 +893,11 @@ impl Db for PgDb {
         &self,
         id: &str,
         display_name: &str,
-        group_id: &str,
-        tags: &str,
+        folder_id: &str,
     ) -> DbResult<()> {
-        sqlx::query("UPDATE projects SET display_name=$1, group_id=$2, tags=$3 WHERE id=$4")
+        sqlx::query("UPDATE projects SET display_name=$1, folder_id=$2 WHERE id=$3")
             .bind(display_name)
-            .bind(group_id)
-            .bind(tags)
+            .bind(folder_id)
             .bind(id)
             .execute(&self.pool)
             .await
@@ -1051,38 +1047,38 @@ impl Db for PgDb {
         tx.commit().await.map_err(map_err)
     }
 
-    async fn create_group(&self, g: &ProjectGroup) -> DbResult<()> {
-        sqlx::query("INSERT INTO project_groups(id,owner_id,name,created_at) VALUES($1,$2,$3,$4)")
-            .bind(&g.id)
-            .bind(&g.owner_id)
-            .bind(&g.name)
-            .bind(g.created_at)
+    async fn create_folder(&self, f: &Folder) -> DbResult<()> {
+        sqlx::query("INSERT INTO folders(id,owner_id,name,created_at) VALUES($1,$2,$3,$4)")
+            .bind(&f.id)
+            .bind(&f.owner_id)
+            .bind(&f.name)
+            .bind(f.created_at)
             .execute(&self.pool)
             .await
             .map(|_| ())
             .map_err(map_err)
     }
 
-    async fn group_by_id(&self, id: &str) -> DbResult<ProjectGroup> {
-        sqlx::query("SELECT * FROM project_groups WHERE id=$1")
+    async fn folder_by_id(&self, id: &str) -> DbResult<Folder> {
+        sqlx::query("SELECT * FROM folders WHERE id=$1")
             .bind(id)
             .fetch_one(&self.pool)
             .await
-            .map(row_group)
+            .map(row_folder)
             .map_err(map_err)
     }
 
-    async fn groups_by_owner(&self, owner_id: &str) -> DbResult<Vec<ProjectGroup>> {
-        sqlx::query("SELECT * FROM project_groups WHERE owner_id=$1 ORDER BY lower(name)")
+    async fn folders_by_owner(&self, owner_id: &str) -> DbResult<Vec<Folder>> {
+        sqlx::query("SELECT * FROM folders WHERE owner_id=$1 ORDER BY lower(name)")
             .bind(owner_id)
             .fetch_all(&self.pool)
             .await
-            .map(|rows| rows.into_iter().map(row_group).collect())
+            .map(|rows| rows.into_iter().map(row_folder).collect())
             .map_err(map_err)
     }
 
-    async fn rename_group(&self, id: &str, name: &str) -> DbResult<()> {
-        sqlx::query("UPDATE project_groups SET name=$1 WHERE id=$2")
+    async fn rename_folder(&self, id: &str, name: &str) -> DbResult<()> {
+        sqlx::query("UPDATE folders SET name=$1 WHERE id=$2")
             .bind(name)
             .bind(id)
             .execute(&self.pool)
@@ -1091,14 +1087,14 @@ impl Db for PgDb {
             .map_err(map_err)
     }
 
-    async fn delete_group(&self, id: &str) -> DbResult<()> {
+    async fn delete_folder(&self, id: &str) -> DbResult<()> {
         let mut tx = self.pool.begin().await.map_err(map_err)?;
-        sqlx::query("DELETE FROM project_groups WHERE id=$1")
+        sqlx::query("DELETE FROM folders WHERE id=$1")
             .bind(id)
             .execute(&mut *tx)
             .await
             .map_err(map_err)?;
-        sqlx::query("UPDATE projects SET group_id='' WHERE group_id=$1")
+        sqlx::query("UPDATE projects SET folder_id='' WHERE folder_id=$1")
             .bind(id)
             .execute(&mut *tx)
             .await

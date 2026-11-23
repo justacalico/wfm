@@ -446,64 +446,40 @@ abstract class AppLocalizations {
   /// **'Delete \"{name}\" and all of its media? This cannot be undone.'**
   String deleteProjectBody(Object name);
 
-  /// No description provided for @newGroup.
+  /// No description provided for @back.
   ///
   /// In en, this message translates to:
-  /// **'New group'**
-  String get newGroup;
+  /// **'Back'**
+  String get back;
 
-  /// No description provided for @groupName.
+  /// No description provided for @addToFolder.
   ///
   /// In en, this message translates to:
-  /// **'Group name'**
-  String get groupName;
+  /// **'Add to folder'**
+  String get addToFolder;
 
-  /// No description provided for @ungrouped.
+  /// No description provided for @noFolder.
   ///
   /// In en, this message translates to:
-  /// **'Ungrouped'**
-  String get ungrouped;
+  /// **'No folder'**
+  String get noFolder;
 
-  /// No description provided for @noGroup.
+  /// No description provided for @renameFolder.
   ///
   /// In en, this message translates to:
-  /// **'No group'**
-  String get noGroup;
+  /// **'Rename folder'**
+  String get renameFolder;
 
-  /// No description provided for @moveToGroup.
+  /// No description provided for @deleteFolderBody.
   ///
   /// In en, this message translates to:
-  /// **'Move to group'**
-  String get moveToGroup;
-
-  /// No description provided for @renameGroup.
-  ///
-  /// In en, this message translates to:
-  /// **'Rename group'**
-  String get renameGroup;
-
-  /// No description provided for @deleteGroupBody.
-  ///
-  /// In en, this message translates to:
-  /// **'Delete group \"{name}\"? Its projects are kept and become ungrouped.'**
-  String deleteGroupBody(Object name);
-
-  /// No description provided for @editTags.
-  ///
-  /// In en, this message translates to:
-  /// **'Edit tags'**
-  String get editTags;
-
-  /// No description provided for @tagsHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Tags, comma separated'**
-  String get tagsHint;
+  /// **'Delete folder \"{name}\"? Its projects are kept and moved out.'**
+  String deleteFolderBody(Object name);
 
   /// No description provided for @noMatchingProjects.
   ///
   /// In en, this message translates to:
-  /// **'No projects match this tag.'**
+  /// **'No projects match your search.'**
   String get noMatchingProjects;
 
   /// No description provided for @files.

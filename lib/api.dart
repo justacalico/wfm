@@ -62,8 +62,7 @@ class Caps {
 }
 
 class Project {
-  final String id, name, displayName, groupId, ownerId, ownerName, access;
-  final List<String> tags;
+  final String id, name, displayName, folderId, ownerId, ownerName, access;
   final int createdAt, lastActivity;
   final bool pinned, template, canTakeOver;
   final String status, reviewedBy;
@@ -72,11 +71,10 @@ class Project {
       : id = j['id'] ?? '',
         name = j['name'] ?? '',
         displayName = j['displayName'] ?? j['name'] ?? '',
-        groupId = j['groupId'] ?? '',
+        folderId = j['folderId'] ?? '',
         ownerId = j['ownerId'] ?? '',
         ownerName = j['ownerName'] ?? '',
         access = j['access'] ?? '',
-        tags = [for (final t in (j['tags'] ?? []) as List) '$t'],
         createdAt = j['createdAt'] ?? 0,
         lastActivity = j['lastActivity'] ?? j['createdAt'] ?? 0,
         pinned = j['pinned'] ?? false,
@@ -95,11 +93,10 @@ class Project {
         'id': id,
         'name': name,
         'displayName': displayName ?? this.displayName,
-        'groupId': groupId,
+        'folderId': folderId,
         'ownerId': ownerId,
         'ownerName': ownerName,
         'access': access,
-        'tags': tags,
         'createdAt': createdAt,
         'lastActivity': lastActivity,
         'pinned': pinned,
@@ -111,9 +108,9 @@ class Project {
       });
 }
 
-class ProjectGroup {
+class Folder {
   final String id, name;
-  ProjectGroup.fromJson(Map<String, dynamic> j)
+  Folder.fromJson(Map<String, dynamic> j)
       : id = j['id'] ?? '',
         name = j['name'] ?? '';
 }
@@ -553,23 +550,21 @@ class Api {
   Future<Project> project(String id) async =>
       Project.fromJson(await get('/projects/$id'));
 
-  Future<Project> createProject(String name, {String groupId = ''}) async =>
+  Future<Project> createProject(String name, {String folderId = ''}) async =>
       Project.fromJson(await post('/projects', {
         'name': name,
         'displayName': name,
-        if (groupId.isNotEmpty) 'groupId': groupId,
+        if (folderId.isNotEmpty) 'folderId': folderId,
       }));
 
   Future<void> updateProject(String id,
           {String? displayName,
-          String? groupId,
-          List<String>? tags,
+          String? folderId,
           bool? pinned,
           bool? template}) =>
       patch('/projects/$id', {
         if (displayName != null) 'displayName': displayName,
-        if (groupId != null) 'groupId': groupId,
-        if (tags != null) 'tags': tags,
+        if (folderId != null) 'folderId': folderId,
         if (pinned != null) 'pinned': pinned,
         if (template != null) 'template': template,
       });
@@ -637,19 +632,18 @@ class Api {
   Future<void> saveShortcuts(Map<String, String> bindings) =>
       put('/shortcuts', {'bindings': bindings});
 
-  Future<List<ProjectGroup>> groups() async => [
-        for (final e in (await get('/groups')) as List) ProjectGroup.fromJson(e)
-      ];
+  Future<List<Folder>> folders() async =>
+      [for (final e in (await get('/folders')) as List) Folder.fromJson(e)];
 
-  Future<ProjectGroup> createGroup(String name) async =>
-      ProjectGroup.fromJson(await post('/groups', {'name': name}));
+  Future<Folder> createFolder(String name) async =>
+      Folder.fromJson(await post('/folders', {'name': name}));
 
-  Future<void> renameGroup(String id, String name) =>
-      patch('/groups/$id', {'name': name});
+  Future<void> renameFolder(String id, String name) =>
+      patch('/folders/$id', {'name': name});
 
   Future<void> deleteAccount(String id) => del('/accounts/$id');
 
-  Future<void> deleteGroup(String id) => del('/groups/$id');
+  Future<void> deleteFolder(String id) => del('/folders/$id');
 
   Future<void> deleteProject(String id) => del('/projects/$id');
 
