@@ -597,4 +597,44 @@
       "craft": {}
     }
   }
+,
+  "inviteUsedBy": "Úsáidte ag {name}",
+  "@inviteUsedBy": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "wipeAudit": "Glan na logaí",
+  "wipeAuditBody": "Scrios gach iontráil sa loga gníomhaíochta seo? Ní féidir é seo a chur ar ais.",
+  "nodeSetupHint": "Suiteáil WFM ar mheaisín eile, cruthaigh nód anseo, agus rith an t-ordú a thaispeántar. Déanann an nód ainmniú ar an bhfreastalaí seo le haghaidh jabanna rindreála.",
+  "nodeGuide": "Treoir shuiteála",
+  "storage": "Stóráil",
+  "storageMedia": "Stóráil meán",
+  "storageDatabase": "Bunachar sonraí",
+  "storageNoUsers": "Níl aon duine ag úsáid stórála go fóil.",
+  "openSubmissions": "Oscail aighneachtaí",
+  "closeSubmissions": "Dún aighneachtaí",
+  "submitConfirmBody": "Cuir {name} isteach le hathbhreithniú?",
+  "@submitConfirmBody": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "reply": "Freagair",
+  "replyingTo": "Ag freagairt do {name}",
+  "@replyingTo": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "writeReply": "Scríobh freagra",
+  "notifReply": "D'fhreagair {from} thú i {project}",
+  "@notifReply": {
+    "placeholders": {
+      "from": {},
+      "project": {}
+    }
+  },
+  "recentProjects": "Tionscadail le déanaí",
+  "latestActivity": "Gníomhaíocht is déanaí"
 }

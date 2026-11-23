@@ -64,7 +64,7 @@ class Caps {
 class Project {
   final String id, name, displayName, folderId, ownerId, ownerName, access;
   final int createdAt, lastActivity;
-  final bool pinned, template, canTakeOver;
+  final bool pinned, template, canTakeOver, submitAllowed;
   final String status, reviewedBy;
   final int submittedAt;
   Project.fromJson(Map<String, dynamic> j)
@@ -82,13 +82,18 @@ class Project {
         canTakeOver = j['takeOver'] == true,
         status = j['status'] ?? 'draft',
         submittedAt = j['submittedAt'] ?? 0,
-        reviewedBy = j['reviewedBy'] ?? '';
+        reviewedBy = j['reviewedBy'] ?? '',
+        submitAllowed = j['submitAllowed'] == true;
   bool get mine => access.isEmpty
       ? (ownerId.isEmpty || ownerId == Api.i.user?.id)
       : access == 'owner';
   bool get locked => status == 'submitted';
   bool get editable => !locked && (mine || access == 'edit');
-  Project copyWith({String? displayName, bool? template, String? status}) =>
+  Project copyWith(
+          {String? displayName,
+          bool? template,
+          String? status,
+          bool? submitAllowed}) =>
       Project.fromJson({
         'id': id,
         'name': name,
@@ -105,6 +110,7 @@ class Project {
         'status': status ?? this.status,
         'submittedAt': submittedAt,
         'reviewedBy': reviewedBy,
+        'submitAllowed': submitAllowed ?? this.submitAllowed,
       });
 }
 
@@ -219,7 +225,14 @@ class RenderNode {
 }
 
 class ProjectComment {
-  final String id, projectId, userId, username, displayName, avatar, body;
+  final String id,
+      projectId,
+      userId,
+      username,
+      displayName,
+      avatar,
+      body,
+      parentId;
   final int createdAt, editedAt;
   ProjectComment.fromJson(Map<String, dynamic> j)
       : id = j['id'] ?? '',
@@ -229,6 +242,7 @@ class ProjectComment {
         displayName = j['displayName'] ?? j['username'] ?? '',
         avatar = j['avatar'] ?? '',
         body = j['body'] ?? '',
+        parentId = j['parentId'] ?? '',
         createdAt = j['createdAt'] ?? 0,
         editedAt = j['editedAt'] ?? 0;
   String get author => displayName.isEmpty ? username : displayName;
@@ -368,6 +382,7 @@ class AppNotification {
 
 class Invite {
   final String id, role, presetUsername, presetName, usedBy;
+  final String usedByUsername, usedByName;
   final int usedAt, expiresAt, createdAt;
   final bool revoked;
   Invite.fromJson(Map<String, dynamic> j)
@@ -376,12 +391,41 @@ class Invite {
         presetUsername = j['presetUsername'] ?? '',
         presetName = j['presetName'] ?? '',
         usedBy = j['usedBy'] ?? '',
+        usedByUsername = j['usedByUsername'] ?? '',
+        usedByName = j['usedByName'] ?? j['usedByUsername'] ?? '',
         usedAt = j['usedAt'] ?? 0,
         expiresAt = j['expiresAt'] ?? 0,
         createdAt = j['createdAt'] ?? 0,
         revoked = j['revoked'] == true;
   bool expired(int now) => usedBy.isEmpty && !revoked && expiresAt <= now;
   bool pending(int now) => usedBy.isEmpty && !revoked && expiresAt > now;
+}
+
+class StoragePool {
+  final String id;
+  final int used, total;
+  StoragePool.fromJson(Map<String, dynamic> j)
+      : id = j['id'] ?? '',
+        used = j['used'] ?? 0,
+        total = j['total'] ?? 0;
+}
+
+class StorageUser {
+  final String id, username, name;
+  final int bytes;
+  StorageUser.fromJson(Map<String, dynamic> j)
+      : id = j['id'] ?? '',
+        username = j['username'] ?? '',
+        name = j['name'] ?? '',
+        bytes = j['bytes'] ?? 0;
+}
+
+class StorageStats {
+  final List<StoragePool> pools;
+  final List<StorageUser> users;
+  StorageStats.fromJson(Map<String, dynamic> j)
+      : pools = [for (final e in j['pools'] ?? []) StoragePool.fromJson(e)],
+        users = [for (final e in j['users'] ?? []) StorageUser.fromJson(e)];
 }
 
 class AuditEntry {
@@ -608,8 +652,9 @@ class Api {
           ProjectComment.fromJson(e)
       ];
 
-  Future<void> addComment(String pid, String body) =>
-      post('/projects/$pid/comments', {'body': body});
+  Future<void> addComment(String pid, String body, {String parentId = ''}) =>
+      post('/projects/$pid/comments',
+          {'body': body, if (parentId.isNotEmpty) 'parentId': parentId});
 
   Future<void> editComment(String pid, String cid, String body) =>
       patch('/projects/$pid/comments/$cid', {'body': body});
@@ -619,6 +664,14 @@ class Api {
 
   Future<String> submitProject(String id) async =>
       '${(await post('/projects/$id/submit', {}))['status'] ?? 'submitted'}';
+
+  Future<void> setSubmitAllowed(String id, bool allowed) =>
+      post('/projects/$id/submit-allowed', {'allowed': allowed});
+
+  Future<void> wipeAudit(String scope) => del('/audit?scope=$scope');
+
+  Future<StorageStats> storageStats() async =>
+      StorageStats.fromJson(await get('/storage'));
 
   Future<String> reviewProject(String id, String status) async =>
       '${(await post('/projects/$id/review', {

@@ -71,7 +71,8 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/invites", get(list_invites).post(create_invite))
         .route("/invites/{id}", get(invite_preview).delete(revoke_invite))
         .route("/invites/{id}/redeem", post(redeem_invite))
-        .route("/audit", get(audit))
+        .route("/audit", get(audit).delete(wipe_audit))
+        .route("/storage", get(storage_stats))
         .route("/projects", get(list_projects).post(create_project))
         .route("/projects/{id}/take-over", post(take_over_project))
         .route("/projects/{id}/duplicate", post(duplicate_project))
@@ -84,6 +85,7 @@ pub fn router(state: Arc<AppState>) -> Router {
             patch(edit_comment).delete(delete_comment),
         )
         .route("/projects/{id}/submit", post(submit_project))
+        .route("/projects/{id}/submit-allowed", post(set_submit_allowed))
         .route("/projects/{id}/review", post(review_project))
         .route("/projects/{id}/assign", post(assign_project))
         .route("/projects/{id}/assignment", get(project_assignment))
@@ -724,7 +726,10 @@ async fn roles(session: Session) -> Json<Value> {
     let all = ["student", "mod", "teacher", "admin"];
     let creatable: Vec<&str> = if me.can_create() {
         all.iter()
-            .filter(|r| Role::parse(r).unwrap() < me)
+            .filter(|r| {
+                let role = Role::parse(r).unwrap();
+                role < me && (role != Role::Student || me == Role::Teacher)
+            })
             .copied()
             .collect()
     } else {
@@ -872,7 +877,7 @@ async fn create_class(
     session: Session,
     Json(req): Json<ClassReq>,
 ) -> Response {
-    if !session.user.role.can_create() {
+    if session.user.role != Role::Teacher {
         return err(StatusCode::FORBIDDEN, "teachers only");
     }
     let name = req.name.trim();
@@ -1108,6 +1113,9 @@ async fn create_account(
         }
         _ => return err(StatusCode::BAD_REQUEST, "cannot create that role"),
     };
+    if role == Role::Student && session.user.role != Role::Teacher {
+        return err(StatusCode::FORBIDDEN, "only teachers enroll students");
+    }
     if !model::valid_username(&req.username) {
         return err(StatusCode::BAD_REQUEST, "invalid username");
     }
@@ -1223,6 +1231,9 @@ async fn create_invite(
         Some(r) if r < session.user.role && r != Role::Owner => r,
         _ => return err(StatusCode::BAD_REQUEST, "cannot create that role"),
     };
+    if role == Role::Student && session.user.role != Role::Teacher {
+        return err(StatusCode::FORBIDDEN, "only teachers enroll students");
+    }
     let username = req.username.trim();
     if !username.is_empty() && !model::valid_username(username) {
         return err(StatusCode::BAD_REQUEST, "invalid username");
@@ -1263,7 +1274,20 @@ async fn create_invite(
 
 async fn list_invites(State(s): State<Arc<AppState>>, session: Session) -> Response {
     match s.db.invites_by_creator(&session.user.id).await {
-        Ok(v) => Json(json!(v)).into_response(),
+        Ok(v) => {
+            let mut out = Vec::with_capacity(v.len());
+            for i in &v {
+                let mut j = serde_json::to_value(i).unwrap_or_default();
+                if !i.used_by.is_empty() {
+                    if let Ok(u) = s.db.user_by_id(&i.used_by).await {
+                        j["usedByUsername"] = json!(u.username);
+                        j["usedByName"] = json!(u.display_name);
+                    }
+                }
+                out.push(j);
+            }
+            Json(json!(out)).into_response()
+        }
         Err(e) => db_resp(e),
     }
 }
@@ -1353,6 +1377,15 @@ async fn redeem_invite(
         Ok(u) => u,
         Err(e) => return db_resp(e),
     };
+    let inv_role = Role::parse(&inv.role).unwrap_or(Role::Student);
+    let still_valid = if inv_role == Role::Student {
+        inviter.role == Role::Teacher
+    } else {
+        inviter.role.can_create() && inv_role < inviter.role
+    };
+    if !still_valid {
+        return err(StatusCode::GONE, "invite expired");
+    }
     let username = if inv.preset_username.is_empty() {
         req.username.trim().to_string()
     } else {
@@ -1734,6 +1767,66 @@ async fn audit(
     }
 }
 
+/// Owner-only reset for runaway logs: drops every entry in one scope.
+async fn wipe_audit(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Query(q): Query<AuditQuery>,
+) -> Response {
+    if session.user.role != Role::Owner {
+        return err(StatusCode::FORBIDDEN, "owner only");
+    }
+    let scope = match q.scope.as_str() {
+        "account" | "project" => q.scope.as_str(),
+        _ => return err(StatusCode::BAD_REQUEST, "bad scope"),
+    };
+    match s.db.audit_wipe(scope).await {
+        Ok(()) => {
+            s.audit(
+                "account",
+                &session.user,
+                "audit_wipe",
+                scope,
+                "",
+                &session.user.lineage,
+            )
+            .await;
+            Json(json!({"ok": true})).into_response()
+        }
+        Err(e) => db_resp(e),
+    }
+}
+
+/// Storage pools and per-account usage for admins: media/blob bytes with the
+/// filesystem total when it can be known, plus the database size.
+async fn storage_stats(State(s): State<Arc<AppState>>, session: Session) -> Response {
+    if session.user.role < Role::Admin {
+        return err(StatusCode::FORBIDDEN, "admin only");
+    }
+    let (used, total) = s.blobs.stats().await.unwrap_or((0, 0));
+    let db_bytes = s.db.db_size().await.unwrap_or_default().unwrap_or(0);
+    let mut users = Vec::new();
+    if let Ok(list) = s.db.managed_users(&session.user).await {
+        for u in list {
+            let bytes = usage_bytes(&s, &format!("{}/{}", u.username, u.id)).await;
+            users.push(json!({
+                "id": u.id,
+                "username": u.username,
+                "name": u.display_name,
+                "bytes": bytes,
+            }));
+        }
+    }
+    Json(json!({
+        "pools": [
+            {"id": "media", "used": used, "total": total},
+            {"id": "database", "used": db_bytes, "total": 0},
+        ],
+        "users": users,
+    }))
+    .into_response()
+}
+
 // ---------- projects ----------
 
 async fn list_projects(State(s): State<Arc<AppState>>, session: Session) -> Response {
@@ -1848,6 +1941,7 @@ async fn create_project(
         status: "draft".into(),
         submitted_at: 0,
         reviewed_by: String::new(),
+        submit_allowed: false,
     };
     if let Err(e) = s.db.create_project(&p).await {
         let _ = s.blobs.delete_prefix(&p.dir).await;
@@ -2638,11 +2732,7 @@ async fn update_project(
     Json(json!({"ok": true})).into_response()
 }
 
-async fn owned_folder(
-    s: &Arc<AppState>,
-    session: &Session,
-    id: &str,
-) -> Result<Folder, Response> {
+async fn owned_folder(s: &Arc<AppState>, session: &Session, id: &str) -> Result<Folder, Response> {
     let f =
         s.db.folder_by_id(id)
             .await
@@ -2830,6 +2920,7 @@ async fn clone_project(
         status: "draft".into(),
         submitted_at: 0,
         reviewed_by: String::new(),
+        submit_allowed: false,
     };
     if let Err(e) = s.db.create_project(&p).await {
         let _ = s.blobs.delete_prefix(&p.dir).await;
@@ -2890,6 +2981,8 @@ async fn list_comments(
 #[derive(Deserialize)]
 struct CommentReq {
     body: String,
+    #[serde(default, rename = "parentId")]
+    parent_id: String,
 }
 
 fn clean_comment(body: &str) -> Result<String, Response> {
@@ -2914,12 +3007,21 @@ async fn add_comment(
         Ok(b) => b,
         Err(r) => return r,
     };
+    let parent = req.parent_id.trim().to_string();
+    let mut parent_author = String::new();
+    if !parent.is_empty() {
+        match s.db.comment_by_id(&parent).await {
+            Ok(c) if c.project_id == id => parent_author = c.user_id,
+            _ => return err(StatusCode::NOT_FOUND, "no such comment"),
+        }
+    }
     if let Err(e) =
         s.db.comment_add(
             &model::new_id(),
             &id,
             &session.user.id,
             &body,
+            &parent,
             AppState::now(),
         )
         .await
@@ -2930,6 +3032,18 @@ async fn add_comment(
         s.notify(
             &p.owner_id,
             "comment",
+            json!({
+                "project": p.id,
+                "projectName": p.display_name,
+                "from": session.user.username,
+            }),
+        )
+        .await;
+    }
+    if !parent_author.is_empty() && parent_author != session.user.id {
+        s.notify(
+            &parent_author,
+            "reply",
             json!({
                 "project": p.id,
                 "projectName": p.display_name,
@@ -3000,16 +3114,25 @@ async fn submit_project(
     };
     let submitted = p.status == "submitted";
     if p.owner_id == session.user.id {
-        if let Ok(Some((a, c))) = s.db.assignment_for_project(&id).await {
-            if a.locked {
-                return err(StatusCode::FORBIDDEN, "assignment locked");
+        match s.db.assignment_for_project(&id).await {
+            Ok(Some((a, c))) => {
+                if a.locked {
+                    return err(StatusCode::FORBIDDEN, "assignment locked");
+                }
+                if submitted && !a.allow_withdraw {
+                    return err(StatusCode::FORBIDDEN, "withdraw not allowed");
+                }
+                if !submitted && a.max_submissions > 0 && c.submissions >= a.max_submissions {
+                    return err(StatusCode::FORBIDDEN, "submission limit reached");
+                }
             }
-            if submitted && !a.allow_withdraw {
-                return err(StatusCode::FORBIDDEN, "withdraw not allowed");
+            _ if !submitted && !p.submit_allowed => {
+                return err(
+                    StatusCode::FORBIDDEN,
+                    "submissions are not open for this project",
+                );
             }
-            if !submitted && a.max_submissions > 0 && c.submissions >= a.max_submissions {
-                return err(StatusCode::FORBIDDEN, "submission limit reached");
-            }
+            _ => {}
         }
     }
     let (status, submitted_at, action) = if submitted {
@@ -3044,6 +3167,45 @@ async fn submit_project(
         }
     }
     Json(json!({"ok": true, "status": status})).into_response()
+}
+
+#[derive(Deserialize)]
+struct SubmitAllowedReq {
+    allowed: bool,
+}
+
+/// Staff opt-in that opens submissions on an ordinary project; assignment
+/// copies follow the assignment rules instead of this flag.
+async fn set_submit_allowed(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Path(id): Path<String>,
+    Json(req): Json<SubmitAllowedReq>,
+) -> Response {
+    if session.user.role < Role::Teacher {
+        return err(StatusCode::FORBIDDEN, "staff only");
+    }
+    let p = match project_access(&s, &session, &id).await {
+        Ok((p, _)) => p,
+        Err(r) => return r,
+    };
+    if let Err(e) = s.db.set_project_submit_allowed(&id, req.allowed).await {
+        return db_resp(e);
+    }
+    s.audit(
+        "project",
+        &session.user,
+        if req.allowed {
+            "submit_open"
+        } else {
+            "submit_close"
+        },
+        &p.display_name,
+        "",
+        "",
+    )
+    .await;
+    Json(json!({"ok": true})).into_response()
 }
 
 #[derive(Deserialize)]
@@ -3521,11 +3683,7 @@ async fn project_manifest(
             Ok((folders, objects)) => {
                 stack.extend(folders);
                 for o in objects {
-                    let rel = o
-                        .key
-                        .strip_prefix(&strip)
-                        .unwrap_or(&o.key)
-                        .to_string();
+                    let rel = o.key.strip_prefix(&strip).unwrap_or(&o.key).to_string();
                     if files::clean_rel_key(&rel).is_err() {
                         continue;
                     }
@@ -3552,20 +3710,12 @@ async fn blob_rev(s: &AppState, dir: &str, key: &str) -> Result<Option<String>, 
     let full = blob_key(dir, key);
     let parent = full.rsplit_once('/').map(|(p, _)| p).unwrap_or("");
     let (_, objects) = s.blobs.list(parent).await?;
-    Ok(objects
-        .into_iter()
-        .find(|o| o.key == full)
-        .map(|o| o.rev))
+    Ok(objects.into_iter().find(|o| o.key == full).map(|o| o.rev))
 }
 
 /// `base` is the rev the client last synced. `"none"` means the file must
 /// not exist yet. An empty base skips the check (legacy callers).
-async fn check_base(
-    s: &AppState,
-    dir: &str,
-    key: &str,
-    base: &str,
-) -> Result<(), Response> {
+async fn check_base(s: &AppState, dir: &str, key: &str, base: &str) -> Result<(), Response> {
     if base.is_empty() {
         return Ok(());
     }
@@ -4564,6 +4714,7 @@ mod tests {
             status: "draft".into(),
             submitted_at: 0,
             reviewed_by: String::new(),
+            submit_allowed: false,
         }
     }
 
@@ -4774,8 +4925,7 @@ mod tests {
         put("Raw/clip.mp4", b"\x00\x00\x00\x18ftypisomrest").await;
         put("Script/script.fountain", b"Title: T\n\nINT. ROOM").await;
 
-        let r = project_manifest(State(s.clone()), session(&student), Path(p.id.clone()))
-            .await;
+        let r = project_manifest(State(s.clone()), session(&student), Path(p.id.clone())).await;
         assert_eq!(r.status(), StatusCode::OK);
         let body = axum::body::to_bytes(r.into_body(), usize::MAX)
             .await
@@ -4868,18 +5018,17 @@ mod tests {
         let student = user(Role::Student);
         let p = project(&student);
         s.db.create_project(&p).await.unwrap();
-        s.db
-            .lock_acquire(
-                &p.id,
-                "script",
-                "web-tab-1",
-                &student.username,
-                AppState::now() + 60,
-                AppState::now(),
-                false,
-            )
-            .await
-            .unwrap();
+        s.db.lock_acquire(
+            &p.id,
+            "script",
+            "web-tab-1",
+            &student.username,
+            AppState::now() + 60,
+            AppState::now(),
+            false,
+        )
+        .await
+        .unwrap();
 
         // Another client writing into Script/ is refused; the holder is not.
         let (mut q, h, b) = upload_req("Script/script.fountain", b"Title: T\n\nINT. ROOM");
@@ -5670,7 +5819,7 @@ mod tests {
         let (owner, _teacher, _t2, student, _classmate, _outsider) = school(&s);
         let p = project(&student);
         s.db.create_project(&p).await.unwrap();
-        s.db.comment_add("c1", &p.id, &student.id, "hi", AppState::now())
+        s.db.comment_add("c1", &p.id, &student.id, "hi", "", AppState::now())
             .await
             .unwrap();
         let r = delete_comment(
@@ -5820,7 +5969,21 @@ mod tests {
         assert_eq!(r.status(), StatusCode::OK);
         assert!(s.db.assignment_for_project(&copy).await.unwrap().is_none());
         let r = submit_project(State(s.clone()), session(&student), Path(copy.clone())).await;
-        assert_eq!(r.status(), StatusCode::OK, "unlinked copy submits freely");
+        assert_eq!(
+            r.status(),
+            StatusCode::FORBIDDEN,
+            "unlinked copies follow the submissions opt-in like any project"
+        );
+        let r = set_submit_allowed(
+            State(s.clone()),
+            session(&teacher),
+            Path(copy.clone()),
+            Json(SubmitAllowedReq { allowed: true }),
+        )
+        .await;
+        assert_eq!(r.status(), StatusCode::OK, "staff reopen submissions");
+        let r = submit_project(State(s.clone()), session(&student), Path(copy.clone())).await;
+        assert_eq!(r.status(), StatusCode::OK, "opened project submits");
     }
 
     #[tokio::test]
@@ -5913,6 +6076,297 @@ mod tests {
             )
             .to_string()
         }
+    }
+
+    fn account_req(username: &str, role: &str) -> Json<CreateAccountReq> {
+        Json(CreateAccountReq {
+            username: username.into(),
+            password: "password1".into(),
+            name: "N".into(),
+            role: role.into(),
+            student_id: String::new(),
+            note: String::new(),
+            class_id: String::new(),
+        })
+    }
+
+    #[tokio::test]
+    async fn only_teachers_make_students_and_classes() {
+        let dir = std::env::temp_dir().join(format!("wfm-api-{}", model::new_id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let s = state(&dir);
+        let (owner, teacher, teacher2, student, _classmate, _outsider) = school(&s);
+        let mut admin = user(Role::Admin);
+        admin.created_by = owner.id.clone();
+        admin.lineage = format!("/{}/", owner.id);
+        s.db.create_user(&admin, "h").await.unwrap();
+        let mut mod_u = user(Role::Mod);
+        mod_u.created_by = admin.id.clone();
+        mod_u.lineage = format!("/{}/{}/", owner.id, admin.id);
+        s.db.create_user(&mod_u, "h").await.unwrap();
+
+        let r = roles(session(&admin)).await;
+        let j = r.0;
+        assert!(
+            !j["creatable"]
+                .as_array()
+                .unwrap()
+                .contains(&json!("student")),
+            "admin cannot offer student creation"
+        );
+        let r = roles(session(&teacher)).await;
+        assert!(r.0["creatable"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("student")));
+
+        let r = create_account(
+            State(s.clone()),
+            session(&admin),
+            account_req("st1", "student"),
+        )
+        .await;
+        assert_eq!(r.status(), StatusCode::FORBIDDEN);
+        let r = create_account(
+            State(s.clone()),
+            session(&admin),
+            account_req("mod1", "mod"),
+        )
+        .await;
+        assert_eq!(r.status(), StatusCode::OK, "admins still make mods");
+        let r = create_invite(
+            State(s.clone()),
+            session(&admin),
+            Json(InviteReq {
+                role: "student".into(),
+                username: String::new(),
+                name: String::new(),
+            }),
+        )
+        .await;
+        assert_eq!(r.status(), StatusCode::FORBIDDEN);
+        let r = create_class(State(s.clone()), session(&admin), class_req("A")).await;
+        assert_eq!(
+            r.status(),
+            StatusCode::FORBIDDEN,
+            "admins cannot make classes"
+        );
+        let r = create_class(State(s.clone()), session(&teacher), class_req("A")).await;
+        assert_eq!(r.status(), StatusCode::OK);
+        let r = create_class(State(s.clone()), session(&teacher2), class_req("B")).await;
+        assert_eq!(r.status(), StatusCode::OK);
+        let r = create_account(
+            State(s.clone()),
+            session(&mod_u),
+            account_req("st2", "student"),
+        )
+        .await;
+        assert_eq!(r.status(), StatusCode::FORBIDDEN);
+        let r = create_account(
+            State(s.clone()),
+            session(&student),
+            account_req("st3", "student"),
+        )
+        .await;
+        assert_eq!(r.status(), StatusCode::FORBIDDEN);
+    }
+
+    #[tokio::test]
+    async fn invites_hide_revoked_and_name_users() {
+        let dir = std::env::temp_dir().join(format!("wfm-api-{}", model::new_id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let s = state(&dir);
+        let (_owner, teacher, _teacher2, student, _classmate, _outsider) = school(&s);
+        let inv = |username: &str| {
+            Json(InviteReq {
+                role: "student".into(),
+                username: username.into(),
+                name: String::new(),
+            })
+        };
+        let r = create_invite(State(s.clone()), session(&teacher), inv("anew")).await;
+        let j = body_json(r).await;
+        let (code, i1) = (
+            j["code"].as_str().unwrap().to_string(),
+            j["invite"]["id"].as_str().unwrap().to_string(),
+        );
+        let r = create_invite(State(s.clone()), session(&teacher), inv("bnew")).await;
+        let j = body_json(r).await;
+        let hash2 = j["invite"]["codeHash"].as_str().unwrap_or("").to_string();
+
+        let r = list_invites(State(s.clone()), session(&teacher)).await;
+        assert_eq!(body_json(r).await.as_array().unwrap().len(), 2);
+        let r = revoke_invite(State(s.clone()), session(&teacher), Path(i1)).await;
+        assert_eq!(r.status(), StatusCode::OK);
+        let r = list_invites(State(s.clone()), session(&teacher)).await;
+        let j = body_json(r).await;
+        assert_eq!(j.as_array().unwrap().len(), 1, "revoked invites disappear");
+
+        let h =
+            s.db.invites_by_creator(&teacher.id)
+                .await
+                .unwrap()
+                .remove(0)
+                .code_hash;
+        let hash = if hash2.is_empty() { h } else { hash2 };
+        assert!(s.db.invite_use(&hash, &student.id, AppState::now()).await.unwrap());
+        let r = list_invites(State(s.clone()), session(&teacher)).await;
+        let j = body_json(r).await;
+        assert_eq!(j[0]["usedByUsername"], json!(student.username));
+        let _ = code;
+    }
+
+    #[tokio::test]
+    async fn audit_wipe_is_owner_only() {
+        let dir = std::env::temp_dir().join(format!("wfm-api-{}", model::new_id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let s = state(&dir);
+        let (owner, teacher, _t2, _st, _cm, _out) = school(&s);
+        s.audit("account", &teacher, "x", "y", "", &teacher.lineage)
+            .await;
+        let q = |scope: &str| {
+            Query(AuditQuery {
+                scope: scope.into(),
+                limit: 200,
+                offset: 0,
+                action: String::new(),
+                actor: String::new(),
+                from: 0,
+                to: 0,
+            })
+        };
+        let r = wipe_audit(State(s.clone()), session(&teacher), q("account")).await;
+        assert_eq!(r.status(), StatusCode::FORBIDDEN);
+        let r = wipe_audit(State(s.clone()), session(&owner), q("project")).await;
+        assert_eq!(r.status(), StatusCode::OK);
+        let r = wipe_audit(State(s.clone()), session(&owner), q("account")).await;
+        assert_eq!(r.status(), StatusCode::OK);
+        let j = body_json(audit(State(s.clone()), session(&owner), q("account")).await).await;
+        let list = j.as_array().unwrap();
+        assert!(
+            list.iter().all(|e| e["action"] == json!("audit_wipe")),
+            "only the wipe record survives"
+        );
+    }
+
+    #[tokio::test]
+    async fn comments_thread_and_reparent() {
+        let dir = std::env::temp_dir().join(format!("wfm-api-{}", model::new_id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let s = state(&dir);
+        let (_owner, teacher, _t2, student, _cm, _out) = school(&s);
+        let p = project(&student);
+        s.db.create_project(&p).await.unwrap();
+        let comment = |body: &str, parent: &str| {
+            Json(CommentReq {
+                body: body.into(),
+                parent_id: parent.into(),
+            })
+        };
+        let r = add_comment(
+            State(s.clone()),
+            session(&student),
+            Path(p.id.clone()),
+            comment("top", ""),
+        )
+        .await;
+        assert_eq!(r.status(), StatusCode::OK);
+        let j =
+            body_json(list_comments(State(s.clone()), session(&student), Path(p.id.clone())).await)
+                .await;
+        let cid = j[0]["id"].as_str().unwrap().to_string();
+        let r = add_comment(
+            State(s.clone()),
+            session(&teacher),
+            Path(p.id.clone()),
+            comment("reply", &cid),
+        )
+        .await;
+        assert_eq!(r.status(), StatusCode::OK);
+        let r = add_comment(
+            State(s.clone()),
+            session(&teacher),
+            Path(p.id.clone()),
+            comment("orphan", "missing"),
+        )
+        .await;
+        assert_eq!(r.status(), StatusCode::NOT_FOUND);
+        let j =
+            body_json(list_comments(State(s.clone()), session(&student), Path(p.id.clone())).await)
+                .await;
+        assert_eq!(j.as_array().unwrap().len(), 2);
+        assert_eq!(j[1]["parentId"], json!(cid));
+        let rid = j[1]["id"].as_str().unwrap().to_string();
+        let r = add_comment(
+            State(s.clone()),
+            session(&student),
+            Path(p.id.clone()),
+            comment("nested", &rid),
+        )
+        .await;
+        assert_eq!(r.status(), StatusCode::OK);
+        let r = delete_comment(
+            State(s.clone()),
+            session(&student),
+            Path((p.id.clone(), rid)),
+        )
+        .await;
+        assert_eq!(r.status(), StatusCode::OK);
+        let j =
+            body_json(list_comments(State(s.clone()), session(&student), Path(p.id.clone())).await)
+                .await;
+        assert_eq!(
+            j[1]["parentId"],
+            json!(cid),
+            "children move up to the deleted parent's slot"
+        );
+    }
+
+    #[tokio::test]
+    async fn submit_stays_closed_until_staff_open_it() {
+        let dir = std::env::temp_dir().join(format!("wfm-api-{}", model::new_id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let s = state(&dir);
+        let (_owner, teacher, _t2, student, _cm, _out) = school(&s);
+        let p = project(&student);
+        s.db.create_project(&p).await.unwrap();
+        let r = submit_project(State(s.clone()), session(&student), Path(p.id.clone())).await;
+        assert_eq!(r.status(), StatusCode::FORBIDDEN, "closed by default");
+        let r = set_submit_allowed(
+            State(s.clone()),
+            session(&student),
+            Path(p.id.clone()),
+            Json(SubmitAllowedReq { allowed: true }),
+        )
+        .await;
+        assert_eq!(r.status(), StatusCode::FORBIDDEN, "students cannot open it");
+        let r = set_submit_allowed(
+            State(s.clone()),
+            session(&teacher),
+            Path(p.id.clone()),
+            Json(SubmitAllowedReq { allowed: true }),
+        )
+        .await;
+        assert_eq!(r.status(), StatusCode::OK);
+        let r = submit_project(State(s.clone()), session(&student), Path(p.id.clone())).await;
+        assert_eq!(r.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn storage_stats_is_admin_only() {
+        let dir = std::env::temp_dir().join(format!("wfm-api-{}", model::new_id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let s = state(&dir);
+        let (owner, teacher, _t2, student, _cm, _out) = school(&s);
+        let r = storage_stats(State(s.clone()), session(&student)).await;
+        assert_eq!(r.status(), StatusCode::FORBIDDEN);
+        let r = storage_stats(State(s.clone()), session(&teacher)).await;
+        assert_eq!(r.status(), StatusCode::FORBIDDEN);
+        let r = storage_stats(State(s.clone()), session(&owner)).await;
+        assert_eq!(r.status(), StatusCode::OK);
+        let j = body_json(r).await;
+        assert!(j["pools"].as_array().unwrap().len() == 2);
+        assert!(j["users"].as_array().is_some());
     }
 }
 

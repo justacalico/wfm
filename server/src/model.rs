@@ -109,6 +109,8 @@ pub struct Project {
     pub submitted_at: i64,
     #[serde(rename = "reviewedBy")]
     pub reviewed_by: String,
+    #[serde(rename = "submitAllowed")]
+    pub submit_allowed: bool,
 }
 
 #[derive(Clone, Serialize)]
@@ -123,6 +125,8 @@ pub struct CommentView {
     pub display_name: String,
     pub avatar: String,
     pub body: String,
+    #[serde(rename = "parentId")]
+    pub parent_id: String,
     #[serde(rename = "createdAt")]
     pub created_at: i64,
     #[serde(rename = "editedAt")]

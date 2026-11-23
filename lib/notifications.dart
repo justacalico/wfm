@@ -66,40 +66,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
     }
   }
 
-  String _text(AppLocalizations l10n, AppNotification n) {
-    final p = n.payload;
-    final from = '${p['from'] ?? ''}';
-    final project = '${p['projectName'] ?? ''}';
-    final name = '${p['name'] ?? ''}';
-    switch (n.kind) {
-      case 'share_invite':
-        return l10n.notifShareInvite(from, project);
-      case 'share_auto':
-        return l10n.notifShareAuto(from, project);
-      case 'share_accepted':
-        return l10n.notifShareAccepted(from, project);
-      case 'share_declined':
-        return l10n.notifShareDeclined(from, project);
-      case 'render_done':
-        return l10n.notifRenderDone(name, project);
-      case 'render_failed':
-        return l10n.notifRenderFailed(name, project);
-      case 'node_offline':
-        return l10n.notifNodeOffline(name);
-      case 'co_teacher':
-        return l10n.notifCoTeacher(from, '${p['className'] ?? ''}');
-      case 'comment':
-        return l10n.notifComment(from, project);
-      case 'submit':
-        return l10n.notifSubmitted(from, project);
-      case 'review':
-        return '${p['status']}' == 'draft'
-            ? l10n.notifReturned(from, project)
-            : l10n.notifReviewed(from, project);
-      default:
-        return n.kind;
-    }
-  }
+  String _text(AppLocalizations l10n, AppNotification n) => notifText(l10n, n);
 
   IconData _icon(AppNotification n) => switch (n.kind) {
         'share_invite' || 'share_auto' => Icons.folder_shared_outlined,
@@ -218,5 +185,42 @@ class _NotificationsPageState extends State<NotificationsPage> {
                     ),
                 ]),
     );
+  }
+}
+
+String notifText(AppLocalizations l10n, AppNotification n) {
+  final p = n.payload;
+  final from = '${p['from'] ?? ''}';
+  final project = '${p['projectName'] ?? ''}';
+  final name = '${p['name'] ?? ''}';
+  switch (n.kind) {
+    case 'share_invite':
+      return l10n.notifShareInvite(from, project);
+    case 'share_auto':
+      return l10n.notifShareAuto(from, project);
+    case 'share_accepted':
+      return l10n.notifShareAccepted(from, project);
+    case 'share_declined':
+      return l10n.notifShareDeclined(from, project);
+    case 'render_done':
+      return l10n.notifRenderDone(name, project);
+    case 'render_failed':
+      return l10n.notifRenderFailed(name, project);
+    case 'node_offline':
+      return l10n.notifNodeOffline(name);
+    case 'co_teacher':
+      return l10n.notifCoTeacher(from, '${p['className'] ?? ''}');
+    case 'comment':
+      return l10n.notifComment(from, project);
+    case 'reply':
+      return l10n.notifReply(from, project);
+    case 'submit':
+      return l10n.notifSubmitted(from, project);
+    case 'review':
+      return '${p['status']}' == 'draft'
+          ? l10n.notifReturned(from, project)
+          : l10n.notifReviewed(from, project);
+    default:
+      return n.kind;
   }
 }

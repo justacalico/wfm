@@ -14,7 +14,8 @@ final p1 = Project.fromJson({
   'id': 'p1',
   'name': 'short-film',
   'displayName': 'Short Film',
-  'createdAt': 1700000000
+  'createdAt': 1700000000,
+  'submitAllowed': true
 });
 
 void main() {
@@ -519,7 +520,8 @@ void main() {
       await t.testTextInput.receiveAction(TextInputAction.done);
       await settle(t);
       expect(created, 1);
-      expect(find.byType(ProjectPage), findsOneWidget);
+      expect(find.byType(ProjectPage), findsNothing);
+      expect(find.byType(ProjectsPage), findsOneWidget);
     });
 
     testWidgets('create project error shows snack', (t) async {
@@ -719,7 +721,7 @@ void main() {
       await t.tap(find.text('OK'));
       await settle(t);
       expect(body, contains('"folderId":"f1"'));
-      expect(find.byType(ProjectPage), findsOneWidget);
+      expect(find.byType(ProjectPage), findsNothing);
     });
 
     testWidgets('folder errors show snack', (t) async {
@@ -1234,7 +1236,11 @@ void main() {
       expect(find.byIcon(Icons.send_outlined), findsOneWidget);
       await t.tap(find.byIcon(Icons.send_outlined));
       await settle(t);
+      await t.tap(find.text('Confirm'));
+      await settle(t);
       await t.tap(find.byIcon(Icons.send_outlined));
+      await settle(t);
+      await t.tap(find.text('Confirm'));
       await settle(t);
       expect(find.text('Submitted'), findsWidgets);
       expect(find.byIcon(Icons.undo_outlined), findsOneWidget);

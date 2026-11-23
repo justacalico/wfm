@@ -115,6 +115,7 @@ fn row_project(r: sqlx::postgres::PgRow) -> Project {
         status: r.get("status"),
         submitted_at: r.get("submitted_at"),
         reviewed_by: r.get("reviewed_by"),
+        submit_allowed: r.get::<i32, _>("submit_allowed") != 0,
     }
 }
 
@@ -127,6 +128,7 @@ fn row_comment(r: sqlx::postgres::PgRow) -> CommentView {
         display_name: r.get("display_name"),
         avatar: r.get("avatar"),
         body: r.get("body"),
+        parent_id: r.get("parent_id"),
         created_at: r.get("created_at"),
         edited_at: r.get("edited_at"),
     }
@@ -889,12 +891,7 @@ impl Db for PgDb {
             .map_err(map_err)
     }
 
-    async fn update_project(
-        &self,
-        id: &str,
-        display_name: &str,
-        folder_id: &str,
-    ) -> DbResult<()> {
+    async fn update_project(&self, id: &str, display_name: &str, folder_id: &str) -> DbResult<()> {
         sqlx::query("UPDATE projects SET display_name=$1, folder_id=$2 WHERE id=$3")
             .bind(display_name)
             .bind(folder_id)
@@ -954,21 +951,33 @@ impl Db for PgDb {
             .map_err(map_err)
     }
 
+    async fn set_project_submit_allowed(&self, id: &str, allowed: bool) -> DbResult<()> {
+        sqlx::query("UPDATE projects SET submit_allowed=$1 WHERE id=$2")
+            .bind(allowed as i32)
+            .bind(id)
+            .execute(&self.pool)
+            .await
+            .map(|_| ())
+            .map_err(map_err)
+    }
+
     async fn comment_add(
         &self,
         id: &str,
         project: &str,
         user: &str,
         body: &str,
+        parent: &str,
         ts: i64,
     ) -> DbResult<()> {
         sqlx::query(
-            "INSERT INTO project_comments(id,project_id,user_id,body,created_at) VALUES($1,$2,$3,$4,$5)",
+            "INSERT INTO project_comments(id,project_id,user_id,body,parent_id,created_at) VALUES($1,$2,$3,$4,$5,$6)",
         )
         .bind(id)
         .bind(project)
         .bind(user)
         .bind(body)
+        .bind(parent)
         .bind(ts)
         .execute(&self.pool)
         .await
@@ -978,7 +987,7 @@ impl Db for PgDb {
 
     async fn comments_for(&self, project: &str) -> DbResult<Vec<CommentView>> {
         sqlx::query(
-            "SELECT c.id,c.project_id,c.user_id,u.username,u.display_name,c.body,c.created_at,c.edited_at,u.avatar FROM project_comments c JOIN users u ON u.id=c.user_id WHERE c.project_id=$1 ORDER BY c.created_at",
+            "SELECT c.id,c.project_id,c.user_id,u.username,u.display_name,c.body,c.created_at,c.edited_at,u.avatar,c.parent_id FROM project_comments c JOIN users u ON u.id=c.user_id WHERE c.project_id=$1 ORDER BY c.created_at",
         )
         .bind(project)
         .fetch_all(&self.pool)
@@ -989,7 +998,7 @@ impl Db for PgDb {
 
     async fn comment_by_id(&self, id: &str) -> DbResult<CommentView> {
         sqlx::query(
-            "SELECT c.id,c.project_id,c.user_id,u.username,u.display_name,c.body,c.created_at,c.edited_at,u.avatar FROM project_comments c JOIN users u ON u.id=c.user_id WHERE c.id=$1",
+            "SELECT c.id,c.project_id,c.user_id,u.username,u.display_name,c.body,c.created_at,c.edited_at,u.avatar,c.parent_id FROM project_comments c JOIN users u ON u.id=c.user_id WHERE c.id=$1",
         )
         .bind(id)
         .fetch_one(&self.pool)
@@ -1010,6 +1019,13 @@ impl Db for PgDb {
     }
 
     async fn comment_delete(&self, id: &str) -> DbResult<bool> {
+        sqlx::query(
+            "UPDATE project_comments SET parent_id=(SELECT parent_id FROM project_comments WHERE id=$1) WHERE parent_id=$1",
+        )
+        .bind(id)
+        .execute(&self.pool)
+        .await
+        .map_err(map_err)?;
         sqlx::query("DELETE FROM project_comments WHERE id=$1")
             .bind(id)
             .execute(&self.pool)
@@ -1528,6 +1544,23 @@ impl Db for PgDb {
             .map_err(map_err)
     }
 
+    async fn audit_wipe(&self, scope: &str) -> DbResult<()> {
+        sqlx::query("DELETE FROM audit WHERE scope=$1")
+            .bind(scope)
+            .execute(&self.pool)
+            .await
+            .map(|_| ())
+            .map_err(map_err)
+    }
+
+    async fn db_size(&self) -> DbResult<Option<u64>> {
+        sqlx::query_scalar::<_, i64>("SELECT pg_database_size(current_database())")
+            .fetch_one(&self.pool)
+            .await
+            .map(|n| Some(n as u64))
+            .map_err(map_err)
+    }
+
     async fn invite_create(&self, i: &InviteCode) -> DbResult<()> {
         sqlx::query(
             "INSERT INTO invite_codes(id,code_hash,created_by,role,preset_username,preset_name,used_by,used_at,expires_at,revoked,created_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)",
@@ -1559,12 +1592,13 @@ impl Db for PgDb {
     }
 
     async fn invites_by_creator(&self, uid: &str) -> DbResult<Vec<InviteCode>> {
-        let rows =
-            sqlx::query("SELECT * FROM invite_codes WHERE created_by=$1 ORDER BY created_at DESC")
-                .bind(uid)
-                .fetch_all(&self.pool)
-                .await
-                .map_err(map_err)?;
+        let rows = sqlx::query(
+            "SELECT * FROM invite_codes WHERE created_by=$1 AND revoked=0 ORDER BY created_at DESC",
+        )
+        .bind(uid)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(map_err)?;
         Ok(rows.into_iter().map(row_invite).collect())
     }
 
@@ -1592,15 +1626,13 @@ impl Db for PgDb {
     }
 
     async fn invite_revoke(&self, id: &str, creator: &str) -> DbResult<bool> {
-        sqlx::query(
-            "UPDATE invite_codes SET revoked=1 WHERE id=$1 AND created_by=$2 AND used_by=''",
-        )
-        .bind(id)
-        .bind(creator)
-        .execute(&self.pool)
-        .await
-        .map(|r| r.rows_affected() > 0)
-        .map_err(map_err)
+        sqlx::query("DELETE FROM invite_codes WHERE id=$1 AND created_by=$2 AND used_by=''")
+            .bind(id)
+            .bind(creator)
+            .execute(&self.pool)
+            .await
+            .map(|r| r.rows_affected() > 0)
+            .map_err(map_err)
     }
 
     async fn setting_get(&self, k: &str) -> DbResult<Option<String>> {

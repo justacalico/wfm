@@ -129,12 +129,7 @@ pub trait Db: Send + Sync {
     async fn projects_by_owner(&self, owner_id: &str) -> DbResult<Vec<Project>>;
     async fn user_in_subtree(&self, actor: &User, user_id: &str) -> DbResult<bool>;
     async fn set_project_owner(&self, id: &str, owner_id: &str) -> DbResult<()>;
-    async fn update_project(
-        &self,
-        id: &str,
-        display_name: &str,
-        folder_id: &str,
-    ) -> DbResult<()>;
+    async fn update_project(&self, id: &str, display_name: &str, folder_id: &str) -> DbResult<()>;
     async fn delete_project(&self, id: &str) -> DbResult<()>;
     async fn touch_project(&self, id: &str, ts: i64) -> DbResult<()>;
     async fn set_project_pinned(&self, id: &str, pinned: bool) -> DbResult<()>;
@@ -146,6 +141,7 @@ pub trait Db: Send + Sync {
         submitted_at: i64,
         reviewed_by: &str,
     ) -> DbResult<()>;
+    async fn set_project_submit_allowed(&self, id: &str, allowed: bool) -> DbResult<()>;
 
     // comments
     async fn comment_add(
@@ -154,6 +150,7 @@ pub trait Db: Send + Sync {
         project: &str,
         user: &str,
         body: &str,
+        parent: &str,
         ts: i64,
     ) -> DbResult<()>;
     async fn comments_for(&self, project: &str) -> DbResult<Vec<CommentView>>;
@@ -253,6 +250,8 @@ pub trait Db: Send + Sync {
         f: &AuditFilter,
     ) -> DbResult<Vec<AuditEntry>>;
     async fn audit_purge(&self, before: i64) -> DbResult<()>;
+    async fn audit_wipe(&self, scope: &str) -> DbResult<()>;
+    async fn db_size(&self) -> DbResult<Option<u64>>;
 
     // invite codes
     async fn invite_create(&self, i: &InviteCode) -> DbResult<()>;

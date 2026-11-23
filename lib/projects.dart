@@ -89,16 +89,8 @@ class _ProjectsPageState extends State<ProjectsPage> {
         context, context.l10n.newProject, context.l10n.projectName);
     if (name == null || name.isEmpty || !mounted) return;
     try {
-      final p = await Api.i.createProject(name, folderId: _folderId);
+      await Api.i.createProject(name, folderId: _folderId);
       _load();
-      if (!mounted) return;
-      final shell = context.findAncestorStateOfType<ShellState>();
-      if (shell != null) {
-        shell.openProject(p);
-      } else {
-        Navigator.of(context)
-            .push(MaterialPageRoute(builder: (_) => ProjectPage(project: p)));
-      }
     } catch (e) {
       if (mounted) snack(context, e);
     }
@@ -619,8 +611,11 @@ class _ProjectPageState extends State<ProjectPage> {
   }
 
   bool get _submitBlocked {
+    if (!_p.mine) return true;
     final a = _info?.assignment, c = _info?.copy;
-    if (a == null || c == null || !_p.mine) return false;
+    if (a == null || c == null) {
+      return _p.status != 'submitted' && !_p.submitAllowed;
+    }
     if (a.locked) return true;
     if (_p.status == 'submitted') return !a.allowWithdraw;
     return a.maxSubmissions > 0 && c.submissions >= a.maxSubmissions;
@@ -674,10 +669,25 @@ class _ProjectPageState extends State<ProjectPage> {
   }
 
   Future<void> _submit() async {
+    final l10n = context.l10n;
+    if (_p.status != 'submitted' &&
+        !await confirm(context, l10n.submitForReview,
+            l10n.submitConfirmBody(_p.displayName))) {
+      return;
+    }
     try {
       final st = await Api.i.submitProject(_p.id);
       setState(() => _p = _p.copyWith(status: st));
       _loadInfo();
+    } catch (e) {
+      if (mounted) snack(context, e);
+    }
+  }
+
+  Future<void> _toggleSubmitAllowed() async {
+    try {
+      await Api.i.setSubmitAllowed(_p.id, !_p.submitAllowed);
+      setState(() => _p = _p.copyWith(submitAllowed: !_p.submitAllowed));
     } catch (e) {
       if (mounted) snack(context, e);
     }
@@ -805,6 +815,20 @@ class _ProjectPageState extends State<ProjectPage> {
                   ? l10n.withdrawSubmission
                   : l10n.submitForReview,
               onPressed: _submitBlocked ? null : _submit,
+            ),
+          if (!_p.mine &&
+              (Api.i.user?.isStaff ?? false) &&
+              _info?.assignment == null)
+            IconButton(
+              icon: Icon(
+                  _p.submitAllowed
+                      ? Icons.lock_open_outlined
+                      : Icons.lock_outlined,
+                  size: 20),
+              tooltip: _p.submitAllowed
+                  ? l10n.closeSubmissions
+                  : l10n.openSubmissions,
+              onPressed: _toggleSubmitAllowed,
             ),
           if (!_p.mine &&
               _p.status == 'submitted' &&

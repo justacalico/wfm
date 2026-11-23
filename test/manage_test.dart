@@ -236,6 +236,7 @@ void main() {
                 'id': 'i2',
                 'role': 'mod',
                 'usedBy': 'u9',
+                'usedByUsername': 'sam',
                 'usedAt': 5,
                 'expiresAt': 9999999999,
                 'createdAt': 1
@@ -267,9 +268,9 @@ void main() {
       await pump(t, const AccountsTab());
       expect(find.text('Invites'), findsOneWidget);
       expect(find.textContaining('Pending'), findsOneWidget);
-      expect(find.textContaining('Used'), findsOneWidget);
+      expect(find.textContaining('Used by sam'), findsOneWidget);
       expect(find.textContaining('Expired'), findsOneWidget);
-      expect(find.textContaining('Revoked'), findsOneWidget);
+      expect(find.textContaining('Revoked'), findsNothing);
       await t.tap(find.byIcon(Icons.delete_outline).last);
       await settle(t);
       expect(revoked, 1);

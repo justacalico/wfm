@@ -1344,6 +1344,70 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get importServer => 'Server only';
+
+  @override
+  String inviteUsedBy(Object name) {
+    return 'Used by $name';
+  }
+
+  @override
+  String get wipeAudit => 'Wipe logs';
+
+  @override
+  String get wipeAuditBody =>
+      'Delete every entry in this activity log? This cannot be undone.';
+
+  @override
+  String get nodeSetupHint =>
+      'Install WFM on another machine, create a node here, then run the command it shows. The node polls this server for render jobs.';
+
+  @override
+  String get nodeGuide => 'Setup guide';
+
+  @override
+  String get storage => 'Storage';
+
+  @override
+  String get storageMedia => 'Media storage';
+
+  @override
+  String get storageDatabase => 'Database';
+
+  @override
+  String get storageNoUsers => 'No one is using storage yet.';
+
+  @override
+  String get openSubmissions => 'Open submissions';
+
+  @override
+  String get closeSubmissions => 'Close submissions';
+
+  @override
+  String submitConfirmBody(Object name) {
+    return 'Submit $name for review?';
+  }
+
+  @override
+  String get reply => 'Reply';
+
+  @override
+  String replyingTo(Object name) {
+    return 'Replying to $name';
+  }
+
+  @override
+  String get writeReply => 'Write a reply';
+
+  @override
+  String notifReply(Object from, Object project) {
+    return '$from replied to you in $project';
+  }
+
+  @override
+  String get recentProjects => 'Recent projects';
+
+  @override
+  String get latestActivity => 'Latest activity';
 }
 
 /// The translations for English, as used in the United Kingdom (`en_GB`).
@@ -1854,4 +1918,68 @@ class AppLocalizationsEnGb extends AppLocalizationsEn {
 
   @override
   String get importServer => 'Server only';
+
+  @override
+  String inviteUsedBy(Object name) {
+    return 'Used by $name';
+  }
+
+  @override
+  String get wipeAudit => 'Wipe logs';
+
+  @override
+  String get wipeAuditBody =>
+      'Delete every entry in this activity log? This cannot be undone.';
+
+  @override
+  String get nodeSetupHint =>
+      'Install WFM on another machine, create a node here, then run the command it shows. The node polls this server for render jobs.';
+
+  @override
+  String get nodeGuide => 'Setup guide';
+
+  @override
+  String get storage => 'Storage';
+
+  @override
+  String get storageMedia => 'Media storage';
+
+  @override
+  String get storageDatabase => 'Database';
+
+  @override
+  String get storageNoUsers => 'No one is using storage yet.';
+
+  @override
+  String get openSubmissions => 'Open submissions';
+
+  @override
+  String get closeSubmissions => 'Close submissions';
+
+  @override
+  String submitConfirmBody(Object name) {
+    return 'Submit $name for review?';
+  }
+
+  @override
+  String get reply => 'Reply';
+
+  @override
+  String replyingTo(Object name) {
+    return 'Replying to $name';
+  }
+
+  @override
+  String get writeReply => 'Write a reply';
+
+  @override
+  String notifReply(Object from, Object project) {
+    return '$from replied to you in $project';
+  }
+
+  @override
+  String get recentProjects => 'Recent projects';
+
+  @override
+  String get latestActivity => 'Latest activity';
 }

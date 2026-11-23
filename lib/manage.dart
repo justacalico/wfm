@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'api.dart';
 import 'main.dart';
+import 'platform.dart';
 import 'projects.dart';
 import 'util.dart';
 
@@ -16,6 +17,7 @@ class ManagePage extends StatelessWidget {
       if (Api.i.caps.manage) (l10n.accounts, const AccountsTab()),
       if (Api.i.user?.isStaff ?? false) (l10n.classes, const ClassesTab()),
       if (Api.i.caps.audit) (l10n.activity, const AuditTab()),
+      if (Api.i.user?.isAdmin ?? false) (l10n.storage, const StorageTab()),
       if (Api.i.user?.isAdmin ?? false) (l10n.renderNodes, const NodesTab()),
     ];
     if (tabs.isEmpty) return Center(child: Text(l10n.nothingToManage));
@@ -84,7 +86,9 @@ class _AccountsTabState extends State<AccountsTab> {
   Future<void> _load() async {
     try {
       _users = await Api.i.accounts();
-      _invites = await Api.i.invites().catchError((_) => <Invite>[]);
+      _invites = (await Api.i.invites().catchError((_) => <Invite>[]))
+          .where((i) => !i.revoked)
+          .toList();
       setState(() {});
     } catch (e) {
       setState(() => _err = '$e');
@@ -204,13 +208,13 @@ class _AccountsTabState extends State<AccountsTab> {
                         final inv = _invites[j - 1];
                         final now =
                             DateTime.now().millisecondsSinceEpoch ~/ 1000;
-                        final status = inv.revoked
-                            ? l10n.revoked
-                            : inv.usedBy.isNotEmpty
-                                ? l10n.used
-                                : inv.expired(now)
-                                    ? l10n.expired
-                                    : l10n.pending;
+                        final status = inv.usedBy.isNotEmpty
+                            ? l10n.inviteUsedBy(inv.usedByName.isNotEmpty
+                                ? inv.usedByName
+                                : inv.usedBy)
+                            : inv.expired(now)
+                                ? l10n.expired
+                                : l10n.pending;
                         return ListTile(
                           leading: const Icon(Icons.link),
                           title: Text(
@@ -294,8 +298,15 @@ class _AccountsTabState extends State<AccountsTab> {
                                 '${u.username}${u.studentId.isNotEmpty ? " · ${u.studentId}" : ""}${u.note.isNotEmpty ? " · ${u.note}" : ""}',
                                 fmtAgo(l10n, u.lastLogin))),
                         trailing: tight ? null : actions,
-                        onTap: () => Navigator.of(c).push(MaterialPageRoute(
-                            builder: (_) => UserProjectsPage(user: u))),
+                        onTap: () {
+                          final shell = c.findAncestorStateOfType<ShellState>();
+                          if (shell != null) {
+                            shell.openUser(u);
+                          } else {
+                            Navigator.of(c).push(MaterialPageRoute(
+                                builder: (_) => UserProjectsPage(user: u)));
+                          }
+                        },
                       );
                     },
                   );
@@ -402,10 +413,12 @@ class _ClassesTabState extends State<ClassesTab> {
     if (_err.isNotEmpty) return errorView(context, _err, _load);
     final classes = _classes;
     return Scaffold(
-      floatingActionButton: FloatingActionButton.extended(
-          onPressed: _create,
-          icon: const Icon(Icons.group_add),
-          label: Text(l10n.newClass)),
+      floatingActionButton: Api.i.user?.role == 'teacher'
+          ? FloatingActionButton.extended(
+              onPressed: _create,
+              icon: const Icon(Icons.group_add),
+              label: Text(l10n.newClass))
+          : null,
       body: classes == null
           ? const Center(child: CircularProgressIndicator())
           : classes.isEmpty
@@ -658,7 +671,8 @@ class _CoTeacherDialogState extends State<_CoTeacherDialog> {
 /// action offered since everything else stays under the owner's control.
 class UserProjectsPage extends StatefulWidget {
   final User user;
-  const UserProjectsPage({super.key, required this.user});
+  final VoidCallback? onBack;
+  const UserProjectsPage({super.key, required this.user, this.onBack});
   @override
   State<UserProjectsPage> createState() => _UserProjectsPageState();
 }
@@ -703,45 +717,60 @@ class _UserProjectsPageState extends State<UserProjectsPage> {
     final l10n = context.l10n;
     final u = widget.user;
     final items = _items;
+    final body = _err.isNotEmpty
+        ? errorView(context, _err, _load)
+        : items == null
+            ? const Center(child: CircularProgressIndicator())
+            : items.isEmpty
+                ? Center(child: Text(l10n.userProjectsEmpty))
+                : ListView(padding: const EdgeInsets.all(16), children: [
+                    for (final p in items)
+                      Card(
+                        clipBehavior: Clip.antiAlias,
+                        child: ListTile(
+                          title: Text(p.displayName),
+                          subtitle: Text([
+                            l10n.editedAgo(fmtAgo(l10n, p.lastActivity)),
+                            if (p.status == 'submitted')
+                              l10n.statusSubmitted
+                            else if (p.status == 'reviewed')
+                              l10n.statusReviewed,
+                          ].join('  ·  ')),
+                          trailing: p.canTakeOver
+                              ? PopupMenuButton<String>(
+                                  iconSize: 18,
+                                  onSelected: (_) => _takeOver(p),
+                                  itemBuilder: (_) => [
+                                    PopupMenuItem(
+                                        value: 'take',
+                                        child: Text(l10n.takeOver)),
+                                  ],
+                                )
+                              : null,
+                          onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                  builder: (_) => ProjectPage(project: p))),
+                        ),
+                      ),
+                  ]);
+    if (widget.onBack != null) {
+      return Column(children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(8, 8, 16, 0),
+          child: Row(children: [
+            IconButton(
+                icon: const Icon(Icons.arrow_back), onPressed: widget.onBack),
+            Text(l10n.userProjects(u.name.isEmpty ? u.username : u.name),
+                style: Theme.of(context).textTheme.titleLarge),
+          ]),
+        ),
+        Expanded(child: body),
+      ]);
+    }
     return Scaffold(
       appBar: AppBar(
           title: Text(l10n.userProjects(u.name.isEmpty ? u.username : u.name))),
-      body: _err.isNotEmpty
-          ? errorView(context, _err, _load)
-          : items == null
-              ? const Center(child: CircularProgressIndicator())
-              : items.isEmpty
-                  ? Center(child: Text(l10n.userProjectsEmpty))
-                  : ListView(padding: const EdgeInsets.all(16), children: [
-                      for (final p in items)
-                        Card(
-                          clipBehavior: Clip.antiAlias,
-                          child: ListTile(
-                            title: Text(p.displayName),
-                            subtitle: Text([
-                              l10n.editedAgo(fmtAgo(l10n, p.lastActivity)),
-                              if (p.status == 'submitted')
-                                l10n.statusSubmitted
-                              else if (p.status == 'reviewed')
-                                l10n.statusReviewed,
-                            ].join('  ·  ')),
-                            trailing: p.canTakeOver
-                                ? PopupMenuButton<String>(
-                                    iconSize: 18,
-                                    onSelected: (_) => _takeOver(p),
-                                    itemBuilder: (_) => [
-                                      PopupMenuItem(
-                                          value: 'take',
-                                          child: Text(l10n.takeOver)),
-                                    ],
-                                  )
-                                : null,
-                            onTap: () => Navigator.of(context).push(
-                                MaterialPageRoute(
-                                    builder: (_) => ProjectPage(project: p))),
-                          ),
-                        ),
-                    ]),
+      body: body,
     );
   }
 }
@@ -994,6 +1023,17 @@ class _AuditTabState extends State<AuditTab> {
     _apply();
   }
 
+  Future<void> _wipe() async {
+    final l10n = context.l10n;
+    if (!await confirm(context, l10n.wipeAudit, l10n.wipeAuditBody)) return;
+    try {
+      await Api.i.wipeAudit(_scope);
+      _apply();
+    } catch (e) {
+      if (mounted) snack(context, e);
+    }
+  }
+
   Future<void> _pick(bool isFrom) async {
     final now = DateTime.now();
     final d = await showDatePicker(
@@ -1029,6 +1069,11 @@ class _AuditTabState extends State<AuditTab> {
             },
           ),
           const Spacer(),
+          if (Api.i.user?.isOwner ?? false)
+            IconButton(
+                icon: const Icon(Icons.delete_sweep_outlined),
+                tooltip: l10n.wipeAudit,
+                onPressed: _wipe),
           IconButton(
               icon: const Icon(Icons.refresh),
               tooltip: l10n.refresh,
@@ -1118,6 +1163,9 @@ class NodesTab extends StatefulWidget {
   State<NodesTab> createState() => _NodesTabState();
 }
 
+const nodeGuideUrl =
+    'https://gitlab.com/HttpAnimations/wfm#remote-render-nodes';
+
 class _NodesTabState extends State<NodesTab> {
   List<RenderNode>? _nodes;
   String _err = '';
@@ -1157,11 +1205,17 @@ class _NodesTabState extends State<NodesTab> {
                 Text(l10n.nodeTokenNote),
                 const SizedBox(height: 8),
                 SelectableText(
-                    'wfm --worker <server-url> ${n['token']} ${n['name']}',
+                    'WFM_WORKER_TOKEN=${n['token']} wfm --worker <server-url> ${n['name']}',
                     style:
                         const TextStyle(fontFamily: 'monospace', fontSize: 12)),
+                const SizedBox(height: 8),
+                Text(l10n.nodeSetupHint),
               ]),
           actions: [
+            TextButton.icon(
+                onPressed: () => openExternal(nodeGuideUrl),
+                icon: const Icon(Icons.open_in_new, size: 18),
+                label: Text(l10n.nodeGuide)),
             FilledButton(
                 onPressed: () => Navigator.pop(ctx), child: Text(l10n.done))
           ],
@@ -1185,7 +1239,22 @@ class _NodesTabState extends State<NodesTab> {
       body: nodes == null
           ? const Center(child: CircularProgressIndicator())
           : nodes.isEmpty
-              ? Center(child: Text(l10n.noNodes))
+              ? Center(
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    Text(l10n.noNodes),
+                    const SizedBox(height: 8),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 32),
+                      child:
+                          Text(l10n.nodeSetupHint, textAlign: TextAlign.center),
+                    ),
+                    const SizedBox(height: 8),
+                    TextButton.icon(
+                        onPressed: () => openExternal(nodeGuideUrl),
+                        icon: const Icon(Icons.open_in_new, size: 18),
+                        label: Text(l10n.nodeGuide)),
+                  ]),
+                )
               : ListView.builder(
                   itemCount: nodes.length,
                   itemBuilder: (c, i) {
@@ -1235,6 +1304,105 @@ class _NodesTabState extends State<NodesTab> {
                     );
                   },
                 ),
+    );
+  }
+}
+
+class StorageTab extends StatefulWidget {
+  const StorageTab({super.key});
+  @override
+  State<StorageTab> createState() => _StorageTabState();
+}
+
+class _StorageTabState extends State<StorageTab> {
+  StorageStats? _stats;
+  String _err = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final v = await Api.i.storageStats();
+      setState(() {
+        _stats = v;
+        _err = '';
+      });
+    } catch (e) {
+      setState(() => _err = '$e');
+    }
+  }
+
+  void _poolBreakdown(StoragePool p) {
+    final l10n = context.l10n;
+    final users = List.of(_stats?.users ?? [])
+      ..sort((a, b) => b.bytes.compareTo(a.bytes));
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title:
+            Text(p.id == 'database' ? l10n.storageDatabase : l10n.storageMedia),
+        content: SizedBox(
+          width: 360,
+          child: users.isEmpty
+              ? Text(l10n.storageNoUsers)
+              : ListView(shrinkWrap: true, children: [
+                  for (final u in users)
+                    ListTile(
+                      dense: true,
+                      leading: const Icon(Icons.person_outline),
+                      title: Text(u.name.isEmpty ? u.username : u.name),
+                      trailing: Text(fmtBytes(u.bytes)),
+                    ),
+                ]),
+        ),
+        actions: [
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx), child: Text(l10n.done))
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    if (_err.isNotEmpty) return errorView(context, _err, _load);
+    final stats = _stats;
+    return Scaffold(
+      body: stats == null
+          ? const Center(child: CircularProgressIndicator())
+          : ListView(padding: const EdgeInsets.all(16), children: [
+              for (final p in stats.pools)
+                Card(
+                  clipBehavior: Clip.antiAlias,
+                  child: ListTile(
+                    leading: Icon(p.id == 'database'
+                        ? Icons.storage_outlined
+                        : Icons.cloud_outlined),
+                    title: Text(p.id == 'database'
+                        ? l10n.storageDatabase
+                        : l10n.storageMedia),
+                    subtitle: p.total > 0
+                        ? Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const SizedBox(height: 6),
+                              LinearProgressIndicator(
+                                  value: (p.used / p.total).clamp(0, 1)),
+                            ],
+                          )
+                        : null,
+                    trailing: Text(p.total > 0
+                        ? '${fmtBytes(p.used)}/${fmtBytes(p.total)}'
+                        : fmtBytes(p.used)),
+                    onTap: () => _poolBreakdown(p),
+                  ),
+                ),
+            ]),
     );
   }
 }

@@ -140,7 +140,7 @@ const CLASS_COLS: &str =
 const USER_COLS: &str =
     "id,username,display_name,pass_hash,role,student_id,note,disabled,avatar,created_by,lineage,created_at,last_login,quota_bytes,class_id";
 
-const PROJECT_COLS: &str = "id,owner_id,name,display_name,dir,folder_id,created_at,last_activity,pinned,template,status,submitted_at,reviewed_by";
+const PROJECT_COLS: &str = "id,owner_id,name,display_name,dir,folder_id,created_at,last_activity,pinned,template,status,submitted_at,reviewed_by,submit_allowed";
 
 fn map_project(r: &rusqlite::Row<'_>) -> rusqlite::Result<Project> {
     Ok(Project {
@@ -157,6 +157,7 @@ fn map_project(r: &rusqlite::Row<'_>) -> rusqlite::Result<Project> {
         status: r.get(10)?,
         submitted_at: r.get(11)?,
         reviewed_by: r.get(12)?,
+        submit_allowed: r.get::<_, i64>(13)? != 0,
     })
 }
 
@@ -296,6 +297,7 @@ fn map_comment(r: &rusqlite::Row) -> rusqlite::Result<CommentView> {
         display_name: r.get(4)?,
         avatar: r.get(8)?,
         body: r.get(5)?,
+        parent_id: r.get(9)?,
         created_at: r.get(6)?,
         edited_at: r.get(7)?,
     })
@@ -952,12 +954,7 @@ impl Db for SqliteDb {
         .map_err(dberr)
     }
 
-    async fn update_project(
-        &self,
-        id: &str,
-        display_name: &str,
-        folder_id: &str,
-    ) -> DbResult<()> {
+    async fn update_project(&self, id: &str, display_name: &str, folder_id: &str) -> DbResult<()> {
         let (id, name, fid) = (
             id.to_string(),
             display_name.to_string(),
@@ -1034,24 +1031,39 @@ impl Db for SqliteDb {
         .map_err(dberr)
     }
 
+    async fn set_project_submit_allowed(&self, id: &str, allowed: bool) -> DbResult<()> {
+        let id = id.to_string();
+        self.q(move |c| {
+            c.execute(
+                "UPDATE projects SET submit_allowed=? WHERE id=?",
+                params![allowed as i64, id],
+            )
+        })
+        .await
+        .map(|_| ())
+        .map_err(dberr)
+    }
+
     async fn comment_add(
         &self,
         id: &str,
         project: &str,
         user: &str,
         body: &str,
+        parent: &str,
         ts: i64,
     ) -> DbResult<()> {
-        let (id, project, user, body) = (
+        let (id, project, user, body, parent) = (
             id.to_string(),
             project.to_string(),
             user.to_string(),
             body.to_string(),
+            parent.to_string(),
         );
         self.q(move |c| {
             c.execute(
-                "INSERT INTO project_comments(id,project_id,user_id,body,created_at) VALUES(?,?,?,?,?)",
-                params![id, project, user, body, ts],
+                "INSERT INTO project_comments(id,project_id,user_id,body,parent_id,created_at) VALUES(?,?,?,?,?,?)",
+                params![id, project, user, body, parent, ts],
             )
         })
         .await
@@ -1063,7 +1075,7 @@ impl Db for SqliteDb {
         let project = project.to_string();
         self.q(move |c| {
                 let mut st = c.prepare(
-                    "SELECT c.id,c.project_id,c.user_id,u.username,u.display_name,c.body,c.created_at,c.edited_at,u.avatar FROM project_comments c JOIN users u ON u.id=c.user_id WHERE c.project_id=? ORDER BY c.created_at"
+                    "SELECT c.id,c.project_id,c.user_id,u.username,u.display_name,c.body,c.created_at,c.edited_at,u.avatar,c.parent_id FROM project_comments c JOIN users u ON u.id=c.user_id WHERE c.project_id=? ORDER BY c.created_at"
                 )?;
                 let rows = st.query_map(params![project], map_comment)?;
                 rows.collect::<rusqlite::Result<Vec<_>>>()
@@ -1076,7 +1088,7 @@ impl Db for SqliteDb {
         let id = id.to_string();
         self.q(move |c| {
                 c.query_row(
-                    "SELECT c.id,c.project_id,c.user_id,u.username,u.display_name,c.body,c.created_at,c.edited_at,u.avatar FROM project_comments c JOIN users u ON u.id=c.user_id WHERE c.id=?",
+                    "SELECT c.id,c.project_id,c.user_id,u.username,u.display_name,c.body,c.created_at,c.edited_at,u.avatar,c.parent_id FROM project_comments c JOIN users u ON u.id=c.user_id WHERE c.id=?",
                     params![id],
                     map_comment,
                 )
@@ -1100,10 +1112,16 @@ impl Db for SqliteDb {
 
     async fn comment_delete(&self, id: &str) -> DbResult<bool> {
         let id = id.to_string();
-        self.q(move |c| c.execute("DELETE FROM project_comments WHERE id=?", params![id]))
-            .await
-            .map(|n| n > 0)
-            .map_err(dberr)
+        self.q(move |c| {
+            c.execute(
+                "UPDATE project_comments SET parent_id=(SELECT parent_id FROM project_comments WHERE id=?) WHERE parent_id=?",
+                params![id, id],
+            )?;
+            c.execute("DELETE FROM project_comments WHERE id=?", params![id])
+        })
+        .await
+        .map(|n| n > 0)
+        .map_err(dberr)
     }
 
     async fn comments_delete_project(&self, project: &str) -> DbResult<()> {
@@ -1173,15 +1191,10 @@ impl Db for SqliteDb {
 
     async fn rename_folder(&self, id: &str, name: &str) -> DbResult<()> {
         let (id, name) = (id.to_string(), name.to_string());
-        self.q(move |c| {
-            c.execute(
-                "UPDATE folders SET name=? WHERE id=?",
-                params![name, id],
-            )
-        })
-        .await
-        .map(|_| ())
-        .map_err(dberr)
+        self.q(move |c| c.execute("UPDATE folders SET name=? WHERE id=?", params![name, id]))
+            .await
+            .map(|_| ())
+            .map_err(dberr)
     }
 
     async fn delete_folder(&self, id: &str) -> DbResult<()> {
@@ -1647,6 +1660,26 @@ impl Db for SqliteDb {
         .map_err(dberr)
     }
 
+    async fn audit_wipe(&self, scope: &str) -> DbResult<()> {
+        let scope = scope.to_string();
+        self.q(move |c| {
+            c.execute("DELETE FROM audit WHERE scope=?", params![scope])
+                .map(|_| ())
+        })
+        .await
+        .map_err(dberr)
+    }
+
+    async fn db_size(&self) -> DbResult<Option<u64>> {
+        self.q(|c| {
+            let pages: i64 = c.query_row("PRAGMA page_count", [], |r| r.get(0))?;
+            let page: i64 = c.query_row("PRAGMA page_size", [], |r| r.get(0))?;
+            Ok(Some((pages * page) as u64))
+        })
+        .await
+        .map_err(dberr)
+    }
+
     async fn invite_create(&self, i: &InviteCode) -> DbResult<()> {
         let v: Vec<String> = [
             &i.id,
@@ -1690,7 +1723,7 @@ impl Db for SqliteDb {
         let uid = uid.to_string();
         self.q(move |c| {
                 let mut st = c.prepare(
-                    "SELECT id,code_hash,created_by,role,preset_username,preset_name,used_by,used_at,expires_at,revoked,created_at FROM invite_codes WHERE created_by=? ORDER BY created_at DESC",
+                    "SELECT id,code_hash,created_by,role,preset_username,preset_name,used_by,used_at,expires_at,revoked,created_at FROM invite_codes WHERE created_by=? AND revoked=0 ORDER BY created_at DESC",
                 )?;
                 let rows = st.query_map(params![uid], map_invite)?;
                 rows.collect::<rusqlite::Result<Vec<_>>>()
@@ -1731,7 +1764,7 @@ impl Db for SqliteDb {
         let creator = creator.to_string();
         self.q(move |c| {
             c.execute(
-                "UPDATE invite_codes SET revoked=1 WHERE id=? AND created_by=? AND used_by=''",
+                "DELETE FROM invite_codes WHERE id=? AND created_by=? AND used_by=''",
                 params![id, creator],
             )
         })
@@ -2489,6 +2522,7 @@ mod tests {
             status: "draft".into(),
             submitted_at: 0,
             reviewed_by: String::new(),
+            submit_allowed: false,
         })
         .await
         .unwrap();
@@ -2542,6 +2576,7 @@ mod tests {
             status: "draft".into(),
             submitted_at: 0,
             reviewed_by: String::new(),
+            submit_allowed: false,
         };
         db.create_project(&p("sp", "s")).await.unwrap();
         db.create_project(&p("xp", "x")).await.unwrap();
@@ -2712,6 +2747,7 @@ mod tests {
             status: "draft".into(),
             submitted_at: 0,
             reviewed_by: String::new(),
+            submit_allowed: false,
         })
         .await
         .unwrap();
@@ -2797,11 +2833,16 @@ mod tests {
             status: "draft".into(),
             submitted_at: 0,
             reviewed_by: String::new(),
+            submit_allowed: false,
         })
         .await
         .unwrap();
-        db.comment_add("c1", "p1", "u1", "hi", 10).await.unwrap();
-        db.comment_add("c2", "p1", "u1", "again", 20).await.unwrap();
+        db.comment_add("c1", "p1", "u1", "hi", "", 10)
+            .await
+            .unwrap();
+        db.comment_add("c2", "p1", "u1", "again", "", 20)
+            .await
+            .unwrap();
         let list = db.comments_for("p1").await.unwrap();
         assert_eq!(list.len(), 2);
         assert_eq!(list[0].username, "ada");

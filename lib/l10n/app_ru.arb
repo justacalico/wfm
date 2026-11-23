@@ -596,5 +596,44 @@
     "placeholders": {
       "craft": {}
     }
-  }
+  },
+  "inviteUsedBy": "Использован {name}",
+  "@inviteUsedBy": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "wipeAudit": "Очистить журнал",
+  "wipeAuditBody": "Удалить все записи этого журнала? Это действие нельзя отменить.",
+  "nodeSetupHint": "Установите WFM на другой машине, создайте узел здесь и запустите показанную команду. Узел опрашивает этот сервер на наличие задач рендеринга.",
+  "nodeGuide": "Руководство",
+  "storage": "Хранилище",
+  "storageMedia": "Хранилище медиа",
+  "storageDatabase": "База данных",
+  "storageNoUsers": "Хранилище пока никем не используется.",
+  "openSubmissions": "Открыть отправки",
+  "closeSubmissions": "Закрыть отправки",
+  "submitConfirmBody": "Отправить {name} на проверку?",
+  "@submitConfirmBody": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "reply": "Ответить",
+  "replyingTo": "Ответ {name}",
+  "@replyingTo": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "writeReply": "Написать ответ",
+  "notifReply": "{from} ответил вам в {project}",
+  "@notifReply": {
+    "placeholders": {
+      "from": {},
+      "project": {}
+    }
+  },
+  "recentProjects": "Недавние проекты",
+  "latestActivity": "Последняя активность"
 }
