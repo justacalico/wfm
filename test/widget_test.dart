@@ -222,9 +222,7 @@ void main() {
     await t.enterText(find.byType(TextField).last, 'New Film');
     await t.tap(find.text('OK'));
     await settle(t);
-    expect(find.byType(ProjectPage), findsOneWidget);
-    await t.tap(find.byIcon(Icons.arrow_back));
-    await settle(t);
+    expect(find.byType(ProjectPage), findsNothing);
     expect(find.byType(ProjectsPage), findsOneWidget);
     await tapNav(t, 'Manage');
     expect(find.byType(ManagePage), findsOneWidget);
