@@ -697,20 +697,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get defaultOption => '默认';
 
   @override
-  String get serverUrl => '服务器地址';
-
-  @override
-  String get connect => '连接';
-
-  @override
-  String get connecting => '连接中…';
-
-  @override
-  String finishSetupInBrowser(String url) {
-    return '该服务器还没有管理员账号。请在浏览器中打开 $url 完成初始化。';
-  }
-
-  @override
   String serverUnreachable(Object error) {
     return '无法连接服务器:$error';
   }
@@ -1278,59 +1264,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get inProgress => '进行中';
-
-  @override
-  String get editorMode => '编辑器模式';
-
-  @override
-  String get editorModeWeb => '网页版';
-
-  @override
-  String get editorModeNative => '原生版';
-
-  @override
-  String get craftCheckoutDir => '项目检出文件夹';
-
-  @override
-  String get craftCheckoutDirBody => '原生编辑器会在此为每个打开的项目保留本地副本。';
-
-  @override
-  String craftAlreadyOpen(Object craft) {
-    return '$craft 已打开此项目。';
-  }
-
-  @override
-  String craftMissing(Object craft) {
-    return '此构建未包含原生 $craft 编辑器。';
-  }
-
-  @override
-  String craftLocked(Object craft) {
-    return '$craft 已在别处打开，无法接管。';
-  }
-
-  @override
-  String craftTakeOverBody(Object craft) {
-    return '$craft 已在别处打开此项目。是否接管并关闭另一个会话？';
-  }
-
-  @override
-  String get syncPulling => '正在下载项目文件…';
-
-  @override
-  String get syncPushing => '正在上传更改…';
-
-  @override
-  String get syncLockLost => '此项目已在别处被接管。为保护您的工作，编辑器已关闭。';
-
-  @override
-  String get importStorage => '导入存储';
-
-  @override
-  String get importMixed => '本地副本 + 上传';
-
-  @override
-  String get importServer => '仅服务器';
 
   @override
   String inviteUsedBy(Object name) {

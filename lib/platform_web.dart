@@ -44,20 +44,6 @@ Future<void> openEditor(BuildContext context, Api api, String url,
   web.window.open(url, '_blank');
 }
 
-const supportsNativeCrafts = false;
-
-Future<String?> Function()? pickDirectoryForTesting;
-
-Future<void> shutdownCrafts() async {}
-
-String defaultCheckoutRoot() => '';
-
-Future<String?> pickDirectory() async {
-  final test = pickDirectoryForTesting;
-  if (test != null) return test();
-  return null;
-}
-
 Future<List<PickedFile>> pickFiles({List<String>? exts}) async {
   final test = pickFilesForTesting;
   if (test != null) return test();

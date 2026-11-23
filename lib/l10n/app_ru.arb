@@ -350,17 +350,6 @@
   "extraParams": "Доп. параметры экспорта (JSON)",
   "invalidJson": "Неверный JSON",
   "defaultOption": "По умолчанию",
-  "serverUrl": " ",
-  "connect": "",
-  "connecting": "…",
-  "finishSetupInBrowser": "    .    : {url}.",
-  "@finishSetupInBrowser": {
-    "placeholders": {
-      "url": {
-        "type": "String"
-      }
-    }
-  },
   "serverUnreachable": "Не удаётся связаться с сервером: {error}",
   "@serverUnreachable": {
     "placeholders": {
@@ -562,41 +551,6 @@
   },
   "notStarted": "Не начато",
   "inProgress": "В работе",
-  "editorMode": " ",
-  "editorModeWeb": "",
-  "editorModeNative": "",
-  "craftCheckoutDir": "  ",
-  "craftCheckoutDirBody": "        .",
-  "craftAlreadyOpen": "{craft}    .",
-  "craftMissing": "  {craft}     .",
-  "craftLocked": "{craft}    ,   .",
-  "craftTakeOverBody": "{craft}       .     ?",
-  "syncPulling": "  …",
-  "syncPushing": " …",
-  "syncLockLost": "     .  ,    .",
-  "importStorage": " ",
-  "importMixed": "  + ",
-  "importServer": " ",
-  "@craftAlreadyOpen": {
-    "placeholders": {
-      "craft": {}
-    }
-  },
-  "@craftMissing": {
-    "placeholders": {
-      "craft": {}
-    }
-  },
-  "@craftLocked": {
-    "placeholders": {
-      "craft": {}
-    }
-  },
-  "@craftTakeOverBody": {
-    "placeholders": {
-      "craft": {}
-    }
-  },
   "inviteUsedBy": "Использован {name}",
   "@inviteUsedBy": {
     "placeholders": {

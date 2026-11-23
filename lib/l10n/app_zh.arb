@@ -350,17 +350,6 @@
   "extraParams": "额外导出参数（JSON）",
   "invalidJson": "JSON 无效",
   "defaultOption": "默认",
-  "serverUrl": "服务器地址",
-  "connect": "连接",
-  "connecting": "连接中…",
-  "finishSetupInBrowser": "该服务器还没有管理员账号。请在浏览器中打开 {url} 完成初始化。",
-  "@finishSetupInBrowser": {
-    "placeholders": {
-      "url": {
-        "type": "String"
-      }
-    }
-  },
   "serverUnreachable": "无法连接服务器:{error}",
   "@serverUnreachable": {
     "placeholders": {
@@ -562,42 +551,6 @@
   },
   "notStarted": "未开始",
   "inProgress": "进行中",
-  "editorMode": "编辑器模式",
-  "editorModeWeb": "网页版",
-  "editorModeNative": "原生版",
-  "craftCheckoutDir": "项目检出文件夹",
-  "craftCheckoutDirBody": "原生编辑器会在此为每个打开的项目保留本地副本。",
-  "craftAlreadyOpen": "{craft} 已打开此项目。",
-  "craftMissing": "此构建未包含原生 {craft} 编辑器。",
-  "craftLocked": "{craft} 已在别处打开，无法接管。",
-  "craftTakeOverBody": "{craft} 已在别处打开此项目。是否接管并关闭另一个会话？",
-  "syncPulling": "正在下载项目文件…",
-  "syncPushing": "正在上传更改…",
-  "syncLockLost": "此项目已在别处被接管。为保护您的工作，编辑器已关闭。",
-  "importStorage": "导入存储",
-  "importMixed": "本地副本 + 上传",
-  "importServer": "仅服务器",
-  "@craftAlreadyOpen": {
-    "placeholders": {
-      "craft": {}
-    }
-  },
-  "@craftMissing": {
-    "placeholders": {
-      "craft": {}
-    }
-  },
-  "@craftLocked": {
-    "placeholders": {
-      "craft": {}
-    }
-  },
-  "@craftTakeOverBody": {
-    "placeholders": {
-      "craft": {}
-    }
-  }
-,
   "inviteUsedBy": "已被 {name} 使用",
   "@inviteUsedBy": {
     "placeholders": {

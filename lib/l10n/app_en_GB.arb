@@ -152,42 +152,6 @@
   "resetToDefault": "Reset to default",
   "resetAllShortcuts": "Reset all shortcuts",
   "resetAllShortcutsBody": "Restore every shortcut to its default?",
-  "editorMode": "Editor mode",
-  "editorModeWeb": "Web",
-  "editorModeNative": "Native",
-  "craftCheckoutDir": "Project checkout folder",
-  "craftCheckoutDirBody": "Native editors keep a local copy of each open project here.",
-  "craftAlreadyOpen": "{craft} already has this project open.",
-  "craftMissing": "The native {craft} editor is not bundled in this build.",
-  "craftLocked": "{craft} is open elsewhere and could not be taken over.",
-  "craftTakeOverBody": "{craft} already has this project open elsewhere. Take over and close the other session?",
-  "syncPulling": "Downloading project files…",
-  "syncPushing": "Uploading changes…",
-  "syncLockLost": "This project was taken over elsewhere. The editor was closed to keep your work safe.",
-  "importStorage": "Import storage",
-  "importMixed": "Local copy + upload",
-  "importServer": "Server only",
-  "@craftAlreadyOpen": {
-    "placeholders": {
-      "craft": {}
-    }
-  },
-  "@craftMissing": {
-    "placeholders": {
-      "craft": {}
-    }
-  },
-  "@craftLocked": {
-    "placeholders": {
-      "craft": {}
-    }
-  },
-  "@craftTakeOverBody": {
-    "placeholders": {
-      "craft": {}
-    }
-  }
-,
   "inviteUsedBy": "Used by {name}",
   "@inviteUsedBy": {
     "placeholders": {

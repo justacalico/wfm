@@ -13,7 +13,6 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     openExternalForTesting = null;
     openEditorForTesting = null;
-    app.isDesktopApp = false;
     pickFilesForTesting = null;
   });
 

@@ -1,12 +1,10 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'api.dart';
 import 'l10n/app_localizations.dart';
 import 'notifications.dart';
-import 'platform.dart';
 import 'projects.dart';
 import 'shared.dart';
 import 'invite.dart';
@@ -22,10 +20,6 @@ extension L10n on BuildContext {
 }
 
 enum AppTheme { system, light, dark, oled }
-
-// Desktop (io) builds connect to a chosen server; web is same-origin.
-// Tests run on io, so they flip this back to web behaviour by default.
-var isDesktopApp = !kIsWeb;
 
 const appLocales = [
   Locale('en'),
@@ -432,16 +426,6 @@ class _GateState extends State<Gate> {
 
   Future<Widget> _decide() async {
     try {
-      if (isDesktopApp) {
-        final p = await SharedPreferences.getInstance();
-        final base = p.getString('serverUrl') ?? '';
-        if (base.isEmpty) return const ConnectPage();
-        Api.i.baseUrl = base;
-        final u = await Api.i.me();
-        if (u == null) return const LoginPage();
-        await Api.i.roles().catchError((_) => Api.i.caps);
-        return const Shell();
-      }
       const m = '/invite/';
       final p = widget.uri?.path ?? Uri.base.path;
       var i = p.indexOf(m);
@@ -459,7 +443,7 @@ class _GateState extends State<Gate> {
       await Api.i.roles().catchError((_) => Api.i.caps);
       return const Shell();
     } catch (e) {
-      return isDesktopApp ? const ConnectPage() : GateError(e);
+      return GateError(e);
     }
   }
 
@@ -657,98 +641,6 @@ class _LoginPageState extends State<LoginPage> {
   }
 }
 
-/// Desktop-only entry screen: pick a WFM server before logging in.
-/// Setup/invite stays web-only; a server without an owner points the user
-/// at the browser instead.
-class ConnectPage extends StatefulWidget {
-  const ConnectPage({super.key});
-  @override
-  State<ConnectPage> createState() => _ConnectPageState();
-}
-
-class _ConnectPageState extends State<ConnectPage> {
-  final _url = TextEditingController();
-  bool _busy = false;
-  String _hint = '';
-
-  @override
-  void dispose() {
-    _url.dispose();
-    super.dispose();
-  }
-
-  Future<void> _connect() async {
-    var u = _url.text.trim();
-    if (u.isEmpty) return;
-    if (!u.contains('://')) u = 'https://$u';
-    u = u.replaceAll(RegExp(r'/+$'), '');
-    setState(() {
-      _busy = true;
-      _hint = '';
-    });
-    Api.i.baseUrl = u;
-    try {
-      if (await Api.i.needsSetup()) {
-        if (mounted) {
-          setState(() => _hint = context.l10n.finishSetupInBrowser(u));
-        }
-        return;
-      }
-      final p = await SharedPreferences.getInstance();
-      await p.setString('serverUrl', u);
-      if (mounted) {
-        Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (_) => const LoginPage()));
-      }
-    } catch (e) {
-      if (mounted) snack(context, context.l10n.serverUnreachable('$e'));
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    return Scaffold(
-      appBar: AppBar(backgroundColor: Colors.transparent, actions: const [
-        Padding(padding: EdgeInsets.only(right: 8), child: AuthPickers()),
-      ]),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 360),
-          child: ListView(
-              shrinkWrap: true,
-              padding: const EdgeInsets.all(24),
-              children: [
-                Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                  Image.asset('assets/icon.png', width: 36, height: 36),
-                  const SizedBox(width: 10),
-                  Text(l10n.appTitle,
-                      style: Theme.of(context).textTheme.headlineMedium),
-                ]),
-                const SizedBox(height: 24),
-                TextField(
-                    controller: _url,
-                    decoration:
-                        dec(l10n.serverUrl, 'https://wfm.school.example'),
-                    autofocus: true,
-                    onSubmitted: (_) => _connect()),
-                if (_hint.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  Text(_hint),
-                ],
-                const SizedBox(height: 20),
-                FilledButton(
-                    onPressed: _busy ? null : _connect,
-                    child: Text(_busy ? l10n.connecting : l10n.connect)),
-              ]),
-        ),
-      ),
-    );
-  }
-}
-
 class Shell extends StatefulWidget {
   const Shell({super.key});
   @override
@@ -768,12 +660,6 @@ class ShellState extends State<Shell> {
     super.initState();
     refreshShared();
     refreshNotifs();
-  }
-
-  @override
-  void dispose() {
-    unawaited(shutdownCrafts());
-    super.dispose();
   }
 
   Future<void> refreshShared() async {

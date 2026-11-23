@@ -360,17 +360,6 @@
   "extraParams": "Extra export params (JSON)",
   "invalidJson": "Invalid JSON",
   "defaultOption": "Default",
-  "serverUrl": "Server URL",
-  "connect": "Connect",
-  "connecting": "Connecting…",
-  "finishSetupInBrowser": "This server has no admin account yet. Finish setup in a browser at {url}.",
-  "@finishSetupInBrowser": {
-    "placeholders": {
-      "url": {
-        "type": "String"
-      }
-    }
-  },
   "serverUnreachable": "Can't reach the server: {error}",
   "@serverUnreachable": {
     "placeholders": {
@@ -572,42 +561,6 @@
   },
   "notStarted": "Not started",
   "inProgress": "In progress",
-  "editorMode": "Editor mode",
-  "editorModeWeb": "Web",
-  "editorModeNative": "Native",
-  "craftCheckoutDir": "Project checkout folder",
-  "craftCheckoutDirBody": "Native editors keep a local copy of each open project here.",
-  "craftAlreadyOpen": "{craft} already has this project open.",
-  "@craftAlreadyOpen": {
-    "placeholders": {
-      "craft": {}
-    }
-  },
-  "craftMissing": "The native {craft} editor is not bundled in this build.",
-  "@craftMissing": {
-    "placeholders": {
-      "craft": {}
-    }
-  },
-  "craftLocked": "{craft} is open elsewhere and could not be taken over.",
-  "@craftLocked": {
-    "placeholders": {
-      "craft": {}
-    }
-  },
-  "craftTakeOverBody": "{craft} already has this project open elsewhere. Take over and close the other session?",
-  "@craftTakeOverBody": {
-    "placeholders": {
-      "craft": {}
-    }
-  },
-  "syncPulling": "Downloading project files…",
-  "syncPushing": "Uploading changes…",
-  "syncLockLost": "This project was taken over elsewhere. The editor was closed to keep your work safe.",
-  "importStorage": "Import storage",
-  "importMixed": "Local copy + upload",
-  "importServer": "Server only"
-,
   "inviteUsedBy": "Used by {name}",
   "@inviteUsedBy": {
     "placeholders": {
