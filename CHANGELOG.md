@@ -2,6 +2,13 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.41.2 - 2026-11-23
+#### Bug Fixes
+- (**deckcraft**) 由 WFM 托管 DeckCraft 快捷键 - (a610685) - calico
+- (**server**) docker 构建补上 deckcraft 快捷键目录 - (52cfea1) - calico
+
+- - -
+
 ## v0.41.1 - 2026-11-23
 #### Bug Fixes
 - (**server**) docker 镜像构建时应用 deckcraft 补丁 - (aaf0f62) - calico
