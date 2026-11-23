@@ -85,6 +85,7 @@ pub fn router(state: Arc<AppState>) -> Router {
             patch(edit_comment).delete(delete_comment),
         )
         .route("/projects/{id}/submit", post(submit_project))
+        .route("/projects/{id}/submit-allowed", post(set_submit_allowed))
         .route("/projects/{id}/review", post(review_project))
         .route("/projects/{id}/assign", post(assign_project))
         .route("/projects/{id}/assignment", get(project_assignment))
@@ -1940,6 +1941,7 @@ async fn create_project(
         status: "draft".into(),
         submitted_at: 0,
         reviewed_by: String::new(),
+        submit_allowed: false,
     };
     if let Err(e) = s.db.create_project(&p).await {
         let _ = s.blobs.delete_prefix(&p.dir).await;
@@ -2922,6 +2924,7 @@ async fn clone_project(
         status: "draft".into(),
         submitted_at: 0,
         reviewed_by: String::new(),
+        submit_allowed: false,
     };
     if let Err(e) = s.db.create_project(&p).await {
         let _ = s.blobs.delete_prefix(&p.dir).await;
@@ -3092,16 +3095,25 @@ async fn submit_project(
     };
     let submitted = p.status == "submitted";
     if p.owner_id == session.user.id {
-        if let Ok(Some((a, c))) = s.db.assignment_for_project(&id).await {
-            if a.locked {
-                return err(StatusCode::FORBIDDEN, "assignment locked");
+        match s.db.assignment_for_project(&id).await {
+            Ok(Some((a, c))) => {
+                if a.locked {
+                    return err(StatusCode::FORBIDDEN, "assignment locked");
+                }
+                if submitted && !a.allow_withdraw {
+                    return err(StatusCode::FORBIDDEN, "withdraw not allowed");
+                }
+                if !submitted && a.max_submissions > 0 && c.submissions >= a.max_submissions {
+                    return err(StatusCode::FORBIDDEN, "submission limit reached");
+                }
             }
-            if submitted && !a.allow_withdraw {
-                return err(StatusCode::FORBIDDEN, "withdraw not allowed");
+            _ if !submitted && !p.submit_allowed => {
+                return err(
+                    StatusCode::FORBIDDEN,
+                    "submissions are not open for this project",
+                );
             }
-            if !submitted && a.max_submissions > 0 && c.submissions >= a.max_submissions {
-                return err(StatusCode::FORBIDDEN, "submission limit reached");
-            }
+            _ => {}
         }
     }
     let (status, submitted_at, action) = if submitted {
@@ -3136,6 +3148,45 @@ async fn submit_project(
         }
     }
     Json(json!({"ok": true, "status": status})).into_response()
+}
+
+#[derive(Deserialize)]
+struct SubmitAllowedReq {
+    allowed: bool,
+}
+
+/// Staff opt-in that opens submissions on an ordinary project; assignment
+/// copies follow the assignment rules instead of this flag.
+async fn set_submit_allowed(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Path(id): Path<String>,
+    Json(req): Json<SubmitAllowedReq>,
+) -> Response {
+    if session.user.role < Role::Teacher {
+        return err(StatusCode::FORBIDDEN, "staff only");
+    }
+    let p = match project_access(&s, &session, &id).await {
+        Ok((p, _)) => p,
+        Err(r) => return r,
+    };
+    if let Err(e) = s.db.set_project_submit_allowed(&id, req.allowed).await {
+        return db_resp(e);
+    }
+    s.audit(
+        "project",
+        &session.user,
+        if req.allowed {
+            "submit_open"
+        } else {
+            "submit_close"
+        },
+        &p.display_name,
+        "",
+        "",
+    )
+    .await;
+    Json(json!({"ok": true})).into_response()
 }
 
 #[derive(Deserialize)]

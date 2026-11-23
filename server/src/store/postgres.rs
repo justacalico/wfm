@@ -115,6 +115,7 @@ fn row_project(r: sqlx::postgres::PgRow) -> Project {
         status: r.get("status"),
         submitted_at: r.get("submitted_at"),
         reviewed_by: r.get("reviewed_by"),
+        submit_allowed: r.get::<i32, _>("submit_allowed") != 0,
     }
 }
 
@@ -954,21 +955,33 @@ impl Db for PgDb {
             .map_err(map_err)
     }
 
+    async fn set_project_submit_allowed(&self, id: &str, allowed: bool) -> DbResult<()> {
+        sqlx::query("UPDATE projects SET submit_allowed=$1 WHERE id=$2")
+            .bind(allowed as i32)
+            .bind(id)
+            .execute(&self.pool)
+            .await
+            .map(|_| ())
+            .map_err(map_err)
+    }
+
     async fn comment_add(
         &self,
         id: &str,
         project: &str,
         user: &str,
         body: &str,
+        parent: &str,
         ts: i64,
     ) -> DbResult<()> {
         sqlx::query(
-            "INSERT INTO project_comments(id,project_id,user_id,body,created_at) VALUES($1,$2,$3,$4,$5)",
+            "INSERT INTO project_comments(id,project_id,user_id,body,parent_id,created_at) VALUES($1,$2,$3,$4,$5,$6)",
         )
         .bind(id)
         .bind(project)
         .bind(user)
         .bind(body)
+        .bind(parent)
         .bind(ts)
         .execute(&self.pool)
         .await

@@ -64,7 +64,7 @@ class Caps {
 class Project {
   final String id, name, displayName, folderId, ownerId, ownerName, access;
   final int createdAt, lastActivity;
-  final bool pinned, template, canTakeOver;
+  final bool pinned, template, canTakeOver, submitAllowed;
   final String status, reviewedBy;
   final int submittedAt;
   Project.fromJson(Map<String, dynamic> j)
@@ -82,13 +82,18 @@ class Project {
         canTakeOver = j['takeOver'] == true,
         status = j['status'] ?? 'draft',
         submittedAt = j['submittedAt'] ?? 0,
-        reviewedBy = j['reviewedBy'] ?? '';
+        reviewedBy = j['reviewedBy'] ?? '',
+        submitAllowed = j['submitAllowed'] == true;
   bool get mine => access.isEmpty
       ? (ownerId.isEmpty || ownerId == Api.i.user?.id)
       : access == 'owner';
   bool get locked => status == 'submitted';
   bool get editable => !locked && (mine || access == 'edit');
-  Project copyWith({String? displayName, bool? template, String? status}) =>
+  Project copyWith(
+          {String? displayName,
+          bool? template,
+          String? status,
+          bool? submitAllowed}) =>
       Project.fromJson({
         'id': id,
         'name': name,
@@ -105,6 +110,7 @@ class Project {
         'status': status ?? this.status,
         'submittedAt': submittedAt,
         'reviewedBy': reviewedBy,
+        'submitAllowed': submitAllowed ?? this.submitAllowed,
       });
 }
 

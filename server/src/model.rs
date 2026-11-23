@@ -109,6 +109,8 @@ pub struct Project {
     pub submitted_at: i64,
     #[serde(rename = "reviewedBy")]
     pub reviewed_by: String,
+    #[serde(rename = "submitAllowed")]
+    pub submit_allowed: bool,
 }
 
 #[derive(Clone, Serialize)]

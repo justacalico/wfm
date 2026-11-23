@@ -610,8 +610,11 @@ class _ProjectPageState extends State<ProjectPage> {
   }
 
   bool get _submitBlocked {
+    if (!_p.mine) return true;
     final a = _info?.assignment, c = _info?.copy;
-    if (a == null || c == null || !_p.mine) return false;
+    if (a == null || c == null) {
+      return _p.status != 'submitted' && !_p.submitAllowed;
+    }
     if (a.locked) return true;
     if (_p.status == 'submitted') return !a.allowWithdraw;
     return a.maxSubmissions > 0 && c.submissions >= a.maxSubmissions;
@@ -669,6 +672,15 @@ class _ProjectPageState extends State<ProjectPage> {
       final st = await Api.i.submitProject(_p.id);
       setState(() => _p = _p.copyWith(status: st));
       _loadInfo();
+    } catch (e) {
+      if (mounted) snack(context, e);
+    }
+  }
+
+  Future<void> _toggleSubmitAllowed() async {
+    try {
+      await Api.i.setSubmitAllowed(_p.id, !_p.submitAllowed);
+      setState(() => _p = _p.copyWith(submitAllowed: !_p.submitAllowed));
     } catch (e) {
       if (mounted) snack(context, e);
     }
@@ -796,6 +808,20 @@ class _ProjectPageState extends State<ProjectPage> {
                   ? l10n.withdrawSubmission
                   : l10n.submitForReview,
               onPressed: _submitBlocked ? null : _submit,
+            ),
+          if (!_p.mine &&
+              (Api.i.user?.isStaff ?? false) &&
+              _info?.assignment == null)
+            IconButton(
+              icon: Icon(
+                  _p.submitAllowed
+                      ? Icons.lock_open_outlined
+                      : Icons.lock_outlined,
+                  size: 20),
+              tooltip: _p.submitAllowed
+                  ? l10n.closeSubmissions
+                  : l10n.openSubmissions,
+              onPressed: _toggleSubmitAllowed,
             ),
           if (!_p.mine &&
               _p.status == 'submitted' &&

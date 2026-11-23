@@ -146,6 +146,7 @@ pub trait Db: Send + Sync {
         submitted_at: i64,
         reviewed_by: &str,
     ) -> DbResult<()>;
+    async fn set_project_submit_allowed(&self, id: &str, allowed: bool) -> DbResult<()>;
 
     // comments
     async fn comment_add(

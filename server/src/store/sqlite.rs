@@ -140,7 +140,7 @@ const CLASS_COLS: &str =
 const USER_COLS: &str =
     "id,username,display_name,pass_hash,role,student_id,note,disabled,avatar,created_by,lineage,created_at,last_login,quota_bytes,class_id";
 
-const PROJECT_COLS: &str = "id,owner_id,name,display_name,dir,folder_id,created_at,last_activity,pinned,template,status,submitted_at,reviewed_by";
+const PROJECT_COLS: &str = "id,owner_id,name,display_name,dir,folder_id,created_at,last_activity,pinned,template,status,submitted_at,reviewed_by,submit_allowed";
 
 fn map_project(r: &rusqlite::Row<'_>) -> rusqlite::Result<Project> {
     Ok(Project {
@@ -157,6 +157,7 @@ fn map_project(r: &rusqlite::Row<'_>) -> rusqlite::Result<Project> {
         status: r.get(10)?,
         submitted_at: r.get(11)?,
         reviewed_by: r.get(12)?,
+        submit_allowed: r.get::<_, i64>(13)? != 0,
     })
 }
 
@@ -1034,24 +1035,39 @@ impl Db for SqliteDb {
         .map_err(dberr)
     }
 
+    async fn set_project_submit_allowed(&self, id: &str, allowed: bool) -> DbResult<()> {
+        let id = id.to_string();
+        self.q(move |c| {
+            c.execute(
+                "UPDATE projects SET submit_allowed=? WHERE id=?",
+                params![allowed as i64, id],
+            )
+        })
+        .await
+        .map(|_| ())
+        .map_err(dberr)
+    }
+
     async fn comment_add(
         &self,
         id: &str,
         project: &str,
         user: &str,
         body: &str,
+        parent: &str,
         ts: i64,
     ) -> DbResult<()> {
-        let (id, project, user, body) = (
+        let (id, project, user, body, parent) = (
             id.to_string(),
             project.to_string(),
             user.to_string(),
             body.to_string(),
+            parent.to_string(),
         );
         self.q(move |c| {
             c.execute(
-                "INSERT INTO project_comments(id,project_id,user_id,body,created_at) VALUES(?,?,?,?,?)",
-                params![id, project, user, body, ts],
+                "INSERT INTO project_comments(id,project_id,user_id,body,parent_id,created_at) VALUES(?,?,?,?,?,?)",
+                params![id, project, user, body, parent, ts],
             )
         })
         .await
@@ -2509,6 +2525,7 @@ mod tests {
             status: "draft".into(),
             submitted_at: 0,
             reviewed_by: String::new(),
+            submit_allowed: false,
         })
         .await
         .unwrap();
@@ -2562,6 +2579,7 @@ mod tests {
             status: "draft".into(),
             submitted_at: 0,
             reviewed_by: String::new(),
+            submit_allowed: false,
         };
         db.create_project(&p("sp", "s")).await.unwrap();
         db.create_project(&p("xp", "x")).await.unwrap();
@@ -2732,6 +2750,7 @@ mod tests {
             status: "draft".into(),
             submitted_at: 0,
             reviewed_by: String::new(),
+            submit_allowed: false,
         })
         .await
         .unwrap();
@@ -2817,11 +2836,16 @@ mod tests {
             status: "draft".into(),
             submitted_at: 0,
             reviewed_by: String::new(),
+            submit_allowed: false,
         })
         .await
         .unwrap();
-        db.comment_add("c1", "p1", "u1", "hi", 10).await.unwrap();
-        db.comment_add("c2", "p1", "u1", "again", 20).await.unwrap();
+        db.comment_add("c1", "p1", "u1", "hi", "", 10)
+            .await
+            .unwrap();
+        db.comment_add("c2", "p1", "u1", "again", "", 20)
+            .await
+            .unwrap();
         let list = db.comments_for("p1").await.unwrap();
         assert_eq!(list.len(), 2);
         assert_eq!(list[0].username, "ada");
