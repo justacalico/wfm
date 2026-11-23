@@ -597,4 +597,44 @@
       "craft": {}
     }
   }
+,
+  "inviteUsedBy": "已被 {name} 使用",
+  "@inviteUsedBy": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "wipeAudit": "清空日志",
+  "wipeAuditBody": "删除此活动日志中的所有条目？此操作无法撤销。",
+  "nodeSetupHint": "在另一台机器上安装 WFM，在此创建节点，然后运行显示的命令。节点会轮询此服务器获取渲染任务。",
+  "nodeGuide": "配置指南",
+  "storage": "存储",
+  "storageMedia": "媒体存储",
+  "storageDatabase": "数据库",
+  "storageNoUsers": "暂无用户使用存储。",
+  "openSubmissions": "开放提交",
+  "closeSubmissions": "关闭提交",
+  "submitConfirmBody": "提交 {name} 以供审核？",
+  "@submitConfirmBody": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "reply": "回复",
+  "replyingTo": "回复 {name}",
+  "@replyingTo": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "writeReply": "写下回复",
+  "notifReply": "{from} 在 {project} 中回复了你",
+  "@notifReply": {
+    "placeholders": {
+      "from": {},
+      "project": {}
+    }
+  },
+  "recentProjects": "最近的项目",
+  "latestActivity": "最新动态"
 }

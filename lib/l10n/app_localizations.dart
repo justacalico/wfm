@@ -2485,6 +2485,114 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Server only'**
   String get importServer;
+
+  /// No description provided for @inviteUsedBy.
+  ///
+  /// In en, this message translates to:
+  /// **'Used by {name}'**
+  String inviteUsedBy(Object name);
+
+  /// No description provided for @wipeAudit.
+  ///
+  /// In en, this message translates to:
+  /// **'Wipe logs'**
+  String get wipeAudit;
+
+  /// No description provided for @wipeAuditBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete every entry in this activity log? This cannot be undone.'**
+  String get wipeAuditBody;
+
+  /// No description provided for @nodeSetupHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Install WFM on another machine, create a node here, then run the command it shows. The node polls this server for render jobs.'**
+  String get nodeSetupHint;
+
+  /// No description provided for @nodeGuide.
+  ///
+  /// In en, this message translates to:
+  /// **'Setup guide'**
+  String get nodeGuide;
+
+  /// No description provided for @storage.
+  ///
+  /// In en, this message translates to:
+  /// **'Storage'**
+  String get storage;
+
+  /// No description provided for @storageMedia.
+  ///
+  /// In en, this message translates to:
+  /// **'Media storage'**
+  String get storageMedia;
+
+  /// No description provided for @storageDatabase.
+  ///
+  /// In en, this message translates to:
+  /// **'Database'**
+  String get storageDatabase;
+
+  /// No description provided for @storageNoUsers.
+  ///
+  /// In en, this message translates to:
+  /// **'No one is using storage yet.'**
+  String get storageNoUsers;
+
+  /// No description provided for @openSubmissions.
+  ///
+  /// In en, this message translates to:
+  /// **'Open submissions'**
+  String get openSubmissions;
+
+  /// No description provided for @closeSubmissions.
+  ///
+  /// In en, this message translates to:
+  /// **'Close submissions'**
+  String get closeSubmissions;
+
+  /// No description provided for @submitConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Submit {name} for review?'**
+  String submitConfirmBody(Object name);
+
+  /// No description provided for @reply.
+  ///
+  /// In en, this message translates to:
+  /// **'Reply'**
+  String get reply;
+
+  /// No description provided for @replyingTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Replying to {name}'**
+  String replyingTo(Object name);
+
+  /// No description provided for @writeReply.
+  ///
+  /// In en, this message translates to:
+  /// **'Write a reply'**
+  String get writeReply;
+
+  /// No description provided for @notifReply.
+  ///
+  /// In en, this message translates to:
+  /// **'{from} replied to you in {project}'**
+  String notifReply(Object from, Object project);
+
+  /// No description provided for @recentProjects.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent projects'**
+  String get recentProjects;
+
+  /// No description provided for @latestActivity.
+  ///
+  /// In en, this message translates to:
+  /// **'Latest activity'**
+  String get latestActivity;
 }
 
 class _AppLocalizationsDelegate

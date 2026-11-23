@@ -1331,4 +1331,66 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get importServer => '仅服务器';
+
+  @override
+  String inviteUsedBy(Object name) {
+    return '已被 $name 使用';
+  }
+
+  @override
+  String get wipeAudit => '清空日志';
+
+  @override
+  String get wipeAuditBody => '删除此活动日志中的所有条目？此操作无法撤销。';
+
+  @override
+  String get nodeSetupHint => '在另一台机器上安装 WFM，在此创建节点，然后运行显示的命令。节点会轮询此服务器获取渲染任务。';
+
+  @override
+  String get nodeGuide => '配置指南';
+
+  @override
+  String get storage => '存储';
+
+  @override
+  String get storageMedia => '媒体存储';
+
+  @override
+  String get storageDatabase => '数据库';
+
+  @override
+  String get storageNoUsers => '暂无用户使用存储。';
+
+  @override
+  String get openSubmissions => '开放提交';
+
+  @override
+  String get closeSubmissions => '关闭提交';
+
+  @override
+  String submitConfirmBody(Object name) {
+    return '提交 $name 以供审核？';
+  }
+
+  @override
+  String get reply => '回复';
+
+  @override
+  String replyingTo(Object name) {
+    return '回复 $name';
+  }
+
+  @override
+  String get writeReply => '写下回复';
+
+  @override
+  String notifReply(Object from, Object project) {
+    return '$from 在 $project 中回复了你';
+  }
+
+  @override
+  String get recentProjects => '最近的项目';
+
+  @override
+  String get latestActivity => '最新动态';
 }

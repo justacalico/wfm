@@ -1351,4 +1351,68 @@ class AppLocalizationsGa extends AppLocalizations {
 
   @override
   String get importServer => 'Freastalaí amháin';
+
+  @override
+  String inviteUsedBy(Object name) {
+    return 'Úsáidte ag $name';
+  }
+
+  @override
+  String get wipeAudit => 'Glan na logaí';
+
+  @override
+  String get wipeAuditBody =>
+      'Scrios gach iontráil sa loga gníomhaíochta seo? Ní féidir é seo a chur ar ais.';
+
+  @override
+  String get nodeSetupHint =>
+      'Suiteáil WFM ar mheaisín eile, cruthaigh nód anseo, agus rith an t-ordú a thaispeántar. Déanann an nód ainmniú ar an bhfreastalaí seo le haghaidh jabanna rindreála.';
+
+  @override
+  String get nodeGuide => 'Treoir shuiteála';
+
+  @override
+  String get storage => 'Stóráil';
+
+  @override
+  String get storageMedia => 'Stóráil meán';
+
+  @override
+  String get storageDatabase => 'Bunachar sonraí';
+
+  @override
+  String get storageNoUsers => 'Níl aon duine ag úsáid stórála go fóil.';
+
+  @override
+  String get openSubmissions => 'Oscail aighneachtaí';
+
+  @override
+  String get closeSubmissions => 'Dún aighneachtaí';
+
+  @override
+  String submitConfirmBody(Object name) {
+    return 'Cuir $name isteach le hathbhreithniú?';
+  }
+
+  @override
+  String get reply => 'Freagair';
+
+  @override
+  String replyingTo(Object name) {
+    return 'Ag freagairt do $name';
+  }
+
+  @override
+  String get writeReply => 'Scríobh freagra';
+
+  @override
+  String notifReply(Object from, Object project) {
+    return 'D\'fhreagair $from thú i $project';
+  }
+
+  @override
+  String get recentProjects => 'Tionscadail le déanaí';
+
+  @override
+  String get latestActivity => 'Gníomhaíocht is déanaí';
 }

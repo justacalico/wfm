@@ -1344,4 +1344,68 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get importServer => ' ';
+
+  @override
+  String inviteUsedBy(Object name) {
+    return 'Использован $name';
+  }
+
+  @override
+  String get wipeAudit => 'Очистить журнал';
+
+  @override
+  String get wipeAuditBody =>
+      'Удалить все записи этого журнала? Это действие нельзя отменить.';
+
+  @override
+  String get nodeSetupHint =>
+      'Установите WFM на другой машине, создайте узел здесь и запустите показанную команду. Узел опрашивает этот сервер на наличие задач рендеринга.';
+
+  @override
+  String get nodeGuide => 'Руководство';
+
+  @override
+  String get storage => 'Хранилище';
+
+  @override
+  String get storageMedia => 'Хранилище медиа';
+
+  @override
+  String get storageDatabase => 'База данных';
+
+  @override
+  String get storageNoUsers => 'Хранилище пока никем не используется.';
+
+  @override
+  String get openSubmissions => 'Открыть отправки';
+
+  @override
+  String get closeSubmissions => 'Закрыть отправки';
+
+  @override
+  String submitConfirmBody(Object name) {
+    return 'Отправить $name на проверку?';
+  }
+
+  @override
+  String get reply => 'Ответить';
+
+  @override
+  String replyingTo(Object name) {
+    return 'Ответ $name';
+  }
+
+  @override
+  String get writeReply => 'Написать ответ';
+
+  @override
+  String notifReply(Object from, Object project) {
+    return '$from ответил вам в $project';
+  }
+
+  @override
+  String get recentProjects => 'Недавние проекты';
+
+  @override
+  String get latestActivity => 'Последняя активность';
 }

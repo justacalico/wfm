@@ -607,4 +607,44 @@
   "importStorage": "Import storage",
   "importMixed": "Local copy + upload",
   "importServer": "Server only"
+,
+  "inviteUsedBy": "Used by {name}",
+  "@inviteUsedBy": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "wipeAudit": "Wipe logs",
+  "wipeAuditBody": "Delete every entry in this activity log? This cannot be undone.",
+  "nodeSetupHint": "Install WFM on another machine, create a node here, then run the command it shows. The node polls this server for render jobs.",
+  "nodeGuide": "Setup guide",
+  "storage": "Storage",
+  "storageMedia": "Media storage",
+  "storageDatabase": "Database",
+  "storageNoUsers": "No one is using storage yet.",
+  "openSubmissions": "Open submissions",
+  "closeSubmissions": "Close submissions",
+  "submitConfirmBody": "Submit {name} for review?",
+  "@submitConfirmBody": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "reply": "Reply",
+  "replyingTo": "Replying to {name}",
+  "@replyingTo": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "writeReply": "Write a reply",
+  "notifReply": "{from} replied to you in {project}",
+  "@notifReply": {
+    "placeholders": {
+      "from": {},
+      "project": {}
+    }
+  },
+  "recentProjects": "Recent projects",
+  "latestActivity": "Latest activity"
 }
