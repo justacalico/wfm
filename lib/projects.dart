@@ -376,10 +376,11 @@ class _ProjectsPageState extends State<ProjectsPage> {
   Widget _folderCard(Folder f, double w) {
     return SizedBox(
       width: w,
+      height: 136,
       child: Card(
         clipBehavior: Clip.antiAlias,
         child: InkWell(
-          onDoubleTap: () => setState(() => _folderId = f.id),
+          onTap: () => setState(() => _folderId = f.id),
           child: Padding(
             padding: const EdgeInsets.all(16),
             child:
@@ -401,7 +402,7 @@ class _ProjectsPageState extends State<ProjectsPage> {
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onDoubleTap: () => setState(() => _folderId = f.id),
+        onTap: () => setState(() => _folderId = f.id),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Row(children: [

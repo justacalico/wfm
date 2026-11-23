@@ -1,5 +1,4 @@
 import 'dart:typed_data';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -547,8 +546,6 @@ void main() {
 
     Future<void> openFolder(WidgetTester t, String name) async {
       await t.tap(find.text(name));
-      await t.pump(kDoubleTapMinTime);
-      await t.tap(find.text(name));
       await settle(t);
     }
 
@@ -569,6 +566,11 @@ void main() {
       expect(find.text('Alpha'), findsNothing);
       expect(find.text('Beta'), findsOneWidget);
       expect(find.text('Gamma'), findsOneWidget);
+      final folderCard =
+          find.ancestor(of: find.text('Class A'), matching: find.byType(Card));
+      final projectCard =
+          find.ancestor(of: find.text('Beta'), matching: find.byType(Card));
+      expect(t.getSize(folderCard).height, t.getSize(projectCard).height);
       await openFolder(t, 'Class A');
       expect(find.text('Alpha'), findsOneWidget);
       expect(find.text('Beta'), findsNothing);
