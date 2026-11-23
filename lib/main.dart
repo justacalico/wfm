@@ -970,6 +970,8 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   List<MyAssignment>? _assignments;
+  List<Project>? _projects;
+  List<AppNotification>? _notifs;
 
   @override
   void initState() {
@@ -978,6 +980,16 @@ class _HomePageState extends State<HomePage> {
       if (mounted) setState(() => _assignments = v);
     }).catchError((_) {
       if (mounted) setState(() => _assignments = const []);
+    });
+    Api.i.projects().then((v) {
+      if (mounted) setState(() => _projects = v);
+    }).catchError((_) {
+      if (mounted) setState(() => _projects = const []);
+    });
+    Api.i.notifications(limit: 5).then((v) {
+      if (mounted) setState(() => _notifs = v.$1);
+    }).catchError((_) {
+      if (mounted) setState(() => _notifs = const []);
     });
   }
 
@@ -1040,6 +1052,49 @@ class _HomePageState extends State<HomePage> {
           for (final a in mine) _assignmentTile(context, a, now),
           const SizedBox(height: 16),
         ]),
+      ],
+      if ((_projects ?? []).isNotEmpty) ...[
+        Text(l10n.recentProjects,
+            style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 8),
+        for (final p in _projects!.take(4))
+          Card(
+            clipBehavior: Clip.antiAlias,
+            margin: const EdgeInsets.only(bottom: 8),
+            child: ListTile(
+              leading: const Icon(Icons.movie_outlined),
+              title: Text(p.displayName),
+              subtitle: Text(l10n.editedAgo(fmtAgo(l10n, p.lastActivity))),
+              onTap: () {
+                final shell = context.findAncestorStateOfType<ShellState>();
+                if (shell != null) {
+                  shell.openProject(p);
+                } else {
+                  Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => ProjectPage(project: p)));
+                }
+              },
+            ),
+          ),
+        const SizedBox(height: 16),
+      ],
+      if ((_notifs ?? []).isNotEmpty) ...[
+        Text(l10n.latestActivity,
+            style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 8),
+        for (final n in _notifs!.take(5))
+          Card(
+            clipBehavior: Clip.antiAlias,
+            margin: const EdgeInsets.only(bottom: 8),
+            child: ListTile(
+              dense: true,
+              leading: const Icon(Icons.notifications_outlined),
+              title: Text(notifText(l10n, n)),
+              subtitle: Text(fmtAgo(l10n, n.createdAt)),
+              onTap: () => context.findAncestorStateOfType<ShellState>()?.go(3),
+            ),
+          ),
+        const SizedBox(height: 16),
       ],
       Wrap(spacing: 12, runSpacing: 12, children: [
         for (final c in cards)
