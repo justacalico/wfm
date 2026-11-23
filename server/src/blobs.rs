@@ -45,6 +45,26 @@ pub trait Blobs: Send + Sync {
     async fn delete_prefix(&self, prefix: &str) -> Result<(), String>;
     async fn rename(&self, from: &str, to: &str) -> Result<(), String>;
     async fn mkdir(&self, key_prefix: &str) -> Result<(), String>;
+
+    /// Bytes stored and total capacity when it is knowable; object stores
+    /// have no fixed capacity and report 0.
+    async fn stats(&self) -> Result<(u64, u64), String> {
+        let mut used = 0u64;
+        let mut stack = vec![String::new()];
+        let mut guard = 0usize;
+        while let Some(p) = stack.pop() {
+            guard += 1;
+            if guard > 10000 {
+                break;
+            }
+            let (dirs, objs) = self.list(&p).await?;
+            for o in objs {
+                used = used.saturating_add(o.size);
+            }
+            stack.extend(dirs);
+        }
+        Ok((used, 0))
+    }
 }
 
 // ---------------- local filesystem backend ----------------
@@ -237,6 +257,48 @@ impl Blobs for LocalBlobs {
             .await
             .map_err(|e| e.to_string())
     }
+
+    async fn stats(&self) -> Result<(u64, u64), String> {
+        let root = self.root.clone();
+        let used = tokio::task::spawn_blocking(move || dir_bytes(&root))
+            .await
+            .map_err(|e| e.to_string())??;
+        Ok((used, disk_total(&self.root).unwrap_or(0)))
+    }
+}
+
+fn dir_bytes(dir: &std::path::Path) -> Result<u64, String> {
+    let mut total = 0u64;
+    for e in std::fs::read_dir(dir).map_err(|e| e.to_string())? {
+        let e = e.map_err(|e| e.to_string())?;
+        let m = e.metadata().map_err(|e| e.to_string())?;
+        if m.is_dir() {
+            total = total.saturating_add(dir_bytes(&e.path())?);
+        } else if m.is_file() {
+            total = total.saturating_add(m.len());
+        }
+    }
+    Ok(total)
+}
+
+#[cfg(unix)]
+fn disk_total(path: &std::path::Path) -> Option<u64> {
+    let out = std::process::Command::new("df")
+        .arg("-Pk")
+        .arg(path)
+        .output()
+        .ok()?;
+    let line = String::from_utf8_lossy(&out.stdout)
+        .lines()
+        .nth(1)?
+        .to_string();
+    let kb: u64 = line.split_whitespace().nth(1)?.parse().ok()?;
+    Some(kb.saturating_mul(1024))
+}
+
+#[cfg(not(unix))]
+fn disk_total(_path: &std::path::Path) -> Option<u64> {
+    None
 }
 
 // ---------------- S3 backend ----------------

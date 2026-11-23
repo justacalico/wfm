@@ -17,6 +17,7 @@ class ManagePage extends StatelessWidget {
       if (Api.i.caps.manage) (l10n.accounts, const AccountsTab()),
       if (Api.i.user?.isStaff ?? false) (l10n.classes, const ClassesTab()),
       if (Api.i.caps.audit) (l10n.activity, const AuditTab()),
+      if (Api.i.user?.isAdmin ?? false) (l10n.storage, const StorageTab()),
       if (Api.i.user?.isAdmin ?? false) (l10n.renderNodes, const NodesTab()),
     ];
     if (tabs.isEmpty) return Center(child: Text(l10n.nothingToManage));
@@ -1280,6 +1281,105 @@ class _NodesTabState extends State<NodesTab> {
                     );
                   },
                 ),
+    );
+  }
+}
+
+class StorageTab extends StatefulWidget {
+  const StorageTab({super.key});
+  @override
+  State<StorageTab> createState() => _StorageTabState();
+}
+
+class _StorageTabState extends State<StorageTab> {
+  StorageStats? _stats;
+  String _err = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final v = await Api.i.storageStats();
+      setState(() {
+        _stats = v;
+        _err = '';
+      });
+    } catch (e) {
+      setState(() => _err = '$e');
+    }
+  }
+
+  void _poolBreakdown(StoragePool p) {
+    final l10n = context.l10n;
+    final users = List.of(_stats?.users ?? [])
+      ..sort((a, b) => b.bytes.compareTo(a.bytes));
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title:
+            Text(p.id == 'database' ? l10n.storageDatabase : l10n.storageMedia),
+        content: SizedBox(
+          width: 360,
+          child: users.isEmpty
+              ? Text(l10n.storageNoUsers)
+              : ListView(shrinkWrap: true, children: [
+                  for (final u in users)
+                    ListTile(
+                      dense: true,
+                      leading: const Icon(Icons.person_outline),
+                      title: Text(u.name.isEmpty ? u.username : u.name),
+                      trailing: Text(fmtBytes(u.bytes)),
+                    ),
+                ]),
+        ),
+        actions: [
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx), child: Text(l10n.done))
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    if (_err.isNotEmpty) return errorView(context, _err, _load);
+    final stats = _stats;
+    return Scaffold(
+      body: stats == null
+          ? const Center(child: CircularProgressIndicator())
+          : ListView(padding: const EdgeInsets.all(16), children: [
+              for (final p in stats.pools)
+                Card(
+                  clipBehavior: Clip.antiAlias,
+                  child: ListTile(
+                    leading: Icon(p.id == 'database'
+                        ? Icons.storage_outlined
+                        : Icons.cloud_outlined),
+                    title: Text(p.id == 'database'
+                        ? l10n.storageDatabase
+                        : l10n.storageMedia),
+                    subtitle: p.total > 0
+                        ? Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const SizedBox(height: 6),
+                              LinearProgressIndicator(
+                                  value: (p.used / p.total).clamp(0, 1)),
+                            ],
+                          )
+                        : null,
+                    trailing: Text(p.total > 0
+                        ? '${fmtBytes(p.used)}/${fmtBytes(p.total)}'
+                        : fmtBytes(p.used)),
+                    onTap: () => _poolBreakdown(p),
+                  ),
+                ),
+            ]),
     );
   }
 }

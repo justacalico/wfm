@@ -387,6 +387,33 @@ class Invite {
   bool pending(int now) => usedBy.isEmpty && !revoked && expiresAt > now;
 }
 
+class StoragePool {
+  final String id;
+  final int used, total;
+  StoragePool.fromJson(Map<String, dynamic> j)
+      : id = j['id'] ?? '',
+        used = j['used'] ?? 0,
+        total = j['total'] ?? 0;
+}
+
+class StorageUser {
+  final String id, username, name;
+  final int bytes;
+  StorageUser.fromJson(Map<String, dynamic> j)
+      : id = j['id'] ?? '',
+        username = j['username'] ?? '',
+        name = j['name'] ?? '',
+        bytes = j['bytes'] ?? 0;
+}
+
+class StorageStats {
+  final List<StoragePool> pools;
+  final List<StorageUser> users;
+  StorageStats.fromJson(Map<String, dynamic> j)
+      : pools = [for (final e in j['pools'] ?? []) StoragePool.fromJson(e)],
+        users = [for (final e in j['users'] ?? []) StorageUser.fromJson(e)];
+}
+
 class AuditEntry {
   final int ts;
   final String actor, action, target, detail;
@@ -622,6 +649,14 @@ class Api {
 
   Future<String> submitProject(String id) async =>
       '${(await post('/projects/$id/submit', {}))['status'] ?? 'submitted'}';
+
+  Future<void> setSubmitAllowed(String id, bool allowed) =>
+      post('/projects/$id/submit-allowed', {'allowed': allowed});
+
+  Future<void> wipeAudit(String scope) => del('/audit?scope=$scope');
+
+  Future<StorageStats> storageStats() async =>
+      StorageStats.fromJson(await get('/storage'));
 
   Future<String> reviewProject(String id, String status) async =>
       '${(await post('/projects/$id/review', {
