@@ -22,6 +22,8 @@ use crate::model::{
 use crate::render;
 use crate::store::{AuditFilter, DbError, LockOutcome};
 
+pub mod mcp;
+
 fn blob_key(dir: &str, rel: &str) -> String {
     format!("{}/{}", dir.trim_matches('/'), rel.trim_matches('/'))
 }
@@ -160,6 +162,9 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/worker/jobs/{id}/progress", post(worker_progress))
         .route("/worker/jobs/{id}/complete", post(worker_complete))
         .route("/worker/jobs/{id}/fail", post(worker_fail))
+        .route("/mcp", get(mcp::info).post(mcp::rpc))
+        .route("/mcp/tokens", get(mcp::list_tokens).post(mcp::create_token))
+        .route("/mcp/tokens/{id}", delete(mcp::delete_token))
         .with_state(state);
     Router::new().nest("/api", api)
 }

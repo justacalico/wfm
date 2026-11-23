@@ -128,9 +128,20 @@ pub struct Mcp {
 impl Mcp {
     /// Spawn `filmcraft-cli --project <fcproj> mcp` and do the MCP handshake.
     pub async fn spawn(cli: &str, project: &Path) -> Result<Mcp, String> {
-        let mut child = Command::new(cli)
-            .arg("--project")
-            .arg(project)
+        Self::spawn_inner(cli, Some(project)).await
+    }
+
+    /// Spawn `filmcraft-cli mcp` on an empty session (no project on disk).
+    pub async fn spawn_blank(cli: &str) -> Result<Mcp, String> {
+        Self::spawn_inner(cli, None).await
+    }
+
+    async fn spawn_inner(cli: &str, project: Option<&Path>) -> Result<Mcp, String> {
+        let mut cmd = Command::new(cli);
+        if let Some(p) = project {
+            cmd.arg("--project").arg(p);
+        }
+        let mut child = cmd
             .arg("mcp")
             .stdin(std::process::Stdio::piped())
             .stdout(std::process::Stdio::piped())
@@ -371,7 +382,7 @@ pub fn spawn_janitor(state: Arc<AppState>) {
 /// behind forever otherwise.
 async fn sweep_stale_dirs(root: &Path) {
     let cutoff = SystemTime::now() - Duration::from_secs(24 * 3600);
-    for d in ["tmp", "render", "inspect", "worker"] {
+    for d in ["tmp", "render", "inspect", "worker", "mcp"] {
         let mut rd = match tokio::fs::read_dir(root.join(d)).await {
             Ok(r) => r,
             Err(_) => continue,
