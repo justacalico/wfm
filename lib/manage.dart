@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'api.dart';
 import 'main.dart';
+import 'platform.dart';
 import 'projects.dart';
 import 'util.dart';
 
@@ -1138,6 +1139,9 @@ class NodesTab extends StatefulWidget {
   State<NodesTab> createState() => _NodesTabState();
 }
 
+const nodeGuideUrl =
+    'https://gitlab.com/HttpAnimations/wfm#remote-render-nodes';
+
 class _NodesTabState extends State<NodesTab> {
   List<RenderNode>? _nodes;
   String _err = '';
@@ -1177,11 +1181,17 @@ class _NodesTabState extends State<NodesTab> {
                 Text(l10n.nodeTokenNote),
                 const SizedBox(height: 8),
                 SelectableText(
-                    'wfm --worker <server-url> ${n['token']} ${n['name']}',
+                    'WFM_WORKER_TOKEN=${n['token']} wfm --worker <server-url> ${n['name']}',
                     style:
                         const TextStyle(fontFamily: 'monospace', fontSize: 12)),
+                const SizedBox(height: 8),
+                Text(l10n.nodeSetupHint),
               ]),
           actions: [
+            TextButton.icon(
+                onPressed: () => openExternal(nodeGuideUrl),
+                icon: const Icon(Icons.open_in_new, size: 18),
+                label: Text(l10n.nodeGuide)),
             FilledButton(
                 onPressed: () => Navigator.pop(ctx), child: Text(l10n.done))
           ],
@@ -1205,7 +1215,22 @@ class _NodesTabState extends State<NodesTab> {
       body: nodes == null
           ? const Center(child: CircularProgressIndicator())
           : nodes.isEmpty
-              ? Center(child: Text(l10n.noNodes))
+              ? Center(
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    Text(l10n.noNodes),
+                    const SizedBox(height: 8),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 32),
+                      child:
+                          Text(l10n.nodeSetupHint, textAlign: TextAlign.center),
+                    ),
+                    const SizedBox(height: 8),
+                    TextButton.icon(
+                        onPressed: () => openExternal(nodeGuideUrl),
+                        icon: const Icon(Icons.open_in_new, size: 18),
+                        label: Text(l10n.nodeGuide)),
+                  ]),
+                )
               : ListView.builder(
                   itemCount: nodes.length,
                   itemBuilder: (c, i) {
