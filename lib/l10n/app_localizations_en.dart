@@ -702,20 +702,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get defaultOption => 'Default';
 
   @override
-  String get serverUrl => 'Server URL';
-
-  @override
-  String get connect => 'Connect';
-
-  @override
-  String get connecting => 'Connecting…';
-
-  @override
-  String finishSetupInBrowser(String url) {
-    return 'This server has no admin account yet. Finish setup in a browser at $url.';
-  }
-
-  @override
   String serverUnreachable(Object error) {
     return 'Can\'t reach the server: $error';
   }
@@ -1291,61 +1277,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get inProgress => 'In progress';
 
   @override
-  String get editorMode => 'Editor mode';
-
-  @override
-  String get editorModeWeb => 'Web';
-
-  @override
-  String get editorModeNative => 'Native';
-
-  @override
-  String get craftCheckoutDir => 'Project checkout folder';
-
-  @override
-  String get craftCheckoutDirBody =>
-      'Native editors keep a local copy of each open project here.';
-
-  @override
-  String craftAlreadyOpen(Object craft) {
-    return '$craft already has this project open.';
-  }
-
-  @override
-  String craftMissing(Object craft) {
-    return 'The native $craft editor is not bundled in this build.';
-  }
-
-  @override
-  String craftLocked(Object craft) {
-    return '$craft is open elsewhere and could not be taken over.';
-  }
-
-  @override
-  String craftTakeOverBody(Object craft) {
-    return '$craft already has this project open elsewhere. Take over and close the other session?';
-  }
-
-  @override
-  String get syncPulling => 'Downloading project files…';
-
-  @override
-  String get syncPushing => 'Uploading changes…';
-
-  @override
-  String get syncLockLost =>
-      'This project was taken over elsewhere. The editor was closed to keep your work safe.';
-
-  @override
-  String get importStorage => 'Import storage';
-
-  @override
-  String get importMixed => 'Local copy + upload';
-
-  @override
-  String get importServer => 'Server only';
-
-  @override
   String inviteUsedBy(Object name) {
     return 'Used by $name';
   }
@@ -1863,61 +1794,6 @@ class AppLocalizationsEnGb extends AppLocalizationsEn {
 
   @override
   String get resetAllShortcutsBody => 'Restore every shortcut to its default?';
-
-  @override
-  String get editorMode => 'Editor mode';
-
-  @override
-  String get editorModeWeb => 'Web';
-
-  @override
-  String get editorModeNative => 'Native';
-
-  @override
-  String get craftCheckoutDir => 'Project checkout folder';
-
-  @override
-  String get craftCheckoutDirBody =>
-      'Native editors keep a local copy of each open project here.';
-
-  @override
-  String craftAlreadyOpen(Object craft) {
-    return '$craft already has this project open.';
-  }
-
-  @override
-  String craftMissing(Object craft) {
-    return 'The native $craft editor is not bundled in this build.';
-  }
-
-  @override
-  String craftLocked(Object craft) {
-    return '$craft is open elsewhere and could not be taken over.';
-  }
-
-  @override
-  String craftTakeOverBody(Object craft) {
-    return '$craft already has this project open elsewhere. Take over and close the other session?';
-  }
-
-  @override
-  String get syncPulling => 'Downloading project files…';
-
-  @override
-  String get syncPushing => 'Uploading changes…';
-
-  @override
-  String get syncLockLost =>
-      'This project was taken over elsewhere. The editor was closed to keep your work safe.';
-
-  @override
-  String get importStorage => 'Import storage';
-
-  @override
-  String get importMixed => 'Local copy + upload';
-
-  @override
-  String get importServer => 'Server only';
 
   @override
   String inviteUsedBy(Object name) {

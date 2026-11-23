@@ -64,7 +64,7 @@ jobs:
             BUILD_ALL="true"
           fi
           if [ "$BUILD_ALL" = "true" ]; then
-            TARGETS='[{"target":"linux","os":"ubuntu-latest","arch":"x86_64"},{"target":"linux-arm64","os":"ubuntu-24.04-arm","arch":"aarch64"},{"target":"web","os":"ubuntu-latest"},{"target":"desktop-linux","os":"ubuntu-latest","arch":"x86_64"},{"target":"desktop-windows","os":"windows-latest","arch":"x86_64"}]'
+            TARGETS='[{"target":"linux","os":"ubuntu-latest","arch":"x86_64"},{"target":"linux-arm64","os":"ubuntu-24.04-arm","arch":"aarch64"},{"target":"web","os":"ubuntu-latest"}]'
           else
             TARGETS='[]'
           fi
@@ -224,50 +224,9 @@ jobs:
           name: deckcraft-dist
           path: deckcraft/dist
 
-  craft-native:
-    name: Build native crafts ${{ matrix.triple }}
-    needs: [setup]
-    if: ${{ needs.setup.outputs.build_all == 'true' }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: ubuntu-latest
-            triple: x86_64-unknown-linux-gnu
-          - os: ubuntu-24.04-arm
-            triple: aarch64-unknown-linux-gnu
-          - os: windows-latest
-            triple: x86_64-pc-windows-msvc
-          # macos-* targets disabled: no macOS runner capacity in the fleet.
-          # Re-add aarch64/x86_64-apple-darwin on macos-13 when one is back.
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Rust target
-        run: rustup target add ${{ matrix.triple }}
-
-      - name: Linux deps
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libasound2-dev libxkbcommon-dev libwayland-dev libxcb1-dev
-
-      - name: Build crafts
-        shell: bash
-        run: |
-          for c in filmcraft scriptcraft deckcraft; do
-            scripts/build-$c-native.sh --target ${{ matrix.triple }}
-          done
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: craft-${{ matrix.triple }}
-          path: desktop/craft/
-
   build:
     name: Build ${{ matrix.target }}
-    needs: [setup, verify, filmcraft, scriptcraft, deckcraft, craft-native]
+    needs: [setup, verify, filmcraft, scriptcraft, deckcraft]
     if: ${{ needs.setup.outputs.build_all == 'true' }}
     strategy:
       fail-fast: false
@@ -300,130 +259,62 @@ jobs:
         run: flutter pub get
 
       - name: Build web bundle
-        if: matrix.target != 'web' && !startsWith(matrix.target, 'desktop-')
+        if: matrix.target != 'web'
         run: |
           flutter build web --release --base-href /app/ --no-web-resources-cdn
           mkdir -p server/web/app
           cp -a build/web/. server/web/app/
 
       - name: Stage FilmCraft bundle
-        if: matrix.target != 'web' && !startsWith(matrix.target, 'desktop-')
+        if: matrix.target != 'web'
         run: |
           mkdir -p server/web/filmcraft
           cp filmcraft/wfm.html filmcraft/icon.svg filmcraft/VERSION server/web/filmcraft/
 
       - uses: actions/download-artifact@v4
-        if: matrix.target != 'web' && !startsWith(matrix.target, 'desktop-')
+        if: matrix.target != 'web'
         with:
           name: filmcraft-dist
           path: server/web/filmcraft/dist
 
       - name: Stage ScriptCraft bundle
-        if: matrix.target != 'web' && !startsWith(matrix.target, 'desktop-')
+        if: matrix.target != 'web'
         run: |
           mkdir -p server/web/scriptcraft
           cp scriptcraft/wfm.html scriptcraft/icon.svg scriptcraft/VERSION server/web/scriptcraft/
 
       - uses: actions/download-artifact@v4
-        if: matrix.target != 'web' && !startsWith(matrix.target, 'desktop-')
+        if: matrix.target != 'web'
         with:
           name: scriptcraft-dist
           path: server/web/scriptcraft/dist
 
       - name: Stage DeckCraft bundle
-        if: matrix.target != 'web' && !startsWith(matrix.target, 'desktop-')
+        if: matrix.target != 'web'
         run: |
           mkdir -p server/web/deckcraft
           cp deckcraft/wfm.html deckcraft/icon.svg deckcraft/VERSION server/web/deckcraft/
 
       - uses: actions/download-artifact@v4
-        if: matrix.target != 'web' && !startsWith(matrix.target, 'desktop-')
+        if: matrix.target != 'web'
         with:
           name: deckcraft-dist
           path: server/web/deckcraft/dist
 
       - name: Build server binary
-        if: matrix.target != 'web' && !startsWith(matrix.target, 'desktop-')
+        if: matrix.target != 'web'
         run: |
           cd server
           cargo build --release --locked --features postgres
 
       - name: Package server bundle
-        if: matrix.target != 'web' && !startsWith(matrix.target, 'desktop-')
+        if: matrix.target != 'web'
         run: |
           mkdir -p artifacts pkg
           cp server/target/release/wfm pkg/wfm
           cp docker-compose.yml .env.example README.md LICENSE pkg/
           tar -czf "artifacts/wfm-${VERSION}-linux-${ARCH}.tar.gz" -C pkg .
           (cd pkg && zip -qr "../artifacts/wfm-${VERSION}-linux-${ARCH}.zip" .)
-          ls -la artifacts/
-
-      - name: Linux desktop deps
-        if: matrix.target == 'desktop-linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev
-
-      - name: Build Linux desktop
-        if: matrix.target == 'desktop-linux'
-        run: |
-          flutter config --enable-linux-desktop
-          flutter build linux --release
-
-      - uses: actions/download-artifact@v4
-        if: matrix.target == 'desktop-linux'
-        with:
-          name: craft-x86_64-unknown-linux-gnu
-          path: desktop/craft
-
-      - name: Package Linux desktop
-        if: matrix.target == 'desktop-linux'
-        run: |
-          B=build/linux/x64/release/bundle
-          mkdir -p "$B/craft" artifacts
-          cp desktop/craft/*/wfm-* "$B/craft/"
-          chmod +x "$B"/craft/*
-          tar -czf "artifacts/wfm-${VERSION}-linux-desktop.tar.gz" -C build/linux/x64/release bundle
-          ls -la artifacts/
-
-      - name: Build Windows desktop
-        if: matrix.target == 'desktop-windows'
-        run: flutter build windows --release
-
-      - uses: actions/download-artifact@v4
-        if: matrix.target == 'desktop-windows'
-        with:
-          name: craft-x86_64-pc-windows-msvc
-          path: desktop/craft
-
-      - name: Package Windows desktop
-        if: matrix.target == 'desktop-windows'
-        run: |
-          $B = "build/windows/x64/runner/Release"
-          New-Item -ItemType Directory -Force "$B/craft", "artifacts" | Out-Null
-          Copy-Item "desktop/craft/*/wfm-*" "$B/craft/"
-          Compress-Archive -Path "$B/*" -DestinationPath "artifacts/wfm-${env:VERSION}-windows.zip"
-          Get-ChildItem artifacts/
-
-      - name: Build macOS desktop
-        if: matrix.target == 'desktop-macos'
-        run: flutter build macos --release
-
-      - uses: actions/download-artifact@v4
-        if: matrix.target == 'desktop-macos'
-        with:
-          name: craft-x86_64-apple-darwin
-          path: desktop/craft
-
-      - name: Package macOS desktop
-        if: matrix.target == 'desktop-macos'
-        run: |
-          APP=build/macos/Build/Products/Release/wfm.app
-          mkdir -p "$APP/Contents/Resources/craft" artifacts
-          cp desktop/craft/*/wfm-* "$APP/Contents/Resources/craft/"
-          chmod +x "$APP"/Contents/Resources/craft/*
-          codesign --force --deep --sign - "$APP"
-          ditto -c -k --sequesterRsrc --keepParent "$APP" "artifacts/wfm-${VERSION}-macos.zip"
           ls -la artifacts/
 
       - name: Package web bundle

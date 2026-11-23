@@ -18,7 +18,6 @@ void main() {
     openExternalForTesting = null;
     openEditorForTesting = null;
     pickFilesForTesting = null;
-    isDesktopApp = false;
   });
 
   Future<void> pumpWfm(WidgetTester t) async {

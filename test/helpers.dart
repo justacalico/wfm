@@ -204,7 +204,6 @@ Api installApi({Map<String, dynamic> extra = const {}}) {
       'canAudit': true
     });
   Api.i = api;
-  isDesktopApp = false;
   return api;
 }
 

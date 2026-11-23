@@ -703,20 +703,6 @@ class AppLocalizationsRu extends AppLocalizations {
   String get defaultOption => 'По умолчанию';
 
   @override
-  String get serverUrl => ' ';
-
-  @override
-  String get connect => '';
-
-  @override
-  String get connecting => '…';
-
-  @override
-  String finishSetupInBrowser(String url) {
-    return '    .    : $url.';
-  }
-
-  @override
   String serverUnreachable(Object error) {
     return 'Не удаётся связаться с сервером: $error';
   }
@@ -1291,59 +1277,6 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get inProgress => 'В работе';
-
-  @override
-  String get editorMode => ' ';
-
-  @override
-  String get editorModeWeb => '';
-
-  @override
-  String get editorModeNative => '';
-
-  @override
-  String get craftCheckoutDir => '  ';
-
-  @override
-  String get craftCheckoutDirBody => '        .';
-
-  @override
-  String craftAlreadyOpen(Object craft) {
-    return '$craft    .';
-  }
-
-  @override
-  String craftMissing(Object craft) {
-    return '  $craft     .';
-  }
-
-  @override
-  String craftLocked(Object craft) {
-    return '$craft    ,   .';
-  }
-
-  @override
-  String craftTakeOverBody(Object craft) {
-    return '$craft       .     ?';
-  }
-
-  @override
-  String get syncPulling => '  …';
-
-  @override
-  String get syncPushing => ' …';
-
-  @override
-  String get syncLockLost => '     .  ,    .';
-
-  @override
-  String get importStorage => ' ';
-
-  @override
-  String get importMixed => '  + ';
-
-  @override
-  String get importServer => ' ';
 
   @override
   String inviteUsedBy(Object name) {

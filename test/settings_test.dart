@@ -91,36 +91,6 @@ void main() {
     expect(p.getInt('chunkMb'), 16);
   });
 
-  testWidgets('native editor mode shows checkout and import controls',
-      (t) async {
-    SharedPreferences.setMockInitialValues(
-        {'craftMode': 'native', 'craftDir': '/old', 'importPolicy': 'mixed'});
-    installApi(extra: {'GET *': (_) => []});
-    pickDirectoryForTesting = () async => '/new/checkout';
-    await goSettings(t);
-    await t.ensureVisible(find.byType(DropdownButtonFormField<String>).first);
-    await settle(t);
-    final dirPicker = find.ancestor(
-        of: find.text('Project checkout folder'),
-        matching: find.byType(InkWell));
-    expect(dirPicker, findsOneWidget);
-    await t.tap(dirPicker);
-    await settle(t);
-    final p = await SharedPreferences.getInstance();
-    expect(p.getString('craftDir'), '/new/checkout');
-    await t.tap(find.byType(DropdownButtonFormField<String>).last);
-    await settle(t);
-    await t.tap(find.text('Server only').last);
-    await settle(t);
-    expect(p.getString('importPolicy'), 'server');
-    await t.tap(find.byType(DropdownButtonFormField<String>).first);
-    await settle(t);
-    await t.tap(find.text('Web').last);
-    await settle(t);
-    expect(p.getString('craftMode'), 'web');
-    pickDirectoryForTesting = null;
-  });
-
   testWidgets('narrow settings uses popup theme and inline password',
       (t) async {
     installApi(extra: {'GET *': (_) => []});

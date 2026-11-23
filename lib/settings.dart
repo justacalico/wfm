@@ -33,21 +33,10 @@ class _SettingsPageState extends State<SettingsPage> {
   AppUpdate? _latest;
   String _version = '';
   List<AutoShare>? _autoShares;
-  String _craftMode = 'web';
-  String? _craftDir;
-  String _importPolicy = 'mixed';
 
   @override
   void initState() {
     super.initState();
-    SharedPreferences.getInstance().then((p) {
-      if (!mounted) return;
-      setState(() {
-        _craftMode = p.getString('craftMode') ?? 'web';
-        _craftDir = p.getString('craftDir');
-        _importPolicy = p.getString('importPolicy') ?? 'mixed';
-      });
-    });
     if (Api.i.user?.isOwner ?? false) {
       Api.i.serverSettings().then((v) {
         if (mounted) {
@@ -332,62 +321,6 @@ class _SettingsPageState extends State<SettingsPage> {
               FocusManager.instance.primaryFocus?.unfocus();
             },
           ),
-          if (supportsNativeCrafts) ...[
-            const SizedBox(height: 16),
-            DropdownButtonFormField<String>(
-              isExpanded: true,
-              initialValue: _craftMode,
-              decoration: dec(l10n.editorMode),
-              items: [
-                DropdownMenuItem(value: 'web', child: Text(l10n.editorModeWeb)),
-                DropdownMenuItem(
-                    value: 'native', child: Text(l10n.editorModeNative)),
-              ],
-              onChanged: (v) {
-                if (v == null) return;
-                setState(() => _craftMode = v);
-                SharedPreferences.getInstance()
-                    .then((p) => p.setString('craftMode', v));
-                FocusManager.instance.primaryFocus?.unfocus();
-              },
-            ),
-            if (_craftMode == 'native') ...[
-              const SizedBox(height: 16),
-              InkWell(
-                onTap: () async {
-                  final d = await pickDirectory();
-                  if (d == null) return;
-                  setState(() => _craftDir = d);
-                  final p = await SharedPreferences.getInstance();
-                  await p.setString('craftDir', d);
-                },
-                child: InputDecorator(
-                  decoration:
-                      dec(l10n.craftCheckoutDir, l10n.craftCheckoutDirBody),
-                  child: Text(_craftDir ?? defaultCheckoutRoot()),
-                ),
-              ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                isExpanded: true,
-                initialValue: _importPolicy,
-                decoration: dec(l10n.importStorage),
-                items: [
-                  DropdownMenuItem(
-                      value: 'mixed', child: Text(l10n.importMixed)),
-                  DropdownMenuItem(
-                      value: 'server', child: Text(l10n.importServer)),
-                ],
-                onChanged: (v) {
-                  if (v == null) return;
-                  setState(() => _importPolicy = v);
-                  SharedPreferences.getInstance()
-                      .then((p) => p.setString('importPolicy', v));
-                  FocusManager.instance.primaryFocus?.unfocus();
-                },
-              ),
-            ],
-          ],
         ]),
       ),
       ListTile(

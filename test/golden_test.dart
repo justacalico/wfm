@@ -30,7 +30,6 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     openExternalForTesting = null;
     openEditorForTesting = null;
-    isDesktopApp = false;
     pickFilesForTesting = null;
     final prev = goldenFileComparator;
     if (prev is LocalFileComparator) {
@@ -219,13 +218,6 @@ void main() {
     await pumpWfm(t);
     await snap(t, '$dir/gate_error');
     await t.pumpWidget(const SizedBox());
-
-    isDesktopApp = true;
-    Api.i = Api(FakeClient({}));
-    await pumpWfm(t);
-    await snap(t, '$dir/connect');
-    await t.pumpWidget(const SizedBox());
-    isDesktopApp = false;
 
     Api.i = Api(FakeClient({
       'GET /api/invites/abc': (_) =>
