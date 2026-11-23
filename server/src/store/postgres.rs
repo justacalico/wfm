@@ -1528,6 +1528,23 @@ impl Db for PgDb {
             .map_err(map_err)
     }
 
+    async fn audit_wipe(&self, scope: &str) -> DbResult<()> {
+        sqlx::query("DELETE FROM audit WHERE scope=$1")
+            .bind(scope)
+            .execute(&self.pool)
+            .await
+            .map(|_| ())
+            .map_err(map_err)
+    }
+
+    async fn db_size(&self) -> DbResult<Option<u64>> {
+        sqlx::query_scalar::<_, i64>("SELECT pg_database_size(current_database())")
+            .fetch_one(&self.pool)
+            .await
+            .map(|n| Some(n as u64))
+            .map_err(map_err)
+    }
+
     async fn invite_create(&self, i: &InviteCode) -> DbResult<()> {
         sqlx::query(
             "INSERT INTO invite_codes(id,code_hash,created_by,role,preset_username,preset_name,used_by,used_at,expires_at,revoked,created_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)",

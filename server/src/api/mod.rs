@@ -71,7 +71,8 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/invites", get(list_invites).post(create_invite))
         .route("/invites/{id}", get(invite_preview).delete(revoke_invite))
         .route("/invites/{id}/redeem", post(redeem_invite))
-        .route("/audit", get(audit))
+        .route("/audit", get(audit).delete(wipe_audit))
+        .route("/storage", get(storage_stats))
         .route("/projects", get(list_projects).post(create_project))
         .route("/projects/{id}/take-over", post(take_over_project))
         .route("/projects/{id}/duplicate", post(duplicate_project))
@@ -1763,6 +1764,66 @@ async fn audit(
         Ok(v) => Json(json!(v)).into_response(),
         Err(e) => db_resp(e),
     }
+}
+
+/// Owner-only reset for runaway logs: drops every entry in one scope.
+async fn wipe_audit(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Query(q): Query<AuditQuery>,
+) -> Response {
+    if session.user.role != Role::Owner {
+        return err(StatusCode::FORBIDDEN, "owner only");
+    }
+    let scope = match q.scope.as_str() {
+        "account" | "project" => q.scope.as_str(),
+        _ => return err(StatusCode::BAD_REQUEST, "bad scope"),
+    };
+    match s.db.audit_wipe(scope).await {
+        Ok(()) => {
+            s.audit(
+                "account",
+                &session.user,
+                "audit_wipe",
+                scope,
+                "",
+                &session.user.lineage,
+            )
+            .await;
+            Json(json!({"ok": true})).into_response()
+        }
+        Err(e) => db_resp(e),
+    }
+}
+
+/// Storage pools and per-account usage for admins: media/blob bytes with the
+/// filesystem total when it can be known, plus the database size.
+async fn storage_stats(State(s): State<Arc<AppState>>, session: Session) -> Response {
+    if session.user.role < Role::Admin {
+        return err(StatusCode::FORBIDDEN, "admin only");
+    }
+    let (used, total) = s.blobs.stats().await.unwrap_or((0, 0));
+    let db_bytes = s.db.db_size().await.unwrap_or_default().unwrap_or(0);
+    let mut users = Vec::new();
+    if let Ok(list) = s.db.managed_users(&session.user).await {
+        for u in list {
+            let bytes = usage_bytes(&s, &format!("{}/{}", u.username, u.id)).await;
+            users.push(json!({
+                "id": u.id,
+                "username": u.username,
+                "name": u.display_name,
+                "bytes": bytes,
+            }));
+        }
+    }
+    Json(json!({
+        "pools": [
+            {"id": "media", "used": used, "total": total},
+            {"id": "database", "used": db_bytes, "total": 0},
+        ],
+        "users": users,
+    }))
+    .into_response()
 }
 
 // ---------- projects ----------

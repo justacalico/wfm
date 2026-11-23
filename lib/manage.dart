@@ -998,6 +998,17 @@ class _AuditTabState extends State<AuditTab> {
     _apply();
   }
 
+  Future<void> _wipe() async {
+    final l10n = context.l10n;
+    if (!await confirm(context, l10n.wipeAudit, l10n.wipeAuditBody)) return;
+    try {
+      await Api.i.wipeAudit(_scope);
+      _apply();
+    } catch (e) {
+      if (mounted) snack(context, e);
+    }
+  }
+
   Future<void> _pick(bool isFrom) async {
     final now = DateTime.now();
     final d = await showDatePicker(
@@ -1033,6 +1044,11 @@ class _AuditTabState extends State<AuditTab> {
             },
           ),
           const Spacer(),
+          if (Api.i.user?.isOwner ?? false)
+            IconButton(
+                icon: const Icon(Icons.delete_sweep_outlined),
+                tooltip: l10n.wipeAudit,
+                onPressed: _wipe),
           IconButton(
               icon: const Icon(Icons.refresh),
               tooltip: l10n.refresh,

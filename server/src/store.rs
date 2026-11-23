@@ -253,6 +253,8 @@ pub trait Db: Send + Sync {
         f: &AuditFilter,
     ) -> DbResult<Vec<AuditEntry>>;
     async fn audit_purge(&self, before: i64) -> DbResult<()>;
+    async fn audit_wipe(&self, scope: &str) -> DbResult<()>;
+    async fn db_size(&self) -> DbResult<Option<u64>>;
 
     // invite codes
     async fn invite_create(&self, i: &InviteCode) -> DbResult<()>;

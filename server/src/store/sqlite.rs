@@ -1647,6 +1647,26 @@ impl Db for SqliteDb {
         .map_err(dberr)
     }
 
+    async fn audit_wipe(&self, scope: &str) -> DbResult<()> {
+        let scope = scope.to_string();
+        self.q(move |c| {
+            c.execute("DELETE FROM audit WHERE scope=?", params![scope])
+                .map(|_| ())
+        })
+        .await
+        .map_err(dberr)
+    }
+
+    async fn db_size(&self) -> DbResult<Option<u64>> {
+        self.q(|c| {
+            let pages: i64 = c.query_row("PRAGMA page_count", [], |r| r.get(0))?;
+            let page: i64 = c.query_row("PRAGMA page_size", [], |r| r.get(0))?;
+            Ok(Some((pages * page) as u64))
+        })
+        .await
+        .map_err(dberr)
+    }
+
     async fn invite_create(&self, i: &InviteCode) -> DbResult<()> {
         let v: Vec<String> = [
             &i.id,
