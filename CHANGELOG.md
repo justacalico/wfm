@@ -2,6 +2,18 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.41.0 - 2026-11-22
+#### Features
+- (**app**) 渲染输出名冲突时确认覆盖或自动改名 - (0233d6b) - calico
+- (**app**) 新建渲染默认在服务器上渲染 - (6950838) - calico
+#### Bug Fixes
+- (**app**) 通知跳转前检查项目是否仍存在 - (e3298de) - calico
+- (**app**) 渲染通知点击后打开项目渲染页 - (98fdf18) - calico
+- (**server**) 空 project.fcproj 不再运行 inspect；非 JSON 响应给出正常错误 - (806d771) - calico
+- (**server**) S3 缺失对象按未找到处理 - (724a869) - calico
+
+- - -
+
 ## v0.40.1 - 2026-11-22
 #### Bug Fixes
 - (**app**) 项目卡片显示上次编辑时间 - (6c113f8) - calico
