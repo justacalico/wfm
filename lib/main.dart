@@ -900,19 +900,6 @@ class _HomePageState extends State<HomePage> {
     final l10n = context.l10n;
     final u = Api.i.user;
     if (u == null) return const SizedBox.shrink();
-    final showManage = Api.i.caps.manage || Api.i.caps.audit;
-    final cards = <(IconData, String, String, int)>[
-      (Icons.movie_outlined, l10n.cardProjects, l10n.cardProjectsSub, 1),
-      if (showManage)
-        (Icons.group_outlined, l10n.cardManage, l10n.cardManageSub, 4),
-      (
-        Icons.tune_outlined,
-        l10n.cardSettings,
-        l10n.cardSettingsSub,
-        showManage ? 5 : 4
-      ),
-    ];
-    final tight = MediaQuery.sizeOf(context).width < 720;
     final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
     final mine = List.of(_assignments ?? [])
       ..sort((a, b) {
@@ -982,34 +969,6 @@ class _HomePageState extends State<HomePage> {
           ),
         const SizedBox(height: 16),
       ],
-      Wrap(spacing: 12, runSpacing: 12, children: [
-        for (final c in cards)
-          SizedBox(
-            width: tight ? double.infinity : null,
-            child: Card(
-              clipBehavior: Clip.antiAlias,
-              child: InkWell(
-                onTap: () =>
-                    context.findAncestorStateOfType<ShellState>()?.go(c.$4),
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Icon(c.$1, size: 28),
-                        const SizedBox(height: 12),
-                        Text(c.$2,
-                            style:
-                                const TextStyle(fontWeight: FontWeight.bold)),
-                        Text(c.$3,
-                            style: Theme.of(context).textTheme.bodySmall),
-                      ]),
-                ),
-              ),
-            ),
-          ),
-      ]),
     ]);
   }
 

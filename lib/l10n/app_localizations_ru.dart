@@ -2,6 +2,7 @@
 
 // ignore: unused_import
 import 'package:intl/intl.dart' as intl;
+
 import 'app_localizations.dart';
 
 // ignore_for_file: type=lint
@@ -130,24 +131,6 @@ class AppLocalizationsRu extends AppLocalizations {
   String greeting(Object name) {
     return 'Привет, $name';
   }
-
-  @override
-  String get cardProjects => 'Проекты';
-
-  @override
-  String get cardProjectsSub => 'Открыть ваши фильмы';
-
-  @override
-  String get cardManage => 'Управление';
-
-  @override
-  String get cardManageSub => 'Учётные записи и права';
-
-  @override
-  String get cardSettings => 'Настройки';
-
-  @override
-  String get cardSettingsSub => 'Тема и язык';
 
   @override
   String get projects => 'Проекты';

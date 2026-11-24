@@ -2,6 +2,7 @@
 
 // ignore: unused_import
 import 'package:intl/intl.dart' as intl;
+
 import 'app_localizations.dart';
 
 // ignore_for_file: type=lint
@@ -129,24 +130,6 @@ class AppLocalizationsGa extends AppLocalizations {
   String greeting(Object name) {
     return 'Dia dhuit, $name';
   }
-
-  @override
-  String get cardProjects => 'Tionscadail';
-
-  @override
-  String get cardProjectsSub => 'Oscail do thionscadail scannáin';
-
-  @override
-  String get cardManage => 'Bainistigh';
-
-  @override
-  String get cardManageSub => 'Cuntais agus ceadanna';
-
-  @override
-  String get cardSettings => 'Socruithe';
-
-  @override
-  String get cardSettingsSub => 'Téama agus teanga';
 
   @override
   String get projects => 'Tionscadail';

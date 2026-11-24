@@ -233,18 +233,6 @@ void main() {
     expect(find.byType(LoginPage), findsOneWidget);
   });
 
-  testWidgets('home cards navigate', (t) async {
-    installApi(extra: {'GET *': (_) => []});
-    await pumpWfm(t);
-    await t.tap(find.text('Open your film projects'));
-    await settle(t);
-    expect(find.byType(ProjectsPage), findsOneWidget);
-    await tapNav(t, 'Home');
-    await t.tap(find.text('Accounts and permissions'));
-    await settle(t);
-    expect(find.byType(ManagePage), findsOneWidget);
-  });
-
   Map<String, dynamic> assignment(String id, String name,
           {int due = 0,
           bool locked = false,
