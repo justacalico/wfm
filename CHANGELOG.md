@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.44.0 - 2026-11-24
+#### Features
+- 移除首页快捷卡片 - (6fe3ccf) - calico
+
+- - -
+
 ## v0.43.0 - 2026-11-23
 #### Features
 - (**app**) 首页显示任务与动态 - (04b0498) - calico
