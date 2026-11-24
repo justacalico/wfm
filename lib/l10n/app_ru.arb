@@ -48,12 +48,6 @@
       "name": {}
     }
   },
-  "cardProjects": "Проекты",
-  "cardProjectsSub": "Открыть ваши фильмы",
-  "cardManage": "Управление",
-  "cardManageSub": "Учётные записи и права",
-  "cardSettings": "Настройки",
-  "cardSettingsSub": "Тема и язык",
   "projects": "Проекты",
   "newProject": "Новый проект",
   "projectName": "Название проекта",

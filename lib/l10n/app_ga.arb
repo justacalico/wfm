@@ -48,12 +48,6 @@
       "name": {}
     }
   },
-  "cardProjects": "Tionscadail",
-  "cardProjectsSub": "Oscail do thionscadail scannáin",
-  "cardManage": "Bainistigh",
-  "cardManageSub": "Cuntais agus ceadanna",
-  "cardSettings": "Socruithe",
-  "cardSettingsSub": "Téama agus teanga",
   "projects": "Tionscadail",
   "newProject": "Tionscadal nua",
   "projectName": "Ainm an tionscadail",

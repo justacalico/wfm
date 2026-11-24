@@ -48,12 +48,6 @@
       "name": {}
     }
   },
-  "cardProjects": "Projects",
-  "cardProjectsSub": "Open your film projects",
-  "cardManage": "Manage",
-  "cardManageSub": "Accounts and permissions",
-  "cardSettings": "Settings",
-  "cardSettingsSub": "Theme and language",
   "projects": "Projects",
   "newProject": "New project",
   "projectName": "Project name",

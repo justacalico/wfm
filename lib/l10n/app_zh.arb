@@ -48,12 +48,6 @@
       "name": {}
     }
   },
-  "cardProjects": "项目",
-  "cardProjectsSub": "打开你的影片项目",
-  "cardManage": "管理",
-  "cardManageSub": "账户与权限",
-  "cardSettings": "设置",
-  "cardSettingsSub": "主题和语言",
   "projects": "项目",
   "newProject": "新建项目",
   "projectName": "项目名称",

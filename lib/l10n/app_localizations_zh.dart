@@ -2,6 +2,7 @@
 
 // ignore: unused_import
 import 'package:intl/intl.dart' as intl;
+
 import 'app_localizations.dart';
 
 // ignore_for_file: type=lint
@@ -128,24 +129,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String greeting(Object name) {
     return '你好，$name';
   }
-
-  @override
-  String get cardProjects => '项目';
-
-  @override
-  String get cardProjectsSub => '打开你的影片项目';
-
-  @override
-  String get cardManage => '管理';
-
-  @override
-  String get cardManageSub => '账户与权限';
-
-  @override
-  String get cardSettings => '设置';
-
-  @override
-  String get cardSettingsSub => '主题和语言';
 
   @override
   String get projects => '项目';

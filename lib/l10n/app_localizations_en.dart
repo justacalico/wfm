@@ -2,6 +2,7 @@
 
 // ignore: unused_import
 import 'package:intl/intl.dart' as intl;
+
 import 'app_localizations.dart';
 
 // ignore_for_file: type=lint
@@ -129,24 +130,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String greeting(Object name) {
     return 'Hi, $name';
   }
-
-  @override
-  String get cardProjects => 'Projects';
-
-  @override
-  String get cardProjectsSub => 'Open your film projects';
-
-  @override
-  String get cardManage => 'Manage';
-
-  @override
-  String get cardManageSub => 'Accounts and permissions';
-
-  @override
-  String get cardSettings => 'Settings';
-
-  @override
-  String get cardSettingsSub => 'Theme and language';
 
   @override
   String get projects => 'Projects';
