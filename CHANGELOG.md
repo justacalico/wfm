@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.44.1 - 2026-11-25
+#### Bug Fixes
+- 修复时间线音频波形不生成 - (52b71c0) - calico
+
+- - -
+
 ## v0.44.0 - 2026-11-24
 #### Features
 - 移除首页快捷卡片 - (6fe3ccf) - calico
