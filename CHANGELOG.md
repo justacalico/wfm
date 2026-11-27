@@ -2,6 +2,13 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.44.2 - 2026-11-27
+#### Bug Fixes
+- (**settings**) avoid ambiguous backup limit dropdown in tests - (976c338) - HttpAnimations
+- protect editor saves and add project backups - (0b92eac) - HttpAnimations
+
+- - -
+
 ## v0.44.1 - 2026-11-25
 #### Bug Fixes
 - 修复时间线音频波形不生成 - (52b71c0) - calico
