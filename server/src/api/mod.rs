@@ -129,6 +129,10 @@ pub fn router(state: Arc<AppState>) -> Router {
             get(list_files).put(upload_file).delete(delete_file),
         )
         .route("/projects/{id}/manifest", get(project_manifest))
+        .route(
+            "/projects/{id}/backups",
+            get(list_backups).post(create_backup),
+        )
         .route("/projects/{id}/files/upload", post(upload_start))
         .route("/projects/{id}/files/mkdir", post(mkdir))
         .route("/projects/{id}/files/move", post(move_file))
@@ -3704,6 +3708,160 @@ async fn project_manifest(
     Json(json!(out)).into_response()
 }
 
+const DEFAULT_BACKUP_COUNT: usize = 5;
+const MAX_BACKUP_COUNT: usize = 20;
+
+async fn backup_limit(s: &Arc<AppState>) -> usize {
+    s.db.setting_get("backup_count")
+        .await
+        .ok()
+        .flatten()
+        .and_then(|v| v.parse::<usize>().ok())
+        .filter(|v| (1..=MAX_BACKUP_COUNT).contains(v))
+        .unwrap_or(DEFAULT_BACKUP_COUNT)
+}
+
+async fn list_backups(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Path(id): Path<String>,
+) -> Response {
+    let p = match read_project(&s, &session, &id).await {
+        Ok(p) => p,
+        Err(r) => return r,
+    };
+    let prefix = blob_key(&p.dir, "Backups");
+    match s.blobs.list(&prefix).await {
+        Ok((_, files)) => {
+            let base = format!("{prefix}/");
+            let paths: Vec<_> = files
+                .iter()
+                .filter_map(|f| f.key.strip_prefix(&base))
+                .collect();
+            Json(json!({"backups": paths, "limit": backup_limit(&s).await})).into_response()
+        }
+        Err(e) => err(StatusCode::INTERNAL_SERVER_ERROR, &e),
+    }
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct BackupReq {
+    app: String,
+    path: String,
+    #[serde(default)]
+    replace_oldest: bool,
+}
+
+async fn create_backup(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Path(id): Path<String>,
+    Json(req): Json<BackupReq>,
+) -> Response {
+    let p = match edit_project(&s, &session, &id).await {
+        Ok(p) => p,
+        Err(r) => return r,
+    };
+    if !matches!(req.app.as_str(), "filmcraft" | "scriptcraft" | "deckcraft") {
+        return err(StatusCode::BAD_REQUEST, "unknown editor");
+    }
+    let path = match files::clean_rel_key(&req.path) {
+        Ok(path) => path,
+        Err(e) => return fs_resp(e),
+    };
+    let ext = key_ext(&path).unwrap_or_default();
+    let allowed = match req.app.as_str() {
+        "filmcraft" => path == "project.fcproj",
+        "scriptcraft" => path.starts_with("Script/") && matches!(ext.as_str(), "fountain" | "fdx"),
+        "deckcraft" => {
+            path.starts_with("Boards/")
+                && matches!(ext.as_str(), "deckcraft" | "pptx" | "potx" | "ppsx")
+        }
+        _ => false,
+    };
+    if !allowed {
+        return err(StatusCode::BAD_REQUEST, "document does not match editor");
+    }
+    let source = blob_key(&p.dir, &path);
+    if let Err(e) = s.blobs.head(&source).await {
+        return err(StatusCode::NOT_FOUND, &e);
+    }
+    let backup_root = blob_key(&p.dir, "Backups");
+    let (_, backups) = match s.blobs.list(&backup_root).await {
+        Ok(v) => v,
+        Err(e) => return err(StatusCode::INTERNAL_SERVER_ERROR, &e),
+    };
+    let limit = backup_limit(&s).await;
+    if backups.len() >= limit && !req.replace_oldest {
+        return (
+            StatusCode::CONFLICT,
+            Json(json!({"error":"backup limit reached", "limit":limit})),
+        )
+            .into_response();
+    }
+    let remove_count = backups.len().saturating_add(1).saturating_sub(limit);
+    if remove_count > 0 {
+        let mut oldest = backups.iter().collect::<Vec<_>>();
+        oldest.sort_by_key(|f| f.modified);
+        for backup in oldest.into_iter().take(remove_count) {
+            if let Err(e) = s.blobs.delete(&backup.key).await {
+                return err(StatusCode::INTERNAL_SERVER_ERROR, &e);
+            }
+        }
+    }
+    let name = path.rsplit('/').next().unwrap_or("project");
+    let stem = name.rsplit_once('.').map(|v| v.0).unwrap_or(name);
+    let project = p
+        .display_name
+        .chars()
+        .map(|c| {
+            if c.is_alphanumeric() || c == '-' || c == '_' {
+                c
+            } else {
+                '-'
+            }
+        })
+        .collect::<String>();
+    let snapshot = format!(
+        "{backup_root}/{project}-{stem}-{}-{}-{}.{}",
+        req.app,
+        backup_datetime(AppState::now()),
+        &model::new_id()[..8],
+        ext
+    );
+    let (len, stream) = match s.blobs.get(&source).await {
+        Ok(v) => v,
+        Err(e) => return err(StatusCode::INTERNAL_SERVER_ERROR, &e),
+    };
+    let mut reader = tokio_util::io::StreamReader::new(stream);
+    if let Err(e) = s.blobs.put(&snapshot, len, &mut reader).await {
+        return err(StatusCode::INTERNAL_SERVER_ERROR, &e);
+    }
+    Json(json!({"ok":true, "backup":snapshot, "replaced":backups.len() >= limit})).into_response()
+}
+
+fn backup_datetime(unix: i64) -> String {
+    let days = unix.div_euclid(86400);
+    let seconds = unix.rem_euclid(86400);
+    let z = days + 719468;
+    let era = z.div_euclid(146097);
+    let doe = z - era * 146097;
+    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+    let mut year = yoe + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let day = doy - (153 * mp + 2) / 5 + 1;
+    let month = mp + if mp < 10 { 3 } else { -9 };
+    year += if month <= 2 { 1 } else { 0 };
+    format!(
+        "{year:04}{month:02}{day:02}-{:02}{:02}{:02}",
+        seconds / 3600,
+        seconds / 60 % 60,
+        seconds % 60
+    )
+}
+
 /// The blob's current rev, or None when it does not exist. Lists the parent
 /// prefix so no extra backend call shape is needed.
 async fn blob_rev(s: &AppState, dir: &str, key: &str) -> Result<Option<String>, String> {
@@ -6209,7 +6367,11 @@ mod tests {
                 .remove(0)
                 .code_hash;
         let hash = if hash2.is_empty() { h } else { hash2 };
-        assert!(s.db.invite_use(&hash, &student.id, AppState::now()).await.unwrap());
+        assert!(s
+            .db
+            .invite_use(&hash, &student.id, AppState::now())
+            .await
+            .unwrap());
         let r = list_invites(State(s.clone()), session(&teacher)).await;
         let j = body_json(r).await;
         assert_eq!(j[0]["usedByUsername"], json!(student.username));
@@ -7052,13 +7214,15 @@ async fn get_settings(State(s): State<Arc<AppState>>, session: Session) -> Respo
             .collect::<Vec<_>>()
             .join(", "),
     };
-    Json(json!({"trustedProxies": effective})).into_response()
+    Json(json!({"trustedProxies": effective, "backupCount": backup_limit(&s).await}))
+        .into_response()
 }
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct SettingsReq {
     trusted_proxies: String,
+    backup_count: Option<usize>,
 }
 
 async fn put_settings(
@@ -7074,8 +7238,22 @@ async fn put_settings(
         Ok(n) => n,
         Err(e) => return err(StatusCode::BAD_REQUEST, &e),
     };
+    if req
+        .backup_count
+        .is_some_and(|count| !(1..=MAX_BACKUP_COUNT).contains(&count))
+    {
+        return err(
+            StatusCode::BAD_REQUEST,
+            "backup count must be between 1 and 20",
+        );
+    }
     if let Err(e) = s.db.setting_set("trusted_proxies", list).await {
         return db_resp(e);
+    }
+    if let Some(count) = req.backup_count {
+        if let Err(e) = s.db.setting_set("backup_count", &count.to_string()).await {
+            return db_resp(e);
+        }
     }
     *s.trusted.write().unwrap() = nets;
     s.audit(

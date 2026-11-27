@@ -479,6 +479,9 @@ class AppLocalizationsEn extends AppLocalizations {
       'X-Forwarded-For is only trusted from these addresses. Leave empty unless the server sits behind a reverse proxy.';
 
   @override
+  String get backupLimit => 'Maximum project backups per project (default 5)';
+
+  @override
   String get settingsSaved => 'Settings saved';
 
   @override

@@ -950,6 +950,12 @@ abstract class AppLocalizations {
   /// **'X-Forwarded-For is only trusted from these addresses. Leave empty unless the server sits behind a reverse proxy.'**
   String get trustedProxiesHelp;
 
+  /// No description provided for @backupLimit.
+  ///
+  /// In en, this message translates to:
+  /// **'Maximum project backups per project (default 5)'**
+  String get backupLimit;
+
   /// No description provided for @settingsSaved.
   ///
   /// In en, this message translates to:

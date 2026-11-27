@@ -619,6 +619,17 @@ class Api {
   Future<void> saveSettings(String trustedProxies) =>
       put('/settings', {'trustedProxies': trustedProxies});
 
+  Future<int> backupCount() async =>
+      (await get('/settings'))['backupCount'] as int? ?? 5;
+
+  Future<void> saveBackupCount(int count) async {
+    final settings = await get('/settings');
+    await put('/settings', {
+      'trustedProxies': settings['trustedProxies'] ?? '',
+      'backupCount': count,
+    });
+  }
+
   Future<List<Project>> projects() async =>
       [for (final e in (await get('/projects')) as List) Project.fromJson(e)];
 

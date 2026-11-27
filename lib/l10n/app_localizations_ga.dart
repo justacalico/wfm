@@ -482,6 +482,10 @@ class AppLocalizationsGa extends AppLocalizations {
       'Ní chuirtear muinín in X-Forwarded-For ach ó na seoltaí seo. Fág folamh é mura bhfuil an freastalaí taobh thiar de sheachfhreastalaí.';
 
   @override
+  String get backupLimit =>
+      'Uaslíon cúltacaí do gach tionscadal (5 de réir réamhshocraithe)';
+
+  @override
   String get settingsSaved => 'Socruithe sábháilte';
 
   @override

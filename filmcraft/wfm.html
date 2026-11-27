@@ -16,6 +16,7 @@
   #overlay p { color: #8d8d96; max-width: 420px; text-align: center; }
   #overlay button { background: #26262e; color: inherit; border: 1px solid #3a3a44; border-radius: 6px; padding: 6px 12px; cursor: pointer; font: inherit; }
   #toast { position: fixed; bottom: 16px; right: 16px; background: #26262e; color: #e6e6ea; border: 1px solid #3a3a44; border-radius: 8px; padding: 10px 14px; display: none; z-index: 20; max-width: 340px; font: 13px/1.4 system-ui, sans-serif; }
+  #backup-btn { position: fixed; top: 12px; right: 12px; z-index: 8; background: #26262e; color: #eee; border: 1px solid #555; border-radius: 6px; padding: 8px 12px; cursor: pointer; }
   #upl { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: flex; align-items: center; justify-content: center; z-index: 30; font: 13px/1.4 system-ui, sans-serif; }
   #upl[hidden] { display: none; }
   #upl-card { background: #1c1c22; border: 1px solid #3a3a44; border-radius: 10px; padding: 16px 18px; width: 380px; max-width: 90vw; max-height: 70vh; overflow-y: auto; color: #e6e6ea; }
@@ -74,7 +75,7 @@ const clientId = (() => {
   const h = [...b].map(x => x.toString(16).padStart(2, "0")).join("");
   return h.slice(0, 8) + "-" + h.slice(8, 12) + "-" + h.slice(12, 16) + "-" + h.slice(16, 20) + "-" + h.slice(20);
 })();
-let csrf = "", dirty = false, docSent = false, pending = 0, docName = "project.fcproj", docErrors = 0, lockLost = false;
+let csrf = "", dirty = false, docSent = false, projectLoaded = false, pending = 0, docName = "project.fcproj", docErrors = 0, lockLost = false;
 const FMT_EXT = {
   h264: ".mp4", hevc: ".mp4", prores: ".mov", dnxhr: ".mov", apv: ".mp4",
   mjpeg: ".avi", "mxf-op1a": ".mxf", "mxf-opatom": ".mxf",
@@ -103,6 +104,21 @@ async function api(path, opt = {}) {
   if (r.status === 401) { location.href = "/app/"; throw new Error("auth"); }
   return r;
 }
+
+async function makeBackup(app, path, replaceOldest = false) {
+  let r = await api("/projects/" + projectId + "/backups", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ app, path, replaceOldest }) });
+  if (r.status === 409) {
+    const d = await r.json().catch(() => ({}));
+    if (!confirm("The backup limit (" + (d.limit || 5) + ") has been reached. Overwrite the oldest backup? Cancel to keep all existing backups.")) throw new Error("Backup cancelled; no existing backup was changed.");
+    r = await api("/projects/" + projectId + "/backups", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ app, path, replaceOldest: true }) });
+  }
+  if (!r.ok) throw new Error("Could not create a project backup.");
+}
+const backupButton = document.createElement("button");
+backupButton.id = "backup-btn"; backupButton.textContent = "Create backup";
+backupButton.hidden = true;
+backupButton.onclick = () => makeBackup("filmcraft", "project.fcproj").then(() => toast("Backup created")).catch(e => toast(e.message));
+document.body.appendChild(backupButton);
 
 async function boot() {
   if (!projectId) return fcFail("No project specified.");
@@ -137,6 +153,8 @@ async function boot() {
   const title = p.displayName || p.display_name || "";
   document.title = title ? title + " - WFM" : "Filmcraft - WFM";
   docName = cleanName(title) + ".fcproj";
+  try { await makeBackup("filmcraft", "project.fcproj"); }
+  catch (e) { return fcFail(e.message); }
   $("fc").src = "/filmcraft/dist/index.html?host=parent&fresh" + theme;
   setInterval(heartbeat, 20000);
 }
@@ -209,6 +227,7 @@ async function pushFiles(entries) {
 }
 
 async function sendDoc() {
+  let listingOk = true;
   try {
     const sr = await api("/shortcuts");
     const sc = sr.ok ? await sr.json().catch(() => null) : null;
@@ -218,13 +237,22 @@ async function sendDoc() {
   try {
     entries = await listFiles("");
     await pushFiles(entries);
-  } catch (_) { docErrors++; }
+  } catch (_) { docErrors++; listingOk = false; }
+  if (!listingOk) { overlay("Could not load the project files. Saving is disabled to protect your work."); return; }
   const hasDoc = entries.some(e => e.type !== "dir" && e.path === "project.fcproj");
-  const r = await api("/projects/" + projectId + "/download?path=project.fcproj");
+  let r;
+  try { r = await api("/projects/" + projectId + "/download?path=project.fcproj"); }
+  catch (_) { overlay("Could not download the saved FilmCraft project. Saving is disabled to protect your work."); return; }
   if (!r.ok && hasDoc) docErrors++;
   if (docErrors) toast(docErrors + " file(s) could not be downloaded");
+  if (!r.ok && (hasDoc || r.status !== 404)) {
+    overlay("Could not load the saved FilmCraft project. Saving is disabled to protect your work.");
+    return;
+  }
   const bytes = r.ok ? await r.arrayBuffer() : new ArrayBuffer(0);
   send({ k: "doc", n: docName }, bytes);
+  projectLoaded = true;
+  backupButton.hidden = false;
 }
 
 function binFolders(bin, prefix, out) {
@@ -341,6 +369,7 @@ async function uploadOnce(path, bytes) {
 }
 
 async function handleSave(d) {
+  if (!renderId && !projectLoaded) { toast("Project is still loading. Save was blocked to protect your work."); return; }
   let path = d.name || "export.bin";
   const media = !!(d.id && !d.id.includes("..") && !d.id.startsWith("/") && !d.id.includes("\\") && d.id.trim());
   if (media) path = d.id;

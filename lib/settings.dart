@@ -29,6 +29,7 @@ class _SettingsPageState extends State<SettingsPage> {
   String? _proxies;
   final _proxiesCtl = TextEditingController();
   bool _savingProxies = false;
+  int _backupCount = 5;
   UpdateResult _update = UpdateResult.idle;
   AppUpdate? _latest;
   String _version = '';
@@ -45,6 +46,9 @@ class _SettingsPageState extends State<SettingsPage> {
             _proxiesCtl.text = v;
           });
         }
+      }).catchError((_) {});
+      Api.i.backupCount().then((v) {
+        if (mounted) setState(() => _backupCount = v);
       }).catchError((_) {});
     }
     Api.i.serverVersion().then((v) {
@@ -346,6 +350,26 @@ class _SettingsPageState extends State<SettingsPage> {
         const SizedBox(height: 4),
         Text(l10n.trustedProxiesHelp,
             style: Theme.of(context).textTheme.bodySmall),
+        const SizedBox(height: 12),
+        DropdownButtonFormField<String>(
+          initialValue: '$_backupCount',
+          decoration: dec(l10n.backupLimit),
+          items: [
+            for (final n in [1, 3, 5, 6, 10, 15, 20])
+              DropdownMenuItem(value: '$n', child: Text('$n')),
+          ],
+          onChanged: (value) async {
+            final n = int.tryParse(value ?? '');
+            if (n == null) return;
+            try {
+              await Api.i.saveBackupCount(n);
+              if (mounted) setState(() => _backupCount = n);
+            } catch (e) {
+              if (!context.mounted) return;
+              snack(context, e);
+            }
+          },
+        ),
         const SizedBox(height: 8),
         Align(
           alignment: Alignment.centerLeft,

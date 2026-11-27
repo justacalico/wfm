@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -219,9 +220,14 @@ void main() {
 
   testWidgets('owner sees and saves trusted proxies', (t) async {
     String? saved;
+    var backupSaveCount = 0;
     installApi(extra: {
       'PUT /api/settings': (req) {
         saved = req.body;
+        if (jsonDecode(req.body)['backupCount'] != null &&
+            ++backupSaveCount == 2) {
+          return http.Response('{"error":"save failed"}', 500);
+        }
         return {'ok': true};
       },
       'GET *': (_) => [],
@@ -236,6 +242,17 @@ void main() {
     await settle(t);
     expect(saved, contains('192.168.1.1'));
     expect(find.byType(Notice), findsOneWidget);
+    final field = find.byType(DropdownButtonFormField<String>);
+    await t.ensureVisible(field);
+    await t.tap(field);
+    await settle(t);
+    await t.tap(find.text('6').last);
+    await settle(t);
+    await t.tap(field);
+    await settle(t);
+    await t.tap(find.text('10').last);
+    await settle(t);
+    expect(find.byType(Notice), findsWidgets);
   });
 
   testWidgets('proxies edits survive a rebuild', (t) async {

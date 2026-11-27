@@ -23,7 +23,9 @@ pub const PROJECT_FOLDERS: &[&str] = &[
     "Boards",
 ];
 
-pub const ROOT_FOLDERS: &[&str] = &["Raw", "Audio", "Exports", "Images", "Script", "Boards"];
+pub const ROOT_FOLDERS: &[&str] = &[
+    "Raw", "Audio", "Exports", "Images", "Script", "Boards", "Backups",
+];
 
 /// Editor documents stored at the project root.
 pub const STATE_FILE: &str = "project.wfm.json";
