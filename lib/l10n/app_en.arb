@@ -238,6 +238,7 @@
   "passwordChanged": "Password changed",
   "serverSection": "Server",
   "trustedProxiesHelp": "X-Forwarded-For is only trusted from these addresses. Leave empty unless the server sits behind a reverse proxy.",
+  "backupLimit": "Maximum project backups per project (default 5)",
   "settingsSaved": "Settings saved",
   "checkUpdates": "Check for updates",
   "checking": "Checking…",

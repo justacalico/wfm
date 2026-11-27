@@ -11,6 +11,7 @@
   #overlay.hidden { display: none; }
   #overlay button { padding: 6px 14px; margin: 0 4px; }
   #toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: #333; color: #eee; padding: 8px 16px; border-radius: 4px; display: none; font: 13px system-ui, sans-serif; z-index: 6; }
+  #backup-btn { position: fixed; top: 12px; right: 12px; z-index: 4; padding: 8px 12px; }
   html.oled, html.oled body, html.oled #overlay { background: #000; }
   html.oled #toast { background: #0b0b0d; }
 </style>
@@ -36,7 +37,7 @@ const clientId = (() => {
   const h = [...b].map(x => x.toString(16).padStart(2, "0")).join("");
   return h.slice(0, 8) + "-" + h.slice(8, 12) + "-" + h.slice(12, 16) + "-" + h.slice(16, 20) + "-" + h.slice(20);
 })();
-let csrf = "", dirty = false, docSent = false, pending = 0, lockLost = false;
+let csrf = "", dirty = false, docSent = false, projectLoaded = false, pending = 0, lockLost = false;
 const $ = (id) => document.getElementById(id);
 const overlay = (msg, btns) => {
   $("overlay").classList.remove("hidden");
@@ -56,6 +57,18 @@ async function api(path, opt = {}) {
   if (r.status === 401) { location.href = "/app/"; throw new Error("auth"); }
   return r;
 }
+
+async function makeBackup(app, path, replaceOldest = false) {
+  let r = await api("/projects/" + projectId + "/backups", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ app, path, replaceOldest }) });
+  if (r.status === 409) {
+    const d = await r.json().catch(() => ({}));
+    if (!confirm("The backup limit (" + (d.limit || 5) + ") has been reached. Overwrite the oldest backup? Cancel to keep all existing backups.")) throw new Error("Backup cancelled; no existing backup was changed.");
+    r = await api("/projects/" + projectId + "/backups", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ app, path, replaceOldest: true }) });
+  }
+  if (!r.ok) throw new Error("Could not create a project backup.");
+}
+const backupButton = document.createElement("button"); backupButton.id = "backup-btn"; backupButton.textContent = "Create backup"; backupButton.hidden = true;
+backupButton.onclick = () => makeBackup("scriptcraft", docPath).then(() => toast("Backup created")).catch(e => toast(e.message)); document.body.appendChild(backupButton);
 
 async function boot() {
   if (!projectId) return fail("No project specified.");
@@ -81,6 +94,7 @@ async function boot() {
   const p = await (await api("/projects/" + projectId)).json();
   const title = p.displayName || p.display_name || "";
   document.title = title ? title + " script - WFM" : "ScriptCraft - WFM";
+  try { await makeBackup("scriptcraft", docPath); } catch (e) { return fail(e.message); }
   $("sc").src = "/scriptcraft/dist/index.html?project=" + encodeURIComponent(projectId) + theme;
   setInterval(heartbeat, 20000);
 }
@@ -105,7 +119,7 @@ window.addEventListener("message", async (ev) => {
     hideOverlay();
     if (d.type === "scriptcraft:ready" && docSent) return;
     docSent = true;
-    sendDoc();
+    sendDoc().catch(() => toast("Could not load the script. Saving is disabled to protect your work."));
   }
   else if (d.type === "scriptcraft:save") { handleSave(d); }
   else if (d.type === "scriptcraft:dirty") { dirty = !!d.dirty; }
@@ -125,13 +139,16 @@ async function sendDoc() {
     }
   } catch (_) {}
   const r = await api("/projects/" + projectId + "/download?path=" + encodeURIComponent(docPath));
-  if (r.status === 404) return;
-  if (!r.ok) { toast("Could not load the script (" + r.status + ")"); return; }
+  if (r.status === 404) { projectLoaded = true; backupButton.hidden = false; return; }
+  if (!r.ok) { overlay("Could not load the script (" + r.status + "). Saving is disabled to protect your work."); return; }
   const bytes = await r.arrayBuffer();
   $("sc").contentWindow.postMessage({ type: "scriptcraft:open", name: docName, bytes: new Uint8Array(bytes) }, location.origin);
+  projectLoaded = true;
+  backupButton.hidden = false;
 }
 
 async function handleSave(d) {
+  if (!projectLoaded) { toast("Project is still loading. Save was blocked to protect your work."); return; }
   if (lockLost) return;
   const name = (d.name || "export.bin").split("/").pop();
   const path = /\.(fountain|fdx)$/i.test(name) ? docPath : "Exports/" + name;

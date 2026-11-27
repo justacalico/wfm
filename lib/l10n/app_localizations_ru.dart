@@ -480,6 +480,10 @@ class AppLocalizationsRu extends AppLocalizations {
       'X-Forwarded-For принимается только с этих адресов. Оставьте пустым, если сервер не за обратным прокси.';
 
   @override
+  String get backupLimit =>
+      'Максимум резервных копий на проект (по умолчанию 5)';
+
+  @override
   String get settingsSaved => 'Настройки сохранены';
 
   @override

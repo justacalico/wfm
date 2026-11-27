@@ -475,6 +475,9 @@ class AppLocalizationsZh extends AppLocalizations {
       '仅信任来自这些地址的 X-Forwarded-For。除非服务器位于反向代理之后，否则请留空。';
 
   @override
+  String get backupLimit => '每个项目的备份上限（默认 5）';
+
+  @override
   String get settingsSaved => '设置已保存';
 
   @override
