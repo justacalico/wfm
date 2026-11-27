@@ -351,14 +351,15 @@ class _SettingsPageState extends State<SettingsPage> {
         Text(l10n.trustedProxiesHelp,
             style: Theme.of(context).textTheme.bodySmall),
         const SizedBox(height: 12),
-        DropdownButtonFormField<int>(
-          initialValue: _backupCount,
+        DropdownButtonFormField<String>(
+          initialValue: '$_backupCount',
           decoration: dec(l10n.backupLimit),
           items: [
             for (final n in [1, 3, 5, 6, 10, 15, 20])
-              DropdownMenuItem(value: n, child: Text('$n')),
+              DropdownMenuItem(value: '$n', child: Text('$n')),
           ],
-          onChanged: (n) async {
+          onChanged: (value) async {
+            final n = int.tryParse(value ?? '');
             if (n == null) return;
             try {
               await Api.i.saveBackupCount(n);

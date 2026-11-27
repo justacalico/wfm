@@ -166,18 +166,28 @@ void main() {
           'canManage': true,
           'canAudit': false
         },
-        'GET /api/settings': {'trustedProxies': '10.0.0.0/8'},
+        'GET /api/settings': {
+          'trustedProxies': '10.0.0.0/8',
+          'backupCount': 6,
+        },
         'PUT /api/settings': {'ok': true},
       }));
       final caps = await api.roles();
       expect(caps.manage, isTrue);
       expect(api.caps.creatable, ['student']);
       expect(await api.serverSettings(), '10.0.0.0/8');
+      expect(await api.backupCount(), 6);
       await api.saveSettings('192.168.0.1');
       expect(jsonDecode(lastRequest!.body)['trustedProxies'], '192.168.0.1');
       expect(lastRequest!.headers['x-csrf-token'], isNull);
       api.csrf = 'k';
       await api.saveSettings('');
+      expect(lastRequest!.headers['x-csrf-token'], 'k');
+      await api.saveBackupCount(10);
+      expect(jsonDecode(lastRequest!.body), {
+        'trustedProxies': '10.0.0.0/8',
+        'backupCount': 10,
+      });
       expect(lastRequest!.headers['x-csrf-token'], 'k');
     });
 
