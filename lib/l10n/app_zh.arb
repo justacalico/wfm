@@ -239,6 +239,15 @@
   "serverSection": "服务器",
   "trustedProxiesHelp": "仅信任来自这些地址的 X-Forwarded-For。除非服务器位于反向代理之后，否则请留空。",
   "backupLimit": "每个项目的备份上限（默认 5）",
+  "createBackup": "创建备份",
+  "backupCreated": "备份已创建",
+  "backupNothingToSave": "还没有可备份的内容。",
+  "backupLimitReached": "已达到备份上限（{limit}）。覆盖最旧的备份？",
+  "@backupLimitReached": {
+    "placeholders": {
+      "limit": {}
+    }
+  },
   "settingsSaved": "设置已保存",
   "checkUpdates": "检查更新",
   "checking": "正在检查…",

@@ -255,6 +255,52 @@ void main() {
       expect(lastRequest!.url.queryParameters['path'], 'a.txt');
     });
 
+    test('manifest/backups/createBackup', () async {
+      var calls = 0;
+      final api = Api(FakeClient({
+        'GET /api/projects/p1/manifest': (_) => [
+              {
+                'name': 'project.fcproj',
+                'path': 'project.fcproj',
+                'type': 'file'
+              }
+            ],
+        'GET /api/projects/p1/backups': (_) => calls++ == 0
+            ? {
+                'backups': ['a.fcproj'],
+                'limit': 3
+              }
+            : {'backups': []},
+        'POST /api/projects/p1/backups': (_) => {'ok': true},
+      }));
+      expect((await api.manifest('p1')).single.path, 'project.fcproj');
+      final b = await api.backups('p1');
+      expect(b.names, ['a.fcproj']);
+      expect(b.limit, 3);
+      expect((await api.backups('p1')).limit, 5);
+      await api.createBackup('p1', 'filmcraft', 'project.fcproj');
+      expect(jsonDecode(lastRequest!.body), {
+        'app': 'filmcraft',
+        'path': 'project.fcproj',
+        'replaceOldest': false,
+      });
+      await api.createBackup('p1', 'deckcraft', 'Boards/b.deckcraft',
+          replaceOldest: true);
+      expect(jsonDecode(lastRequest!.body)['replaceOldest'], true);
+
+      final limited = Api(FakeClient({
+        'POST /api/projects/p1/backups': (_) =>
+            http.Response('{"error":"backup limit reached","limit":3}', 409),
+      }));
+      try {
+        await limited.createBackup('p1', 'filmcraft', 'project.fcproj');
+        fail('expected');
+      } on ApiException catch (e) {
+        expect(e.status, 409);
+        expect(e.message, 'backup limit reached');
+      }
+    });
+
     test('chunked upload flow', () async {
       final chunks = <List<int>>[];
       String? startPath;

@@ -484,6 +484,20 @@ class AppLocalizationsRu extends AppLocalizations {
       'Максимум резервных копий на проект (по умолчанию 5)';
 
   @override
+  String get createBackup => 'Создать резервную копию';
+
+  @override
+  String get backupCreated => 'Резервная копия создана';
+
+  @override
+  String get backupNothingToSave => 'Пока нечего резервировать.';
+
+  @override
+  String backupLimitReached(Object limit) {
+    return 'Достигнут лимит резервных копий ($limit). Перезаписать самую старую копию?';
+  }
+
+  @override
   String get settingsSaved => 'Настройки сохранены';
 
   @override

@@ -478,6 +478,20 @@ class AppLocalizationsZh extends AppLocalizations {
   String get backupLimit => '每个项目的备份上限（默认 5）';
 
   @override
+  String get createBackup => '创建备份';
+
+  @override
+  String get backupCreated => '备份已创建';
+
+  @override
+  String get backupNothingToSave => '还没有可备份的内容。';
+
+  @override
+  String backupLimitReached(Object limit) {
+    return '已达到备份上限（$limit）。覆盖最旧的备份？';
+  }
+
+  @override
   String get settingsSaved => '设置已保存';
 
   @override

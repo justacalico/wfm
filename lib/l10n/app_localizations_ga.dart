@@ -486,6 +486,20 @@ class AppLocalizationsGa extends AppLocalizations {
       'Uaslíon cúltacaí do gach tionscadal (5 de réir réamhshocraithe)';
 
   @override
+  String get createBackup => 'Cruthaigh cúltaca';
+
+  @override
+  String get backupCreated => 'Cúltaca cruthaithe';
+
+  @override
+  String get backupNothingToSave => 'Níl aon rud le cúltaca fós.';
+
+  @override
+  String backupLimitReached(Object limit) {
+    return 'Sroicheadh teorainn na gcúltacaí ($limit). Forás an cúltaca is sine?';
+  }
+
+  @override
   String get settingsSaved => 'Socruithe sábháilte';
 
   @override

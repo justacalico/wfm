@@ -148,6 +148,14 @@ class FileEntry {
   bool get isDir => type == 'dir';
 }
 
+class BackupList {
+  final List<String> names;
+  final int limit;
+  BackupList.fromJson(Map<String, dynamic> j)
+      : names = [for (final e in j['backups'] as List? ?? []) '$e'],
+        limit = j['limit'] as int? ?? 5;
+}
+
 class SessionInfo {
   final String id, ip, ua;
   final int createdAt, expiresAt, lastSeen;
@@ -747,6 +755,19 @@ class Api {
             in (await get('/projects/$pid/files', {'path': path})) as List)
           FileEntry.fromJson(e)
       ];
+
+  Future<List<FileEntry>> manifest(String pid) async => [
+        for (final e in (await get('/projects/$pid/manifest')) as List)
+          FileEntry.fromJson(e)
+      ];
+
+  Future<BackupList> backups(String pid) async =>
+      BackupList.fromJson(await get('/projects/$pid/backups'));
+
+  Future<void> createBackup(String pid, String app, String path,
+          {bool replaceOldest = false}) =>
+      post('/projects/$pid/backups',
+          {'app': app, 'path': path, 'replaceOldest': replaceOldest});
 
   Future<void> upload(String pid, String path, Uint8List bytes,
       {String clientId = '', String base = ''}) async {
