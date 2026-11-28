@@ -108,6 +108,11 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
 
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: server
+          key: verify-server
+
       - name: Pub get
         run: |
           flutter pub get
@@ -247,13 +252,29 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
 
+      - name: Cache Flutter arm64
+        uses: actions/cache@v4
+        if: matrix.target == 'linux-arm64'
+        with:
+          path: /opt/flutter
+          key: flutter-${{ env.FLUTTER_VERSION }}-linux-arm64
+
       - name: Setup Flutter arm64
         if: matrix.target == 'linux-arm64'
         run: |
-          git clone --depth 1 -b ${{ env.FLUTTER_VERSION }} https://github.com/flutter/flutter.git /opt/flutter
+          if [ ! -x /opt/flutter/bin/flutter ]; then
+            rm -rf /opt/flutter
+            git clone --depth 1 -b ${{ env.FLUTTER_VERSION }} https://github.com/flutter/flutter.git /opt/flutter
+          fi
           echo "/opt/flutter/bin" >> "$GITHUB_PATH"
           git config --global --add safe.directory /opt/flutter
           /opt/flutter/bin/flutter --version
+
+      - uses: Swatinem/rust-cache@v2
+        if: matrix.target != 'web'
+        with:
+          workspaces: server
+          key: server-${{ matrix.target }}
 
       - name: Pub get
         run: flutter pub get
@@ -386,6 +407,13 @@ jobs:
             libxcb1-dev libx11-dev libxcursor-dev libxrandr-dev libxi-dev \
             libgl1-mesa-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev
 
+      - name: Cache Flutter arm64
+        uses: actions/cache@v4
+        if: matrix.name == 'linux-aarch64'
+        with:
+          path: /opt/flutter
+          key: flutter-${{ env.FLUTTER_VERSION }}-linux-arm64
+
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         if: matrix.name != 'linux-aarch64'
@@ -396,16 +424,37 @@ jobs:
       - name: Setup Flutter arm64
         if: matrix.name == 'linux-aarch64'
         run: |
-          git clone --depth 1 -b ${{ env.FLUTTER_VERSION }} https://github.com/flutter/flutter.git /opt/flutter
+          if [ ! -x /opt/flutter/bin/flutter ]; then
+            rm -rf /opt/flutter
+            git clone --depth 1 -b ${{ env.FLUTTER_VERSION }} https://github.com/flutter/flutter.git /opt/flutter
+          fi
           echo "/opt/flutter/bin" >> "$GITHUB_PATH"
           git config --global --add safe.directory /opt/flutter
           /opt/flutter/bin/flutter --version
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: desktop/webview
+          key: desktop-${{ matrix.name }}
+
+      - name: Cache FilmCraft source build
+        uses: actions/cache@v4
+        with:
+          path: .cache/filmcraft
+          key: filmcraft-${{ matrix.name }}-${{ hashFiles('filmcraft/VERSION', 'filmcraft/patches/**', 'filmcraft/patches-native/**') }}
 
       - name: Pub get
         run: flutter pub get
 
       - name: Build FilmCraft native
-        run: bash scripts/build-filmcraft-native.sh --target ${{ matrix.triple }}
+        env:
+          FILMCRAFT_SRC: ${{ github.workspace }}/.cache/filmcraft
+        run: |
+          if [ ! -d .cache/filmcraft/.git ]; then
+            rm -rf .cache/filmcraft
+            git clone --depth 1 --branch "v$(cat filmcraft/VERSION)" https://github.com/storytold/filmcraft .cache/filmcraft
+          fi
+          bash scripts/build-filmcraft-native.sh --target ${{ matrix.triple }}
 
       - name: Build webview helper
         run: bash scripts/build-webview.sh ${{ matrix.triple }}

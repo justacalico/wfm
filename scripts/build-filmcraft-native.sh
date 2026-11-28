@@ -21,6 +21,7 @@ if [ -z "$SRC" ]; then
   git -c core.autocrlf=false clone --depth 1 --branch "v${VER}" https://github.com/storytold/filmcraft "$SRC"
 fi
 cd "$SRC"
+git clean -fd
 git restore .
 for p in "$ROOT"/filmcraft/patches/*.patch "$ROOT"/filmcraft/patches-native/*.patch; do
   git apply "$p"
