@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::net::IpAddr;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::{Duration, Instant};
 
@@ -95,6 +96,9 @@ pub struct AppState {
     /// Cached /api/update-check payload so taps don't live-proxy GitLab.
     pub update_check: Mutex<Option<(Instant, serde_json::Value)>>,
     pub trusted: RwLock<Vec<ipnet::IpNet>>,
+    /// Effective HTTPS enforcement, checked per request. Mirrors the
+    /// deployment override when set, else the stored owner setting.
+    pub enforce_https: AtomicBool,
 }
 
 #[derive(Clone)]
@@ -147,6 +151,21 @@ impl AppState {
             .db
             .notify(user_id, kind, &payload.to_string(), Self::now())
             .await;
+    }
+
+    pub fn enforce_https(&self) -> bool {
+        self.enforce_https.load(Ordering::Relaxed)
+    }
+
+    /// Deployment override is set: the owner toggle is read-only.
+    pub fn enforce_https_locked(&self) -> bool {
+        self.cfg.enforce_https.is_some()
+    }
+
+    /// Cookies get the Secure flag when configured or when enforcement makes
+    /// plain-HTTP delivery pointless anyway.
+    pub fn cookies_secure(&self) -> bool {
+        self.cfg.secure_cookies || self.enforce_https()
     }
 }
 

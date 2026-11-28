@@ -2,6 +2,7 @@
 
 // ignore: unused_import
 import 'package:intl/intl.dart' as intl;
+
 import 'app_localizations.dart';
 
 // ignore_for_file: type=lint
@@ -476,6 +477,17 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get trustedProxiesHelp =>
       'X-Forwarded-For is only trusted from these addresses. Leave empty unless the server sits behind a reverse proxy.';
+
+  @override
+  String get enforceHttps => 'Require HTTPS';
+
+  @override
+  String get enforceHttpsHint =>
+      'Redirect all HTTP traffic to HTTPS. Behind a reverse proxy, add it to trusted proxies first.';
+
+  @override
+  String get enforceHttpsLocked =>
+      'Locked by the server configuration (WFM_ENFORCE_HTTPS).';
 
   @override
   String get backupLimit => 'Maximum project backups per project (default 5)';

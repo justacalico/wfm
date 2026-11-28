@@ -289,6 +289,54 @@ void main() {
     expect(find.byType(Notice), findsWidgets);
   });
 
+  testWidgets('owner toggles enforce https and errors revert it', (t) async {
+    String? body;
+    var fail = false;
+    installApi(extra: {
+      'PUT /api/settings': (req) {
+        if (fail) return http.Response('{"error":"nope"}', 500);
+        body = req.body;
+        return {'ok': true};
+      },
+      'GET *': (_) => [],
+    });
+    t.view.physicalSize = const Size(800, 1400);
+    t.view.devicePixelRatio = 1.0;
+    addTearDown(t.view.reset);
+    await goSettings(t);
+    final tile = find.widgetWithText(SwitchListTile, 'Require HTTPS');
+    await t.ensureVisible(tile);
+    await t.tap(tile);
+    await settle(t);
+    expect(jsonDecode(body!)['enforceHttps'], true);
+    expect(t.widget<SwitchListTile>(tile).value, isTrue);
+    fail = true;
+    await t.tap(tile);
+    await settle(t);
+    expect(find.byType(Notice), findsWidgets);
+    expect(t.widget<SwitchListTile>(tile).value, isTrue);
+  });
+
+  testWidgets('enforce https locked by server config is greyed out', (t) async {
+    installApi(extra: {
+      'GET /api/settings': (_) => {
+            'trustedProxies': '',
+            'enforceHttps': true,
+            'enforceHttpsLocked': true,
+          },
+      'GET *': (_) => [],
+    });
+    t.view.physicalSize = const Size(800, 1400);
+    t.view.devicePixelRatio = 1.0;
+    addTearDown(t.view.reset);
+    await goSettings(t);
+    final tile = find.widgetWithText(SwitchListTile, 'Require HTTPS');
+    await t.ensureVisible(tile);
+    expect(t.widget<SwitchListTile>(tile).onChanged, isNull);
+    expect(t.widget<SwitchListTile>(tile).value, isTrue);
+    expect(find.textContaining('WFM_ENFORCE_HTTPS'), findsOneWidget);
+  });
+
   testWidgets('non-owner hides server settings', (t) async {
     installApi(extra: {
       'GET /api/me': (_) => {

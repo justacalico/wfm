@@ -2,6 +2,7 @@
 
 // ignore: unused_import
 import 'package:intl/intl.dart' as intl;
+
 import 'app_localizations.dart';
 
 // ignore_for_file: type=lint
@@ -479,6 +480,17 @@ class AppLocalizationsGa extends AppLocalizations {
   @override
   String get trustedProxiesHelp =>
       'Ní chuirtear muinín in X-Forwarded-For ach ó na seoltaí seo. Fág folamh é mura bhfuil an freastalaí taobh thiar de sheachfhreastalaí.';
+
+  @override
+  String get enforceHttps => 'Éiligh HTTPS';
+
+  @override
+  String get enforceHttpsHint =>
+      'Atreoraítear gach trácht HTTP chuig HTTPS. Má tá sé taobh thiar de sheachfhreastalaí, cuir leis na seachfhreastalaithe iontaofa ar dtús.';
+
+  @override
+  String get enforceHttpsLocked =>
+      'Faoi ghlas ag cumraíocht an fhreastalaí (WFM_ENFORCE_HTTPS).';
 
   @override
   String get backupLimit =>

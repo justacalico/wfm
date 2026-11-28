@@ -2,6 +2,7 @@
 
 // ignore: unused_import
 import 'package:intl/intl.dart' as intl;
+
 import 'app_localizations.dart';
 
 // ignore_for_file: type=lint
@@ -472,6 +473,16 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get trustedProxiesHelp =>
       '仅信任来自这些地址的 X-Forwarded-For。除非服务器位于反向代理之后，否则请留空。';
+
+  @override
+  String get enforceHttps => '强制 HTTPS';
+
+  @override
+  String get enforceHttpsHint =>
+      '将所有 HTTP 流量重定向到 HTTPS。若位于反向代理之后，请先将代理加入受信任的代理列表。';
+
+  @override
+  String get enforceHttpsLocked => '由服务器配置锁定（WFM_ENFORCE_HTTPS）。';
 
   @override
   String get backupLimit => '每个项目的备份上限（默认 5）';

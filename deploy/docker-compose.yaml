@@ -7,6 +7,7 @@ services:
     environment:
       WFM_MEDIA: ${WFM_MEDIA:-local}
       WFM_SECURE_COOKIES: ${WFM_SECURE_COOKIES:-false}
+      WFM_ENFORCE_HTTPS: ${WFM_ENFORCE_HTTPS:-}
       WFM_MAX_UPLOAD_MB: ${WFM_MAX_UPLOAD_MB:-4096}
       WFM_SESSION_DAYS: ${WFM_SESSION_DAYS:-7}
       WFM_S3_ENDPOINT: ${WFM_S3_ENDPOINT:-http://rustfs:9000}

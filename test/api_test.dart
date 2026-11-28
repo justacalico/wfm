@@ -183,8 +183,11 @@ void main() {
       final caps = await api.roles();
       expect(caps.manage, isTrue);
       expect(api.caps.creatable, ['student']);
-      expect(await api.serverSettings(), '10.0.0.0/8');
-      expect(await api.backupCount(), 6);
+      final settings = await api.serverSettings();
+      expect(settings.trustedProxies, '10.0.0.0/8');
+      expect(settings.backupCount, 6);
+      expect(settings.enforceHttps, isFalse);
+      expect(settings.enforceHttpsLocked, isFalse);
       await api.saveSettings('192.168.0.1');
       expect(jsonDecode(lastRequest!.body)['trustedProxies'], '192.168.0.1');
       expect(lastRequest!.headers['x-csrf-token'], isNull);
@@ -197,6 +200,11 @@ void main() {
         'backupCount': 10,
       });
       expect(lastRequest!.headers['x-csrf-token'], 'k');
+      await api.saveEnforceHttps(true);
+      expect(jsonDecode(lastRequest!.body), {
+        'trustedProxies': '10.0.0.0/8',
+        'enforceHttps': true,
+      });
     });
 
     test('projects/files/upload/mkdir/move/delete', () async {

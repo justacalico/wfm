@@ -1,7 +1,8 @@
+use std::net::{IpAddr, SocketAddr};
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use axum::extract::State;
+use axum::extract::{ConnectInfo, State};
 use axum::http::{header, HeaderValue, StatusCode, Uri};
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Redirect, Response};
@@ -9,7 +10,7 @@ use axum::routing::get;
 use axum::{middleware, Router};
 use rust_embed::RustEmbed;
 
-use crate::auth::{cookie_token, AppState};
+use crate::auth::{cookie_token, err, AppState};
 use crate::model;
 
 #[derive(RustEmbed)]
@@ -115,6 +116,52 @@ async fn craft_asset(
 
 async fn root() -> Redirect {
     Redirect::permanent("/app/")
+}
+
+/// HTTP -> HTTPS enforcement. X-Forwarded-Proto is only honored from trusted
+/// proxies; a loopback peer with no proxy hint is let through so an admin can
+/// still reach the UI over an SSH tunnel if the certificate or proxy setup
+/// breaks.
+pub async fn enforce_https(
+    State(s): State<Arc<AppState>>,
+    req: axum::extract::Request,
+    next: Next,
+) -> Response {
+    if !s.enforce_https() {
+        return next.run(req).await;
+    }
+    let peer = req
+        .extensions()
+        .get::<ConnectInfo<SocketAddr>>()
+        .map(|c| c.0.ip())
+        .unwrap_or(IpAddr::from([0, 0, 0, 0]));
+    let proto = req
+        .headers()
+        .get("x-forwarded-proto")
+        .and_then(|v| v.to_str().ok());
+    let ok = match proto {
+        Some(p) if s.trusted.read().unwrap().iter().any(|n| n.contains(&peer)) => {
+            p.eq_ignore_ascii_case("https")
+        }
+        Some(_) => false,
+        None => peer.is_loopback(),
+    };
+    if ok {
+        return next.run(req).await;
+    }
+    let Some(host) = req
+        .headers()
+        .get(header::HOST)
+        .and_then(|v| v.to_str().ok())
+    else {
+        return err(StatusCode::BAD_REQUEST, "https required");
+    };
+    let path = req
+        .uri()
+        .path_and_query()
+        .map(|pq| pq.as_str())
+        .unwrap_or("/");
+    Redirect::permanent(&format!("https://{host}{path}")).into_response()
 }
 
 /// Security headers on every response. CSP allows the wasm the Flutter
@@ -235,6 +282,7 @@ mod tests {
                 deckcraft_dir: Some(dir.join("deckcraft")),
                 max_upload: 0,
                 secure_cookies: false,
+                enforce_https: None,
                 cors_origins: vec![],
                 render_workers: 0,
                 filmcraft_cli: String::new(),
@@ -265,6 +313,7 @@ mod tests {
             handoffs: Mutex::new(HashMap::new()),
             update_check: Mutex::new(None),
             trusted: RwLock::new(vec![]),
+            enforce_https: std::sync::atomic::AtomicBool::new(false),
         })
     }
 
@@ -362,6 +411,168 @@ mod tests {
         )
         .await;
         assert_eq!(r.status(), StatusCode::OK);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    fn enforce_app(s: &Arc<AppState>) -> Router {
+        Router::new()
+            .route("/x/{*p}", get(|| async { "ok" }))
+            .layer(middleware::from_fn_with_state(
+                s.clone(),
+                super::enforce_https,
+            ))
+    }
+
+    fn peer_req(peer: &str, proto: Option<&str>, host: Option<&str>) -> Request<Body> {
+        let mut b = Request::get("/x/a?y=1");
+        if let Some(h) = host {
+            b = b.header(header::HOST, h);
+        }
+        if let Some(p) = proto {
+            b = b.header("x-forwarded-proto", p);
+        }
+        let mut req = b.body(Body::empty()).unwrap();
+        req.extensions_mut()
+            .insert(ConnectInfo(peer.parse::<SocketAddr>().unwrap()));
+        req
+    }
+
+    #[tokio::test]
+    async fn enforce_https_redirects_and_exempts() {
+        use tower::ServiceExt;
+        let dir = std::env::temp_dir().join(format!("wfm-web-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let s = state(&dir);
+        let app = enforce_app(&s);
+
+        // off: plain HTTP passes through
+        let r = app
+            .clone()
+            .oneshot(peer_req("203.0.113.9:4000", None, Some("wfm.school.test")))
+            .await
+            .unwrap();
+        assert_eq!(r.status(), StatusCode::OK);
+
+        s.enforce_https
+            .store(true, std::sync::atomic::Ordering::Relaxed);
+
+        // remote HTTP client gets a 308 to the https:// URL
+        let r = app
+            .clone()
+            .oneshot(peer_req("203.0.113.9:4000", None, Some("wfm.school.test")))
+            .await
+            .unwrap();
+        assert_eq!(r.status(), StatusCode::PERMANENT_REDIRECT);
+        assert_eq!(
+            r.headers()[header::LOCATION],
+            "https://wfm.school.test/x/a?y=1"
+        );
+
+        // loopback stays reachable for recovery
+        let r = app
+            .clone()
+            .oneshot(peer_req("127.0.0.1:4000", None, Some("localhost")))
+            .await
+            .unwrap();
+        assert_eq!(r.status(), StatusCode::OK);
+        let r = app
+            .clone()
+            .oneshot(peer_req("[::1]:4000", None, Some("localhost")))
+            .await
+            .unwrap();
+        assert_eq!(r.status(), StatusCode::OK);
+
+        // no ConnectInfo extension: treated as remote
+        let r = app
+            .clone()
+            .oneshot(
+                Request::get("/x/a")
+                    .header(header::HOST, "wfm.school.test")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(r.status(), StatusCode::PERMANENT_REDIRECT);
+
+        // missing Host header can't build a redirect target
+        let r = app
+            .clone()
+            .oneshot(peer_req("203.0.113.9:4000", None, None))
+            .await
+            .unwrap();
+        assert_eq!(r.status(), StatusCode::BAD_REQUEST);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[tokio::test]
+    async fn enforce_https_trusted_proxy_proto() {
+        use tower::ServiceExt;
+        let dir = std::env::temp_dir().join(format!("wfm-web-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let s = state(&dir);
+        s.enforce_https
+            .store(true, std::sync::atomic::Ordering::Relaxed);
+        *s.trusted.write().unwrap() = crate::auth::parse_nets("10.0.0.0/8").unwrap();
+        let app = enforce_app(&s);
+
+        // trusted proxy reporting https passes through
+        let r = app
+            .clone()
+            .oneshot(peer_req(
+                "10.0.0.5:4000",
+                Some("https"),
+                Some("wfm.school.test"),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(r.status(), StatusCode::OK);
+
+        // same proxy reporting http redirects
+        let r = app
+            .clone()
+            .oneshot(peer_req(
+                "10.0.0.5:4000",
+                Some("http"),
+                Some("wfm.school.test"),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(r.status(), StatusCode::PERMANENT_REDIRECT);
+
+        // untrusted peer claiming https is not believed
+        let r = app
+            .clone()
+            .oneshot(peer_req(
+                "203.0.113.9:4000",
+                Some("https"),
+                Some("wfm.school.test"),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(r.status(), StatusCode::PERMANENT_REDIRECT);
+
+        // proxy on the same host counts once loopback is trusted
+        *s.trusted.write().unwrap() = crate::auth::parse_nets("127.0.0.1").unwrap();
+        let r = app
+            .clone()
+            .oneshot(peer_req(
+                "127.0.0.1:4000",
+                Some("https"),
+                Some("wfm.school.test"),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(r.status(), StatusCode::OK);
+        let r = app
+            .oneshot(peer_req(
+                "127.0.0.1:4000",
+                Some("http"),
+                Some("wfm.school.test"),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(r.status(), StatusCode::PERMANENT_REDIRECT);
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

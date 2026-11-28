@@ -1419,6 +1419,7 @@ mod tests {
                 deckcraft_dir: None,
                 max_upload: u64::MAX,
                 secure_cookies: false,
+                enforce_https: None,
                 cors_origins: vec![],
                 render_workers: 0,
                 filmcraft_cli: String::new(),
@@ -1449,6 +1450,7 @@ mod tests {
             handoffs: Mutex::new(HashMap::new()),
             update_check: Mutex::new(None),
             trusted: RwLock::new(vec![]),
+            enforce_https: std::sync::atomic::AtomicBool::new(false),
         })
     }
 

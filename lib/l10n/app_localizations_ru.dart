@@ -2,6 +2,7 @@
 
 // ignore: unused_import
 import 'package:intl/intl.dart' as intl;
+
 import 'app_localizations.dart';
 
 // ignore_for_file: type=lint
@@ -477,6 +478,17 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get trustedProxiesHelp =>
       'X-Forwarded-For принимается только с этих адресов. Оставьте пустым, если сервер не за обратным прокси.';
+
+  @override
+  String get enforceHttps => 'Требовать HTTPS';
+
+  @override
+  String get enforceHttpsHint =>
+      'Перенаправлять весь HTTP-трафик на HTTPS. За обратным прокси сначала добавьте его в доверенные прокси.';
+
+  @override
+  String get enforceHttpsLocked =>
+      'Заблокировано конфигурацией сервера (WFM_ENFORCE_HTTPS).';
 
   @override
   String get backupLimit =>

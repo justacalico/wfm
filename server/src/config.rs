@@ -10,6 +10,9 @@ pub struct Config {
     pub deckcraft_dir: Option<PathBuf>,
     pub max_upload: u64,
     pub secure_cookies: bool,
+    /// Deployment-pinned HTTPS enforcement: Some pins the setting and greys it
+    /// out for the owner, None leaves it to the settings page.
+    pub enforce_https: Option<bool>,
     pub cors_origins: Vec<String>,
     pub render_workers: usize,
     pub filmcraft_cli: String,
@@ -58,6 +61,17 @@ fn env_bool(name: &str, def: bool) -> bool {
         .unwrap_or(def)
 }
 
+fn env_opt_bool(name: &str) -> Result<Option<bool>, String> {
+    match std::env::var(name).ok().filter(|v| !v.is_empty()) {
+        None => Ok(None),
+        Some(v) => match v.to_ascii_lowercase().as_str() {
+            "1" | "true" | "on" | "yes" => Ok(Some(true)),
+            "0" | "false" | "off" | "no" => Ok(Some(false)),
+            _ => Err(format!("{name}: expected true or false")),
+        },
+    }
+}
+
 impl Config {
     pub fn projects_dir(&self) -> PathBuf {
         self.data_dir.join("projects")
@@ -102,6 +116,7 @@ impl Config {
                 }),
             max_upload: env_int("WFM_MAX_UPLOAD_MB", 4096) as u64 * 1024 * 1024,
             secure_cookies: env_bool("WFM_SECURE_COOKIES", false),
+            enforce_https: env_opt_bool("WFM_ENFORCE_HTTPS")?,
             cors_origins: env("WFM_CORS_ORIGINS", "")
                 .split(',')
                 .map(|s| s.trim().to_string())
@@ -148,6 +163,8 @@ impl Config {
                         next(&mut i)?.parse::<u64>().map_err(|e| e.to_string())? * 1024 * 1024
                 }
                 "--secure-cookies" => c.secure_cookies = true,
+                "--enforce-https" => c.enforce_https = Some(true),
+                "--no-enforce-https" => c.enforce_https = Some(false),
                 "--cors-origins" => {
                     c.cors_origins = next(&mut i)?
                         .split(',')
@@ -237,6 +254,8 @@ impl Config {
                          --filmcraft-dir DIR    serve filmcraft from DIR instead of embedded\n\
                          --max-upload-mb N      max upload size in MiB (default 4096)\n\
                          --secure-cookies       mark cookies Secure (use behind HTTPS)\n\
+                         --enforce-https        redirect HTTP to HTTPS (locks the setting)\n\
+                         --no-enforce-https     disable HTTPS enforcement (locks the setting)\n\
                          --cors-origins LIST    extra allowed CORS origins\n\
                          --render-workers N     local render workers (default 1)\n\
                          --filmcraft-cli PATH   filmcraft-cli binary path\n\
@@ -248,7 +267,7 @@ impl Config {
                          Env: WFM_ADDR WFM_DATA WFM_DB WFM_WEB_DIR WFM_FILMCRAFT_DIR WFM_SCRIPTCRAFT_DIR WFM_DECKCRAFT_DIR \
                          WFM_MAX_UPLOAD_MB WFM_SECURE_COOKIES WFM_CORS_ORIGINS \
                          WFM_RENDER_WORKERS WFM_FILMCRAFT_CLI WFM_LOCAL_RENDERS \
-                         WFM_SESSION_DAYS WFM_LOCK_TTL WFM_WORKER_TOKEN \
+                         WFM_ENFORCE_HTTPS WFM_SESSION_DAYS WFM_LOCK_TTL WFM_WORKER_TOKEN \
                          WFM_TRUSTED_PROXIES"
                     );
                     std::process::exit(0);
