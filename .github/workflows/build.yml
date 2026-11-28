@@ -381,7 +381,7 @@ jobs:
         if: matrix.target == 'linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang cmake ninja-build pkg-config \
+          sudo apt-get install -y clang cmake ninja-build pkg-config rpm \
             libgtk-3-dev libasound2-dev libxkbcommon-dev libwayland-dev \
             libxcb1-dev libx11-dev libxcursor-dev libxrandr-dev libxi-dev \
             libgl1-mesa-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev
@@ -427,6 +427,7 @@ jobs:
           case "$TARGET" in
             linux)
               tar -czf "artifacts/wfm-desktop-${VERSION}-${NAME}.tar.gz" -C build/linux/${{ matrix.flutter_arch }}/release/bundle .
+              bash scripts/package-linux-pkg.sh "$VERSION" "${{ matrix.flutter_arch }}" artifacts
               ;;
             macos)
               cp desktop/macos/remove-quarantine.command desktop/macos/README.txt build/macos/Build/Products/Release/
