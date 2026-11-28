@@ -59,6 +59,7 @@ async function api(path, opt = {}) {
 
 async function makeBackup(app, path, replaceOldest = false) {
   let r = await api("/projects/" + projectId + "/backups", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ app, path, replaceOldest }) });
+  if (r.status === 404) return;
   if (r.status === 409) {
     const d = await r.json().catch(() => ({}));
     if (!confirm("The backup limit (" + (d.limit || 5) + ") has been reached. Overwrite the oldest backup? Cancel to keep all existing backups.")) throw new Error("Backup cancelled; no existing backup was changed.");
@@ -90,7 +91,7 @@ async function boot() {
   const p = await (await api("/projects/" + projectId)).json();
   const title = p.displayName || p.display_name || "";
   document.title = title ? title + " script - WFM" : "ScriptCraft - WFM";
-  try { await makeBackup("scriptcraft", docPath); } catch (e) { return fail(e.message); }
+  try { await makeBackup("scriptcraft", docPath, true); } catch (e) { return fail(e.message); }
   $("sc").src = "/scriptcraft/dist/index.html?project=" + encodeURIComponent(projectId) + theme;
   setInterval(heartbeat, 20000);
 }
