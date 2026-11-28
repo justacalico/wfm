@@ -65,7 +65,13 @@ void main() {
                 ],
                 count: 1,
                 editedAt: 5),
-            ann('a2', title: 'Quiet', comments: false, reactions: false)
+            ann('a2',
+                title: 'Quiet',
+                comments: false,
+                reactions: false,
+                reactionsList: [
+                  {'emoji': '❤️', 'count': 4, 'mine': false}
+                ])
           ],
       'POST /api/announcements/a1/react': (_) => {'ok': true, 'added': true},
       'GET /api/announcements/a1/comments': (_) =>
