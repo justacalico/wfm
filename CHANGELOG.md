@@ -2,6 +2,14 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.46.0 - 2026-11-28
+#### Features
+- 桌面端使用自绘标题栏替代原生窗口标题栏 - (b5cb459) - calico
+- 原生桌面客户端：连接页、版本门禁、本地检出同步、原生编辑器与内嵌 webview - (e86cd09) - calico
+- 添加 linux、macos、windows 桌面平台支持 - (5ff1cb9) - calico
+
+- - -
+
 ## v0.45.0 - 2026-11-28
 #### Features
 - (**app**) 备份按钮移至项目管理页 - (ee3e619) - calico
