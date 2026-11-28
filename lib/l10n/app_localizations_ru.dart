@@ -2,7 +2,6 @@
 
 // ignore: unused_import
 import 'package:intl/intl.dart' as intl;
-
 import 'app_localizations.dart';
 
 // ignore_for_file: type=lint
@@ -1342,4 +1341,78 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get latestActivity => 'Последняя активность';
+
+  @override
+  String get connect => 'Подключить';
+
+  @override
+  String get connecting => 'Подключение…';
+
+  @override
+  String get connectSubtitle => 'Введите адрес сервера WFM вашей школы.';
+
+  @override
+  String get serverAddress => 'Адрес сервера';
+
+  @override
+  String get notAWfmServer =>
+      'Не удалось подключиться к серверу WFM по этому адресу.';
+
+  @override
+  String get updateRequired => 'Требуется обновление';
+
+  @override
+  String updateRequiredBody(Object server, Object app) {
+    return 'На сервере установлена версия WFM $server, а у приложения — $app. Обновите приложение, чтобы продолжить.';
+  }
+
+  @override
+  String get downloadUpdate => 'Скачать обновление';
+
+  @override
+  String get checkAgain => 'Проверить снова';
+
+  @override
+  String get updateStillRequired =>
+      'Версия приложения всё ещё не совпадает с версией сервера.';
+
+  @override
+  String get changeServer => 'Сменить сервер';
+
+  @override
+  String get editorsInBrowser => 'Открывать редакторы в браузере';
+
+  @override
+  String get editorsInBrowserHint =>
+      'Открывать ScriptCraft и DeckCraft в браузере по умолчанию вместо окна приложения.';
+
+  @override
+  String get editPreparing => 'Подготовка проекта…';
+
+  @override
+  String editPulling(Object done, Object total) {
+    return 'Загрузка файлов проекта ($done из $total)';
+  }
+
+  @override
+  String get editLockTitle => 'Проект редактируется';
+
+  @override
+  String editLockHeld(Object holder) {
+    return '$holder сейчас редактирует этот проект. Перехватить редактирование?';
+  }
+
+  @override
+  String get editLockLost =>
+      'Блокировка редактирования потеряна. Откройте проект заново, чтобы продолжить синхронизацию.';
+
+  @override
+  String get editAlreadyOpen => 'Этот проект уже открыт в редакторе.';
+
+  @override
+  String get editDeclined => 'Проект заблокирован другим редактором.';
+
+  @override
+  String get editMissing =>
+      'Нативный редактор не установлен в этом приложении.';
 }

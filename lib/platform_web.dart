@@ -20,6 +20,9 @@ class PickedFile {
   int get size => file?.size ?? _size ?? bytes.length;
 }
 
+bool get isNativeApp => false;
+bool? isNativeAppForTesting;
+
 void Function(String url)? openExternalForTesting;
 Future<List<PickedFile>> Function()? pickFilesForTesting;
 

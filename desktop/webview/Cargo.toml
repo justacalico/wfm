@@ -1,0 +1,14 @@
+[package]
+name = "wfm-webview"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+wry = "0.53"
+
+[target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "openbsd", target_os = "netbsd"))'.dependencies]
+gtk = "0.18"
+
+[target.'cfg(not(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "openbsd", target_os = "netbsd")))'.dependencies]
+tao = "0.34"

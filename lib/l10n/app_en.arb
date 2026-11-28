@@ -603,5 +603,43 @@
     }
   },
   "recentProjects": "Recent projects",
-  "latestActivity": "Latest activity"
+  "latestActivity": "Latest activity",
+  "connect": "Connect",
+  "connecting": "Connecting…",
+  "connectSubtitle": "Enter the address of your school's WFM server.",
+  "serverAddress": "Server address",
+  "notAWfmServer": "Couldn't reach a WFM server at that address.",
+  "updateRequired": "Update required",
+  "updateRequiredBody": "This server runs WFM {server} but this app is {app}. Update the app to continue.",
+  "@updateRequiredBody": {
+    "placeholders": {
+      "server": {},
+      "app": {}
+    }
+  },
+  "downloadUpdate": "Download update",
+  "checkAgain": "Check again",
+  "updateStillRequired": "The app still doesn't match the server's version.",
+  "changeServer": "Change server",
+  "editorsInBrowser": "Open editors in the browser",
+  "editorsInBrowserHint": "Open ScriptCraft and DeckCraft in your default browser instead of an app window.",
+  "editPreparing": "Preparing project…",
+  "editPulling": "Downloading project files ({done} of {total})",
+  "@editPulling": {
+    "placeholders": {
+      "done": {},
+      "total": {}
+    }
+  },
+  "editLockTitle": "Project is being edited",
+  "editLockHeld": "{holder} is editing this project right now. Take over editing?",
+  "@editLockHeld": {
+    "placeholders": {
+      "holder": {}
+    }
+  },
+  "editLockLost": "Editing lock lost. Reopen the project to keep syncing changes.",
+  "editAlreadyOpen": "That project is already open in an editor.",
+  "editDeclined": "The project is locked by another editor.",
+  "editMissing": "The native editor isn't installed with this app."
 }

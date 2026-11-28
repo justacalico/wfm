@@ -593,5 +593,44 @@
     }
   },
   "recentProjects": "Tionscadail le déanaí",
-  "latestActivity": "Gníomhaíocht is déanaí"
+  "latestActivity": "Gníomhaíocht is déanaí",
+  "connect": "Ceangail",
+  "connecting": "Ag ceangal…",
+  "connectSubtitle": "Cuir isteach seoladh fhreastalaí WFM do scoile.",
+  "serverAddress": "Seoladh an fhreastalaí",
+  "notAWfmServer": "Níorbh fhéidir freastalaí WFM a bhaint amach ag an seoladh sin.",
+  "updateRequired": "Nuashonrú ag teastáil",
+  "updateRequiredBody": "Tá WFM {server} ar an bhfreastalaí ach tá {app} ar an aip seo. Nuashonraigh an aip chun leanúint ar aghaidh.",
+  "downloadUpdate": "Íoslódáil an nuashonrú",
+  "checkAgain": "Seiceáil arís",
+  "updateStillRequired": "Ní mheaitseálann leagan na haipe leagan an fhreastalaí go fóil.",
+  "changeServer": "Athraigh freastalaí",
+  "editorsInBrowser": "Oscail eagarthóirí sa bhrabhsálaí",
+  "editorsInBrowserHint": "Oscail ScriptCraft agus DeckCraft i do bhrabhsálaí réamhshocraithe in ionad fuinneog na haipe.",
+  "editPreparing": "Tionscadal á ullmhú…",
+  "editPulling": "Comhaid an tionscadail á n-íoslódáil ({done} as {total})",
+  "editLockTitle": "Tá an tionscadal á chur in eagar",
+  "editLockHeld": "Tá {holder} ag cur an tionscadail seo in eagar faoi láthair. Gabháil ceannas ar an eagarthóireacht?",
+  "editLockLost": "Cailleadh an glas eagarthóireachta. Athoscail an tionscadal chun leanúint leis an sioncronú.",
+  "editAlreadyOpen": "Tá an tionscadal sin oscailte san eagarthóir cheana.",
+  "editDeclined": "Tá an tionscadal faoi ghlas ag eagarthóir eile.",
+  "editMissing": "Níl an t-eagarthóir dúchais suiteáilte leis an aip seo.",
+  "@updateRequiredBody": {
+    "placeholders": {
+      "server": {},
+      "app": {}
+    }
+  },
+  "@editPulling": {
+    "placeholders": {
+      "done": {},
+      "total": {}
+    }
+  },
+  "@editLockHeld": {
+    "placeholders": {
+      "holder": {}
+    }
+  }
+
 }
