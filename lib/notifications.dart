@@ -116,8 +116,8 @@ class _NotificationsPageState extends State<NotificationsPage> {
         if (shell != null) {
           shell.go(4);
         } else {
-          Navigator.of(context)
-              .push(MaterialPageRoute(builder: (_) => const AnnouncementsPage()));
+          Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const AnnouncementsPage()));
         }
       case 'render_done' ||
             'render_failed' ||

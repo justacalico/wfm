@@ -315,12 +315,7 @@ void main() {
               'folderId': 'f1',
               'createdAt': 1
             },
-            {
-              'id': 'p2',
-              'name': 'beta',
-              'displayName': 'Beta',
-              'createdAt': 1
-            },
+            {'id': 'p2', 'name': 'beta', 'displayName': 'Beta', 'createdAt': 1},
           ],
       'GET /api/folders': (_) => [
             {'id': 'f1', 'name': 'Class A'}

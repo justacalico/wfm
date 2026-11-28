@@ -138,10 +138,8 @@ void main() {
     var hit = '';
     installApi(extra: {
       'GET /api/shares': (_) => <dynamic>[],
-      'GET /api/auto-shares/incoming': (_) => [
-            autoShare('a1', level: 'edit'),
-            autoShare('a2', status: 'declined')
-          ],
+      'GET /api/auto-shares/incoming': (_) =>
+          [autoShare('a1', level: 'edit'), autoShare('a2', status: 'declined')],
       'POST /api/auto-shares/a1/accept': (_) {
         hit = 'accept';
         return {'ok': true};

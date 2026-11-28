@@ -603,10 +603,8 @@ void main() {
             ],
       });
       var reported = 'f1';
-      await pump(
-          t,
-          ProjectsPage(
-              initialFolder: 'f1', onFolder: (id) => reported = id));
+      await pump(t,
+          ProjectsPage(initialFolder: 'f1', onFolder: (id) => reported = id));
       expect(find.text('Alpha'), findsOneWidget);
       expect(find.text('Beta'), findsNothing);
       await t.tap(find.byIcon(Icons.arrow_back));
@@ -625,10 +623,8 @@ void main() {
             ],
       });
       var reported = 'gone';
-      await pump(
-          t,
-          ProjectsPage(
-              initialFolder: 'gone', onFolder: (id) => reported = id));
+      await pump(t,
+          ProjectsPage(initialFolder: 'gone', onFolder: (id) => reported = id));
       expect(reported, '');
       expect(find.text('Beta'), findsOneWidget);
     });

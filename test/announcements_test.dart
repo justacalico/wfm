@@ -229,7 +229,8 @@ void main() {
       'POST /api/announcements/a0/react': (_) =>
           http.Response('{"error":"r"}', 500),
       'POST /api/announcements': (_) => http.Response('{"error":"c"}', 500),
-      'DELETE /api/announcements/a0': (_) => http.Response('{"error":"d"}', 500),
+      'DELETE /api/announcements/a0': (_) =>
+          http.Response('{"error":"d"}', 500),
     });
     await pump(t, const AnnouncementsPage());
     await t.tap(find.byIcon(Icons.add_reaction_outlined).first);
@@ -260,8 +261,7 @@ void main() {
     expect(moreCalls, 1);
   });
 
-  testWidgets('detail failures, keyboard submit and markdown link',
-      (t) async {
+  testWidgets('detail failures, keyboard submit and markdown link', (t) async {
     var fail = true;
     installApi(extra: {
       'GET /api/announcements': (_) => fail
@@ -272,8 +272,9 @@ void main() {
                 'body': 'go [there](https://example.test/y)'
               }
             ],
-      'GET /api/announcements/a1/comments': (_) =>
-          fail ? http.Response('{"error":"y"}', 500) : [annComment('c1', authorId: 'u1')],
+      'GET /api/announcements/a1/comments': (_) => fail
+          ? http.Response('{"error":"y"}', 500)
+          : [annComment('c1', authorId: 'u1')],
       'POST /api/announcements/a1/comments': (_) =>
           http.Response('{"error":"p"}', 500),
       'PATCH /api/announcements/a1/comments/c1': (_) =>
@@ -327,10 +328,7 @@ void main() {
             (call) async => true);
     installApi(extra: {
       'GET /api/announcements': (_) => [
-            {
-              ...ann('a1'),
-              'body': 'see [here](https://example.test/x) now'
-            }
+            {...ann('a1'), 'body': 'see [here](https://example.test/x) now'}
           ],
     });
     await pump(t, const AnnouncementsPage());

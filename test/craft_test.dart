@@ -389,8 +389,8 @@ void main() {
       }))
         ..baseUrl = 'http://test';
       Map<String, String>? spawnEnv;
-      final r2 = CraftRunner(api2,
-          spawn: (e, a, {workingDirectory, env}) async {
+      final r2 =
+          CraftRunner(api2, spawn: (e, a, {workingDirectory, env}) async {
         spawnEnv = env;
         return proc;
       });

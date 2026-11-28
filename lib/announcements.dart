@@ -53,9 +53,13 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
   }
 
   Future<void> _compose([Announcement? a]) async {
-    final r = await showDialog<({String title, String body, bool comments, bool reactions})>(
-        context: context,
-        builder: (_) => _ComposeDialog(announcement: a));
+    final r = await showDialog<
+        ({
+          String title,
+          String body,
+          bool comments,
+          bool reactions
+        })>(context: context, builder: (_) => _ComposeDialog(announcement: a));
     if (r == null || !mounted) return;
     try {
       if (a == null) {
@@ -76,8 +80,8 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
 
   Future<void> _remove(Announcement a) async {
     final l10n = context.l10n;
-    if (!await confirm(context, l10n.deleteAnnouncement,
-        l10n.deleteAnnouncementConfirm)) {
+    if (!await confirm(
+        context, l10n.deleteAnnouncement, l10n.deleteAnnouncementConfirm)) {
       return;
     }
     try {
@@ -107,7 +111,9 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: r.mine ? scheme.secondaryContainer : scheme.surfaceContainerHighest,
+              color: r.mine
+                  ? scheme.secondaryContainer
+                  : scheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(16),
             ),
             child: Text('${r.emoji} ${r.count}'),
@@ -119,7 +125,9 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
           onSelected: (e) => _react(a, e),
           itemBuilder: (_) => [
             for (final e in _emojis)
-              PopupMenuItem(value: e, child: Text(e, style: const TextStyle(fontSize: 22)))
+              PopupMenuItem(
+                  value: e,
+                  child: Text(e, style: const TextStyle(fontSize: 22)))
           ],
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -170,9 +178,8 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
                                 if (canPost || a.authorId == me?.id)
                                   PopupMenuButton<String>(
                                     iconSize: 20,
-                                    onSelected: (v) => v == 'edit'
-                                        ? _compose(a)
-                                        : _remove(a),
+                                    onSelected: (v) =>
+                                        v == 'edit' ? _compose(a) : _remove(a),
                                     itemBuilder: (_) => [
                                       PopupMenuItem(
                                           value: 'edit',
@@ -185,22 +192,20 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
                               ]),
                               Text(
                                   '${a.authorName.isEmpty ? a.authorUsername : a.authorName}  ·  ${fmtAgo(l10n, a.createdAt)}${a.editedAt > 0 ? '  ·  ${l10n.editedMark}' : ''}',
-                                  style:
-                                      Theme.of(context).textTheme.bodySmall),
+                                  style: Theme.of(context).textTheme.bodySmall),
                               const SizedBox(height: 8),
                               MarkdownBody(
                                   data: a.body,
                                   onTapLink: (_, href, __) {
-                                    if (href != null) launchUrl(Uri.parse(href));
+                                    if (href != null)
+                                      launchUrl(Uri.parse(href));
                                   }),
                               const SizedBox(height: 8),
                               Row(children: [
                                 Expanded(child: _reactions(l10n, a)),
                                 TextButton.icon(
-                                  onPressed: () =>
-                                      _open(a),
-                                  icon: const Icon(
-                                      Icons.chat_bubble_outline,
+                                  onPressed: () => _open(a),
+                                  icon: const Icon(Icons.chat_bubble_outline,
                                       size: 18),
                                   label: Text(a.commentsEnabled
                                       ? l10n.commentCount(a.commentCount)
@@ -300,7 +305,8 @@ class _AnnouncementPageState extends State<AnnouncementPage> {
 
   Future<void> _delete(AnnComment c) async {
     final l10n = context.l10n;
-    if (!await confirm(context, l10n.deleteComment, l10n.deleteCommentConfirm)) {
+    if (!await confirm(
+        context, l10n.deleteComment, l10n.deleteCommentConfirm)) {
       return;
     }
     try {
@@ -315,8 +321,7 @@ class _AnnouncementPageState extends State<AnnouncementPage> {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     if (_err.isNotEmpty) {
-      return Scaffold(
-          appBar: AppBar(), body: errorView(context, _err, _load));
+      return Scaffold(appBar: AppBar(), body: errorView(context, _err, _load));
     }
     final a = _a;
     final comments = _comments;
@@ -327,7 +332,8 @@ class _AnnouncementPageState extends State<AnnouncementPage> {
       body: a == null || comments == null
           ? const Center(child: CircularProgressIndicator())
           : ListView(padding: const EdgeInsets.all(16), children: [
-              Text('${a.authorName.isEmpty ? a.authorUsername : a.authorName}  ·  ${fmtAgo(l10n, a.createdAt)}',
+              Text(
+                  '${a.authorName.isEmpty ? a.authorUsername : a.authorName}  ·  ${fmtAgo(l10n, a.createdAt)}',
                   style: Theme.of(context).textTheme.bodySmall),
               const SizedBox(height: 8),
               MarkdownBody(
@@ -345,23 +351,22 @@ class _AnnouncementPageState extends State<AnnouncementPage> {
                     title: Text(c.body),
                     subtitle: Text(
                         '${c.authorName.isEmpty ? c.authorUsername : c.authorName}  ·  ${fmtAgo(l10n, c.createdAt)}${c.editedAt > 0 ? '  ·  ${l10n.editedMark}' : ''}'),
-                    trailing: (c.authorId == me?.id ||
-                            a.authorId == me?.id ||
-                            mod)
-                        ? PopupMenuButton<String>(
-                            iconSize: 20,
-                            onSelected: (v) =>
-                                v == 'edit' ? _edit(c) : _delete(c),
-                            itemBuilder: (_) => [
-                              if (c.authorId == me?.id)
-                                PopupMenuItem(
-                                    value: 'edit', child: Text(l10n.edit)),
-                              PopupMenuItem(
-                                  value: 'delete',
-                                  child: Text(l10n.delete)),
-                            ],
-                          )
-                        : null,
+                    trailing:
+                        (c.authorId == me?.id || a.authorId == me?.id || mod)
+                            ? PopupMenuButton<String>(
+                                iconSize: 20,
+                                onSelected: (v) =>
+                                    v == 'edit' ? _edit(c) : _delete(c),
+                                itemBuilder: (_) => [
+                                  if (c.authorId == me?.id)
+                                    PopupMenuItem(
+                                        value: 'edit', child: Text(l10n.edit)),
+                                  PopupMenuItem(
+                                      value: 'delete',
+                                      child: Text(l10n.delete)),
+                                ],
+                              )
+                            : null,
                   ),
                 ),
               if (a.commentsEnabled)
@@ -373,8 +378,7 @@ class _AnnouncementPageState extends State<AnnouncementPage> {
                       controller: _c,
                       minLines: 1,
                       maxLines: 4,
-                      decoration:
-                          InputDecoration(hintText: l10n.writeComment),
+                      decoration: InputDecoration(hintText: l10n.writeComment),
                       onSubmitted: (_) => _post(),
                     )),
                     const SizedBox(width: 8),
@@ -459,15 +463,18 @@ class _ComposeDialogState extends State<_ComposeDialog> {
       ),
       actions: [
         TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(l10n.cancel)),
+            onPressed: () => Navigator.pop(context), child: Text(l10n.cancel)),
         FilledButton(
             onPressed: () {
               final title = _title.text.trim();
               final body = _body.text.trim();
               if (title.isEmpty || body.isEmpty) return;
-              Navigator.pop(context,
-                  (title: title, body: body, comments: _comments, reactions: _reactions));
+              Navigator.pop(context, (
+                title: title,
+                body: body,
+                comments: _comments,
+                reactions: _reactions
+              ));
             },
             child: Text(widget.announcement == null ? l10n.post : l10n.save)),
       ],
