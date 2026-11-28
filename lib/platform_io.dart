@@ -4,10 +4,12 @@ import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart' as fp;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show MissingPluginException;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:window_manager/window_manager.dart';
 
 import 'api.dart';
 import 'craft/runner.dart';
@@ -26,6 +28,111 @@ bool get isNativeApp =>
     isNativeAppForTesting ??
     Platform.isLinux || Platform.isMacOS || Platform.isWindows;
 bool? isNativeAppForTesting;
+
+Future<void> Function()? initNativeWindowForTesting;
+Future<bool> Function()? windowIsMaximizedForTesting;
+Future<void> Function()? windowMinimizeForTesting;
+Future<bool> Function()? windowToggleMaximizeForTesting;
+Future<void> Function()? windowCloseForTesting;
+
+Future<void> initNativeWindow() =>
+    initNativeWindowForTesting?.call() ?? _initNativeWindow();
+Future<bool> windowIsMaximized() =>
+    windowIsMaximizedForTesting?.call() ?? windowManager.isMaximized();
+Future<void> windowMinimize() =>
+    windowMinimizeForTesting?.call() ?? windowManager.minimize();
+Future<bool> windowToggleMaximize() =>
+    windowToggleMaximizeForTesting?.call() ?? _toggleMaximize();
+Future<void> windowClose() =>
+    windowCloseForTesting?.call() ?? windowManager.close();
+
+// coverage:ignore-start
+Future<void> _showWindow() async {
+  await windowManager.show();
+  await windowManager.focus();
+}
+
+Future<void> _initNativeWindow() async {
+  try {
+    WidgetsFlutterBinding.ensureInitialized();
+    await windowManager.ensureInitialized();
+    await windowManager.waitUntilReadyToShow(
+        const WindowOptions(title: 'WFM', titleBarStyle: TitleBarStyle.hidden),
+        _showWindow);
+  } on MissingPluginException {
+    return;
+  }
+}
+
+Future<bool> _toggleMaximize() async => await windowManager.isMaximized()
+    ? windowManager.unmaximize().then((_) => false)
+    : windowManager.maximize().then((_) => true);
+// coverage:ignore-end
+
+Widget nativeTitleBar() => const NativeTitleBar();
+
+class NativeTitleBar extends StatefulWidget {
+  const NativeTitleBar({super.key});
+  @override
+  State<NativeTitleBar> createState() => _NativeTitleBarState();
+}
+
+class _NativeTitleBarState extends State<NativeTitleBar> {
+  bool _max = false;
+
+  @override
+  void initState() {
+    super.initState();
+    windowIsMaximized()
+        .then((v) => mounted ? setState(() => _max = v) : null)
+        .catchError((_) {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = Theme.of(context).colorScheme;
+    return Material(
+      color: c.surfaceContainerHighest,
+      child: SizedBox(
+        height: 40,
+        child: Row(children: [
+          Expanded(
+              child: DragToMoveArea(
+                  child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: Row(children: [
+                        Image.asset('assets/icon.png', width: 18, height: 18),
+                        const SizedBox(width: 8),
+                        Text('WFM',
+                            style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: c.onSurface.withValues(alpha: 0.7))),
+                      ])))),
+          _btn(Icons.remove, () => windowMinimize().catchError((_) {})),
+          _btn(
+              _max ? Icons.filter_none : Icons.crop_square_outlined,
+              () => windowToggleMaximize()
+                  .then((v) => mounted ? setState(() => _max = v) : null)
+                  .catchError((_) {})),
+          _btn(Icons.close, () => windowClose().catchError((_) {})),
+        ]),
+      ),
+    );
+  }
+
+  Widget _btn(IconData icon, VoidCallback onTap) => InkWell(
+      onTap: onTap,
+      child: SizedBox(
+          width: 46,
+          height: 40,
+          child: Icon(icon,
+              size: 18,
+              color: Theme.of(context)
+                  .colorScheme
+                  .onSurface
+                  .withValues(alpha: 0.7))));
+}
 
 void Function(String url)? openExternalForTesting;
 void Function(String url)? openEditorForTesting;
@@ -48,8 +155,11 @@ Future<void> openExternal(String url) async {
 
 CraftRunner? craftRunnerForTesting;
 CraftRunner? _runner;
-CraftRunner runnerFor(Api api) =>
-    craftRunnerForTesting ?? (_runner ??= CraftRunner(api));
+CraftRunner runnerFor(Api api) {
+  final test = craftRunnerForTesting;
+  if (test != null) return test;
+  return _runner ??= CraftRunner(api);
+}
 
 /// Where bundled helper binaries live: the packaged app's `craft/` folder
 /// first, then the repo's `desktop/craft/` staging dir for dev runs.
@@ -58,7 +168,9 @@ Future<Directory?> craftDir() async {
   final test = craftDirForTesting;
   if (test != null) return test.isEmpty ? null : Directory(test);
   final env = Platform.environment['WFM_CRAFT_DIR'];
+  // coverage:ignore-start
   if (env != null && env.isNotEmpty) return Directory(env);
+  // coverage:ignore-end
   final beside =
       Directory(p.join(p.dirname(Platform.resolvedExecutable), 'craft'));
   if (await beside.exists()) return beside;
@@ -73,8 +185,12 @@ Future<String> craftBinary(String name) async {
 }
 
 Directory? appSupportForTesting;
-Future<Directory> appSupport() async =>
-    appSupportForTesting ?? await getApplicationSupportDirectory();
+Future<Directory> appSupport() async {
+  if (appSupportForTesting != null) return appSupportForTesting!;
+  // coverage:ignore-start
+  return getApplicationSupportDirectory();
+  // coverage:ignore-end
+}
 
 /// A stable per-server folder name without any crypto dependency.
 String serverKey(String baseUrl) =>
@@ -182,6 +298,7 @@ Future<void> _openFilmcraft(BuildContext context, Api api, String pid) async {
     }
   }
 
+  final navCtx = Navigator.of(context, rootNavigator: true).context;
   try {
     await runnerFor(api).open(
         'filmcraft', pid, await checkoutDirFor(api, pid), exe,
@@ -190,15 +307,8 @@ Future<void> _openFilmcraft(BuildContext context, Api api, String pid) async {
             context.mounted &&
             await confirm(
                 context, l10n.editLockTitle, l10n.editLockHeld(detail)),
-        lockLost: (run) {
-          final ctx = context.mounted
-              ? context
-              : context
-                  .findAncestorStateOfType<WfmAppState>()
-                  ?.navKey
-                  .currentContext;
-          if (ctx != null) snack(ctx, l10n.editLockLost);
-        },
+        lockLost: (run) =>
+            snack(context.mounted ? context : navCtx, l10n.editLockLost),
         status: (phase, done, total) =>
             status.value = l10n.editPulling(done, total));
   } on CraftOpenException catch (e) {

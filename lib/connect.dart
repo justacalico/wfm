@@ -9,8 +9,13 @@ import 'main.dart';
 import 'platform.dart';
 
 String? appVersionForTesting;
-Future<String> appVersion() async =>
-    appVersionForTesting ?? (await PackageInfo.fromPlatform()).version;
+Future<String> appVersion() async {
+  final test = appVersionForTesting;
+  if (test != null) return test;
+  // coverage:ignore-start
+  return (await PackageInfo.fromPlatform()).version;
+  // coverage:ignore-end
+}
 
 /// Where updates live: the GitHub mirror's releases, tagged v{server}.
 String releaseUrl(String version) =>

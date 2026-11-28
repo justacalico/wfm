@@ -23,6 +23,13 @@ class PickedFile {
 bool get isNativeApp => false;
 bool? isNativeAppForTesting;
 
+Future<void> initNativeWindow() async {}
+Future<bool> windowIsMaximized() async => false;
+Future<void> windowMinimize() async {}
+Future<bool> windowToggleMaximize() async => false;
+Future<void> windowClose() async {}
+Widget nativeTitleBar() => const SizedBox.shrink();
+
 void Function(String url)? openExternalForTesting;
 Future<List<PickedFile>> Function()? pickFilesForTesting;
 

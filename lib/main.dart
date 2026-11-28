@@ -15,7 +15,10 @@ import 'manage.dart';
 import 'settings.dart';
 import 'util.dart';
 
-void main() => runApp(const WfmApp());
+void main() {
+  if (isNativeApp) unawaited(initNativeWindow());
+  runApp(const WfmApp());
+}
 
 extension L10n on BuildContext {
   AppLocalizations get l10n => AppLocalizations.of(this);
@@ -109,6 +112,12 @@ class WfmAppState extends State<WfmApp> {
         GlobalCupertinoLocalizations.delegate,
       ],
       home: Gate(uri: widget.uri),
+      builder: (context, child) => isNativeApp
+          ? Column(children: [
+              nativeTitleBar(),
+              Expanded(child: child ?? const SizedBox.shrink()),
+            ])
+          : child ?? const SizedBox.shrink(),
       debugShowCheckedModeBanner: false,
     );
   }
