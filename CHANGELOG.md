@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.45.0 - 2026-11-28
+#### Features
+- (**app**) 备份按钮移至项目管理页 - (ee3e619) - calico
+
+- - -
+
 ## v0.44.2 - 2026-11-27
 #### Bug Fixes
 - (**settings**) avoid ambiguous backup limit dropdown in tests - (976c338) - HttpAnimations
