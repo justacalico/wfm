@@ -2,6 +2,17 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.47.0 - 2026-11-28
+#### Features
+- 桌面端使用 wfm 图标替代 flutter 默认图标 - (5a3c102) - calico
+#### Bug Fixes
+- macos 放行网络请求并隐藏遮挡自绘标题栏的原生按钮 - (179a8ef) - calico
+- filmcraft 补丁移除应用菜单 Discord 项 - (e581867) - calico
+- 桌面端图片请求携带会话令牌 - (3f45fb6) - calico
+- 原生编辑器打开前完整拉取项目文件 - (687e812) - calico
+
+- - -
+
 ## v0.46.0 - 2026-11-28
 #### Features
 - 桌面端使用自绘标题栏替代原生窗口标题栏 - (b5cb459) - calico
