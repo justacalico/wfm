@@ -956,6 +956,30 @@ abstract class AppLocalizations {
   /// **'Maximum project backups per project (default 5)'**
   String get backupLimit;
 
+  /// No description provided for @createBackup.
+  ///
+  /// In en, this message translates to:
+  /// **'Create backup'**
+  String get createBackup;
+
+  /// No description provided for @backupCreated.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup created'**
+  String get backupCreated;
+
+  /// No description provided for @backupNothingToSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing to back up yet.'**
+  String get backupNothingToSave;
+
+  /// No description provided for @backupLimitReached.
+  ///
+  /// In en, this message translates to:
+  /// **'The backup limit ({limit}) has been reached. Overwrite the oldest backup?'**
+  String backupLimitReached(Object limit);
+
   /// No description provided for @settingsSaved.
   ///
   /// In en, this message translates to:

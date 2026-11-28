@@ -719,6 +719,41 @@ class _ProjectPageState extends State<ProjectPage> {
     }
   }
 
+  Future<void> _backup() async {
+    final l10n = context.l10n;
+    try {
+      final docs = <(String, String)>[];
+      for (final e in await Api.i.manifest(_p.id)) {
+        final app = backupApp(e.path);
+        if (app != null) docs.add((app, e.path));
+      }
+      if (docs.isEmpty) {
+        if (mounted) snack(context, l10n.backupNothingToSave);
+        return;
+      }
+      var replace = false;
+      for (final (app, path) in docs) {
+        try {
+          await Api.i.createBackup(_p.id, app, path, replaceOldest: replace);
+        } on ApiException catch (e) {
+          if (e.status != 409) rethrow;
+          if (!mounted) return;
+          final limit = (await Api.i.backups(_p.id)).limit;
+          if (!mounted) return;
+          if (!await confirm(
+              context, l10n.createBackup, l10n.backupLimitReached(limit))) {
+            return;
+          }
+          replace = true;
+          await Api.i.createBackup(_p.id, app, path, replaceOldest: true);
+        }
+      }
+      if (mounted) snack(context, l10n.backupCreated, good: true);
+    } catch (e) {
+      if (mounted) snack(context, e);
+    }
+  }
+
   Future<void> _delete() async {
     if (!await confirm(context, context.l10n.deleteProject,
         context.l10n.deleteProjectBody(_p.displayName))) {
@@ -844,35 +879,13 @@ class _ProjectPageState extends State<ProjectPage> {
               onPressed: () => _review('draft'),
             ),
           ],
-          if (_p.mine) ...[
+          if (_p.mine)
             IconButton(
               icon: const Icon(Icons.share_outlined, size: 20),
               tooltip: l10n.share,
               onPressed: _share,
-            ),
-            PopupMenuButton<String>(
-              onSelected: (v) => switch (v) {
-                'rename' => _rename(),
-                'dup' => _duplicate(),
-                'tpl' => _toggleTemplate(),
-                'assign' => showDialog(
-                    context: context,
-                    builder: (_) => _AssignDialog(project: _p)),
-                _ => _delete(),
-              },
-              itemBuilder: (_) => [
-                PopupMenuItem(value: 'rename', child: Text(l10n.rename)),
-                PopupMenuItem(value: 'dup', child: Text(l10n.duplicate)),
-                PopupMenuItem(
-                    value: 'tpl',
-                    child: Text(
-                        _p.template ? l10n.unmarkTemplate : l10n.markTemplate)),
-                if (Api.i.user?.isStaff ?? false)
-                  PopupMenuItem(value: 'assign', child: Text(l10n.assign)),
-                PopupMenuItem(value: 'delete', child: Text(l10n.delete)),
-              ],
-            ),
-          ] else ...[
+            )
+          else ...[
             if (_p.template)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -889,6 +902,37 @@ class _ProjectPageState extends State<ProjectPage> {
                 onPressed: _duplicate,
               ),
           ],
+          if (_p.mine || _p.editable)
+            PopupMenuButton<String>(
+              onSelected: (v) => switch (v) {
+                'rename' => _rename(),
+                'dup' => _duplicate(),
+                'tpl' => _toggleTemplate(),
+                'assign' => showDialog(
+                    context: context,
+                    builder: (_) => _AssignDialog(project: _p)),
+                'backup' => _backup(),
+                _ => _delete(),
+              },
+              itemBuilder: (_) => [
+                if (_p.mine) ...[
+                  PopupMenuItem(value: 'rename', child: Text(l10n.rename)),
+                  PopupMenuItem(value: 'dup', child: Text(l10n.duplicate)),
+                  PopupMenuItem(
+                      value: 'tpl',
+                      child: Text(_p.template
+                          ? l10n.unmarkTemplate
+                          : l10n.markTemplate)),
+                  if (Api.i.user?.isStaff ?? false)
+                    PopupMenuItem(value: 'assign', child: Text(l10n.assign)),
+                ],
+                if (_p.editable)
+                  PopupMenuItem(
+                      value: 'backup', child: Text(l10n.createBackup)),
+                if (_p.mine)
+                  PopupMenuItem(value: 'delete', child: Text(l10n.delete)),
+              ],
+            ),
         ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(40),
@@ -929,6 +973,19 @@ class _ProjectPageState extends State<ProjectPage> {
               : CommentsTab(project: _p),
     );
   }
+}
+
+String? backupApp(String path) {
+  if (path == 'project.fcproj') return 'filmcraft';
+  if (path.startsWith('Script/') &&
+      const {'fountain', 'fdx'}.contains(extOf(path))) {
+    return 'scriptcraft';
+  }
+  if (path.startsWith('Boards/') &&
+      const {'deckcraft', 'pptx', 'potx', 'ppsx'}.contains(extOf(path))) {
+    return 'deckcraft';
+  }
+  return null;
 }
 
 IconData fileIcon(FileEntry e) {

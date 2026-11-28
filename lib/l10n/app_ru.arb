@@ -239,6 +239,15 @@
   "serverSection": "Сервер",
   "trustedProxiesHelp": "X-Forwarded-For принимается только с этих адресов. Оставьте пустым, если сервер не за обратным прокси.",
   "backupLimit": "Максимум резервных копий на проект (по умолчанию 5)",
+  "createBackup": "Создать резервную копию",
+  "backupCreated": "Резервная копия создана",
+  "backupNothingToSave": "Пока нечего резервировать.",
+  "backupLimitReached": "Достигнут лимит резервных копий ({limit}). Перезаписать самую старую копию?",
+  "@backupLimitReached": {
+    "placeholders": {
+      "limit": {}
+    }
+  },
   "settingsSaved": "Настройки сохранены",
   "checkUpdates": "Проверить обновления",
   "checking": "Проверка…",

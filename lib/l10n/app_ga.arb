@@ -238,6 +238,15 @@
   "serverSection": "Freastalaí",
   "trustedProxiesHelp": "Ní chuirtear muinín in X-Forwarded-For ach ó na seoltaí seo. Fág folamh é mura bhfuil an freastalaí taobh thiar de sheachfhreastalaí.",
   "backupLimit": "Uaslíon cúltacaí do gach tionscadal (5 de réir réamhshocraithe)",
+  "createBackup": "Cruthaigh cúltaca",
+  "backupCreated": "Cúltaca cruthaithe",
+  "backupNothingToSave": "Níl aon rud le cúltaca fós.",
+  "backupLimitReached": "Sroicheadh teorainn na gcúltacaí ({limit}). Forás an cúltaca is sine?",
+  "@backupLimitReached": {
+    "placeholders": {
+      "limit": {}
+    }
+  },
   "settingsSaved": "Socruithe sábháilte",
   "checkUpdates": "Seiceáil le haghaidh nuashonruithe",
   "checking": "Ag seiceáil…",

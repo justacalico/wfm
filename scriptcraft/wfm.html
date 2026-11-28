@@ -11,7 +11,6 @@
   #overlay.hidden { display: none; }
   #overlay button { padding: 6px 14px; margin: 0 4px; }
   #toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: #333; color: #eee; padding: 8px 16px; border-radius: 4px; display: none; font: 13px system-ui, sans-serif; z-index: 6; }
-  #backup-btn { position: fixed; top: 12px; right: 12px; z-index: 4; padding: 8px 12px; }
   html.oled, html.oled body, html.oled #overlay { background: #000; }
   html.oled #toast { background: #0b0b0d; }
 </style>
@@ -67,9 +66,6 @@ async function makeBackup(app, path, replaceOldest = false) {
   }
   if (!r.ok) throw new Error("Could not create a project backup.");
 }
-const backupButton = document.createElement("button"); backupButton.id = "backup-btn"; backupButton.textContent = "Create backup"; backupButton.hidden = true;
-backupButton.onclick = () => makeBackup("scriptcraft", docPath).then(() => toast("Backup created")).catch(e => toast(e.message)); document.body.appendChild(backupButton);
-
 async function boot() {
   if (!projectId) return fail("No project specified.");
   const me = await (await api("/me")).json().catch(() => null);
@@ -139,12 +135,11 @@ async function sendDoc() {
     }
   } catch (_) {}
   const r = await api("/projects/" + projectId + "/download?path=" + encodeURIComponent(docPath));
-  if (r.status === 404) { projectLoaded = true; backupButton.hidden = false; return; }
+  if (r.status === 404) { projectLoaded = true; return; }
   if (!r.ok) { overlay("Could not load the script (" + r.status + "). Saving is disabled to protect your work."); return; }
   const bytes = await r.arrayBuffer();
   $("sc").contentWindow.postMessage({ type: "scriptcraft:open", name: docName, bytes: new Uint8Array(bytes) }, location.origin);
   projectLoaded = true;
-  backupButton.hidden = false;
 }
 
 async function handleSave(d) {

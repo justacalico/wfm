@@ -16,7 +16,6 @@
   #overlay p { color: #8d8d96; max-width: 420px; text-align: center; }
   #overlay button { background: #26262e; color: inherit; border: 1px solid #3a3a44; border-radius: 6px; padding: 6px 12px; cursor: pointer; font: inherit; }
   #toast { position: fixed; bottom: 16px; right: 16px; background: #26262e; color: #e6e6ea; border: 1px solid #3a3a44; border-radius: 8px; padding: 10px 14px; display: none; z-index: 20; max-width: 340px; font: 13px/1.4 system-ui, sans-serif; }
-  #backup-btn { position: fixed; top: 12px; right: 12px; z-index: 8; background: #26262e; color: #eee; border: 1px solid #555; border-radius: 6px; padding: 8px 12px; cursor: pointer; }
   #upl { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: flex; align-items: center; justify-content: center; z-index: 30; font: 13px/1.4 system-ui, sans-serif; }
   #upl[hidden] { display: none; }
   #upl-card { background: #1c1c22; border: 1px solid #3a3a44; border-radius: 10px; padding: 16px 18px; width: 380px; max-width: 90vw; max-height: 70vh; overflow-y: auto; color: #e6e6ea; }
@@ -114,12 +113,6 @@ async function makeBackup(app, path, replaceOldest = false) {
   }
   if (!r.ok) throw new Error("Could not create a project backup.");
 }
-const backupButton = document.createElement("button");
-backupButton.id = "backup-btn"; backupButton.textContent = "Create backup";
-backupButton.hidden = true;
-backupButton.onclick = () => makeBackup("filmcraft", "project.fcproj").then(() => toast("Backup created")).catch(e => toast(e.message));
-document.body.appendChild(backupButton);
-
 async function boot() {
   if (!projectId) return fcFail("No project specified.");
   const me = await (await api("/me")).json().catch(() => null);
@@ -252,7 +245,6 @@ async function sendDoc() {
   const bytes = r.ok ? await r.arrayBuffer() : new ArrayBuffer(0);
   send({ k: "doc", n: docName }, bytes);
   projectLoaded = true;
-  backupButton.hidden = false;
 }
 
 function binFolders(bin, prefix, out) {

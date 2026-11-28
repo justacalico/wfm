@@ -482,6 +482,20 @@ class AppLocalizationsEn extends AppLocalizations {
   String get backupLimit => 'Maximum project backups per project (default 5)';
 
   @override
+  String get createBackup => 'Create backup';
+
+  @override
+  String get backupCreated => 'Backup created';
+
+  @override
+  String get backupNothingToSave => 'Nothing to back up yet.';
+
+  @override
+  String backupLimitReached(Object limit) {
+    return 'The backup limit ($limit) has been reached. Overwrite the oldest backup?';
+  }
+
+  @override
   String get settingsSaved => 'Settings saved';
 
   @override

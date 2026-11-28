@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -29,6 +30,15 @@ void main() {
 
   Future<void> pump(WidgetTester t, Widget w) async {
     await t.pumpWidget(testApp(w));
+    await settle(t);
+  }
+
+  Future<void> tapMenuItem(WidgetTester t, String label) async {
+    await t.tap(find.descendant(
+        of: find.byType(AppBar),
+        matching: find.byType(PopupMenuButton<String>)));
+    await settle(t);
+    await t.tap(find.text(label));
     await settle(t);
   }
 
@@ -1173,6 +1183,122 @@ void main() {
       await t.tap(find.text('Unmark template'));
       await settle(t);
       expect(patch, contains('"template":false'));
+    });
+
+    testWidgets('create backup posts once per craft doc', (t) async {
+      final posts = <Map<String, dynamic>>[];
+      installApi(extra: {
+        'GET /api/projects/p1/manifest': (_) => [
+              {
+                'name': 'project.fcproj',
+                'path': 'project.fcproj',
+                'type': 'file'
+              },
+              {
+                'name': 'script.fountain',
+                'path': 'Script/script.fountain',
+                'type': 'file'
+              },
+              {
+                'name': 'boards.deckcraft',
+                'path': 'Boards/boards.deckcraft',
+                'type': 'file'
+              },
+              {'name': 'clip.mp4', 'path': 'Raw/clip.mp4', 'type': 'file'},
+              {
+                'name': 'old.fcproj',
+                'path': 'Backups/old.fcproj',
+                'type': 'file'
+              },
+            ],
+        'POST /api/projects/p1/backups': (req) {
+          posts.add(jsonDecode(req.body));
+          return {'ok': true};
+        },
+      });
+      await pump(t, ProjectPage(project: p1));
+      await tapMenuItem(t, 'Create backup');
+      expect(posts.map((b) => '${b['app']}:${b['path']}'), [
+        'filmcraft:project.fcproj',
+        'scriptcraft:Script/script.fountain',
+        'deckcraft:Boards/boards.deckcraft',
+      ]);
+      expect(find.text('Backup created'), findsOneWidget);
+    });
+
+    testWidgets('create backup with no docs or a failure', (t) async {
+      installApi(extra: {
+        'GET /api/projects/p1/manifest': (_) => [
+              {'name': 'clip.mp4', 'path': 'Raw/clip.mp4', 'type': 'file'},
+            ],
+      });
+      await pump(t, ProjectPage(project: p1));
+      await tapMenuItem(t, 'Create backup');
+      expect(find.text('Nothing to back up yet.'), findsOneWidget);
+
+      installApi(extra: {
+        'GET /api/projects/p1/manifest': (_) =>
+            http.Response('{"error":"nope"}', 500),
+      });
+      await pump(t, ProjectPage(project: p1));
+      await tapMenuItem(t, 'Create backup');
+      expect(find.text('nope'), findsWidgets);
+
+      installApi(extra: {
+        'GET /api/projects/p1/manifest': (_) => [
+              {
+                'name': 'project.fcproj',
+                'path': 'project.fcproj',
+                'type': 'file'
+              },
+            ],
+        'POST /api/projects/p1/backups': (_) =>
+            http.Response('{"error":"nope"}', 500),
+      });
+      await pump(t, ProjectPage(project: p1));
+      await tapMenuItem(t, 'Create backup');
+      expect(find.text('nope'), findsWidgets);
+    });
+
+    testWidgets('create backup confirms before replacing oldest', (t) async {
+      final posts = <Map<String, dynamic>>[];
+      installApi(extra: {
+        'GET /api/projects/p1/manifest': (_) => [
+              {
+                'name': 'project.fcproj',
+                'path': 'project.fcproj',
+                'type': 'file'
+              },
+            ],
+        'GET /api/projects/p1/backups': (_) => {
+              'backups': ['a', 'b', 'c'],
+              'limit': 3
+            },
+        'POST /api/projects/p1/backups': (req) {
+          final b = jsonDecode(req.body);
+          posts.add(b);
+          return b['replaceOldest'] == true
+              ? {'ok': true}
+              : http.Response('{"error":"backup limit reached"}', 409);
+        },
+      });
+      await pump(t, ProjectPage(project: p1));
+      await tapMenuItem(t, 'Create backup');
+      expect(
+          find.text(
+              'The backup limit (3) has been reached. Overwrite the oldest backup?'),
+          findsOneWidget);
+      await t.tap(find.text('Cancel'));
+      await settle(t);
+      expect(posts, hasLength(1));
+      expect(find.byType(AlertDialog), findsNothing);
+
+      await tapMenuItem(t, 'Create backup');
+      await t.tap(find.widgetWithText(FilledButton, 'Confirm'));
+      await settle(t);
+      expect(posts, hasLength(3));
+      expect(posts.last['replaceOldest'], true);
+      expect(find.text('Backup created'), findsOneWidget);
     });
 
     testWidgets('shared page shows use template and save copy', (t) async {
