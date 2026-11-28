@@ -2,6 +2,19 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.50.0 - 2026-11-28
+#### Features
+- 桌面端打开工程只拉取文档，媒体按需远程读取 (#126) - (6e14c30) - calico
+- 多存储节点（分散/复制模式、节点统计与重新同步） (#127) - (35ceaf0) - calico
+- 公告页面（Markdown、表态和评论）(#130) - (3c04ce7) - calico
+- 自动共享需受邀者同意并可退出 (#129) - (c909e51) - calico
+#### Bug Fixes
+- wfm-filmcraft 独立启动时提示从 WFM 打开并退出 - (a277bf0) - calico
+- 全屏隐藏原生标题栏，返回项目时回到所在文件夹 - (fec46b0) - calico
+- 文档缺失时跳过打开前备份，自动备份静默覆盖最旧备份 - (adf7868) - calico
+
+- - -
+
 ## v0.49.0 - 2026-11-28
 #### Features
 - linux 桌面包新增 deb 与 rpm 格式 - (d5e379c) - calico
