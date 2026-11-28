@@ -572,8 +572,8 @@ jobs:
   gitlab-sync:
     name: Sync release to GitLab
     runs-on: ubuntu-latest
-    needs: [release]
-    if: always() && needs.release.result == 'success'
+    needs: [release, native-release]
+    if: always() && needs.release.result == 'success' && needs.native-release.result == 'success'
     steps:
       - name: Trigger GitLab release-sync pipeline
         run: |
