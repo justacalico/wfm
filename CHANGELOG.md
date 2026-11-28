@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.48.0 - 2026-11-28
+#### Features
+- 新增强制 HTTPS 设置项与部署锁定标志 - (13e9c8b) - calico
+
+- - -
+
 ## v0.47.0 - 2026-11-28
 #### Features
 - 桌面端使用 wfm 图标替代 flutter 默认图标 - (5a3c102) - calico
