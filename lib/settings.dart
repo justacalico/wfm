@@ -183,7 +183,8 @@ class _SettingsPageState extends State<SettingsPage> {
             child: CircleAvatar(
               radius: 20,
               backgroundImage: u.hasAvatar
-                  ? NetworkImage(Api.i.avatarUrl(u.id, u.avatar))
+                  ? NetworkImage(Api.i.avatarUrl(u.id, u.avatar),
+                      headers: Api.i.imageHeaders)
                   : null,
               onBackgroundImageError: u.hasAvatar ? (_, __) {} : null,
               child: u.hasAvatar ? null : const Icon(Icons.person_outline),

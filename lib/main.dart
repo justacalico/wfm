@@ -826,7 +826,8 @@ class ShellState extends State<Shell> {
               return CircleAvatar(
                   radius: 16,
                   backgroundImage: me != null && me.hasAvatar
-                      ? NetworkImage(Api.i.avatarUrl(me.id, me.avatar))
+                      ? NetworkImage(Api.i.avatarUrl(me.id, me.avatar),
+                          headers: Api.i.imageHeaders)
                       : null,
                   onBackgroundImageError:
                       me != null && me.hasAvatar ? (_, __) {} : null,

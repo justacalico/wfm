@@ -510,6 +510,12 @@ class Api {
         if (sessionToken.isNotEmpty) 'authorization': 'Bearer $sessionToken',
       };
 
+  /// Headers for Image.network/NetworkImage so native builds send the bearer
+  /// token on file and avatar URLs (web ignores them and uses cookies).
+  Map<String, String> get imageHeaders => sessionToken.isEmpty
+      ? const {}
+      : {'authorization': 'Bearer $sessionToken'};
+
   Future<dynamic> _go(Future<http.Response> Function() send) async {
     final r = await send();
     dynamic body;

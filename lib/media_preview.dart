@@ -36,6 +36,7 @@ class MediaPreview extends StatelessWidget {
           : AspectRatio(aspectRatio: 16 / 9, child: player);
     } else {
       body = Image.network(url,
+          headers: Api.i.imageHeaders,
           fit: BoxFit.contain,
           errorBuilder: (_, __, ___) => const Padding(
               padding: EdgeInsets.all(24),

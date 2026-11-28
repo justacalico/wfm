@@ -403,6 +403,13 @@ void main() {
           '/api/projects/p1/download?path=a.mp4&dl=true');
     });
 
+    test('imageHeaders carries the bearer token when signed in', () {
+      final api = Api(client({}));
+      expect(api.imageHeaders, isEmpty);
+      api.sessionToken = 'tk';
+      expect(api.imageHeaders, {'authorization': 'Bearer tk'});
+    });
+
     test('downloadInto signs out on 401 and reports other errors', () async {
       var signedOut = false;
       String? token;

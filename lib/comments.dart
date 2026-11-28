@@ -96,7 +96,8 @@ class _CommentsTabState extends State<CommentsTab> {
           leading: CircleAvatar(
             radius: 16,
             backgroundImage: c.avatar.isNotEmpty
-                ? NetworkImage(Api.i.avatarUrl(c.userId, c.avatar))
+                ? NetworkImage(Api.i.avatarUrl(c.userId, c.avatar),
+                    headers: Api.i.imageHeaders)
                 : null,
             onBackgroundImageError: c.avatar.isNotEmpty ? (_, __) {} : null,
             child:
