@@ -23,7 +23,9 @@ String? _theme(BuildContext c) {
 }
 
 class ProjectsPage extends StatefulWidget {
-  const ProjectsPage({super.key});
+  const ProjectsPage({super.key, this.initialFolder = '', this.onFolder});
+  final String initialFolder;
+  final void Function(String folderId)? onFolder;
   @override
   State<ProjectsPage> createState() => _ProjectsPageState();
 }
@@ -37,9 +39,15 @@ class _ProjectsPageState extends State<ProjectsPage> {
   int _sort = 0;
   final _query = TextEditingController();
 
+  void _setFolder(String id) {
+    setState(() => _folderId = id);
+    widget.onFolder?.call(id);
+  }
+
   @override
   void initState() {
     super.initState();
+    _folderId = widget.initialFolder;
     _load();
     SharedPreferences.getInstance().then((p) {
       final v = p.getInt('projectsView');
@@ -77,6 +85,7 @@ class _ProjectsPageState extends State<ProjectsPage> {
         _folders = res[1] as List<Folder>;
         if (_folderId.isNotEmpty && !_folders.any((f) => f.id == _folderId)) {
           _folderId = '';
+          widget.onFolder?.call('');
         }
       });
     } catch (e) {
@@ -372,7 +381,7 @@ class _ProjectsPageState extends State<ProjectsPage> {
       child: Card(
         clipBehavior: Clip.antiAlias,
         child: InkWell(
-          onTap: () => setState(() => _folderId = f.id),
+          onTap: () => _setFolder(f.id),
           child: Padding(
             padding: const EdgeInsets.all(16),
             child:
@@ -394,7 +403,7 @@ class _ProjectsPageState extends State<ProjectsPage> {
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: () => setState(() => _folderId = f.id),
+        onTap: () => _setFolder(f.id),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Row(children: [
@@ -547,7 +556,7 @@ class _ProjectsPageState extends State<ProjectsPage> {
         IconButton(
           icon: const Icon(Icons.arrow_back, size: 20),
           tooltip: l10n.back,
-          onPressed: () => setState(() => _folderId = ''),
+          onPressed: () => _setFolder(''),
         ),
         const Icon(Icons.folder_outlined, size: 20),
         const SizedBox(width: 8),

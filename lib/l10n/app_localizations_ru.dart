@@ -2,7 +2,6 @@
 
 // ignore: unused_import
 import 'package:intl/intl.dart' as intl;
-
 import 'app_localizations.dart';
 
 // ignore_for_file: type=lint
@@ -1322,6 +1321,14 @@ class AppLocalizationsRu extends AppLocalizations {
   String get storageNoUsers => 'Хранилище пока никем не используется.';
 
   @override
+  String get storageResync => 'Синхронизировать узлы';
+
+  @override
+  String storageResyncDone(Object checked, Object copied) {
+    return 'Проверено объектов: $checked, скопировано: $copied.';
+  }
+
+  @override
   String get openSubmissions => 'Открыть отправки';
 
   @override
@@ -1427,4 +1434,133 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get editMissing =>
       'Нативный редактор не установлен в этом приложении.';
+
+  @override
+  String get autoShareInvites => 'Приглашения на автодоступ';
+
+  @override
+  String autoShareInviteFrom(Object who, Object level) {
+    return '$who хочет автоматически делиться с вами новыми проектами ($level)';
+  }
+
+  @override
+  String get activeAutoShares => 'Списки автодоступа';
+
+  @override
+  String autoShareActiveHint(Object who, Object level) {
+    return 'Новые проекты $who и их учеников будут доступны вам ($level)';
+  }
+
+  @override
+  String get leaveAutoShare => 'Выйти';
+
+  @override
+  String get leaveAutoShareConfirm =>
+      'Выйти из этого списка автодоступа? Новые проекты перестанут быть доступны вам.';
+
+  @override
+  String get leaveShare => 'Выйти';
+
+  @override
+  String get leaveShareConfirm =>
+      'Убрать этот общий проект из вашего списка? Владелец получит уведомление.';
+
+  @override
+  String get autoSharePending => 'Ожидает';
+
+  @override
+  String get autoShareAccepted => 'Принято';
+
+  @override
+  String get autoShareDeclined => 'Отклонено';
+
+  @override
+  String notifAutoShareInvite(Object from) {
+    return '$from хочет автоматически делиться с вами своими проектами';
+  }
+
+  @override
+  String notifAutoShareAccepted(Object from) {
+    return '$from принял(а) ваше приглашение на автодоступ';
+  }
+
+  @override
+  String notifAutoShareDeclined(Object from) {
+    return '$from отклонил(а) ваше приглашение на автодоступ';
+  }
+
+  @override
+  String notifShareLeft(Object from, Object project) {
+    return '$from покинул(а) $project';
+  }
+
+  @override
+  String get navAnnouncements => 'Объявления';
+
+  @override
+  String get newAnnouncement => 'Новое объявление';
+
+  @override
+  String get editAnnouncement => 'Изменить объявление';
+
+  @override
+  String get deleteAnnouncement => 'Удалить объявление';
+
+  @override
+  String get deleteAnnouncementConfirm =>
+      'Удалить это объявление и все его комментарии?';
+
+  @override
+  String get announcementTitle => 'Заголовок';
+
+  @override
+  String get announcementBody => 'Текст объявления';
+
+  @override
+  String get markdownHint => 'Поддерживается разметка Markdown.';
+
+  @override
+  String get allowComments => 'Разрешить комментарии';
+
+  @override
+  String get allowReactions => 'Разрешить реакции';
+
+  @override
+  String get noAnnouncements => 'Пока нет объявлений.';
+
+  @override
+  String get addReaction => 'Добавить реакцию';
+
+  @override
+  String commentCount(Object count) {
+    return 'Комментарии: $count';
+  }
+
+  @override
+  String get commentsOff => 'Комментарии отключены';
+
+  @override
+  String get editedMark => 'изменено';
+
+  @override
+  String get deleteComment => 'Удалить комментарий';
+
+  @override
+  String get deleteCommentConfirm => 'Удалить этот комментарий?';
+
+  @override
+  String get edit => 'Изменить';
+
+  @override
+  String get post => 'Опубликовать';
+
+  @override
+  String notifAnnouncement(Object from, Object name) {
+    return '$from опубликовал(а) объявление: $name';
+  }
+
+  @override
+  String notifAnnComment(Object from, Object name) {
+    return '$from прокомментировал(а) $name';
+  }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'api.dart';
+import 'l10n/app_localizations.dart';
 import 'main.dart';
 import 'platform.dart';
 import 'projects.dart';
@@ -1336,6 +1337,24 @@ class _StorageTabState extends State<StorageTab> {
     }
   }
 
+  Future<void> _resync() async {
+    try {
+      final r = await Api.i.storageResync();
+      if (!mounted) return;
+      final l10n = context.l10n;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(
+              l10n.storageResyncDone(r['checked'] ?? 0, r['copied'] ?? 0))));
+      _load();
+    } catch (e) {
+      setState(() => _err = '$e');
+    }
+  }
+
+  String _poolName(AppLocalizations l10n, StoragePool p) => p.id == 'database'
+      ? l10n.storageDatabase
+      : (p.id == 'media' ? l10n.storageMedia : p.id);
+
   void _poolBreakdown(StoragePool p) {
     final l10n = context.l10n;
     final users = List.of(_stats?.users ?? [])
@@ -1343,8 +1362,7 @@ class _StorageTabState extends State<StorageTab> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title:
-            Text(p.id == 'database' ? l10n.storageDatabase : l10n.storageMedia),
+        title: Text(_poolName(l10n, p)),
         content: SizedBox(
           width: 360,
           child: users.isEmpty
@@ -1376,6 +1394,12 @@ class _StorageTabState extends State<StorageTab> {
       body: stats == null
           ? const Center(child: CircularProgressIndicator())
           : ListView(padding: const EdgeInsets.all(16), children: [
+              Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton.icon(
+                      onPressed: _resync,
+                      icon: const Icon(Icons.sync),
+                      label: Text(l10n.storageResync))),
               for (final p in stats.pools)
                 Card(
                   clipBehavior: Clip.antiAlias,
@@ -1383,9 +1407,7 @@ class _StorageTabState extends State<StorageTab> {
                     leading: Icon(p.id == 'database'
                         ? Icons.storage_outlined
                         : Icons.cloud_outlined),
-                    title: Text(p.id == 'database'
-                        ? l10n.storageDatabase
-                        : l10n.storageMedia),
+                    title: Text(_poolName(l10n, p)),
                     subtitle: p.total > 0
                         ? Column(
                             crossAxisAlignment: CrossAxisAlignment.start,

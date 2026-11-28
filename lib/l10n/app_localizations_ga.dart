@@ -2,7 +2,6 @@
 
 // ignore: unused_import
 import 'package:intl/intl.dart' as intl;
-
 import 'app_localizations.dart';
 
 // ignore_for_file: type=lint
@@ -1327,6 +1326,14 @@ class AppLocalizationsGa extends AppLocalizations {
   String get storageNoUsers => 'Níl aon duine ag úsáid stórála go fóil.';
 
   @override
+  String get storageResync => 'Athshioncrónaigh nóid';
+
+  @override
+  String storageResyncDone(Object checked, Object copied) {
+    return 'Rinneadh $checked réad a sheiceáil, $copied a chóipeáil.';
+  }
+
+  @override
   String get openSubmissions => 'Oscail aighneachtaí';
 
   @override
@@ -1434,4 +1441,133 @@ class AppLocalizationsGa extends AppLocalizations {
   @override
   String get editMissing =>
       'Níl an t-eagarthóir dúchais suiteáilte leis an aip seo.';
+
+  @override
+  String get autoShareInvites => 'Cuireadh comhroinnte uathoibríoch';
+
+  @override
+  String autoShareInviteFrom(Object who, Object level) {
+    return 'Ba mhaith le $who a chuid tionscadal nua a chomhroinnt go huathoibríoch leat ($level)';
+  }
+
+  @override
+  String get activeAutoShares => 'Liostaí comhroinnte uathoibríoch';
+
+  @override
+  String autoShareActiveHint(Object who, Object level) {
+    return 'Roinntear tionscadail nua le $who agus a gcuid daltaí leat ($level)';
+  }
+
+  @override
+  String get leaveAutoShare => 'Imigh';
+
+  @override
+  String get leaveAutoShareConfirm =>
+      'Imigh as an liosta comhroinnte uathoibríoch seo? Stopfar tionscadail nua a roinnt leat.';
+
+  @override
+  String get leaveShare => 'Imigh';
+
+  @override
+  String get leaveShareConfirm =>
+      'Bain an tionscadal comhroinnte seo de do liosta? Cuirfear an t-úinéir ar an eolas.';
+
+  @override
+  String get autoSharePending => 'Ar feitheamh';
+
+  @override
+  String get autoShareAccepted => 'Glactha';
+
+  @override
+  String get autoShareDeclined => 'Diúltaithe';
+
+  @override
+  String notifAutoShareInvite(Object from) {
+    return 'Ba mhaith le $from a chuid tionscadal a chomhroinnt go huathoibríoch leat';
+  }
+
+  @override
+  String notifAutoShareAccepted(Object from) {
+    return 'Ghlac $from le do chuireadh comhroinnte uathoibríoch';
+  }
+
+  @override
+  String notifAutoShareDeclined(Object from) {
+    return 'Dhiúltaigh $from do chuireadh comhroinnte uathoibríoch';
+  }
+
+  @override
+  String notifShareLeft(Object from, Object project) {
+    return 'D\'fhág $from $project';
+  }
+
+  @override
+  String get navAnnouncements => 'Fógraí';
+
+  @override
+  String get newAnnouncement => 'Fógra nua';
+
+  @override
+  String get editAnnouncement => 'Cuir an fógra in eagar';
+
+  @override
+  String get deleteAnnouncement => 'Scrios an fógra';
+
+  @override
+  String get deleteAnnouncementConfirm =>
+      'Scrios an fógra seo agus a chuid tuairimí go léir?';
+
+  @override
+  String get announcementTitle => 'Teideal';
+
+  @override
+  String get announcementBody => 'Corp an fhógra';
+
+  @override
+  String get markdownHint => 'Tacaítear le formáidiú Markdown.';
+
+  @override
+  String get allowComments => 'Ceadaigh tuairimí';
+
+  @override
+  String get allowReactions => 'Ceadaigh frithghníomhartha';
+
+  @override
+  String get noAnnouncements => 'Níl aon fhógra fós.';
+
+  @override
+  String get addReaction => 'Cuir frithghníomh leis';
+
+  @override
+  String commentCount(Object count) {
+    return 'Tuairimí: $count';
+  }
+
+  @override
+  String get commentsOff => 'Tá tuairimí múchta';
+
+  @override
+  String get editedMark => 'curtha in eagar';
+
+  @override
+  String get deleteComment => 'Scrios an tuairim';
+
+  @override
+  String get deleteCommentConfirm => 'Scrios an tuairim seo?';
+
+  @override
+  String get edit => 'Cuir in eagar';
+
+  @override
+  String get post => 'Postáil';
+
+  @override
+  String notifAnnouncement(Object from, Object name) {
+    return 'D\'fhoilsigh $from fógra: $name';
+  }
+
+  @override
+  String notifAnnComment(Object from, Object name) {
+    return 'Rinne $from trácht ar $name';
+  }
 }

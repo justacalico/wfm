@@ -258,6 +258,7 @@ pub struct AutoShare {
     #[serde(rename = "inviteeId")]
     pub invitee_id: String,
     pub level: String,
+    pub status: String,
     #[serde(rename = "createdAt")]
     pub created_at: i64,
 }
@@ -299,7 +300,12 @@ pub struct AutoShareView {
     pub invitee_username: String,
     #[serde(rename = "inviteeName")]
     pub invitee_name: String,
+    #[serde(rename = "ownerUsername")]
+    pub owner_username: String,
+    #[serde(rename = "ownerName")]
+    pub owner_name: String,
     pub level: String,
+    pub status: String,
     #[serde(rename = "createdAt")]
     pub created_at: i64,
 }
@@ -328,6 +334,72 @@ pub struct ShareView {
     pub created_at: i64,
     #[serde(rename = "respondedAt")]
     pub responded_at: i64,
+}
+
+#[derive(Clone, Serialize)]
+pub struct Announcement {
+    pub id: String,
+    #[serde(rename = "authorId")]
+    pub author_id: String,
+    pub title: String,
+    pub body: String,
+    #[serde(rename = "commentsEnabled")]
+    pub comments_enabled: bool,
+    #[serde(rename = "reactionsEnabled")]
+    pub reactions_enabled: bool,
+    #[serde(rename = "createdAt")]
+    pub created_at: i64,
+    #[serde(rename = "editedAt")]
+    pub edited_at: i64,
+}
+
+#[derive(Clone, Serialize)]
+pub struct ReactionCount {
+    pub emoji: String,
+    pub count: i64,
+    pub mine: bool,
+}
+
+#[derive(Clone, Serialize)]
+pub struct AnnouncementView {
+    pub id: String,
+    #[serde(rename = "authorId")]
+    pub author_id: String,
+    #[serde(rename = "authorUsername")]
+    pub author_username: String,
+    #[serde(rename = "authorName")]
+    pub author_name: String,
+    pub title: String,
+    pub body: String,
+    #[serde(rename = "commentsEnabled")]
+    pub comments_enabled: bool,
+    #[serde(rename = "reactionsEnabled")]
+    pub reactions_enabled: bool,
+    pub reactions: Vec<ReactionCount>,
+    #[serde(rename = "commentCount")]
+    pub comment_count: i64,
+    #[serde(rename = "createdAt")]
+    pub created_at: i64,
+    #[serde(rename = "editedAt")]
+    pub edited_at: i64,
+}
+
+#[derive(Clone, Serialize)]
+pub struct AnnouncementComment {
+    pub id: String,
+    #[serde(rename = "announcementId")]
+    pub announcement_id: String,
+    #[serde(rename = "authorId")]
+    pub author_id: String,
+    #[serde(rename = "authorUsername")]
+    pub author_username: String,
+    #[serde(rename = "authorName")]
+    pub author_name: String,
+    pub body: String,
+    #[serde(rename = "createdAt")]
+    pub created_at: i64,
+    #[serde(rename = "editedAt")]
+    pub edited_at: i64,
 }
 
 #[derive(Clone, Serialize)]

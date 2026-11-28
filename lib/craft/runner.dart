@@ -127,6 +127,12 @@ class CraftRunner {
           workingDirectory: checkoutDir.path,
           env: {
             if (dataDir != null) 'FILMCRAFT_DATA_DIR': dataDir,
+            if (!pullMedia) ...{
+              'FILMCRAFT_REMOTE_URL': api.baseUrl,
+              'FILMCRAFT_REMOTE_TOKEN': api.sessionToken,
+              'FILMCRAFT_REMOTE_PROJECT': projectId,
+              'FILMCRAFT_REMOTE_ROOT': checkoutDir.path,
+            },
           });
     } catch (_) {
       try {

@@ -52,3 +52,7 @@ server/target/
 
 desktop/craft/
 desktop/webview/target/
+
+# Android signing
+key.properties
+*.jks

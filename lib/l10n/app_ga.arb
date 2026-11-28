@@ -572,6 +572,8 @@
   "storageMedia": "Stóráil meán",
   "storageDatabase": "Bunachar sonraí",
   "storageNoUsers": "Níl aon duine ag úsáid stórála go fóil.",
+  "storageResync": "Athshioncrónaigh nóid",
+  "storageResyncDone": "Rinneadh {checked} réad a sheiceáil, {copied} a chóipeáil.",
   "openSubmissions": "Oscail aighneachtaí",
   "closeSubmissions": "Dún aighneachtaí",
   "submitConfirmBody": "Cuir {name} isteach le hathbhreithniú?",
@@ -634,6 +636,91 @@
     "placeholders": {
       "holder": {}
     }
+  },
+  "autoShareInvites": "Cuireadh comhroinnte uathoibríoch",
+  "autoShareInviteFrom": "Ba mhaith le {who} a chuid tionscadal nua a chomhroinnt go huathoibríoch leat ({level})",
+  "@autoShareInviteFrom": {
+    "placeholders": {
+      "who": {},
+      "level": {}
+    }
+  },
+  "activeAutoShares": "Liostaí comhroinnte uathoibríoch",
+  "autoShareActiveHint": "Roinntear tionscadail nua le {who} agus a gcuid daltaí leat ({level})",
+  "@autoShareActiveHint": {
+    "placeholders": {
+      "who": {},
+      "level": {}
+    }
+  },
+  "leaveAutoShare": "Imigh",
+  "leaveAutoShareConfirm": "Imigh as an liosta comhroinnte uathoibríoch seo? Stopfar tionscadail nua a roinnt leat.",
+  "leaveShare": "Imigh",
+  "leaveShareConfirm": "Bain an tionscadal comhroinnte seo de do liosta? Cuirfear an t-úinéir ar an eolas.",
+  "autoSharePending": "Ar feitheamh",
+  "autoShareAccepted": "Glactha",
+  "autoShareDeclined": "Diúltaithe",
+  "notifAutoShareInvite": "Ba mhaith le {from} a chuid tionscadal a chomhroinnt go huathoibríoch leat",
+  "@notifAutoShareInvite": {
+    "placeholders": {
+      "from": {}
+    }
+  },
+  "notifAutoShareAccepted": "Ghlac {from} le do chuireadh comhroinnte uathoibríoch",
+  "@notifAutoShareAccepted": {
+    "placeholders": {
+      "from": {}
+    }
+  },
+  "notifAutoShareDeclined": "Dhiúltaigh {from} do chuireadh comhroinnte uathoibríoch",
+  "@notifAutoShareDeclined": {
+    "placeholders": {
+      "from": {}
+    }
+  },
+  "notifShareLeft": "D'fhág {from} {project}",
+  "@notifShareLeft": {
+    "placeholders": {
+      "from": {},
+      "project": {}
+    }
+  },
+  "navAnnouncements": "Fógraí",
+  "newAnnouncement": "Fógra nua",
+  "editAnnouncement": "Cuir an fógra in eagar",
+  "deleteAnnouncement": "Scrios an fógra",
+  "deleteAnnouncementConfirm": "Scrios an fógra seo agus a chuid tuairimí go léir?",
+  "announcementTitle": "Teideal",
+  "announcementBody": "Corp an fhógra",
+  "markdownHint": "Tacaítear le formáidiú Markdown.",
+  "allowComments": "Ceadaigh tuairimí",
+  "allowReactions": "Ceadaigh frithghníomhartha",
+  "noAnnouncements": "Níl aon fhógra fós.",
+  "addReaction": "Cuir frithghníomh leis",
+  "commentCount": "Tuairimí: {count}",
+  "@commentCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "commentsOff": "Tá tuairimí múchta",
+  "editedMark": "curtha in eagar",
+  "deleteComment": "Scrios an tuairim",
+  "deleteCommentConfirm": "Scrios an tuairim seo?",
+  "edit": "Cuir in eagar",
+  "post": "Postáil",
+  "notifAnnouncement": "D'fhoilsigh {from} fógra: {name}",
+  "@notifAnnouncement": {
+    "placeholders": {
+      "from": {},
+      "name": {}
+    }
+  },
+  "notifAnnComment": "Rinne {from} trácht ar {name}",
+  "@notifAnnComment": {
+    "placeholders": {
+      "from": {},
+      "name": {}
+    }
   }
-
 }

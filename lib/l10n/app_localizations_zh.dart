@@ -2,7 +2,6 @@
 
 // ignore: unused_import
 import 'package:intl/intl.dart' as intl;
-
 import 'app_localizations.dart';
 
 // ignore_for_file: type=lint
@@ -1305,6 +1304,14 @@ class AppLocalizationsZh extends AppLocalizations {
   String get storageNoUsers => '暂无用户使用存储。';
 
   @override
+  String get storageResync => '重新同步节点';
+
+  @override
+  String storageResyncDone(Object checked, Object copied) {
+    return '已检查 $checked 个对象，复制 $copied 个。';
+  }
+
+  @override
   String get openSubmissions => '开放提交';
 
   @override
@@ -1406,4 +1413,130 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get editMissing => '此应用未安装原生编辑器。';
+
+  @override
+  String get autoShareInvites => '自动共享邀请';
+
+  @override
+  String autoShareInviteFrom(Object who, Object level) {
+    return '$who 希望自动与你共享其新项目（$level）';
+  }
+
+  @override
+  String get activeAutoShares => '自动共享列表';
+
+  @override
+  String autoShareActiveHint(Object who, Object level) {
+    return '$who 及其学生的新项目会与你共享（$level）';
+  }
+
+  @override
+  String get leaveAutoShare => '退出';
+
+  @override
+  String get leaveAutoShareConfirm => '退出此自动共享列表？新项目将不再与你共享。';
+
+  @override
+  String get leaveShare => '退出';
+
+  @override
+  String get leaveShareConfirm => '将此共享项目从你的列表中移除？所有者将收到通知。';
+
+  @override
+  String get autoSharePending => '待处理';
+
+  @override
+  String get autoShareAccepted => '已接受';
+
+  @override
+  String get autoShareDeclined => '已拒绝';
+
+  @override
+  String notifAutoShareInvite(Object from) {
+    return '$from 希望自动与你共享其项目';
+  }
+
+  @override
+  String notifAutoShareAccepted(Object from) {
+    return '$from 接受了你的自动共享邀请';
+  }
+
+  @override
+  String notifAutoShareDeclined(Object from) {
+    return '$from 拒绝了你的自动共享邀请';
+  }
+
+  @override
+  String notifShareLeft(Object from, Object project) {
+    return '$from 退出了 $project';
+  }
+
+  @override
+  String get navAnnouncements => '公告';
+
+  @override
+  String get newAnnouncement => '发布公告';
+
+  @override
+  String get editAnnouncement => '编辑公告';
+
+  @override
+  String get deleteAnnouncement => '删除公告';
+
+  @override
+  String get deleteAnnouncementConfirm => '删除此公告及其全部评论？';
+
+  @override
+  String get announcementTitle => '标题';
+
+  @override
+  String get announcementBody => '公告内容';
+
+  @override
+  String get markdownHint => '支持 Markdown 格式。';
+
+  @override
+  String get allowComments => '允许评论';
+
+  @override
+  String get allowReactions => '允许表态';
+
+  @override
+  String get noAnnouncements => '暂无公告。';
+
+  @override
+  String get addReaction => '添加表态';
+
+  @override
+  String commentCount(Object count) {
+    return '$count 条评论';
+  }
+
+  @override
+  String get commentsOff => '评论已关闭';
+
+  @override
+  String get editedMark => '已编辑';
+
+  @override
+  String get deleteComment => '删除评论';
+
+  @override
+  String get deleteCommentConfirm => '删除此评论？';
+
+  @override
+  String get edit => '编辑';
+
+  @override
+  String get post => '发布';
+
+  @override
+  String notifAnnouncement(Object from, Object name) {
+    return '$from 发布了公告：$name';
+  }
+
+  @override
+  String notifAnnComment(Object from, Object name) {
+    return '$from 评论了 $name';
+  }
 }

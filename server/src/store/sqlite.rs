@@ -253,6 +253,44 @@ fn map_notification(r: &rusqlite::Row) -> rusqlite::Result<Notification> {
     })
 }
 
+fn map_auto_share(r: &rusqlite::Row) -> rusqlite::Result<AutoShare> {
+    Ok(AutoShare {
+        id: r.get(0)?,
+        owner_id: r.get(1)?,
+        invitee_id: r.get(2)?,
+        level: r.get(3)?,
+        status: r.get(4)?,
+        created_at: r.get(5)?,
+    })
+}
+
+fn map_auto_share_view(r: &rusqlite::Row) -> rusqlite::Result<AutoShareView> {
+    Ok(AutoShareView {
+        id: r.get(0)?,
+        invitee_id: r.get(1)?,
+        invitee_username: r.get(2)?,
+        invitee_name: r.get(3)?,
+        owner_username: r.get(4)?,
+        owner_name: r.get(5)?,
+        level: r.get(6)?,
+        status: r.get(7)?,
+        created_at: r.get(8)?,
+    })
+}
+
+fn map_announcement(r: &rusqlite::Row) -> rusqlite::Result<Announcement> {
+    Ok(Announcement {
+        id: r.get(0)?,
+        author_id: r.get(1)?,
+        title: r.get(2)?,
+        body: r.get(3)?,
+        comments_enabled: r.get::<_, i64>(4)? != 0,
+        reactions_enabled: r.get::<_, i64>(5)? != 0,
+        created_at: r.get(6)?,
+        edited_at: r.get(7)?,
+    })
+}
+
 fn map_share_view(r: &rusqlite::Row) -> rusqlite::Result<ShareView> {
     Ok(ShareView {
         id: r.get(0)?,
@@ -1928,18 +1966,22 @@ impl Db for SqliteDb {
         let owner = owner.to_string();
         self.q(move |c| {
                 let mut st = c.prepare(
-                    "SELECT a.id,a.invitee_id,u.username,u.display_name,a.level,a.created_at FROM auto_shares a JOIN users u ON u.id=a.invitee_id WHERE a.owner_id=? ORDER BY a.created_at DESC"
+                    "SELECT a.id,a.invitee_id,u.username,u.display_name,o.username,o.display_name,a.level,a.status,a.created_at FROM auto_shares a JOIN users u ON u.id=a.invitee_id JOIN users o ON o.id=a.owner_id WHERE a.owner_id=? ORDER BY a.created_at DESC"
                 )?;
-                let rows = st.query_map(params![owner], |r| {
-                    Ok(AutoShareView {
-                        id: r.get(0)?,
-                        invitee_id: r.get(1)?,
-                        invitee_username: r.get(2)?,
-                        invitee_name: r.get(3)?,
-                        level: r.get(4)?,
-                        created_at: r.get(5)?,
-                    })
-                })?;
+                let rows = st.query_map(params![owner], map_auto_share_view)?;
+                rows.collect::<rusqlite::Result<Vec<_>>>()
+            })
+            .await
+            .map_err(dberr)
+    }
+
+    async fn auto_shares_for_invitee(&self, invitee: &str) -> DbResult<Vec<AutoShareView>> {
+        let invitee = invitee.to_string();
+        self.q(move |c| {
+                let mut st = c.prepare(
+                    "SELECT a.id,a.invitee_id,u.username,u.display_name,o.username,o.display_name,a.level,a.status,a.created_at FROM auto_shares a JOIN users u ON u.id=a.invitee_id JOIN users o ON o.id=a.owner_id WHERE a.invitee_id=? ORDER BY a.created_at DESC"
+                )?;
+                let rows = st.query_map(params![invitee], map_auto_share_view)?;
                 rows.collect::<rusqlite::Result<Vec<_>>>()
             })
             .await
@@ -1952,7 +1994,7 @@ impl Db for SqliteDb {
         let level = level.to_string();
         self.q(move |c| {
                 c.execute(
-                    "INSERT INTO auto_shares(id,owner_id,invitee_id,level,created_at) VALUES(?,?,?,?,?) ON CONFLICT(owner_id,invitee_id) DO UPDATE SET level=excluded.level",
+                    "INSERT INTO auto_shares(id,owner_id,invitee_id,level,status,created_at) VALUES(?,?,?,?,'pending',?) ON CONFLICT(owner_id,invitee_id) DO UPDATE SET level=excluded.level,status='pending'",
                     params![crate::model::new_id(), owner, invitee, level, crate::auth::AppState::now()],
                 )
             })
@@ -1961,13 +2003,41 @@ impl Db for SqliteDb {
             .map_err(dberr)
     }
 
-    async fn auto_share_delete(&self, owner: &str, id: &str) -> DbResult<bool> {
-        let owner = owner.to_string();
+    async fn auto_share_by_id(&self, id: &str) -> DbResult<AutoShare> {
         let id = id.to_string();
         self.q(move |c| {
+                c.query_row(
+                    "SELECT id,owner_id,invitee_id,level,status,created_at FROM auto_shares WHERE id=?",
+                    params![id],
+                    map_auto_share,
+                )
+            })
+            .await
+            .map_err(dberr)
+    }
+
+    async fn auto_share_respond(&self, id: &str, invitee: &str, status: &str) -> DbResult<bool> {
+        let id = id.to_string();
+        let invitee = invitee.to_string();
+        let status = status.to_string();
+        self.q(move |c| {
+                c.execute(
+                    "UPDATE auto_shares SET status=? WHERE id=? AND invitee_id=? AND status='pending'",
+                    params![status, id, invitee],
+                )
+            })
+            .await
+            .map(|n| n > 0)
+            .map_err(dberr)
+    }
+
+    async fn auto_share_delete_any(&self, id: &str, user: &str) -> DbResult<bool> {
+        let id = id.to_string();
+        let user = user.to_string();
+        self.q(move |c| {
             c.execute(
-                "DELETE FROM auto_shares WHERE id=? AND owner_id=?",
-                params![id, owner],
+                "DELETE FROM auto_shares WHERE id=? AND (owner_id=? OR invitee_id=?)",
+                params![id, user, user],
             )
         })
         .await
@@ -1978,20 +2048,287 @@ impl Db for SqliteDb {
     async fn auto_shares_all(&self) -> DbResult<Vec<AutoShare>> {
         self.q(move |c| {
             let mut st =
-                c.prepare("SELECT id,owner_id,invitee_id,level,created_at FROM auto_shares")?;
-            let rows = st.query_map([], |r| {
-                Ok(AutoShare {
-                    id: r.get(0)?,
-                    owner_id: r.get(1)?,
-                    invitee_id: r.get(2)?,
-                    level: r.get(3)?,
-                    created_at: r.get(4)?,
-                })
-            })?;
+                c.prepare("SELECT id,owner_id,invitee_id,level,status,created_at FROM auto_shares")?;
+            let rows = st.query_map([], map_auto_share)?;
             rows.collect::<rusqlite::Result<Vec<_>>>()
         })
         .await
         .map_err(dberr)
+    }
+
+    async fn share_leave(&self, id: &str, invitee: &str) -> DbResult<bool> {
+        let id = id.to_string();
+        let invitee = invitee.to_string();
+        self.q(move |c| {
+            c.execute(
+                "DELETE FROM project_shares WHERE id=? AND invitee_id=? AND status!='declined'",
+                params![id, invitee],
+            )
+        })
+        .await
+        .map(|n| n > 0)
+        .map_err(dberr)
+    }
+
+    async fn announcement_create(&self, a: &Announcement) -> DbResult<()> {
+        let a = a.clone();
+        self.q(move |c| {
+            c.execute(
+                "INSERT INTO announcements(id,author_id,title,body,comments_enabled,reactions_enabled,created_at,edited_at) VALUES(?,?,?,?,?,?,?,?)",
+                params![
+                    a.id,
+                    a.author_id,
+                    a.title,
+                    a.body,
+                    a.comments_enabled as i64,
+                    a.reactions_enabled as i64,
+                    a.created_at,
+                    a.edited_at
+                ],
+            )
+        })
+        .await
+        .map(|_| ())
+        .map_err(dberr)
+    }
+
+    async fn announcement_by_id(&self, id: &str) -> DbResult<Announcement> {
+        let id = id.to_string();
+        self.q(move |c| {
+                c.query_row(
+                    "SELECT id,author_id,title,body,comments_enabled,reactions_enabled,created_at,edited_at FROM announcements WHERE id=?",
+                    params![id],
+                    map_announcement,
+                )
+            })
+            .await
+            .map_err(dberr)
+    }
+
+    async fn announcement_update(
+        &self,
+        id: &str,
+        title: &str,
+        body: &str,
+        comments: bool,
+        reactions: bool,
+        ts: i64,
+    ) -> DbResult<bool> {
+        let id = id.to_string();
+        let title = title.to_string();
+        let body = body.to_string();
+        self.q(move |c| {
+                c.execute(
+                    "UPDATE announcements SET title=?,body=?,comments_enabled=?,reactions_enabled=?,edited_at=? WHERE id=?",
+                    params![title, body, comments as i64, reactions as i64, ts, id],
+                )
+            })
+            .await
+            .map(|n| n > 0)
+            .map_err(dberr)
+    }
+
+    async fn announcement_delete(&self, id: &str) -> DbResult<bool> {
+        let id = id.to_string();
+        let id2 = id.clone();
+        let id3 = id.clone();
+        self.q(move |c| {
+                c.execute("DELETE FROM announcement_reactions WHERE announcement_id=?", params![id2])?;
+                c.execute("DELETE FROM announcement_comments WHERE announcement_id=?", params![id3])?;
+                c.execute("DELETE FROM announcements WHERE id=?", params![id])
+            })
+            .await
+            .map(|n| n > 0)
+            .map_err(dberr)
+    }
+
+    async fn announcements_list(
+        &self,
+        viewer: &str,
+        before: i64,
+        limit: i64,
+    ) -> DbResult<Vec<AnnouncementView>> {
+        let (viewer, before) = (
+            viewer.to_string(),
+            if before <= 0 { i64::MAX } else { before },
+        );
+        self.q(move |c| {
+                let mut st = c.prepare(
+                    "SELECT a.id,a.author_id,u.username,u.display_name,a.title,a.body,a.comments_enabled,a.reactions_enabled,a.created_at,a.edited_at,(SELECT COUNT(*) FROM announcement_comments c WHERE c.announcement_id=a.id) FROM announcements a JOIN users u ON u.id=a.author_id WHERE a.created_at<? ORDER BY a.created_at DESC LIMIT ?"
+                )?;
+                let mut rst = c.prepare(
+                    "SELECT emoji,COUNT(*),SUM(user_id=?) FROM announcement_reactions WHERE announcement_id=? GROUP BY emoji ORDER BY MIN(created_at)"
+                )?;
+                let rows = st.query_map(params![before, limit], |r| {
+                    let aid: String = r.get(0)?;
+                    let mut rrows = rst.query_map(params![viewer, aid], |rr| {
+                        Ok(ReactionCount {
+                            emoji: rr.get(0)?,
+                            count: rr.get(1)?,
+                            mine: rr.get::<_, i64>(2)? != 0,
+                        })
+                    })?;
+                    let mut reactions = Vec::new();
+                    for rc in rrows.by_ref() {
+                        reactions.push(rc?);
+                    }
+                    Ok(AnnouncementView {
+                        id: aid,
+                        author_id: r.get(1)?,
+                        author_username: r.get(2)?,
+                        author_name: r.get(3)?,
+                        title: r.get(4)?,
+                        body: r.get(5)?,
+                        comments_enabled: r.get::<_, i64>(6)? != 0,
+                        reactions_enabled: r.get::<_, i64>(7)? != 0,
+                        created_at: r.get(8)?,
+                        edited_at: r.get(9)?,
+                        comment_count: r.get(10)?,
+                        reactions,
+                    })
+                })?;
+                rows.collect::<rusqlite::Result<Vec<_>>>()
+            })
+            .await
+            .map_err(dberr)
+    }
+
+    async fn announcement_react(
+        &self,
+        aid: &str,
+        user: &str,
+        emoji: &str,
+        ts: i64,
+    ) -> DbResult<bool> {
+        let aid = aid.to_string();
+        let user = user.to_string();
+        let emoji = emoji.to_string();
+        self.q(move |c| {
+                let n = c.execute(
+                    "DELETE FROM announcement_reactions WHERE announcement_id=? AND user_id=? AND emoji=?",
+                    params![aid, user, emoji],
+                )?;
+                if n > 0 {
+                    return Ok(false);
+                }
+                c.execute(
+                    "INSERT INTO announcement_reactions(announcement_id,user_id,emoji,created_at) VALUES(?,?,?,?)",
+                    params![aid, user, emoji, ts],
+                )?;
+                Ok(true)
+            })
+            .await
+            .map_err(dberr)
+    }
+
+    async fn ann_comments(
+        &self,
+        aid: &str,
+        before: i64,
+        limit: i64,
+    ) -> DbResult<Vec<AnnouncementComment>> {
+        let (aid, before) = (
+            aid.to_string(),
+            if before <= 0 { i64::MAX } else { before },
+        );
+        self.q(move |c| {
+                let mut st = c.prepare(
+                    "SELECT c.id,c.announcement_id,c.author_id,u.username,u.display_name,c.body,c.created_at,c.edited_at FROM announcement_comments c JOIN users u ON u.id=c.author_id WHERE c.announcement_id=? AND c.created_at<? ORDER BY c.created_at DESC LIMIT ?"
+                )?;
+                let rows = st.query_map(params![aid, before, limit], |r| {
+                    Ok(AnnouncementComment {
+                        id: r.get(0)?,
+                        announcement_id: r.get(1)?,
+                        author_id: r.get(2)?,
+                        author_username: r.get(3)?,
+                        author_name: r.get(4)?,
+                        body: r.get(5)?,
+                        created_at: r.get(6)?,
+                        edited_at: r.get(7)?,
+                    })
+                })?;
+                rows.collect::<rusqlite::Result<Vec<_>>>()
+            })
+            .await
+            .map_err(dberr)
+    }
+
+    async fn ann_comment_by_id(&self, id: &str) -> DbResult<AnnouncementComment> {
+        let id = id.to_string();
+        self.q(move |c| {
+                c.query_row(
+                    "SELECT c.id,c.announcement_id,c.author_id,u.username,u.display_name,c.body,c.created_at,c.edited_at FROM announcement_comments c JOIN users u ON u.id=c.author_id WHERE c.id=?",
+                    params![id],
+                    |r| {
+                        Ok(AnnouncementComment {
+                            id: r.get(0)?,
+                            announcement_id: r.get(1)?,
+                            author_id: r.get(2)?,
+                            author_username: r.get(3)?,
+                            author_name: r.get(4)?,
+                            body: r.get(5)?,
+                            created_at: r.get(6)?,
+                            edited_at: r.get(7)?,
+                        })
+                    },
+                )
+            })
+            .await
+            .map_err(dberr)
+    }
+
+    async fn ann_comment_add(&self, cm: &AnnouncementComment) -> DbResult<()> {
+        let cm = cm.clone();
+        self.q(move |c| {
+            c.execute(
+                "INSERT INTO announcement_comments(id,announcement_id,author_id,body,created_at,edited_at) VALUES(?,?,?,?,?,?)",
+                params![cm.id, cm.announcement_id, cm.author_id, cm.body, cm.created_at, cm.edited_at],
+            )
+        })
+        .await
+        .map(|_| ())
+        .map_err(dberr)
+    }
+
+    async fn ann_comment_update(
+        &self,
+        id: &str,
+        author: &str,
+        body: &str,
+        ts: i64,
+    ) -> DbResult<bool> {
+        let id = id.to_string();
+        let author = author.to_string();
+        let body = body.to_string();
+        self.q(move |c| {
+                c.execute(
+                    "UPDATE announcement_comments SET body=?,edited_at=? WHERE id=? AND author_id=?",
+                    params![body, ts, id, author],
+                )
+            })
+            .await
+            .map(|n| n > 0)
+            .map_err(dberr)
+    }
+
+    async fn ann_comment_delete(&self, id: &str) -> DbResult<bool> {
+        let id = id.to_string();
+        self.q(move |c| {
+            c.execute("DELETE FROM announcement_comments WHERE id=?", params![id])
+        })
+        .await
+        .map(|n| n > 0)
+        .map_err(dberr)
+    }
+
+    async fn user_ids_all(&self) -> DbResult<Vec<String>> {
+        self.q(move |c| {
+                let mut st = c.prepare("SELECT id FROM users WHERE disabled=0")?;
+                let rows = st.query_map([], |r| r.get::<_, String>(0))?;
+                rows.collect::<rusqlite::Result<Vec<_>>>()
+            })
+            .await
+            .map_err(dberr)
     }
 
     async fn share_by_id(&self, id: &str) -> DbResult<ProjectShare> {
@@ -2790,6 +3127,10 @@ mod tests {
         assert!(db.share_delete("s1", "p1").await.unwrap());
         assert!(!db.share_delete("s1", "p1").await.unwrap());
         db.share_upsert(&sh).await.unwrap();
+        assert!(!db.share_leave("s1", "other").await.unwrap());
+        assert!(db.share_leave("s1", "v1").await.unwrap());
+        assert!(!db.share_leave("s1", "v1").await.unwrap());
+        db.share_upsert(&sh).await.unwrap();
         db.shares_delete_project("p1").await.unwrap();
         assert!(db.shares_by_project("p1").await.unwrap().is_empty());
     }
@@ -2889,6 +3230,7 @@ mod tests {
             last_login: 0,
         };
         db.create_user(&u("t1"), "h").await.unwrap();
+        db.create_user(&u("t2"), "h").await.unwrap();
         db.create_user(&u("a1"), "h").await.unwrap();
         db.create_user(&u("a2"), "h").await.unwrap();
         db.auto_share_upsert("t1", "a1", "edit").await.unwrap();
@@ -2899,15 +3241,122 @@ mod tests {
         let e = l.iter().find(|e| e.invitee_id == "a2").unwrap();
         assert_eq!(e.invitee_username, "ua2");
         assert_eq!(e.invitee_name, "Na2");
+        assert_eq!(e.status, "pending");
+        let inc = db.auto_shares_for_invitee("a2").await.unwrap();
+        assert_eq!(inc.len(), 2);
+        assert!(inc.iter().any(|e| e.owner_username == "ut2"));
+        let a2t1 = inc.iter().find(|e| e.owner_username == "ut1").unwrap();
+        assert!(!db
+            .auto_share_respond(&a2t1.id, "a1", "accepted")
+            .await
+            .unwrap());
+        assert!(db
+            .auto_share_respond(&a2t1.id, "a2", "accepted")
+            .await
+            .unwrap());
+        assert!(!db
+            .auto_share_respond(&a2t1.id, "a2", "declined")
+            .await
+            .unwrap());
+        let l = db.auto_shares_list("t1").await.unwrap();
+        assert!(l
+            .iter()
+            .any(|e| e.invitee_id == "a2" && e.status == "accepted"));
+        assert_eq!(db.auto_share_by_id(&a2t1.id).await.unwrap().status, "accepted");
         db.auto_share_upsert("t1", "a1", "view").await.unwrap();
         let l = db.auto_shares_list("t1").await.unwrap();
         assert_eq!(l.len(), 2);
         assert!(l.iter().any(|e| e.invitee_id == "a1" && e.level == "view"));
         assert_eq!(db.auto_shares_all().await.unwrap().len(), 3);
         let id = l.iter().find(|e| e.invitee_id == "a1").unwrap().id.clone();
-        assert!(!db.auto_share_delete("t2", &id).await.unwrap());
-        assert!(db.auto_share_delete("t1", &id).await.unwrap());
-        assert_eq!(db.auto_shares_list("t1").await.unwrap().len(), 1);
+        assert!(!db.auto_share_delete_any(&id, "t2").await.unwrap());
+        assert!(db.auto_share_delete_any(&id, "t1").await.unwrap());
+        let id = l.iter().find(|e| e.invitee_id == "a2").unwrap().id.clone();
+        assert!(db.auto_share_delete_any(&id, "a2").await.unwrap());
+        assert_eq!(db.auto_shares_list("t1").await.unwrap().len(), 0);
+    }
+
+    #[tokio::test]
+    async fn announcements_lifecycle() {
+        let db = connect(":memory:").await.unwrap();
+        let u = |id: &str| User {
+            id: id.into(),
+            username: format!("u{id}"),
+            display_name: format!("N{id}"),
+            role: Role::Student,
+            role_name: String::new(),
+            student_id: String::new(),
+            note: String::new(),
+            disabled: id == "off",
+            avatar: String::new(),
+            quota_bytes: 0,
+            created_by: String::new(),
+            class_id: String::new(),
+            lineage: "/".into(),
+            created_at: 1,
+            last_login: 0,
+        };
+        db.create_user(&u("t1"), "h").await.unwrap();
+        db.create_user(&u("v1"), "h").await.unwrap();
+        db.create_user(&u("off"), "h").await.unwrap();
+        let a = Announcement {
+            id: "a1".into(),
+            author_id: "t1".into(),
+            title: "Hello".into(),
+            body: "**bold**".into(),
+            comments_enabled: true,
+            reactions_enabled: true,
+            created_at: 5,
+            edited_at: 0,
+        };
+        db.announcement_create(&a).await.unwrap();
+        assert_eq!(db.announcement_by_id("a1").await.unwrap().title, "Hello");
+        assert!(db
+            .announcement_update("a1", "Hi", "body2", false, true, 9)
+            .await
+            .unwrap());
+        let a2 = db.announcement_by_id("a1").await.unwrap();
+        assert_eq!(a2.title, "Hi");
+        assert!(!a2.comments_enabled);
+        assert_eq!(a2.edited_at, 9);
+        assert!(db.user_ids_all().await.unwrap().iter().all(|i| i != "off"));
+        assert!(db.announcement_react("a1", "v1", "👍", 10).await.unwrap());
+        assert!(db.announcement_react("a1", "t1", "👍", 11).await.unwrap());
+        let l = db.announcements_list("v1", 0, 10).await.unwrap();
+        assert_eq!(l.len(), 1);
+        assert_eq!(l[0].reactions.len(), 1);
+        assert_eq!(l[0].reactions[0].count, 2);
+        assert!(l[0].reactions[0].mine);
+        assert_eq!(l[0].author_username, "ut1");
+        assert!(db.announcements_list("t1", 5, 10).await.unwrap().is_empty());
+        assert!(!db.announcement_react("a1", "v1", "👍", 12).await.unwrap());
+        let l = db.announcements_list("v1", 0, 10).await.unwrap();
+        assert_eq!(l[0].reactions[0].count, 1);
+        assert!(!l[0].reactions[0].mine);
+        let c = AnnouncementComment {
+            id: "c1".into(),
+            announcement_id: "a1".into(),
+            author_id: "v1".into(),
+            author_username: String::new(),
+            author_name: String::new(),
+            body: "nice".into(),
+            created_at: 6,
+            edited_at: 0,
+        };
+        db.ann_comment_add(&c).await.unwrap();
+        let cs = db.ann_comments("a1", 0, 10).await.unwrap();
+        assert_eq!(cs.len(), 1);
+        assert_eq!(cs[0].author_name, "Nv1");
+        assert!(db.ann_comment_update("c1", "v1", "nicer", 7).await.unwrap());
+        assert!(!db.ann_comment_update("c1", "t1", "x", 7).await.unwrap());
+        assert_eq!(db.ann_comment_by_id("c1").await.unwrap().body, "nicer");
+        assert_eq!(db.announcements_list("v1", 0, 10).await.unwrap()[0].comment_count, 1);
+        assert!(!db.ann_comment_delete("zz").await.unwrap());
+        assert!(db.ann_comment_delete("c1").await.unwrap());
+        assert!(db.ann_comments("a1", 0, 10).await.unwrap().is_empty());
+        assert!(db.announcement_delete("a1").await.unwrap());
+        assert!(!db.announcement_delete("a1").await.unwrap());
+        assert!(db.announcement_by_id("a1").await.is_err());
     }
 
     #[tokio::test]

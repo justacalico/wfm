@@ -582,6 +582,15 @@
   "storageMedia": "Media storage",
   "storageDatabase": "Database",
   "storageNoUsers": "No one is using storage yet.",
+  "storageResync": "Resync nodes",
+  "@storageResync": {},
+  "storageResyncDone": "Checked {checked} objects, copied {copied}.",
+  "@storageResyncDone": {
+    "placeholders": {
+      "checked": {},
+      "copied": {}
+    }
+  },
   "openSubmissions": "Open submissions",
   "closeSubmissions": "Close submissions",
   "submitConfirmBody": "Submit {name} for review?",
@@ -644,5 +653,91 @@
   "editLockLost": "Editing lock lost. Reopen the project to keep syncing changes.",
   "editAlreadyOpen": "That project is already open in an editor.",
   "editDeclined": "The project is locked by another editor.",
-  "editMissing": "The native editor isn't installed with this app."
+  "editMissing": "The native editor isn't installed with this app.",
+  "autoShareInvites": "Auto-share invites",
+  "autoShareInviteFrom": "{who} wants to automatically share their new projects with you ({level})",
+  "@autoShareInviteFrom": {
+    "placeholders": {
+      "who": {},
+      "level": {}
+    }
+  },
+  "activeAutoShares": "Auto-share lists",
+  "autoShareActiveHint": "New projects by {who} and their students are shared with you ({level})",
+  "@autoShareActiveHint": {
+    "placeholders": {
+      "who": {},
+      "level": {}
+    }
+  },
+  "leaveAutoShare": "Leave",
+  "leaveAutoShareConfirm": "Leave this auto-share list? New projects will stop being shared with you.",
+  "leaveShare": "Leave",
+  "leaveShareConfirm": "Remove this shared project from your list? The owner will be notified.",
+  "autoSharePending": "Pending",
+  "autoShareAccepted": "Accepted",
+  "autoShareDeclined": "Declined",
+  "notifAutoShareInvite": "{from} wants to automatically share their projects with you",
+  "@notifAutoShareInvite": {
+    "placeholders": {
+      "from": {}
+    }
+  },
+  "notifAutoShareAccepted": "{from} accepted your auto-share invite",
+  "@notifAutoShareAccepted": {
+    "placeholders": {
+      "from": {}
+    }
+  },
+  "notifAutoShareDeclined": "{from} declined your auto-share invite",
+  "@notifAutoShareDeclined": {
+    "placeholders": {
+      "from": {}
+    }
+  },
+  "notifShareLeft": "{from} left {project}",
+  "@notifShareLeft": {
+    "placeholders": {
+      "from": {},
+      "project": {}
+    }
+  },
+  "navAnnouncements": "Announcements",
+  "newAnnouncement": "New announcement",
+  "editAnnouncement": "Edit announcement",
+  "deleteAnnouncement": "Delete announcement",
+  "deleteAnnouncementConfirm": "Delete this announcement and all its comments?",
+  "announcementTitle": "Title",
+  "announcementBody": "Announcement",
+  "markdownHint": "Markdown formatting is supported.",
+  "allowComments": "Allow comments",
+  "allowReactions": "Allow reactions",
+  "noAnnouncements": "No announcements yet.",
+  "addReaction": "Add reaction",
+  "commentCount": "{count} comments",
+  "@commentCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "commentsOff": "Comments are off",
+  "editedMark": "edited",
+  "deleteComment": "Delete comment",
+  "deleteCommentConfirm": "Delete this comment?",
+  "edit": "Edit",
+  "post": "Post",
+  "notifAnnouncement": "{from} posted an announcement: {name}",
+  "@notifAnnouncement": {
+    "placeholders": {
+      "from": {},
+      "name": {}
+    }
+  },
+  "notifAnnComment": "{from} commented on {name}",
+  "@notifAnnComment": {
+    "placeholders": {
+      "from": {},
+      "name": {}
+    }
+  }
 }

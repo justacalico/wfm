@@ -267,7 +267,12 @@ class _SettingsPageState extends State<SettingsPage> {
             leading: const Icon(Icons.person_add_outlined, size: 18),
             title:
                 Text(a.inviteeName.isEmpty ? a.inviteeUsername : a.inviteeName),
-            subtitle: Text(a.level == 'edit' ? l10n.canEdit : l10n.canView),
+            subtitle: Text(
+                '${a.level == 'edit' ? l10n.canEdit : l10n.canView}  ·  ${switch (a.status) {
+              'accepted' => l10n.autoShareAccepted,
+              'declined' => l10n.autoShareDeclined,
+              _ => l10n.autoSharePending
+            }}'),
             trailing: IconButton(
                 icon: const Icon(Icons.close, size: 18),
                 onPressed: () => _removeAutoShare(a)),

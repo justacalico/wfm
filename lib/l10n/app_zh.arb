@@ -572,6 +572,8 @@
   "storageMedia": "媒体存储",
   "storageDatabase": "数据库",
   "storageNoUsers": "暂无用户使用存储。",
+  "storageResync": "重新同步节点",
+  "storageResyncDone": "已检查 {checked} 个对象，复制 {copied} 个。",
   "openSubmissions": "开放提交",
   "closeSubmissions": "关闭提交",
   "submitConfirmBody": "提交 {name} 以供审核？",
@@ -634,6 +636,91 @@
     "placeholders": {
       "holder": {}
     }
+  },
+  "autoShareInvites": "自动共享邀请",
+  "autoShareInviteFrom": "{who} 希望自动与你共享其新项目（{level}）",
+  "@autoShareInviteFrom": {
+    "placeholders": {
+      "who": {},
+      "level": {}
+    }
+  },
+  "activeAutoShares": "自动共享列表",
+  "autoShareActiveHint": "{who} 及其学生的新项目会与你共享（{level}）",
+  "@autoShareActiveHint": {
+    "placeholders": {
+      "who": {},
+      "level": {}
+    }
+  },
+  "leaveAutoShare": "退出",
+  "leaveAutoShareConfirm": "退出此自动共享列表？新项目将不再与你共享。",
+  "leaveShare": "退出",
+  "leaveShareConfirm": "将此共享项目从你的列表中移除？所有者将收到通知。",
+  "autoSharePending": "待处理",
+  "autoShareAccepted": "已接受",
+  "autoShareDeclined": "已拒绝",
+  "notifAutoShareInvite": "{from} 希望自动与你共享其项目",
+  "@notifAutoShareInvite": {
+    "placeholders": {
+      "from": {}
+    }
+  },
+  "notifAutoShareAccepted": "{from} 接受了你的自动共享邀请",
+  "@notifAutoShareAccepted": {
+    "placeholders": {
+      "from": {}
+    }
+  },
+  "notifAutoShareDeclined": "{from} 拒绝了你的自动共享邀请",
+  "@notifAutoShareDeclined": {
+    "placeholders": {
+      "from": {}
+    }
+  },
+  "notifShareLeft": "{from} 退出了 {project}",
+  "@notifShareLeft": {
+    "placeholders": {
+      "from": {},
+      "project": {}
+    }
+  },
+  "navAnnouncements": "公告",
+  "newAnnouncement": "发布公告",
+  "editAnnouncement": "编辑公告",
+  "deleteAnnouncement": "删除公告",
+  "deleteAnnouncementConfirm": "删除此公告及其全部评论？",
+  "announcementTitle": "标题",
+  "announcementBody": "公告内容",
+  "markdownHint": "支持 Markdown 格式。",
+  "allowComments": "允许评论",
+  "allowReactions": "允许表态",
+  "noAnnouncements": "暂无公告。",
+  "addReaction": "添加表态",
+  "commentCount": "{count} 条评论",
+  "@commentCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "commentsOff": "评论已关闭",
+  "editedMark": "已编辑",
+  "deleteComment": "删除评论",
+  "deleteCommentConfirm": "删除此评论？",
+  "edit": "编辑",
+  "post": "发布",
+  "notifAnnouncement": "{from} 发布了公告：{name}",
+  "@notifAnnouncement": {
+    "placeholders": {
+      "from": {},
+      "name": {}
+    }
+  },
+  "notifAnnComment": "{from} 评论了 {name}",
+  "@notifAnnComment": {
+    "placeholders": {
+      "from": {},
+      "name": {}
+    }
   }
-
 }

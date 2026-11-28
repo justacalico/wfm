@@ -2,7 +2,6 @@
 
 // ignore: unused_import
 import 'package:intl/intl.dart' as intl;
-
 import 'app_localizations.dart';
 
 // ignore_for_file: type=lint
@@ -1319,6 +1318,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get storageNoUsers => 'No one is using storage yet.';
 
   @override
+  String get storageResync => 'Resync nodes';
+
+  @override
+  String storageResyncDone(Object checked, Object copied) {
+    return 'Checked $checked objects, copied $copied.';
+  }
+
+  @override
   String get openSubmissions => 'Open submissions';
 
   @override
@@ -1423,6 +1430,135 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get editMissing => 'The native editor isn\'t installed with this app.';
+
+  @override
+  String get autoShareInvites => 'Auto-share invites';
+
+  @override
+  String autoShareInviteFrom(Object who, Object level) {
+    return '$who wants to automatically share their new projects with you ($level)';
+  }
+
+  @override
+  String get activeAutoShares => 'Auto-share lists';
+
+  @override
+  String autoShareActiveHint(Object who, Object level) {
+    return 'New projects by $who and their students are shared with you ($level)';
+  }
+
+  @override
+  String get leaveAutoShare => 'Leave';
+
+  @override
+  String get leaveAutoShareConfirm =>
+      'Leave this auto-share list? New projects will stop being shared with you.';
+
+  @override
+  String get leaveShare => 'Leave';
+
+  @override
+  String get leaveShareConfirm =>
+      'Remove this shared project from your list? The owner will be notified.';
+
+  @override
+  String get autoSharePending => 'Pending';
+
+  @override
+  String get autoShareAccepted => 'Accepted';
+
+  @override
+  String get autoShareDeclined => 'Declined';
+
+  @override
+  String notifAutoShareInvite(Object from) {
+    return '$from wants to automatically share their projects with you';
+  }
+
+  @override
+  String notifAutoShareAccepted(Object from) {
+    return '$from accepted your auto-share invite';
+  }
+
+  @override
+  String notifAutoShareDeclined(Object from) {
+    return '$from declined your auto-share invite';
+  }
+
+  @override
+  String notifShareLeft(Object from, Object project) {
+    return '$from left $project';
+  }
+
+  @override
+  String get navAnnouncements => 'Announcements';
+
+  @override
+  String get newAnnouncement => 'New announcement';
+
+  @override
+  String get editAnnouncement => 'Edit announcement';
+
+  @override
+  String get deleteAnnouncement => 'Delete announcement';
+
+  @override
+  String get deleteAnnouncementConfirm =>
+      'Delete this announcement and all its comments?';
+
+  @override
+  String get announcementTitle => 'Title';
+
+  @override
+  String get announcementBody => 'Announcement';
+
+  @override
+  String get markdownHint => 'Markdown formatting is supported.';
+
+  @override
+  String get allowComments => 'Allow comments';
+
+  @override
+  String get allowReactions => 'Allow reactions';
+
+  @override
+  String get noAnnouncements => 'No announcements yet.';
+
+  @override
+  String get addReaction => 'Add reaction';
+
+  @override
+  String commentCount(Object count) {
+    return '$count comments';
+  }
+
+  @override
+  String get commentsOff => 'Comments are off';
+
+  @override
+  String get editedMark => 'edited';
+
+  @override
+  String get deleteComment => 'Delete comment';
+
+  @override
+  String get deleteCommentConfirm => 'Delete this comment?';
+
+  @override
+  String get edit => 'Edit';
+
+  @override
+  String get post => 'Post';
+
+  @override
+  String notifAnnouncement(Object from, Object name) {
+    return '$from posted an announcement: $name';
+  }
+
+  @override
+  String notifAnnComment(Object from, Object name) {
+    return '$from commented on $name';
+  }
 }
 
 /// The translations for English, as used in the United Kingdom (`en_GB`).
@@ -1911,6 +2047,14 @@ class AppLocalizationsEnGb extends AppLocalizationsEn {
   String get storageNoUsers => 'No one is using storage yet.';
 
   @override
+  String get storageResync => 'Resync nodes';
+
+  @override
+  String storageResyncDone(Object checked, Object copied) {
+    return 'Checked $checked objects, copied $copied.';
+  }
+
+  @override
   String get openSubmissions => 'Open submissions';
 
   @override
@@ -2015,4 +2159,133 @@ class AppLocalizationsEnGb extends AppLocalizationsEn {
 
   @override
   String get editMissing => 'The native editor isn\'t installed with this app.';
+
+  @override
+  String get autoShareInvites => 'Auto-share invites';
+
+  @override
+  String autoShareInviteFrom(Object who, Object level) {
+    return '$who wants to automatically share their new projects with you ($level)';
+  }
+
+  @override
+  String get activeAutoShares => 'Auto-share lists';
+
+  @override
+  String autoShareActiveHint(Object who, Object level) {
+    return 'New projects by $who and their students are shared with you ($level)';
+  }
+
+  @override
+  String get leaveAutoShare => 'Leave';
+
+  @override
+  String get leaveAutoShareConfirm =>
+      'Leave this auto-share list? New projects will stop being shared with you.';
+
+  @override
+  String get leaveShare => 'Leave';
+
+  @override
+  String get leaveShareConfirm =>
+      'Remove this shared project from your list? The owner will be notified.';
+
+  @override
+  String get autoSharePending => 'Pending';
+
+  @override
+  String get autoShareAccepted => 'Accepted';
+
+  @override
+  String get autoShareDeclined => 'Declined';
+
+  @override
+  String notifAutoShareInvite(Object from) {
+    return '$from wants to automatically share their projects with you';
+  }
+
+  @override
+  String notifAutoShareAccepted(Object from) {
+    return '$from accepted your auto-share invite';
+  }
+
+  @override
+  String notifAutoShareDeclined(Object from) {
+    return '$from declined your auto-share invite';
+  }
+
+  @override
+  String notifShareLeft(Object from, Object project) {
+    return '$from left $project';
+  }
+
+  @override
+  String get navAnnouncements => 'Announcements';
+
+  @override
+  String get newAnnouncement => 'New announcement';
+
+  @override
+  String get editAnnouncement => 'Edit announcement';
+
+  @override
+  String get deleteAnnouncement => 'Delete announcement';
+
+  @override
+  String get deleteAnnouncementConfirm =>
+      'Delete this announcement and all its comments?';
+
+  @override
+  String get announcementTitle => 'Title';
+
+  @override
+  String get announcementBody => 'Announcement';
+
+  @override
+  String get markdownHint => 'Markdown formatting is supported.';
+
+  @override
+  String get allowComments => 'Allow comments';
+
+  @override
+  String get allowReactions => 'Allow reactions';
+
+  @override
+  String get noAnnouncements => 'No announcements yet.';
+
+  @override
+  String get addReaction => 'Add reaction';
+
+  @override
+  String commentCount(Object count) {
+    return '$count comments';
+  }
+
+  @override
+  String get commentsOff => 'Comments are off';
+
+  @override
+  String get editedMark => 'edited';
+
+  @override
+  String get deleteComment => 'Delete comment';
+
+  @override
+  String get deleteCommentConfirm => 'Delete this comment?';
+
+  @override
+  String get edit => 'Edit';
+
+  @override
+  String get post => 'Post';
+
+  @override
+  String notifAnnouncement(Object from, Object name) {
+    return '$from posted an announcement: $name';
+  }
+
+  @override
+  String notifAnnComment(Object from, Object name) {
+    return '$from commented on $name';
+  }
 }

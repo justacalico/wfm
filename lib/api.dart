@@ -47,6 +47,7 @@ class User {
   bool get isAdmin => rank >= ranks['admin']!;
   bool get isStaff => rank >= ranks['teacher']!;
   bool get isOwner => role == 'owner';
+  bool get canAnnounce => role == 'mod' || rank >= ranks['admin']!;
 }
 
 class Caps {
@@ -285,15 +286,72 @@ class Share {
 }
 
 class AutoShare {
-  final String id, inviteeId, inviteeUsername, inviteeName, level;
+  final String id,
+      inviteeId,
+      inviteeUsername,
+      inviteeName,
+      ownerUsername,
+      ownerName,
+      level,
+      status;
   final int createdAt;
   AutoShare.fromJson(Map<String, dynamic> j)
       : id = j['id'] ?? '',
         inviteeId = j['inviteeId'] ?? '',
         inviteeUsername = j['inviteeUsername'] ?? '',
         inviteeName = j['inviteeName'] ?? '',
+        ownerUsername = j['ownerUsername'] ?? '',
+        ownerName = j['ownerName'] ?? '',
         level = j['level'] ?? 'view',
+        status = j['status'] ?? '',
         createdAt = j['createdAt'] ?? 0;
+}
+
+class ReactionCount {
+  final String emoji;
+  final int count;
+  final bool mine;
+  ReactionCount.fromJson(Map<String, dynamic> j)
+      : emoji = j['emoji'] ?? '',
+        count = j['count'] ?? 0,
+        mine = j['mine'] == true;
+}
+
+class Announcement {
+  final String id, authorId, authorUsername, authorName, title, body;
+  final bool commentsEnabled, reactionsEnabled;
+  final List<ReactionCount> reactions;
+  final int commentCount, createdAt, editedAt;
+  Announcement.fromJson(Map<String, dynamic> j)
+      : id = j['id'] ?? '',
+        authorId = j['authorId'] ?? '',
+        authorUsername = j['authorUsername'] ?? '',
+        authorName = j['authorName'] ?? '',
+        title = j['title'] ?? '',
+        body = j['body'] ?? '',
+        commentsEnabled = j['commentsEnabled'] != false,
+        reactionsEnabled = j['reactionsEnabled'] != false,
+        reactions = [
+          for (final e in (j['reactions'] as List? ?? []))
+            ReactionCount.fromJson(e)
+        ],
+        commentCount = j['commentCount'] ?? 0,
+        createdAt = j['createdAt'] ?? 0,
+        editedAt = j['editedAt'] ?? 0;
+}
+
+class AnnComment {
+  final String id, announcementId, authorId, authorUsername, authorName, body;
+  final int createdAt, editedAt;
+  AnnComment.fromJson(Map<String, dynamic> j)
+      : id = j['id'] ?? '',
+        announcementId = j['announcementId'] ?? '',
+        authorId = j['authorId'] ?? '',
+        authorUsername = j['authorUsername'] ?? '',
+        authorName = j['authorName'] ?? '',
+        body = j['body'] ?? '',
+        createdAt = j['createdAt'] ?? 0,
+        editedAt = j['editedAt'] ?? 0;
 }
 
 class Assignment {
@@ -727,6 +785,9 @@ class Api {
   Future<StorageStats> storageStats() async =>
       StorageStats.fromJson(await get('/storage'));
 
+  Future<Map<String, dynamic>> storageResync() async =>
+      (await post('/storage/resync', {})) as Map<String, dynamic>;
+
   Future<String> reviewProject(String id, String status) async =>
       '${(await post('/projects/$id/review', {
                 'status': status
@@ -1070,6 +1131,65 @@ class Api {
       post('/auto-shares', {'username': username, 'level': level});
 
   Future<void> autoShareDelete(String id) => del('/auto-shares/$id');
+
+  Future<List<AutoShare>> autoSharesIncoming() async => [
+        for (final e in (await get('/auto-shares/incoming')) as List)
+          AutoShare.fromJson(e)
+      ];
+
+  Future<void> autoShareRespond(String id, bool accept) =>
+      post('/auto-shares/$id/${accept ? 'accept' : 'decline'}', {});
+
+  Future<void> shareLeave(String sid) => del('/shares/$sid');
+
+  Future<List<Announcement>> announcements(
+          {int before = 0, int limit = 50}) async =>
+      [
+        for (final e
+            in (await get('/announcements?before=$before&limit=$limit'))
+                as List)
+          Announcement.fromJson(e)
+      ];
+
+  Future<void> announcementCreate(String title, String body,
+          {bool comments = true, bool reactions = true}) =>
+      post('/announcements', {
+        'title': title,
+        'body': body,
+        'commentsEnabled': comments,
+        'reactionsEnabled': reactions
+      });
+
+  Future<void> announcementUpdate(String id,
+          {String? title, String? body, bool? comments, bool? reactions}) =>
+      patch('/announcements/$id', {
+        if (title != null) 'title': title,
+        if (body != null) 'body': body,
+        if (comments != null) 'commentsEnabled': comments,
+        if (reactions != null) 'reactionsEnabled': reactions,
+      });
+
+  Future<void> announcementDelete(String id) => del('/announcements/$id');
+
+  Future<void> announcementReact(String id, String emoji) =>
+      post('/announcements/$id/react', {'emoji': emoji});
+
+  Future<List<AnnComment>> annComments(String id,
+          {int before = 0, int limit = 50}) async =>
+      [
+        for (final e in (await get(
+            '/announcements/$id/comments?before=$before&limit=$limit')) as List)
+          AnnComment.fromJson(e)
+      ];
+
+  Future<void> annCommentAdd(String id, String body) =>
+      post('/announcements/$id/comments', {'body': body});
+
+  Future<void> annCommentEdit(String id, String cid, String body) =>
+      patch('/announcements/$id/comments/$cid', {'body': body});
+
+  Future<void> annCommentDelete(String id, String cid) =>
+      del('/announcements/$id/comments/$cid');
 
   Future<void> shareRespond(String sid, bool accept) =>
       post('/shares/$sid/${accept ? 'accept' : 'decline'}', {});

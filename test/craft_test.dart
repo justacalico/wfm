@@ -388,14 +388,22 @@ void main() {
         'GET /api/projects/p1/download': (_) => http.Response.bytes([], 200),
       }))
         ..baseUrl = 'http://test';
-      final r2 = CraftRunner(api2,
-          spawn: (e, a, {workingDirectory, env}) async => proc);
+      Map<String, String>? spawnEnv;
+      final r2 =
+          CraftRunner(api2, spawn: (e, a, {workingDirectory, env}) async {
+        spawnEnv = env;
+        return proc;
+      });
       final run = await r2.open('filmcraft', pid, dir, exe.path,
           takeOver: (holder) async {
         expect(holder, 'ada');
         return true;
       }, lockLost: (_) {}, pullMedia: false);
       expect(calls, 2);
+      expect(spawnEnv?['FILMCRAFT_REMOTE_URL'], 'http://test');
+      expect(spawnEnv?['FILMCRAFT_REMOTE_PROJECT'], pid);
+      expect(spawnEnv?['FILMCRAFT_REMOTE_ROOT'], dir.path);
+      expect(spawnEnv?.containsKey('FILMCRAFT_REMOTE_TOKEN'), isTrue);
       proc.done.complete(0);
       await run.done.future;
     });

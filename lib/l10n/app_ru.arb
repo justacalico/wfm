@@ -572,6 +572,8 @@
   "storageMedia": "Хранилище медиа",
   "storageDatabase": "База данных",
   "storageNoUsers": "Хранилище пока никем не используется.",
+  "storageResync": "Синхронизировать узлы",
+  "storageResyncDone": "Проверено объектов: {checked}, скопировано: {copied}.",
   "openSubmissions": "Открыть отправки",
   "closeSubmissions": "Закрыть отправки",
   "submitConfirmBody": "Отправить {name} на проверку?",
@@ -634,6 +636,91 @@
     "placeholders": {
       "holder": {}
     }
+  },
+  "autoShareInvites": "Приглашения на автодоступ",
+  "autoShareInviteFrom": "{who} хочет автоматически делиться с вами новыми проектами ({level})",
+  "@autoShareInviteFrom": {
+    "placeholders": {
+      "who": {},
+      "level": {}
+    }
+  },
+  "activeAutoShares": "Списки автодоступа",
+  "autoShareActiveHint": "Новые проекты {who} и их учеников будут доступны вам ({level})",
+  "@autoShareActiveHint": {
+    "placeholders": {
+      "who": {},
+      "level": {}
+    }
+  },
+  "leaveAutoShare": "Выйти",
+  "leaveAutoShareConfirm": "Выйти из этого списка автодоступа? Новые проекты перестанут быть доступны вам.",
+  "leaveShare": "Выйти",
+  "leaveShareConfirm": "Убрать этот общий проект из вашего списка? Владелец получит уведомление.",
+  "autoSharePending": "Ожидает",
+  "autoShareAccepted": "Принято",
+  "autoShareDeclined": "Отклонено",
+  "notifAutoShareInvite": "{from} хочет автоматически делиться с вами своими проектами",
+  "@notifAutoShareInvite": {
+    "placeholders": {
+      "from": {}
+    }
+  },
+  "notifAutoShareAccepted": "{from} принял(а) ваше приглашение на автодоступ",
+  "@notifAutoShareAccepted": {
+    "placeholders": {
+      "from": {}
+    }
+  },
+  "notifAutoShareDeclined": "{from} отклонил(а) ваше приглашение на автодоступ",
+  "@notifAutoShareDeclined": {
+    "placeholders": {
+      "from": {}
+    }
+  },
+  "notifShareLeft": "{from} покинул(а) {project}",
+  "@notifShareLeft": {
+    "placeholders": {
+      "from": {},
+      "project": {}
+    }
+  },
+  "navAnnouncements": "Объявления",
+  "newAnnouncement": "Новое объявление",
+  "editAnnouncement": "Изменить объявление",
+  "deleteAnnouncement": "Удалить объявление",
+  "deleteAnnouncementConfirm": "Удалить это объявление и все его комментарии?",
+  "announcementTitle": "Заголовок",
+  "announcementBody": "Текст объявления",
+  "markdownHint": "Поддерживается разметка Markdown.",
+  "allowComments": "Разрешить комментарии",
+  "allowReactions": "Разрешить реакции",
+  "noAnnouncements": "Пока нет объявлений.",
+  "addReaction": "Добавить реакцию",
+  "commentCount": "Комментарии: {count}",
+  "@commentCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "commentsOff": "Комментарии отключены",
+  "editedMark": "изменено",
+  "deleteComment": "Удалить комментарий",
+  "deleteCommentConfirm": "Удалить этот комментарий?",
+  "edit": "Изменить",
+  "post": "Опубликовать",
+  "notifAnnouncement": "{from} опубликовал(а) объявление: {name}",
+  "@notifAnnouncement": {
+    "placeholders": {
+      "from": {},
+      "name": {}
+    }
+  },
+  "notifAnnComment": "{from} прокомментировал(а) {name}",
+  "@notifAnnComment": {
+    "placeholders": {
+      "from": {},
+      "name": {}
+    }
   }
-
 }

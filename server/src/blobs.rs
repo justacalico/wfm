@@ -65,6 +65,19 @@ pub trait Blobs: Send + Sync {
         }
         Ok((used, 0))
     }
+
+    /// Per-node usage for multi-node backends; single backends report
+    /// themselves as the only pool.
+    async fn pool_stats(&self) -> Result<Vec<(String, u64, u64)>, String> {
+        let (used, total) = self.stats().await.unwrap_or((0, 0));
+        Ok(vec![("media".to_string(), used, total)])
+    }
+
+    /// Copy objects missing from a node to that node (replicated backends).
+    /// Returns (objects checked, objects copied).
+    async fn resync(&self) -> Result<(u64, u64), String> {
+        Ok((0, 0))
+    }
 }
 
 // ---------------- local filesystem backend ----------------
@@ -604,7 +617,8 @@ fn chrono_ts(s: &str) -> i64 {
 
 #[cfg(test)]
 mod tests {
-    use super::{chrono_ts, Blobs, LocalBlobs};
+    use super::{chrono_ts, Blobs, LocalBlobs, MultiBlobs, NodeMode};
+    use std::sync::Arc;
 
     #[tokio::test]
     async fn local_rename_fails_when_destination_exists() {
@@ -623,6 +637,57 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
     }
 
+    fn pair(tag: &str, mode: NodeMode) -> (std::path::PathBuf, std::path::PathBuf, MultiBlobs) {
+        let a = std::env::temp_dir().join(format!("wfm-multi-{tag}-a-{}", std::process::id()));
+        let b = std::env::temp_dir().join(format!("wfm-multi-{tag}-b-{}", std::process::id()));
+        let m = MultiBlobs::new(
+            vec![
+                ("a".into(), Arc::new(LocalBlobs::new(a.clone())) as Arc<dyn Blobs>),
+                ("b".into(), Arc::new(LocalBlobs::new(b.clone())) as Arc<dyn Blobs>),
+            ],
+            mode,
+        );
+        (a, b, m)
+    }
+
+    #[tokio::test]
+    async fn multi_spread_writes_one_node_reads_anywhere() {
+        let (a, b, spread) = pair("spread", NodeMode::Spread);
+        spread.put("x.bin", 3, &mut &b"abc"[..]).await.unwrap();
+        let on_a = a.join("x.bin").exists();
+        let on_b = b.join("x.bin").exists();
+        assert!(on_a ^ on_b);
+        let (len, mut st) = spread.get("x.bin").await.unwrap();
+        assert_eq!(len, 3);
+        let mut buf = Vec::new();
+        while let Some(c) = futures::StreamExt::next(&mut st).await {
+            buf.extend_from_slice(&c.unwrap());
+        }
+        assert_eq!(buf, b"abc");
+        let pools = spread.pool_stats().await.unwrap();
+        assert_eq!(pools.len(), 2);
+        let _ = std::fs::remove_dir_all(&a);
+        let _ = std::fs::remove_dir_all(&b);
+    }
+
+    #[tokio::test]
+    async fn multi_replicate_writes_all_and_resyncs() {
+        let (a, b, rep) = pair("rep", NodeMode::Replicate);
+        rep.put("x.bin", 3, &mut &b"abc"[..]).await.unwrap();
+        assert!(a.join("x.bin").exists());
+        assert!(b.join("x.bin").exists());
+        let _ = std::fs::remove_file(b.join("x.bin"));
+        let (checked, copied) = rep.resync().await.unwrap();
+        assert_eq!(checked, 1);
+        assert_eq!(copied, 1);
+        assert!(b.join("x.bin").exists());
+        rep.delete("x.bin").await.unwrap();
+        assert!(!a.join("x.bin").exists());
+        assert!(!b.join("x.bin").exists());
+        let _ = std::fs::remove_dir_all(&a);
+        let _ = std::fs::remove_dir_all(&b);
+    }
+
     #[test]
     fn s3_timestamps_parse() {
         assert_eq!(chrono_ts("1970-01-01T00:00:00.000Z"), 0);
@@ -635,7 +700,317 @@ mod tests {
     }
 }
 
+// ---------------- multi-node layer ----------------
+
+#[derive(Clone, Copy, PartialEq)]
+pub enum NodeMode {
+    /// Writes land on the pool with the most free capacity (more space).
+    Spread,
+    /// Writes land on every node (backup/redundancy).
+    Replicate,
+}
+
+/// Fans blob access out over several storage targets behind one `Blobs`
+/// interface. Reads try each node until one has the key, so an object stored
+/// on any node (or replicated to all) resolves the same way.
+pub struct MultiBlobs {
+    nodes: Vec<(String, Arc<dyn Blobs>)>,
+    mode: NodeMode,
+}
+
+impl MultiBlobs {
+    pub fn new(nodes: Vec<(String, Arc<dyn Blobs>)>, mode: NodeMode) -> Self {
+        MultiBlobs { nodes, mode }
+    }
+
+    /// Spread writes go to the node with the most free capacity; when no
+    /// node reports a capacity (object stores), the least used wins.
+    async fn pick(&self) -> Result<Arc<dyn Blobs>, String> {
+        let mut best: Option<(&Arc<dyn Blobs>, u64)> = None;
+        for (_name, b) in &self.nodes {
+            let (used, total) = b.stats().await.unwrap_or((u64::MAX, 0));
+            let score = if total > 0 {
+                total.saturating_sub(used)
+            } else {
+                u64::MAX.saturating_sub(used)
+            };
+            if best.map_or(true, |(_, s)| score > s) {
+                best = Some((b, score));
+            }
+        }
+        best.map(|(b, _)| b.clone())
+            .ok_or_else(|| "no storage nodes".to_string())
+    }
+
+    async fn copy_to(&self, from: &Arc<dyn Blobs>, to: &Arc<dyn Blobs>, key: &str) -> Result<(), String> {
+        let (len, mut stream) = from.get(key).await?;
+        let mut buf = Vec::new();
+        while let Some(chunk) = stream.next().await {
+            buf.extend_from_slice(&chunk.map_err(|e| e.to_string())?);
+        }
+        if buf.len() as u64 != len {
+            return Err(format!("short read on {key}"));
+        }
+        to.put(key, len, &mut &buf[..]).await
+    }
+
+}
+
+#[async_trait]
+impl Blobs for MultiBlobs {
+    async fn put(
+        &self,
+        key: &str,
+        len: u64,
+        reader: &mut (dyn AsyncRead + Send + Unpin),
+    ) -> Result<(), String> {
+        match self.mode {
+            NodeMode::Replicate => {
+                let primary = &self.nodes[0].1;
+                primary.put(key, len, reader).await?;
+                for (name, b) in self.nodes.iter().skip(1) {
+                    if let Err(e) = self.copy_to(primary, b, key).await {
+                        tracing::warn!("replicate {key} to {name}: {e}");
+                    }
+                }
+                Ok(())
+            }
+            NodeMode::Spread => self.pick().await?.put(key, len, reader).await,
+        }
+    }
+
+    async fn get(&self, key: &str) -> Result<(u64, ByteStream), String> {
+        let mut last = Err("no storage nodes".to_string());
+        for (_name, b) in &self.nodes {
+            match b.get(key).await {
+                ok @ Ok(_) => return ok,
+                Err(e) => last = Err(e),
+            }
+        }
+        last
+    }
+
+    async fn get_range(
+        &self,
+        key: &str,
+        start: u64,
+        end: u64,
+    ) -> Result<(u64, u64, ByteStream), String> {
+        let mut last = Err("no storage nodes".to_string());
+        for (_name, b) in &self.nodes {
+            match b.get_range(key, start, end).await {
+                ok @ Ok(_) => return ok,
+                Err(e) => last = Err(e),
+            }
+        }
+        last
+    }
+
+    async fn head(&self, key: &str) -> Result<u64, String> {
+        let mut last = Err("no storage nodes".to_string());
+        for (_name, b) in &self.nodes {
+            match b.head(key).await {
+                ok @ Ok(_) => return ok,
+                Err(e) => last = Err(e),
+            }
+        }
+        last
+    }
+
+    async fn list(&self, prefix: &str) -> Result<(Vec<String>, Vec<BlobObject>), String> {
+        let mut dirs = Vec::new();
+        let mut objs: Vec<BlobObject> = Vec::new();
+        for (_name, b) in &self.nodes {
+            match b.list(prefix).await {
+                Ok((d, o)) => {
+                    for dir in d {
+                        if !dirs.contains(&dir) {
+                            dirs.push(dir);
+                        }
+                    }
+                    for obj in o {
+                        if !objs.iter().any(|x| x.key == obj.key) {
+                            objs.push(obj);
+                        }
+                    }
+                }
+                Err(e) => tracing::warn!("list {prefix} on node: {e}"),
+            }
+        }
+        Ok((dirs, objs))
+    }
+
+    async fn delete(&self, key: &str) -> Result<(), String> {
+        let mut last = Err("no storage nodes".to_string());
+        let mut ok = false;
+        for (_name, b) in &self.nodes {
+            match b.delete(key).await {
+                Ok(()) => ok = true,
+                Err(e) => last = Err(e),
+            }
+        }
+        if ok {
+            Ok(())
+        } else {
+            last
+        }
+    }
+
+    async fn delete_prefix(&self, prefix: &str) -> Result<(), String> {
+        let mut last = Err("no storage nodes".to_string());
+        let mut ok = false;
+        for (_name, b) in &self.nodes {
+            match b.delete_prefix(prefix).await {
+                Ok(()) => ok = true,
+                Err(e) => last = Err(e),
+            }
+        }
+        if ok {
+            Ok(())
+        } else {
+            last
+        }
+    }
+
+    async fn rename(&self, from: &str, to: &str) -> Result<(), String> {
+        let mut last = Err("not found".to_string());
+        for (_name, b) in &self.nodes {
+            match b.head(from).await {
+                Ok(_) => match b.rename(from, to).await {
+                    Ok(()) => {}
+                    Err(e) => return Err(e),
+                },
+                Err(e) => {
+                    last = Err(e);
+                    continue;
+                }
+            }
+            if self.mode == NodeMode::Spread {
+                return Ok(());
+            }
+        }
+        last
+    }
+
+    async fn mkdir(&self, key_prefix: &str) -> Result<(), String> {
+        let mut last = Err("no storage nodes".to_string());
+        let mut ok = false;
+        for (_name, b) in &self.nodes {
+            match b.mkdir(key_prefix).await {
+                Ok(()) => ok = true,
+                Err(e) => last = Err(e),
+            }
+        }
+        if ok {
+            Ok(())
+        } else {
+            last
+        }
+    }
+
+    async fn stats(&self) -> Result<(u64, u64), String> {
+        let (mut used, mut total) = (0u64, 0u64);
+        for (_name, b) in &self.nodes {
+            let (u, t) = b.stats().await.unwrap_or((0, 0));
+            used = used.saturating_add(u);
+            total = total.saturating_add(t);
+        }
+        Ok((used, total))
+    }
+
+    async fn pool_stats(&self) -> Result<Vec<(String, u64, u64)>, String> {
+        let mut out = Vec::new();
+        for (name, b) in &self.nodes {
+            let (u, t) = b.stats().await.unwrap_or((0, 0));
+            out.push((name.clone(), u, t));
+        }
+        Ok(out)
+    }
+
+    async fn resync(&self) -> Result<(u64, u64), String> {
+        if self.mode != NodeMode::Replicate || self.nodes.len() < 2 {
+            return Ok((0, 0));
+        }
+        // Union of every key on every node, then fill what each node lacks.
+        let mut keys = Vec::new();
+        let mut stack = vec![String::new()];
+        while let Some(p) = stack.pop() {
+            let (dirs, objs) = self.list(&p).await?;
+            keys.extend(objs.into_iter().map(|o| o.key));
+            stack.extend(dirs);
+        }
+        keys.sort();
+        keys.dedup();
+        let checked = keys.len() as u64;
+        let mut copied = 0u64;
+        for key in &keys {
+            let mut src = None;
+            for (_, b) in &self.nodes {
+                if b.head(key).await.is_ok() {
+                    src = Some(b.clone());
+                    break;
+                }
+            }
+            let Some(src) = src else { continue };
+            for (name, b) in &self.nodes {
+                if b.head(key).await.is_ok() {
+                    continue;
+                }
+                match self.copy_to(&src, b, key).await {
+                    Ok(()) => copied += 1,
+                    Err(e) => tracing::warn!("resync {key} to {name}: {e}"),
+                }
+            }
+        }
+        Ok((checked, copied))
+    }
+}
+
+async fn connect_node(n: &crate::config::MediaNodeCfg, data_dir: &std::path::Path) -> Result<Arc<dyn Blobs>, String> {
+    match n.kind.as_str() {
+        "s3" => Ok(Arc::new(
+            S3Blobs::connect(
+                &n.s3_endpoint,
+                &n.s3_region,
+                &n.s3_bucket,
+                &n.s3_access,
+                &n.s3_secret,
+                &n.s3_prefix,
+            )
+            .await?,
+        )),
+        _ => {
+            let root = n
+                .path
+                .clone()
+                .map(std::path::PathBuf::from)
+                .unwrap_or_else(|| data_dir.join("media"));
+            std::fs::create_dir_all(&root).map_err(|e| e.to_string())?;
+            Ok(Arc::new(LocalBlobs::new(root)))
+        }
+    }
+}
+
 pub async fn connect(cfg: &crate::config::Config) -> Result<Arc<dyn Blobs>, String> {
+    if !cfg.media_nodes.is_empty() {
+        let mut nodes = Vec::with_capacity(cfg.media_nodes.len());
+        for (i, n) in cfg.media_nodes.iter().enumerate() {
+            let name = if n.name.is_empty() {
+                format!("node{}", i + 1)
+            } else {
+                n.name.clone()
+            };
+            nodes.push((name, connect_node(n, &cfg.data_dir).await?));
+        }
+        let mode = match cfg.media_mode.as_str() {
+            "replicate" => NodeMode::Replicate,
+            _ => NodeMode::Spread,
+        };
+        if nodes.len() == 1 {
+            return Ok(nodes.into_iter().next().unwrap().1);
+        }
+        return Ok(Arc::new(MultiBlobs::new(nodes, mode)));
+    }
     match cfg.media_kind.as_str() {
         "s3" => Ok(Arc::new(
             S3Blobs::connect(

@@ -12,6 +12,7 @@ class SharedPage extends StatefulWidget {
 
 class _SharedPageState extends State<SharedPage> {
   List<Share>? _shares;
+  List<AutoShare>? _incoming;
   String _err = '';
 
   @override
@@ -23,8 +24,13 @@ class _SharedPageState extends State<SharedPage> {
   Future<void> _load() async {
     try {
       final v = await Api.i.shares();
+      List<AutoShare> inc = const [];
+      try {
+        inc = await Api.i.autoSharesIncoming();
+      } catch (_) {}
       setState(() {
         _shares = v;
+        _incoming = inc;
         _err = '';
       });
       if (mounted) {
@@ -38,6 +44,42 @@ class _SharedPageState extends State<SharedPage> {
   Future<void> _respond(Share sh, bool accept) async {
     try {
       await Api.i.shareRespond(sh.id, accept);
+      _load();
+    } catch (e) {
+      if (mounted) snack(context, e);
+    }
+  }
+
+  Future<void> _respondAuto(AutoShare a, bool accept) async {
+    try {
+      await Api.i.autoShareRespond(a.id, accept);
+      _load();
+    } catch (e) {
+      if (mounted) snack(context, e);
+    }
+  }
+
+  Future<void> _leaveAuto(AutoShare a) async {
+    final l10n = context.l10n;
+    if (!await confirm(
+        context, l10n.leaveAutoShare, l10n.leaveAutoShareConfirm)) {
+      return;
+    }
+    try {
+      await Api.i.autoShareDelete(a.id);
+      _load();
+    } catch (e) {
+      if (mounted) snack(context, e);
+    }
+  }
+
+  Future<void> _leaveShare(Share sh) async {
+    final l10n = context.l10n;
+    if (!await confirm(context, l10n.leaveShare, l10n.leaveShareConfirm)) {
+      return;
+    }
+    try {
+      await Api.i.shareLeave(sh.id);
       _load();
     } catch (e) {
       if (mounted) snack(context, e);
@@ -76,17 +118,50 @@ class _SharedPageState extends State<SharedPage> {
     final l10n = context.l10n;
     if (_err.isNotEmpty) return errorView(context, _err, _load);
     final shares = _shares;
+    final incoming = _incoming ?? const <AutoShare>[];
     final tight = MediaQuery.sizeOf(context).width < 720;
+    final empty = shares != null &&
+        shares.isEmpty &&
+        incoming.every((a) => a.status != 'pending' && a.status != 'accepted');
     return Scaffold(
       appBar: tight ? null : AppBar(title: Text(l10n.navShared)),
       body: shares == null
           ? const Center(child: CircularProgressIndicator())
-          : shares.isEmpty
+          : empty
               ? Center(child: Text(l10n.noShares))
               : ListView(padding: const EdgeInsets.all(16), children: [
-                  if (shares.any((s) => s.status == 'pending')) ...[
+                  if (incoming.any((a) => a.status == 'pending')) ...[
                     Padding(
                       padding: const EdgeInsets.only(bottom: 8),
+                      child: Text(l10n.autoShareInvites,
+                          style: Theme.of(context).textTheme.titleSmall),
+                    ),
+                    for (final a
+                        in incoming.where((a) => a.status == 'pending'))
+                      Card(
+                        child: ListTile(
+                          leading: const Icon(Icons.autorenew),
+                          title: Text(a.ownerName.isEmpty
+                              ? a.ownerUsername
+                              : a.ownerName),
+                          subtitle: Text(l10n.autoShareInviteFrom(
+                              a.level == 'edit' ? l10n.canEdit : l10n.canView,
+                              a.ownerUsername)),
+                          trailing:
+                              Row(mainAxisSize: MainAxisSize.min, children: [
+                            TextButton(
+                                onPressed: () => _respondAuto(a, true),
+                                child: Text(l10n.accept)),
+                            TextButton(
+                                onPressed: () => _respondAuto(a, false),
+                                child: Text(l10n.decline)),
+                          ]),
+                        ),
+                      ),
+                  ],
+                  if (shares.any((s) => s.status == 'pending')) ...[
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8, bottom: 8),
                       child: Text(l10n.pendingInvites,
                           style: Theme.of(context).textTheme.titleSmall),
                     ),
@@ -140,9 +215,36 @@ class _SharedPageState extends State<SharedPage> {
                                       const Icon(Icons.copy_outlined, size: 20),
                                   tooltip: l10n.saveCopy,
                                   onPressed: () => _copy(sh)),
+                            IconButton(
+                                icon: const Icon(Icons.logout, size: 20),
+                                tooltip: l10n.leaveShare,
+                                onPressed: () => _leaveShare(sh)),
                             const Icon(Icons.chevron_right),
                           ]),
                           onTap: () => _open(sh),
+                        ),
+                      ),
+                  ],
+                  if (incoming.any((a) => a.status == 'accepted')) ...[
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8, bottom: 8),
+                      child: Text(l10n.activeAutoShares,
+                          style: Theme.of(context).textTheme.titleSmall),
+                    ),
+                    for (final a
+                        in incoming.where((a) => a.status == 'accepted'))
+                      Card(
+                        child: ListTile(
+                          leading: const Icon(Icons.autorenew),
+                          title: Text(a.ownerName.isEmpty
+                              ? a.ownerUsername
+                              : a.ownerName),
+                          subtitle: Text(l10n.autoShareActiveHint(
+                              a.level == 'edit' ? l10n.canEdit : l10n.canView,
+                              a.ownerUsername)),
+                          trailing: TextButton(
+                              onPressed: () => _leaveAuto(a),
+                              child: Text(l10n.leaveAutoShare)),
                         ),
                       ),
                   ],

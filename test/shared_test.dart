@@ -119,6 +119,131 @@ void main() {
     expect(find.byType(Notice), findsOneWidget);
   });
 
+  Map<String, Object> autoShare(String id,
+          {String status = 'pending',
+          String level = 'view',
+          String ownerName = 'Ms Teacher'}) =>
+      {
+        'id': id,
+        'inviteeId': 'me',
+        'inviteeUsername': 'me',
+        'ownerUsername': 'teacher',
+        'ownerName': ownerName,
+        'level': level,
+        'status': status,
+        'createdAt': 1
+      };
+
+  testWidgets('auto-share invites accept and decline', (t) async {
+    var hit = '';
+    installApi(extra: {
+      'GET /api/shares': (_) => <dynamic>[],
+      'GET /api/auto-shares/incoming': (_) =>
+          [autoShare('a1', level: 'edit'), autoShare('a2', status: 'declined')],
+      'POST /api/auto-shares/a1/accept': (_) {
+        hit = 'accept';
+        return {'ok': true};
+      },
+      'POST /api/auto-shares/a1/decline': (_) {
+        hit = 'decline';
+        return {'ok': true};
+      },
+    });
+    await pump(t, const SharedPage());
+    expect(find.text('Ms Teacher'), findsWidgets);
+    expect(find.textContaining('wants to automatically share'), findsWidgets);
+    await t.tap(find.text('Accept').first);
+    await settle(t);
+    expect(hit, 'accept');
+    await t.tap(find.text('Decline').first);
+    await settle(t);
+    expect(hit, 'decline');
+  });
+
+  testWidgets('active auto-share can be left and share left', (t) async {
+    var leftAuto = false, leftShare = false;
+    installApi(extra: {
+      'GET /api/shares': (_) => [share('s1', status: 'accepted')],
+      'GET /api/auto-shares/incoming': (_) =>
+          [autoShare('a1', status: 'accepted')],
+      'DELETE /api/auto-shares/a1': (_) {
+        leftAuto = true;
+        return {'ok': true};
+      },
+      'DELETE /api/shares/s1': (_) {
+        leftShare = true;
+        return {'ok': true};
+      },
+    });
+    await pump(t, const SharedPage());
+    await t.tap(find.text('Leave').first);
+    await settle(t);
+    await t.tap(find.text('Confirm'));
+    await settle(t);
+    expect(leftAuto, isTrue);
+    await t.tap(find.byIcon(Icons.logout).first);
+    await settle(t);
+    await t.tap(find.text('Confirm'));
+    await settle(t);
+    expect(leftShare, isTrue);
+  });
+
+  testWidgets('auto-share respond error and cancel leave', (t) async {
+    var deleted = false;
+    installApi(extra: {
+      'GET /api/shares': (_) => <dynamic>[],
+      'GET /api/auto-shares/incoming': (_) =>
+          [autoShare('a1'), autoShare('a2', status: 'accepted')],
+      'POST /api/auto-shares/a1/accept': (_) =>
+          http.Response('{"error":"nope"}', 409),
+      'DELETE /api/auto-shares/a2': (_) {
+        deleted = true;
+        return {'ok': true};
+      },
+    });
+    await pump(t, const SharedPage());
+    await t.tap(find.text('Accept').first);
+    await settle(t);
+    expect(find.byType(Notice), findsOneWidget);
+    await t.tap(find.text('Leave'));
+    await settle(t);
+    await t.tap(find.text('Cancel'));
+    await settle(t);
+    expect(deleted, isFalse);
+  });
+
+  testWidgets('auto-share empty owner name and leave failure', (t) async {
+    installApi(extra: {
+      'GET /api/shares': (_) => <dynamic>[],
+      'GET /api/auto-shares/incoming': (_) => [
+            autoShare('a1', ownerName: ''),
+            autoShare('a2', status: 'accepted', ownerName: '')
+          ],
+      'DELETE /api/auto-shares/a2': (_) =>
+          http.Response('{"error":"nope"}', 500),
+    });
+    await pump(t, const SharedPage());
+    expect(find.text('teacher'), findsWidgets);
+    await t.tap(find.text('Leave'));
+    await settle(t);
+    await t.tap(find.text('Confirm'));
+    await settle(t);
+    expect(find.byType(Notice), findsOneWidget);
+  });
+
+  testWidgets('share leave failure shows snack', (t) async {
+    installApi(extra: {
+      'GET /api/shares': (_) => [share('s1', status: 'accepted')],
+      'DELETE /api/shares/s1': (_) => http.Response('{"error":"nope"}', 404),
+    });
+    await pump(t, const SharedPage());
+    await t.tap(find.byIcon(Icons.logout));
+    await settle(t);
+    await t.tap(find.text('Confirm'));
+    await settle(t);
+    expect(find.byType(Notice), findsOneWidget);
+  });
+
   testWidgets('shell nav shows shared page and badge', (t) async {
     installApi(extra: {
       'GET /api/shares': (_) => [
