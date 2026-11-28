@@ -322,11 +322,11 @@ void main() {
     final api = installApi(extra: {
       'POST /api/handoff': (_) => {'t': 'tt'}
     });
-    craftDirForTesting = tmp.path;
+    craftDirForTesting = '';
     var spawned = false;
     spawnHelperForTesting = (e, a, env) async => spawned = true;
-    await t.pumpWidget(launcher((ctx) => openEditor(
-        ctx, api, '${api.baseUrl}/filmcraft/wfm.html?project=p1&render=r1')));
+    await t.pumpWidget(launcher((ctx) =>
+        openEditor(ctx, api, '${api.baseUrl}/filmcraft/wfm.html?project=p1')));
     await tapGo(t);
     expect(spawned, isFalse);
   });
@@ -476,5 +476,138 @@ void main() {
         mediaPlayer('http://m/x.mp4', audio: false, openLabel: 'Open')));
     await t.tap(find.text('Open'));
     expect(url, 'http://m/x.mp4');
+  });
+
+  testWidgets('titlebar buttons drive the window controls', (t) async {
+    final calls = <String>[];
+    windowIsMaximizedForTesting = () async => true;
+    windowMinimizeForTesting = () async => calls.add('min');
+    windowToggleMaximizeForTesting = () async {
+      calls.add('max');
+      return false;
+    };
+    windowCloseForTesting = () async => calls.add('close');
+    addTearDown(() {
+      windowIsMaximizedForTesting = null;
+      windowMinimizeForTesting = null;
+      windowToggleMaximizeForTesting = null;
+      windowCloseForTesting = null;
+    });
+    await t.pumpWidget(testApp(Scaffold(body: nativeTitleBar())));
+    await settle(t);
+    expect(find.byIcon(Icons.filter_none), findsOneWidget);
+    await t.tap(find.byIcon(Icons.remove));
+    await t.tap(find.byIcon(Icons.filter_none));
+    await t.tap(find.byIcon(Icons.close));
+    await settle(t);
+    expect(calls, ['min', 'max', 'close']);
+    expect(find.byIcon(Icons.crop_square_outlined), findsOneWidget);
+  });
+
+  test('window controls fall through to the plugin', () {
+    expectLater(windowIsMaximized(), throwsA(anything));
+    expectLater(windowMinimize(), throwsA(anything));
+    expectLater(windowToggleMaximize(), throwsA(anything));
+    expectLater(windowClose(), throwsA(anything));
+    expectLater(initNativeWindow(), completes);
+  });
+
+  test('runnerFor builds and caches a real runner', () {
+    final api = installApi();
+    expect(runnerFor(api), same(runnerFor(api)));
+  });
+
+  testWidgets('filmcraft lock loss snacks a warning', (t) async {
+    final proc = _Proc();
+    final api = installApi(extra: {
+      'POST /api/projects/p1/locks': (_) => {'acquired': true},
+      'GET /api/projects/p1/manifest': (_) => [],
+      'POST /api/projects/p1/locks/heartbeat': (_) =>
+          http.Response('{"error":"lost"}', 409),
+    });
+    File('${tmp.path}/wfm-filmcraft').createSync();
+    craftDirForTesting = tmp.path;
+    craftRunnerForTesting = CraftRunner(api,
+        spawn: (e, a, {workingDirectory, env}) async => proc,
+        beatInterval: const Duration(milliseconds: 15));
+    await t.pumpWidget(launcher((ctx) =>
+        openEditor(ctx, api, '${api.baseUrl}/filmcraft/wfm.html?project=p1')));
+    await tapGo(t);
+    for (var i = 0;
+        i < 50 && find.text(l10n.editLockLost).evaluate().isEmpty;
+        i++) {
+      await t.pump(const Duration(milliseconds: 50));
+    }
+    expect(find.text(l10n.editLockLost), findsWidgets);
+    proc.done.complete(0);
+    await drainIo(t);
+  });
+
+  testWidgets('filmcraft lock loss after close falls back to nav context',
+      (t) async {
+    final proc = _Proc();
+    final api = installApi(extra: {
+      'POST /api/projects/p1/locks': (_) => {'acquired': true},
+      'GET /api/projects/p1/manifest': (_) => [],
+      'POST /api/projects/p1/locks/heartbeat': (_) =>
+          http.Response('{"error":"lost"}', 409),
+    });
+    File('${tmp.path}/wfm-filmcraft').createSync();
+    craftDirForTesting = tmp.path;
+    craftRunnerForTesting = CraftRunner(api,
+        spawn: (e, a, {workingDirectory, env}) async => proc,
+        beatInterval: const Duration(milliseconds: 15));
+    await t.pumpWidget(launcher((ctx) =>
+        openEditor(ctx, api, '${api.baseUrl}/filmcraft/wfm.html?project=p1')));
+    await tapGo(t);
+    await t.pumpWidget(const SizedBox());
+    await t.pump(const Duration(milliseconds: 100));
+    proc.done.complete(0);
+    await drainIo(t);
+  });
+
+  testWidgets('filmcraft unknown open failure snacks missing', (t) async {
+    final api = installApi(extra: {
+      'POST /api/projects/p1/locks': (_) => {'acquired': true},
+      'GET /api/projects/p1/manifest': (_) => [],
+    });
+    File('${tmp.path}/wfm-filmcraft').createSync();
+    craftDirForTesting = tmp.path;
+    craftRunnerForTesting = CraftRunner(api,
+        spawn: (e, a, {workingDirectory, env}) async =>
+            throw CraftOpenException('gone'));
+    await t.pumpWidget(launcher((ctx) =>
+        openEditor(ctx, api, '${api.baseUrl}/filmcraft/wfm.html?project=p1')));
+    await tapGo(t);
+    expect(find.text(l10n.editMissing), findsOneWidget);
+  });
+
+  testWidgets('gate error retries and offers change server', (t) async {
+    Api.i = Api(FakeClient({
+      'GET /api/setup': (_) => http.Response('{"error":"down"}', 500),
+    }));
+    await t.pumpWidget(const WfmApp());
+    await settle(t);
+    expect(find.byType(GateError), findsWidgets);
+    await t.tap(find.widgetWithText(FilledButton, l10n.retry).last);
+    await settle(t);
+    expect(find.byType(GateError), findsWidgets);
+    await t.tap(find.widgetWithText(TextButton, l10n.changeServer).last);
+    await settle(t);
+    expect(find.byType(ConnectPage), findsOneWidget);
+    expect((await SharedPreferences.getInstance()).getString('server'), isNull);
+  });
+
+  testWidgets('login page offers a server switch on native', (t) async {
+    Api.i = Api(FakeClient({
+      'GET /api/setup': (_) => {'needsSetup': false},
+      'GET /api/me': (_) => http.Response('{"error":"x"}', 401),
+    }));
+    await t.pumpWidget(const WfmApp());
+    await settle(t);
+    expect(find.byType(LoginPage), findsOneWidget);
+    await t.tap(find.byIcon(Icons.dns_outlined));
+    await settle(t);
+    expect(find.byType(ConnectPage), findsOneWidget);
   });
 }

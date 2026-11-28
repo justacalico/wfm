@@ -17,6 +17,8 @@ class _Store {
   var staleOnce = <String>{};
   var deleteStale = false;
   var locked = false;
+  var failManifest = false;
+  var failDownloads = <String>{};
   final pending = <String, String>{};
   final chunks = <int>[];
 
@@ -34,19 +36,24 @@ class _Store {
         'POST /api/projects/$pid/locks/heartbeat': (_) =>
             locked ? http.Response('{"error":"lock lost"}', 409) : {'ok': true},
         'DELETE /api/projects/$pid/locks': (_) => {'ok': true},
-        'GET /api/projects/$pid/manifest': (_) => [
-              for (final e in files.entries)
-                {
-                  'name': e.key.split('/').last,
-                  'path': e.key,
-                  'type': 'file',
-                  'rev': rev(e.key),
-                  'size': e.value.length,
-                  'modified': 0
-                }
-            ],
+        'GET /api/projects/$pid/manifest': (_) => failManifest
+            ? http.Response('{"error":"down"}', 500)
+            : [
+                for (final e in files.entries)
+                  {
+                    'name': e.key.split('/').last,
+                    'path': e.key,
+                    'type': 'file',
+                    'rev': rev(e.key),
+                    'size': e.value.length,
+                    'modified': 0
+                  }
+              ],
         'GET /api/projects/$pid/download': (req) {
           final path = req.url.queryParameters['path']!;
+          if (failDownloads.contains(path)) {
+            return http.Response('{"error":"down"}', 500);
+          }
           final b = files[path];
           return b == null
               ? http.Response('{"error":"missing"}', 404)
@@ -451,6 +458,42 @@ void main() {
       await runner.shutdown();
       expect(proc.killed, isTrue);
       expect(runner.runs, isEmpty);
+    });
+
+    test('background pull failure lands on the run', () async {
+      store.files['Raw/clip.mp4'] = utf8.encode('x');
+      store.revs['Raw/clip.mp4'] = 1;
+      store.failDownloads = {'Raw/clip.mp4'};
+      final run = await runner.open('filmcraft', pid, dir, exe.path,
+          takeOver: (_) async => false, lockLost: (_) {});
+      for (var i = 0; i < 50 && run.lastError == null; i++) {
+        await Future.delayed(const Duration(milliseconds: 10));
+      }
+      expect(run.lastError, isNotNull);
+      proc.done.complete(0);
+      await run.done.future;
+    });
+
+    test('scanner push failure lands on the run', () async {
+      final run = await runner.open('filmcraft', pid, dir, exe.path,
+          takeOver: (_) async => false, lockLost: (_) {});
+      await Future.delayed(const Duration(milliseconds: 40));
+      store.failManifest = true;
+      for (var i = 0; i < 50 && run.lastError == null; i++) {
+        await Future.delayed(const Duration(milliseconds: 10));
+      }
+      expect(run.lastError, isNotNull);
+      proc.done.complete(0);
+      await run.done.future;
+    });
+
+    test('default spawn runs a real binary and shutdown kills it', () async {
+      final r = CraftRunner(api);
+      final run = await r.open('filmcraft', pid, dir, '/usr/bin/yes',
+          takeOver: (_) async => false, lockLost: (_) {}, pullMedia: false);
+      await r.shutdown();
+      await run.done.future;
+      expect(run.released, isTrue);
     });
 
     test('lockKindOf maps the other crafts', () {

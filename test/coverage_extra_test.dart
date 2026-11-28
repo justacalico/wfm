@@ -126,7 +126,8 @@ void main() {
     await t.tap(find.byType(FilledButton));
     await settle(t);
     expect(find.byType(app.Notice), findsNWidgets(2));
-    await t.tap(find.byIcon(Icons.close).first);
+    await t.tap(find.descendant(
+        of: find.byType(app.Notice).first, matching: find.byIcon(Icons.close)));
     await t.pump();
     await t.pump(const Duration(milliseconds: 300));
     expect(find.byType(app.Notice), findsOneWidget);
