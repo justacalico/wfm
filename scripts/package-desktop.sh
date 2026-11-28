@@ -1,13 +1,14 @@
 #!/bin/sh
 # Stage the bundled craft helpers next to a built desktop app so the app
-# finds them at <exe>/craft/. Usage: scripts/package-desktop.sh <os>
-# where <os> is linux | macos | windows. Run after `flutter build <os>`
+# finds them at <exe>/craft/. Usage: scripts/package-desktop.sh <os> [arch]
+# where <os> is linux | macos | windows and arch is the flutter linux
+# arch (x64 | arm64, default x64). Run after `flutter build <os>`
 # and after build-filmcraft-native.sh / build-webview.sh.
 set -eu
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OS="${1:?usage: $0 <linux|macos|windows>}"
 case "$OS" in
-  linux)   BUNDLE="$ROOT/build/linux/x64/release/bundle" ;;
+  linux)   BUNDLE="$ROOT/build/linux/${2:-x64}/release/bundle" ;;
   macos)   BUNDLE="$ROOT/build/macos/Build/Products/Release/wfm.app/Contents/MacOS" ;;
   windows) BUNDLE="$ROOT/build/windows/x64/runner/Release" ;;
   *) echo "unknown os $OS" >&2; exit 2 ;;
