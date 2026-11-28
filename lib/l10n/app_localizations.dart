@@ -101,7 +101,7 @@ abstract class AppLocalizations {
     Locale('en', 'GB'),
     Locale('ga'),
     Locale('ru'),
-    Locale('zh'),
+    Locale('zh')
   ];
 
   /// No description provided for @appTitle.
@@ -2617,6 +2617,96 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The native editor isn\'t installed with this app.'**
   String get editMissing;
+
+  /// No description provided for @autoShareInvites.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-share invites'**
+  String get autoShareInvites;
+
+  /// No description provided for @autoShareInviteFrom.
+  ///
+  /// In en, this message translates to:
+  /// **'{who} wants to automatically share their new projects with you ({level})'**
+  String autoShareInviteFrom(Object who, Object level);
+
+  /// No description provided for @activeAutoShares.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-share lists'**
+  String get activeAutoShares;
+
+  /// No description provided for @autoShareActiveHint.
+  ///
+  /// In en, this message translates to:
+  /// **'New projects by {who} and their students are shared with you ({level})'**
+  String autoShareActiveHint(Object who, Object level);
+
+  /// No description provided for @leaveAutoShare.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave'**
+  String get leaveAutoShare;
+
+  /// No description provided for @leaveAutoShareConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave this auto-share list? New projects will stop being shared with you.'**
+  String get leaveAutoShareConfirm;
+
+  /// No description provided for @leaveShare.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave'**
+  String get leaveShare;
+
+  /// No description provided for @leaveShareConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove this shared project from your list? The owner will be notified.'**
+  String get leaveShareConfirm;
+
+  /// No description provided for @autoSharePending.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending'**
+  String get autoSharePending;
+
+  /// No description provided for @autoShareAccepted.
+  ///
+  /// In en, this message translates to:
+  /// **'Accepted'**
+  String get autoShareAccepted;
+
+  /// No description provided for @autoShareDeclined.
+  ///
+  /// In en, this message translates to:
+  /// **'Declined'**
+  String get autoShareDeclined;
+
+  /// No description provided for @notifAutoShareInvite.
+  ///
+  /// In en, this message translates to:
+  /// **'{from} wants to automatically share their projects with you'**
+  String notifAutoShareInvite(Object from);
+
+  /// No description provided for @notifAutoShareAccepted.
+  ///
+  /// In en, this message translates to:
+  /// **'{from} accepted your auto-share invite'**
+  String notifAutoShareAccepted(Object from);
+
+  /// No description provided for @notifAutoShareDeclined.
+  ///
+  /// In en, this message translates to:
+  /// **'{from} declined your auto-share invite'**
+  String notifAutoShareDeclined(Object from);
+
+  /// No description provided for @notifShareLeft.
+  ///
+  /// In en, this message translates to:
+  /// **'{from} left {project}'**
+  String notifShareLeft(Object from, Object project);
 }
 
 class _AppLocalizationsDelegate
@@ -2662,9 +2752,8 @@ AppLocalizations lookupAppLocalizations(Locale locale) {
   }
 
   throw FlutterError(
-    'AppLocalizations.delegate failed to load unsupported locale "$locale". This is likely '
-    'an issue with the localizations generation tool. Please file an issue '
-    'on GitHub with a reproducible sample app and the gen-l10n configuration '
-    'that was used.',
-  );
+      'AppLocalizations.delegate failed to load unsupported locale "$locale". This is likely '
+      'an issue with the localizations generation tool. Please file an issue '
+      'on GitHub with a reproducible sample app and the gen-l10n configuration '
+      'that was used.');
 }

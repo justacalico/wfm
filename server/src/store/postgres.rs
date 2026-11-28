@@ -275,6 +275,7 @@ fn row_auto_share(r: sqlx::postgres::PgRow) -> AutoShare {
         owner_id: r.get("owner_id"),
         invitee_id: r.get("invitee_id"),
         level: r.get("level"),
+        status: r.get("status"),
         created_at: r.get("created_at"),
     }
 }
@@ -285,7 +286,10 @@ fn row_auto_share_view(r: sqlx::postgres::PgRow) -> AutoShareView {
         invitee_id: r.get("invitee_id"),
         invitee_username: r.get("invitee_username"),
         invitee_name: r.get("invitee_name"),
+        owner_username: r.get("owner_username"),
+        owner_name: r.get("owner_name"),
         level: r.get("level"),
+        status: r.get("status"),
         created_at: r.get("created_at"),
     }
 }
@@ -1759,7 +1763,7 @@ impl Db for PgDb {
 
     async fn auto_shares_list(&self, owner: &str) -> DbResult<Vec<AutoShareView>> {
         sqlx::query(
-            "SELECT a.id,a.invitee_id,u.username AS invitee_username,u.display_name AS invitee_name,a.level,a.created_at FROM auto_shares a JOIN users u ON u.id=a.invitee_id WHERE a.owner_id=$1 ORDER BY a.created_at DESC",
+            "SELECT a.id,a.invitee_id,u.username AS invitee_username,u.display_name AS invitee_name,o.username AS owner_username,o.display_name AS owner_name,a.level,a.status,a.created_at FROM auto_shares a JOIN users u ON u.id=a.invitee_id JOIN users o ON o.id=a.owner_id WHERE a.owner_id=$1 ORDER BY a.created_at DESC",
         )
         .bind(owner)
         .map(row_auto_share_view)
@@ -1768,9 +1772,20 @@ impl Db for PgDb {
         .map_err(map_err)
     }
 
+    async fn auto_shares_for_invitee(&self, invitee: &str) -> DbResult<Vec<AutoShareView>> {
+        sqlx::query(
+            "SELECT a.id,a.invitee_id,u.username AS invitee_username,u.display_name AS invitee_name,o.username AS owner_username,o.display_name AS owner_name,a.level,a.status,a.created_at FROM auto_shares a JOIN users u ON u.id=a.invitee_id JOIN users o ON o.id=a.owner_id WHERE a.invitee_id=$1 ORDER BY a.created_at DESC",
+        )
+        .bind(invitee)
+        .map(row_auto_share_view)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(map_err)
+    }
+
     async fn auto_share_upsert(&self, owner: &str, invitee: &str, level: &str) -> DbResult<()> {
         sqlx::query(
-            "INSERT INTO auto_shares(id,owner_id,invitee_id,level,created_at) VALUES($1,$2,$3,$4,$5) ON CONFLICT(owner_id,invitee_id) DO UPDATE SET level=excluded.level",
+            "INSERT INTO auto_shares(id,owner_id,invitee_id,level,status,created_at) VALUES($1,$2,$3,$4,'pending',$5) ON CONFLICT(owner_id,invitee_id) DO UPDATE SET level=excluded.level,status='pending'",
         )
         .bind(crate::model::new_id())
         .bind(owner)
@@ -1783,10 +1798,34 @@ impl Db for PgDb {
         .map_err(map_err)
     }
 
-    async fn auto_share_delete(&self, owner: &str, id: &str) -> DbResult<bool> {
-        sqlx::query("DELETE FROM auto_shares WHERE id=$1 AND owner_id=$2")
+    async fn auto_share_by_id(&self, id: &str) -> DbResult<AutoShare> {
+        sqlx::query(
+            "SELECT id,owner_id,invitee_id,level,status,created_at FROM auto_shares WHERE id=$1",
+        )
+        .bind(id)
+        .map(row_auto_share)
+        .fetch_one(&self.pool)
+        .await
+        .map_err(map_err)
+    }
+
+    async fn auto_share_respond(&self, id: &str, invitee: &str, status: &str) -> DbResult<bool> {
+        sqlx::query(
+            "UPDATE auto_shares SET status=$1 WHERE id=$2 AND invitee_id=$3 AND status='pending'",
+        )
+        .bind(status)
+        .bind(id)
+        .bind(invitee)
+        .execute(&self.pool)
+        .await
+        .map(|r| r.rows_affected() > 0)
+        .map_err(map_err)
+    }
+
+    async fn auto_share_delete_any(&self, id: &str, user: &str) -> DbResult<bool> {
+        sqlx::query("DELETE FROM auto_shares WHERE id=$1 AND (owner_id=$2 OR invitee_id=$2)")
             .bind(id)
-            .bind(owner)
+            .bind(user)
             .execute(&self.pool)
             .await
             .map(|r| r.rows_affected() > 0)
@@ -1794,11 +1833,23 @@ impl Db for PgDb {
     }
 
     async fn auto_shares_all(&self) -> DbResult<Vec<AutoShare>> {
-        sqlx::query("SELECT id,owner_id,invitee_id,level,created_at FROM auto_shares")
+        sqlx::query("SELECT id,owner_id,invitee_id,level,status,created_at FROM auto_shares")
             .map(row_auto_share)
             .fetch_all(&self.pool)
             .await
             .map_err(map_err)
+    }
+
+    async fn share_leave(&self, id: &str, invitee: &str) -> DbResult<bool> {
+        sqlx::query(
+            "DELETE FROM project_shares WHERE id=$1 AND invitee_id=$2 AND status!='declined'",
+        )
+        .bind(id)
+        .bind(invitee)
+        .execute(&self.pool)
+        .await
+        .map(|r| r.rows_affected() > 0)
+        .map_err(map_err)
     }
 
     async fn share_by_id(&self, id: &str) -> DbResult<ProjectShare> {

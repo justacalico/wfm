@@ -560,6 +560,7 @@ void main() {
               'inviteeUsername': 'bob',
               'inviteeName': '',
               'level': 'edit',
+              'status': 'accepted',
               'createdAt': 1
             },
             {
@@ -568,6 +569,16 @@ void main() {
               'inviteeUsername': 'carol',
               'inviteeName': '',
               'level': 'view',
+              'status': 'declined',
+              'createdAt': 1
+            },
+            {
+              'id': 'a3',
+              'inviteeId': 'u4',
+              'inviteeUsername': 'dan',
+              'inviteeName': '',
+              'level': 'view',
+              'status': 'pending',
               'createdAt': 1
             }
           ],
@@ -588,7 +599,10 @@ void main() {
     await goSettings(t);
     expect(find.text('Auto-share'), findsOneWidget);
     expect(find.text('bob'), findsOneWidget);
-    expect(find.text('Can edit'), findsOneWidget);
+    expect(find.textContaining('Can edit'), findsWidgets);
+    expect(find.textContaining('Accepted'), findsOneWidget);
+    expect(find.textContaining('Declined'), findsOneWidget);
+    expect(find.textContaining('Pending'), findsOneWidget);
     await t.tap(find.text('Add auto-share'));
     await settle(t);
     await t.enterText(

@@ -59,6 +59,11 @@ void main() {
             payload: {'from': 'ada', 'projectName': 'Cut', 'status': 'draft'}),
         notif('n13', 'co_teacher',
             payload: {'from': 'ada', 'className': 'Period 1'}),
+        notif('n14', 'auto_share_invite', payload: {'from': 'ada'}),
+        notif('n15', 'auto_share_accepted', payload: {'from': 'bob'}),
+        notif('n16', 'auto_share_declined', payload: {'from': 'bob'}),
+        notif('n17', 'share_left',
+            payload: {'from': 'ada', 'projectName': 'Cut'}),
         notif('n12', 'mystery', readAt: 5),
       ];
 
@@ -82,6 +87,10 @@ void main() {
       'marked',
       'returned',
       'co-teacher',
+      'wants to automatically share',
+      'accepted your auto-share invite',
+      'declined your auto-share invite',
+      'left',
     ]) {
       expect(find.textContaining(s), findsWidgets);
     }

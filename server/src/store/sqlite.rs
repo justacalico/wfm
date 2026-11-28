@@ -253,6 +253,31 @@ fn map_notification(r: &rusqlite::Row) -> rusqlite::Result<Notification> {
     })
 }
 
+fn map_auto_share(r: &rusqlite::Row) -> rusqlite::Result<AutoShare> {
+    Ok(AutoShare {
+        id: r.get(0)?,
+        owner_id: r.get(1)?,
+        invitee_id: r.get(2)?,
+        level: r.get(3)?,
+        status: r.get(4)?,
+        created_at: r.get(5)?,
+    })
+}
+
+fn map_auto_share_view(r: &rusqlite::Row) -> rusqlite::Result<AutoShareView> {
+    Ok(AutoShareView {
+        id: r.get(0)?,
+        invitee_id: r.get(1)?,
+        invitee_username: r.get(2)?,
+        invitee_name: r.get(3)?,
+        owner_username: r.get(4)?,
+        owner_name: r.get(5)?,
+        level: r.get(6)?,
+        status: r.get(7)?,
+        created_at: r.get(8)?,
+    })
+}
+
 fn map_share_view(r: &rusqlite::Row) -> rusqlite::Result<ShareView> {
     Ok(ShareView {
         id: r.get(0)?,
@@ -1928,18 +1953,22 @@ impl Db for SqliteDb {
         let owner = owner.to_string();
         self.q(move |c| {
                 let mut st = c.prepare(
-                    "SELECT a.id,a.invitee_id,u.username,u.display_name,a.level,a.created_at FROM auto_shares a JOIN users u ON u.id=a.invitee_id WHERE a.owner_id=? ORDER BY a.created_at DESC"
+                    "SELECT a.id,a.invitee_id,u.username,u.display_name,o.username,o.display_name,a.level,a.status,a.created_at FROM auto_shares a JOIN users u ON u.id=a.invitee_id JOIN users o ON o.id=a.owner_id WHERE a.owner_id=? ORDER BY a.created_at DESC"
                 )?;
-                let rows = st.query_map(params![owner], |r| {
-                    Ok(AutoShareView {
-                        id: r.get(0)?,
-                        invitee_id: r.get(1)?,
-                        invitee_username: r.get(2)?,
-                        invitee_name: r.get(3)?,
-                        level: r.get(4)?,
-                        created_at: r.get(5)?,
-                    })
-                })?;
+                let rows = st.query_map(params![owner], map_auto_share_view)?;
+                rows.collect::<rusqlite::Result<Vec<_>>>()
+            })
+            .await
+            .map_err(dberr)
+    }
+
+    async fn auto_shares_for_invitee(&self, invitee: &str) -> DbResult<Vec<AutoShareView>> {
+        let invitee = invitee.to_string();
+        self.q(move |c| {
+                let mut st = c.prepare(
+                    "SELECT a.id,a.invitee_id,u.username,u.display_name,o.username,o.display_name,a.level,a.status,a.created_at FROM auto_shares a JOIN users u ON u.id=a.invitee_id JOIN users o ON o.id=a.owner_id WHERE a.invitee_id=? ORDER BY a.created_at DESC"
+                )?;
+                let rows = st.query_map(params![invitee], map_auto_share_view)?;
                 rows.collect::<rusqlite::Result<Vec<_>>>()
             })
             .await
@@ -1952,7 +1981,7 @@ impl Db for SqliteDb {
         let level = level.to_string();
         self.q(move |c| {
                 c.execute(
-                    "INSERT INTO auto_shares(id,owner_id,invitee_id,level,created_at) VALUES(?,?,?,?,?) ON CONFLICT(owner_id,invitee_id) DO UPDATE SET level=excluded.level",
+                    "INSERT INTO auto_shares(id,owner_id,invitee_id,level,status,created_at) VALUES(?,?,?,?,'pending',?) ON CONFLICT(owner_id,invitee_id) DO UPDATE SET level=excluded.level,status='pending'",
                     params![crate::model::new_id(), owner, invitee, level, crate::auth::AppState::now()],
                 )
             })
@@ -1961,13 +1990,41 @@ impl Db for SqliteDb {
             .map_err(dberr)
     }
 
-    async fn auto_share_delete(&self, owner: &str, id: &str) -> DbResult<bool> {
-        let owner = owner.to_string();
+    async fn auto_share_by_id(&self, id: &str) -> DbResult<AutoShare> {
         let id = id.to_string();
         self.q(move |c| {
+                c.query_row(
+                    "SELECT id,owner_id,invitee_id,level,status,created_at FROM auto_shares WHERE id=?",
+                    params![id],
+                    map_auto_share,
+                )
+            })
+            .await
+            .map_err(dberr)
+    }
+
+    async fn auto_share_respond(&self, id: &str, invitee: &str, status: &str) -> DbResult<bool> {
+        let id = id.to_string();
+        let invitee = invitee.to_string();
+        let status = status.to_string();
+        self.q(move |c| {
+                c.execute(
+                    "UPDATE auto_shares SET status=? WHERE id=? AND invitee_id=? AND status='pending'",
+                    params![status, id, invitee],
+                )
+            })
+            .await
+            .map(|n| n > 0)
+            .map_err(dberr)
+    }
+
+    async fn auto_share_delete_any(&self, id: &str, user: &str) -> DbResult<bool> {
+        let id = id.to_string();
+        let user = user.to_string();
+        self.q(move |c| {
             c.execute(
-                "DELETE FROM auto_shares WHERE id=? AND owner_id=?",
-                params![id, owner],
+                "DELETE FROM auto_shares WHERE id=? AND (owner_id=? OR invitee_id=?)",
+                params![id, user, user],
             )
         })
         .await
@@ -1978,19 +2035,25 @@ impl Db for SqliteDb {
     async fn auto_shares_all(&self) -> DbResult<Vec<AutoShare>> {
         self.q(move |c| {
             let mut st =
-                c.prepare("SELECT id,owner_id,invitee_id,level,created_at FROM auto_shares")?;
-            let rows = st.query_map([], |r| {
-                Ok(AutoShare {
-                    id: r.get(0)?,
-                    owner_id: r.get(1)?,
-                    invitee_id: r.get(2)?,
-                    level: r.get(3)?,
-                    created_at: r.get(4)?,
-                })
-            })?;
+                c.prepare("SELECT id,owner_id,invitee_id,level,status,created_at FROM auto_shares")?;
+            let rows = st.query_map([], map_auto_share)?;
             rows.collect::<rusqlite::Result<Vec<_>>>()
         })
         .await
+        .map_err(dberr)
+    }
+
+    async fn share_leave(&self, id: &str, invitee: &str) -> DbResult<bool> {
+        let id = id.to_string();
+        let invitee = invitee.to_string();
+        self.q(move |c| {
+            c.execute(
+                "DELETE FROM project_shares WHERE id=? AND invitee_id=? AND status!='declined'",
+                params![id, invitee],
+            )
+        })
+        .await
+        .map(|n| n > 0)
         .map_err(dberr)
     }
 
@@ -2790,6 +2853,10 @@ mod tests {
         assert!(db.share_delete("s1", "p1").await.unwrap());
         assert!(!db.share_delete("s1", "p1").await.unwrap());
         db.share_upsert(&sh).await.unwrap();
+        assert!(!db.share_leave("s1", "other").await.unwrap());
+        assert!(db.share_leave("s1", "v1").await.unwrap());
+        assert!(!db.share_leave("s1", "v1").await.unwrap());
+        db.share_upsert(&sh).await.unwrap();
         db.shares_delete_project("p1").await.unwrap();
         assert!(db.shares_by_project("p1").await.unwrap().is_empty());
     }
@@ -2889,6 +2956,7 @@ mod tests {
             last_login: 0,
         };
         db.create_user(&u("t1"), "h").await.unwrap();
+        db.create_user(&u("t2"), "h").await.unwrap();
         db.create_user(&u("a1"), "h").await.unwrap();
         db.create_user(&u("a2"), "h").await.unwrap();
         db.auto_share_upsert("t1", "a1", "edit").await.unwrap();
@@ -2899,15 +2967,39 @@ mod tests {
         let e = l.iter().find(|e| e.invitee_id == "a2").unwrap();
         assert_eq!(e.invitee_username, "ua2");
         assert_eq!(e.invitee_name, "Na2");
+        assert_eq!(e.status, "pending");
+        let inc = db.auto_shares_for_invitee("a2").await.unwrap();
+        assert_eq!(inc.len(), 2);
+        assert!(inc.iter().any(|e| e.owner_username == "ut2"));
+        let a2t1 = inc.iter().find(|e| e.owner_username == "ut1").unwrap();
+        assert!(!db
+            .auto_share_respond(&a2t1.id, "a1", "accepted")
+            .await
+            .unwrap());
+        assert!(db
+            .auto_share_respond(&a2t1.id, "a2", "accepted")
+            .await
+            .unwrap());
+        assert!(!db
+            .auto_share_respond(&a2t1.id, "a2", "declined")
+            .await
+            .unwrap());
+        let l = db.auto_shares_list("t1").await.unwrap();
+        assert!(l
+            .iter()
+            .any(|e| e.invitee_id == "a2" && e.status == "accepted"));
+        assert_eq!(db.auto_share_by_id(&a2t1.id).await.unwrap().status, "accepted");
         db.auto_share_upsert("t1", "a1", "view").await.unwrap();
         let l = db.auto_shares_list("t1").await.unwrap();
         assert_eq!(l.len(), 2);
         assert!(l.iter().any(|e| e.invitee_id == "a1" && e.level == "view"));
         assert_eq!(db.auto_shares_all().await.unwrap().len(), 3);
         let id = l.iter().find(|e| e.invitee_id == "a1").unwrap().id.clone();
-        assert!(!db.auto_share_delete("t2", &id).await.unwrap());
-        assert!(db.auto_share_delete("t1", &id).await.unwrap());
-        assert_eq!(db.auto_shares_list("t1").await.unwrap().len(), 1);
+        assert!(!db.auto_share_delete_any(&id, "t2").await.unwrap());
+        assert!(db.auto_share_delete_any(&id, "t1").await.unwrap());
+        let id = l.iter().find(|e| e.invitee_id == "a2").unwrap().id.clone();
+        assert!(db.auto_share_delete_any(&id, "a2").await.unwrap());
+        assert_eq!(db.auto_shares_list("t1").await.unwrap().len(), 0);
     }
 
     #[tokio::test]

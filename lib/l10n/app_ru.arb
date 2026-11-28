@@ -634,6 +634,53 @@
     "placeholders": {
       "holder": {}
     }
+  },
+  "autoShareInvites": "Приглашения на автодоступ",
+  "autoShareInviteFrom": "{who} хочет автоматически делиться с вами новыми проектами ({level})",
+  "@autoShareInviteFrom": {
+    "placeholders": {
+      "who": {},
+      "level": {}
+    }
+  },
+  "activeAutoShares": "Списки автодоступа",
+  "autoShareActiveHint": "Новые проекты {who} и их учеников будут доступны вам ({level})",
+  "@autoShareActiveHint": {
+    "placeholders": {
+      "who": {},
+      "level": {}
+    }
+  },
+  "leaveAutoShare": "Выйти",
+  "leaveAutoShareConfirm": "Выйти из этого списка автодоступа? Новые проекты перестанут быть доступны вам.",
+  "leaveShare": "Выйти",
+  "leaveShareConfirm": "Убрать этот общий проект из вашего списка? Владелец получит уведомление.",
+  "autoSharePending": "Ожидает",
+  "autoShareAccepted": "Принято",
+  "autoShareDeclined": "Отклонено",
+  "notifAutoShareInvite": "{from} хочет автоматически делиться с вами своими проектами",
+  "@notifAutoShareInvite": {
+    "placeholders": {
+      "from": {}
+    }
+  },
+  "notifAutoShareAccepted": "{from} принял(а) ваше приглашение на автодоступ",
+  "@notifAutoShareAccepted": {
+    "placeholders": {
+      "from": {}
+    }
+  },
+  "notifAutoShareDeclined": "{from} отклонил(а) ваше приглашение на автодоступ",
+  "@notifAutoShareDeclined": {
+    "placeholders": {
+      "from": {}
+    }
+  },
+  "notifShareLeft": "{from} покинул(а) {project}",
+  "@notifShareLeft": {
+    "placeholders": {
+      "from": {},
+      "project": {}
+    }
   }
-
 }

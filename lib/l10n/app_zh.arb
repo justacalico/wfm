@@ -634,6 +634,53 @@
     "placeholders": {
       "holder": {}
     }
+  },
+  "autoShareInvites": "自动共享邀请",
+  "autoShareInviteFrom": "{who} 希望自动与你共享其新项目（{level}）",
+  "@autoShareInviteFrom": {
+    "placeholders": {
+      "who": {},
+      "level": {}
+    }
+  },
+  "activeAutoShares": "自动共享列表",
+  "autoShareActiveHint": "{who} 及其学生的新项目会与你共享（{level}）",
+  "@autoShareActiveHint": {
+    "placeholders": {
+      "who": {},
+      "level": {}
+    }
+  },
+  "leaveAutoShare": "退出",
+  "leaveAutoShareConfirm": "退出此自动共享列表？新项目将不再与你共享。",
+  "leaveShare": "退出",
+  "leaveShareConfirm": "将此共享项目从你的列表中移除？所有者将收到通知。",
+  "autoSharePending": "待处理",
+  "autoShareAccepted": "已接受",
+  "autoShareDeclined": "已拒绝",
+  "notifAutoShareInvite": "{from} 希望自动与你共享其项目",
+  "@notifAutoShareInvite": {
+    "placeholders": {
+      "from": {}
+    }
+  },
+  "notifAutoShareAccepted": "{from} 接受了你的自动共享邀请",
+  "@notifAutoShareAccepted": {
+    "placeholders": {
+      "from": {}
+    }
+  },
+  "notifAutoShareDeclined": "{from} 拒绝了你的自动共享邀请",
+  "@notifAutoShareDeclined": {
+    "placeholders": {
+      "from": {}
+    }
+  },
+  "notifShareLeft": "{from} 退出了 {project}",
+  "@notifShareLeft": {
+    "placeholders": {
+      "from": {},
+      "project": {}
+    }
   }
-
 }

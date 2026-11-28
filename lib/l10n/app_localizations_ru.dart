@@ -2,7 +2,6 @@
 
 // ignore: unused_import
 import 'package:intl/intl.dart' as intl;
-
 import 'app_localizations.dart';
 
 // ignore_for_file: type=lint
@@ -1427,4 +1426,63 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get editMissing =>
       'Нативный редактор не установлен в этом приложении.';
+
+  @override
+  String get autoShareInvites => 'Приглашения на автодоступ';
+
+  @override
+  String autoShareInviteFrom(Object who, Object level) {
+    return '$who хочет автоматически делиться с вами новыми проектами ($level)';
+  }
+
+  @override
+  String get activeAutoShares => 'Списки автодоступа';
+
+  @override
+  String autoShareActiveHint(Object who, Object level) {
+    return 'Новые проекты $who и их учеников будут доступны вам ($level)';
+  }
+
+  @override
+  String get leaveAutoShare => 'Выйти';
+
+  @override
+  String get leaveAutoShareConfirm =>
+      'Выйти из этого списка автодоступа? Новые проекты перестанут быть доступны вам.';
+
+  @override
+  String get leaveShare => 'Выйти';
+
+  @override
+  String get leaveShareConfirm =>
+      'Убрать этот общий проект из вашего списка? Владелец получит уведомление.';
+
+  @override
+  String get autoSharePending => 'Ожидает';
+
+  @override
+  String get autoShareAccepted => 'Принято';
+
+  @override
+  String get autoShareDeclined => 'Отклонено';
+
+  @override
+  String notifAutoShareInvite(Object from) {
+    return '$from хочет автоматически делиться с вами своими проектами';
+  }
+
+  @override
+  String notifAutoShareAccepted(Object from) {
+    return '$from принял(а) ваше приглашение на автодоступ';
+  }
+
+  @override
+  String notifAutoShareDeclined(Object from) {
+    return '$from отклонил(а) ваше приглашение на автодоступ';
+  }
+
+  @override
+  String notifShareLeft(Object from, Object project) {
+    return '$from покинул(а) $project';
+  }
 }

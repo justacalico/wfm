@@ -70,8 +70,10 @@ class _NotificationsPageState extends State<NotificationsPage> {
 
   IconData _icon(AppNotification n) => switch (n.kind) {
         'share_invite' || 'share_auto' => Icons.folder_shared_outlined,
-        'share_accepted' => Icons.check_circle_outline,
-        'share_declined' => Icons.cancel_outlined,
+        'share_accepted' || 'auto_share_accepted' => Icons.check_circle_outline,
+        'share_declined' || 'auto_share_declined' => Icons.cancel_outlined,
+        'auto_share_invite' => Icons.autorenew,
+        'share_left' => Icons.logout,
         'render_done' => Icons.movie_creation_outlined,
         'render_failed' => Icons.error_outline,
         'node_offline' => Icons.dns_outlined,
@@ -101,7 +103,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
     final shell = context.findAncestorStateOfType<ShellState>();
     final pid = '${n.payload['project'] ?? ''}';
     switch (n.kind) {
-      case 'share_invite' || 'share_auto':
+      case 'share_invite' || 'share_auto' || 'auto_share_invite':
         if (shell != null) {
           shell.go(2);
         } else {
@@ -202,6 +204,14 @@ String notifText(AppLocalizations l10n, AppNotification n) {
       return l10n.notifShareAccepted(from, project);
     case 'share_declined':
       return l10n.notifShareDeclined(from, project);
+    case 'auto_share_invite':
+      return l10n.notifAutoShareInvite(from);
+    case 'auto_share_accepted':
+      return l10n.notifAutoShareAccepted(from);
+    case 'auto_share_declined':
+      return l10n.notifAutoShareDeclined(from);
+    case 'share_left':
+      return l10n.notifShareLeft(from, project);
     case 'render_done':
       return l10n.notifRenderDone(name, project);
     case 'render_failed':

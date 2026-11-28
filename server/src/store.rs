@@ -271,10 +271,14 @@ pub trait Db: Send + Sync {
     async fn share_delete(&self, id: &str, project: &str) -> DbResult<bool>;
     async fn shares_delete_project(&self, project: &str) -> DbResult<()>;
     async fn auto_shares_list(&self, owner: &str) -> DbResult<Vec<AutoShareView>>;
+    async fn auto_shares_for_invitee(&self, invitee: &str) -> DbResult<Vec<AutoShareView>>;
     async fn auto_share_upsert(&self, owner: &str, invitee: &str, level: &str) -> DbResult<()>;
-    async fn auto_share_delete(&self, owner: &str, id: &str) -> DbResult<bool>;
+    async fn auto_share_by_id(&self, id: &str) -> DbResult<AutoShare>;
+    async fn auto_share_respond(&self, id: &str, invitee: &str, status: &str) -> DbResult<bool>;
+    async fn auto_share_delete_any(&self, id: &str, user: &str) -> DbResult<bool>;
     async fn auto_shares_all(&self) -> DbResult<Vec<AutoShare>>;
     async fn share_by_id(&self, id: &str) -> DbResult<ProjectShare>;
+    async fn share_leave(&self, id: &str, invitee: &str) -> DbResult<bool>;
 
     // assignments
     async fn create_assignment(&self, a: &Assignment, copies: &[AssignmentCopy]) -> DbResult<()>;

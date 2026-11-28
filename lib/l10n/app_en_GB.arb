@@ -228,6 +228,53 @@
     "placeholders": {
       "holder": {}
     }
+  },
+  "autoShareInvites": "Auto-share invites",
+  "autoShareInviteFrom": "{who} wants to automatically share their new projects with you ({level})",
+  "@autoShareInviteFrom": {
+    "placeholders": {
+      "who": {},
+      "level": {}
+    }
+  },
+  "activeAutoShares": "Auto-share lists",
+  "autoShareActiveHint": "New projects by {who} and their students are shared with you ({level})",
+  "@autoShareActiveHint": {
+    "placeholders": {
+      "who": {},
+      "level": {}
+    }
+  },
+  "leaveAutoShare": "Leave",
+  "leaveAutoShareConfirm": "Leave this auto-share list? New projects will stop being shared with you.",
+  "leaveShare": "Leave",
+  "leaveShareConfirm": "Remove this shared project from your list? The owner will be notified.",
+  "autoSharePending": "Pending",
+  "autoShareAccepted": "Accepted",
+  "autoShareDeclined": "Declined",
+  "notifAutoShareInvite": "{from} wants to automatically share their projects with you",
+  "@notifAutoShareInvite": {
+    "placeholders": {
+      "from": {}
+    }
+  },
+  "notifAutoShareAccepted": "{from} accepted your auto-share invite",
+  "@notifAutoShareAccepted": {
+    "placeholders": {
+      "from": {}
+    }
+  },
+  "notifAutoShareDeclined": "{from} declined your auto-share invite",
+  "@notifAutoShareDeclined": {
+    "placeholders": {
+      "from": {}
+    }
+  },
+  "notifShareLeft": "{from} left {project}",
+  "@notifShareLeft": {
+    "placeholders": {
+      "from": {},
+      "project": {}
+    }
   }
-
 }

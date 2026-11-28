@@ -2,7 +2,6 @@
 
 // ignore: unused_import
 import 'package:intl/intl.dart' as intl;
-
 import 'app_localizations.dart';
 
 // ignore_for_file: type=lint
@@ -1406,4 +1405,61 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get editMissing => '此应用未安装原生编辑器。';
+
+  @override
+  String get autoShareInvites => '自动共享邀请';
+
+  @override
+  String autoShareInviteFrom(Object who, Object level) {
+    return '$who 希望自动与你共享其新项目（$level）';
+  }
+
+  @override
+  String get activeAutoShares => '自动共享列表';
+
+  @override
+  String autoShareActiveHint(Object who, Object level) {
+    return '$who 及其学生的新项目会与你共享（$level）';
+  }
+
+  @override
+  String get leaveAutoShare => '退出';
+
+  @override
+  String get leaveAutoShareConfirm => '退出此自动共享列表？新项目将不再与你共享。';
+
+  @override
+  String get leaveShare => '退出';
+
+  @override
+  String get leaveShareConfirm => '将此共享项目从你的列表中移除？所有者将收到通知。';
+
+  @override
+  String get autoSharePending => '待处理';
+
+  @override
+  String get autoShareAccepted => '已接受';
+
+  @override
+  String get autoShareDeclined => '已拒绝';
+
+  @override
+  String notifAutoShareInvite(Object from) {
+    return '$from 希望自动与你共享其项目';
+  }
+
+  @override
+  String notifAutoShareAccepted(Object from) {
+    return '$from 接受了你的自动共享邀请';
+  }
+
+  @override
+  String notifAutoShareDeclined(Object from) {
+    return '$from 拒绝了你的自动共享邀请';
+  }
+
+  @override
+  String notifShareLeft(Object from, Object project) {
+    return '$from 退出了 $project';
+  }
 }

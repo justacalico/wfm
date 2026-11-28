@@ -258,6 +258,7 @@ pub struct AutoShare {
     #[serde(rename = "inviteeId")]
     pub invitee_id: String,
     pub level: String,
+    pub status: String,
     #[serde(rename = "createdAt")]
     pub created_at: i64,
 }
@@ -299,7 +300,12 @@ pub struct AutoShareView {
     pub invitee_username: String,
     #[serde(rename = "inviteeName")]
     pub invitee_name: String,
+    #[serde(rename = "ownerUsername")]
+    pub owner_username: String,
+    #[serde(rename = "ownerName")]
+    pub owner_name: String,
     pub level: String,
+    pub status: String,
     #[serde(rename = "createdAt")]
     pub created_at: i64,
 }

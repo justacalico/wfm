@@ -16,8 +16,8 @@ use crate::auth::{
 };
 use crate::files::{self, FsError};
 use crate::model::{
-    self, can_manage, lineage_has, Assignment, AssignmentCopy, Folder, InviteCode, Project,
-    ProjectLink, ProjectShare, RenderJob, RenderSpec, Role, User,
+    self, can_manage, lineage_has, Assignment, AssignmentCopy, AutoShare, Folder, InviteCode,
+    Project, ProjectLink, ProjectShare, RenderJob, RenderSpec, Role, User,
 };
 use crate::render;
 use crate::store::{AuditFilter, DbError, LockOutcome};
@@ -103,10 +103,14 @@ pub fn router(state: Arc<AppState>) -> Router {
             patch(update_share).delete(delete_share),
         )
         .route("/shares", get(list_my_shares))
+        .route("/shares/{sid}", delete(delete_share_leave))
         .route("/shares/{sid}/accept", post(accept_share))
         .route("/shares/{sid}/decline", post(decline_share))
         .route("/auto-shares", get(list_auto_shares).post(add_auto_share))
+        .route("/auto-shares/incoming", get(list_auto_shares_incoming))
         .route("/auto-shares/{id}", delete(delete_auto_share))
+        .route("/auto-shares/{id}/accept", post(accept_auto_share))
+        .route("/auto-shares/{id}/decline", post(decline_auto_share))
         .route("/notifications", get(my_notifications))
         .route("/notifications/read-all", post(notifications_read_all))
         .route("/notifications/{id}/read", post(notification_read))
@@ -1971,7 +1975,7 @@ async fn auto_share_apply(s: &Arc<AppState>, p: &Project, creator: &User) {
     };
     let now = AppState::now();
     for a in lists {
-        if a.invitee_id == creator.id {
+        if a.status != "accepted" || a.invitee_id == creator.id {
             continue;
         }
         let accepted = a.owner_id == creator.id || lineage_has(&creator.lineage, &a.owner_id);
@@ -2224,6 +2228,16 @@ async fn add_auto_share(
                 "",
             )
             .await;
+            s.notify(
+                &invitee.id,
+                "auto_share_invite",
+                json!({
+                    "from": session.user.username,
+                    "fromName": session.user.display_name,
+                    "level": req.level,
+                }),
+            )
+            .await;
             Json(json!({"ok": true})).into_response()
         }
         Err(e) => db_resp(e),
@@ -2235,16 +2249,165 @@ async fn delete_auto_share(
     session: Session,
     Path(id): Path<String>,
 ) -> Response {
-    if session.user.role < Role::Teacher {
-        return err(StatusCode::FORBIDDEN, "teachers only");
-    }
-    match s.db.auto_share_delete(&session.user.id, &id).await {
+    match s.db.auto_share_delete_any(&id, &session.user.id).await {
         Ok(true) => {
             s.audit("settings", &session.user, "auto_share_remove", &id, "", "")
                 .await;
             Json(json!({"ok": true})).into_response()
         }
         Ok(false) => err(StatusCode::NOT_FOUND, "unknown auto-share"),
+        Err(e) => db_resp(e),
+    }
+}
+
+async fn list_auto_shares_incoming(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+) -> Response {
+    match s.db.auto_shares_for_invitee(&session.user.id).await {
+        Ok(v) => Json(json!(v)).into_response(),
+        Err(e) => db_resp(e),
+    }
+}
+
+async fn respond_auto_share(
+    s: &Arc<AppState>,
+    session: &Session,
+    id: &str,
+    status: &str,
+) -> Response {
+    let rule = s.db.auto_share_by_id(id).await.ok();
+    match s.db.auto_share_respond(id, &session.user.id, status).await {
+        Ok(true) => {
+            s.audit(
+                "settings",
+                &session.user,
+                if status == "accepted" {
+                    "auto_share_accept"
+                } else {
+                    "auto_share_decline"
+                },
+                id,
+                "",
+                &session.user.lineage,
+            )
+            .await;
+            if let Some(a) = rule {
+                if status == "accepted" {
+                    auto_share_backfill(s, &a).await;
+                }
+                s.notify(
+                    &a.owner_id,
+                    if status == "accepted" {
+                        "auto_share_accepted"
+                    } else {
+                        "auto_share_declined"
+                    },
+                    json!({
+                        "from": session.user.username,
+                        "fromName": session.user.display_name,
+                    }),
+                )
+                .await;
+            }
+            Json(json!({"ok": true})).into_response()
+        }
+        Ok(false) => err(StatusCode::NOT_FOUND, "no pending auto-share"),
+        Err(e) => db_resp(e),
+    }
+}
+
+async fn auto_share_backfill(s: &Arc<AppState>, a: &AutoShare) {
+    let owner = match s.db.user_by_id(&a.owner_id).await {
+        Ok(u) => u,
+        Err(_) => return,
+    };
+    let mut members = vec![owner];
+    match s.db.managed_users(&members[0]).await {
+        Ok(v) => members.extend(v),
+        Err(_) => return,
+    }
+    let now = AppState::now();
+    for m in members {
+        if m.id != a.owner_id && !lineage_has(&m.lineage, &a.owner_id) {
+            continue;
+        }
+        let projects = match s.db.projects_by_owner(&m.id).await {
+            Ok(v) => v,
+            Err(_) => continue,
+        };
+        for p in projects {
+            if p.owner_id == a.invitee_id {
+                continue;
+            }
+            let sh = ProjectShare {
+                id: model::new_id(),
+                project_id: p.id.clone(),
+                inviter_id: a.owner_id.clone(),
+                invitee_id: a.invitee_id.clone(),
+                level: a.level.clone(),
+                status: "accepted".into(),
+                created_at: now,
+                responded_at: now,
+            };
+            let _ = s.db.share_upsert(&sh).await;
+        }
+    }
+}
+
+async fn accept_auto_share(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Path(id): Path<String>,
+) -> Response {
+    respond_auto_share(&s, &session, &id, "accepted").await
+}
+
+async fn decline_auto_share(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Path(id): Path<String>,
+) -> Response {
+    respond_auto_share(&s, &session, &id, "declined").await
+}
+
+async fn delete_share_leave(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Path(sid): Path<String>,
+) -> Response {
+    let sh = s.db.share_by_id(&sid).await.ok();
+    match s.db.share_leave(&sid, &session.user.id).await {
+        Ok(true) => {
+            s.audit(
+                "project",
+                &session.user,
+                "share_leave",
+                &sid,
+                "",
+                &session.user.lineage,
+            )
+            .await;
+            if let Some(sh) = sh {
+                let name =
+                    s.db.project_by_id(&sh.project_id)
+                        .await
+                        .map(|p| p.display_name)
+                        .unwrap_or_default();
+                s.notify(
+                    &sh.inviter_id,
+                    "share_left",
+                    json!({
+                        "project": sh.project_id,
+                        "projectName": name,
+                        "from": session.user.username,
+                    }),
+                )
+                .await;
+            }
+            Json(json!({"ok": true})).into_response()
+        }
+        Ok(false) => err(StatusCode::NOT_FOUND, "unknown share"),
         Err(e) => db_resp(e),
     }
 }
