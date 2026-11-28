@@ -2,6 +2,14 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.49.0 - 2026-11-28
+#### Features
+- linux 桌面包新增 deb 与 rpm 格式 - (d5e379c) - calico
+#### Bug Fixes
+- gitlab 同步等桌面构件上传后再执行 - (d6d4d44) - calico
+
+- - -
+
 ## v0.48.0 - 2026-11-28
 #### Features
 - 新增强制 HTTPS 设置项与部署锁定标志 - (13e9c8b) - calico
