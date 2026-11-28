@@ -345,11 +345,13 @@ jobs:
             os: ubuntu-latest
             target: linux
             triple: x86_64-unknown-linux-gnu
+            flutter_arch: x64
             ext: tar.gz
           - name: linux-aarch64
             os: ubuntu-24.04-arm
             target: linux
             triple: aarch64-unknown-linux-gnu
+            flutter_arch: arm64
             ext: tar.gz
           - name: macos-arm64
             os: macos-latest
@@ -386,9 +388,18 @@ jobs:
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
+        if: matrix.name != 'linux-aarch64'
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
+
+      - name: Setup Flutter arm64
+        if: matrix.name == 'linux-aarch64'
+        run: |
+          git clone --depth 1 -b ${{ env.FLUTTER_VERSION }} https://github.com/flutter/flutter.git /opt/flutter
+          echo "/opt/flutter/bin" >> "$GITHUB_PATH"
+          git config --global --add safe.directory /opt/flutter
+          /opt/flutter/bin/flutter --version
 
       - name: Pub get
         run: flutter pub get
@@ -403,7 +414,7 @@ jobs:
         run: flutter build $TARGET --release
 
       - name: Stage craft binaries
-        run: bash scripts/package-desktop.sh $TARGET
+        run: bash scripts/package-desktop.sh $TARGET ${{ matrix.flutter_arch }}
 
       - name: Ad-hoc sign app bundle
         if: matrix.target == 'macos'
@@ -415,7 +426,7 @@ jobs:
           NAME="${{ matrix.name }}"
           case "$TARGET" in
             linux)
-              tar -czf "artifacts/wfm-desktop-${VERSION}-${NAME}.tar.gz" -C build/linux/x64/release/bundle .
+              tar -czf "artifacts/wfm-desktop-${VERSION}-${NAME}.tar.gz" -C build/linux/${{ matrix.flutter_arch }}/release/bundle .
               ;;
             macos)
               cp desktop/macos/remove-quarantine.command desktop/macos/README.txt build/macos/Build/Products/Release/
@@ -442,21 +453,25 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download desktop artifacts
-        run: |
-          mkdir -p release-assets
-          for n in linux-x86_64 linux-aarch64 macos-arm64 windows-x64; do
-            gh run download "$GITHUB_RUN_ID" -n "desktop-$n" -D release-assets || true
-          done
-          ls -la release-assets/
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: actions/download-artifact@v4
+        with:
+          pattern: desktop-*
+          path: release-assets
+          merge-multiple: true
 
       - name: Attach to release
         run: |
-          gh release upload "${{ needs.release.outputs.release_tag }}" \
-            release-assets/wfm-desktop-* --clobber
+          ls -la release-assets/
+          shopt -s nullglob
+          files=(release-assets/wfm-desktop-*)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "::error::no desktop artifacts found"
+            exit 1
+          fi
+          gh release upload "${{ needs.release.outputs.release_tag }}" "${files[@]}" --clobber
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
 
   docker:
     name: Push image to GitLab registry
