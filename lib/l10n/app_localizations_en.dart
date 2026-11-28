@@ -1318,6 +1318,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get storageNoUsers => 'No one is using storage yet.';
 
   @override
+  String get storageResync => 'Resync nodes';
+
+  @override
+  String storageResyncDone(Object checked, Object copied) {
+    return 'Checked $checked objects, copied $copied.';
+  }
+
+  @override
   String get openSubmissions => 'Open submissions';
 
   @override
@@ -2037,6 +2045,14 @@ class AppLocalizationsEnGb extends AppLocalizationsEn {
 
   @override
   String get storageNoUsers => 'No one is using storage yet.';
+
+  @override
+  String get storageResync => 'Resync nodes';
+
+  @override
+  String storageResyncDone(Object checked, Object copied) {
+    return 'Checked $checked objects, copied $copied.';
+  }
 
   @override
   String get openSubmissions => 'Open submissions';

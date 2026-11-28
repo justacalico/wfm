@@ -74,6 +74,7 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/invites/{id}/redeem", post(redeem_invite))
         .route("/audit", get(audit).delete(wipe_audit))
         .route("/storage", get(storage_stats))
+        .route("/storage/resync", post(storage_resync))
         .route("/projects", get(list_projects).post(create_project))
         .route("/projects/{id}/take-over", post(take_over_project))
         .route("/projects/{id}/duplicate", post(duplicate_project))
@@ -1829,7 +1830,10 @@ async fn storage_stats(State(s): State<Arc<AppState>>, session: Session) -> Resp
     if session.user.role < Role::Admin {
         return err(StatusCode::FORBIDDEN, "admin only");
     }
-    let (used, total) = s.blobs.stats().await.unwrap_or((0, 0));
+    let mut pools: Vec<Value> = Vec::new();
+    for (name, used, total) in s.blobs.pool_stats().await.unwrap_or_default() {
+        pools.push(json!({"id": name, "used": used, "total": total}));
+    }
     let db_bytes = s.db.db_size().await.unwrap_or_default().unwrap_or(0);
     let mut users = Vec::new();
     if let Ok(list) = s.db.managed_users(&session.user).await {
@@ -1843,14 +1847,25 @@ async fn storage_stats(State(s): State<Arc<AppState>>, session: Session) -> Resp
             }));
         }
     }
+    pools.push(json!({"id": "database", "used": db_bytes, "total": 0}));
     Json(json!({
-        "pools": [
-            {"id": "media", "used": used, "total": total},
-            {"id": "database", "used": db_bytes, "total": 0},
-        ],
+        "pools": pools,
         "users": users,
     }))
     .into_response()
+}
+
+/// Admin trigger: replicated storage copies objects a node is missing.
+async fn storage_resync(State(s): State<Arc<AppState>>, session: Session) -> Response {
+    if session.user.role < Role::Admin {
+        return err(StatusCode::FORBIDDEN, "admin only");
+    }
+    match s.blobs.resync().await {
+        Ok((checked, copied)) => {
+            Json(json!({"ok": true, "checked": checked, "copied": copied})).into_response()
+        }
+        Err(e) => err(StatusCode::INTERNAL_SERVER_ERROR, &e),
+    }
 }
 
 // ---------- projects ----------
@@ -5342,6 +5357,8 @@ mod tests {
                 s3_secret: String::new(),
                 s3_prefix: String::new(),
                 trusted_proxies: vec![],
+                media_nodes: vec![],
+                media_mode: "spread".into(),
             },
             db: futures::executor::block_on(crate::store::sqlite::connect(":memory:")).unwrap(),
             blobs: Arc::new(crate::blobs::LocalBlobs::new(dir.join("blobs"))),

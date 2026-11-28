@@ -785,6 +785,9 @@ class Api {
   Future<StorageStats> storageStats() async =>
       StorageStats.fromJson(await get('/storage'));
 
+  Future<Map<String, dynamic>> storageResync() async =>
+      (await post('/storage/resync', {})) as Map<String, dynamic>;
+
   Future<String> reviewProject(String id, String status) async =>
       '${(await post('/projects/$id/review', {
                 'status': status
@@ -1139,9 +1142,14 @@ class Api {
 
   Future<void> shareLeave(String sid) => del('/shares/$sid');
 
-  Future<List<Announcement>> announcements({int before = 0, int limit = 50}) async =>
-      [for (final e in (await get('/announcements?before=$before&limit=$limit')) as List)
-        Announcement.fromJson(e)];
+  Future<List<Announcement>> announcements(
+          {int before = 0, int limit = 50}) async =>
+      [
+        for (final e
+            in (await get('/announcements?before=$before&limit=$limit'))
+                as List)
+          Announcement.fromJson(e)
+      ];
 
   Future<void> announcementCreate(String title, String body,
           {bool comments = true, bool reactions = true}) =>
@@ -1153,10 +1161,7 @@ class Api {
       });
 
   Future<void> announcementUpdate(String id,
-          {String? title,
-          String? body,
-          bool? comments,
-          bool? reactions}) =>
+          {String? title, String? body, bool? comments, bool? reactions}) =>
       patch('/announcements/$id', {
         if (title != null) 'title': title,
         if (body != null) 'body': body,
@@ -1171,10 +1176,11 @@ class Api {
 
   Future<List<AnnComment>> annComments(String id,
           {int before = 0, int limit = 50}) async =>
-      [for (final e
-          in (await get('/announcements/$id/comments?before=$before&limit=$limit'))
-              as List)
-        AnnComment.fromJson(e)];
+      [
+        for (final e in (await get(
+            '/announcements/$id/comments?before=$before&limit=$limit')) as List)
+          AnnComment.fromJson(e)
+      ];
 
   Future<void> annCommentAdd(String id, String body) =>
       post('/announcements/$id/comments', {'body': body});

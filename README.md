@@ -112,6 +112,27 @@ compose). `WFM_MEDIA=local` keeps files under `WFM_MEDIA_PATH`. Because both the
 database and the media are external, a reinstall only needs the DB dump and the
 bucket contents.
 
+Multiple storage nodes run behind the same interface via `WFM_MEDIA_NODES` (or
+repeated `--media-node`), a JSON array where each entry is a `local` or `s3`
+backend:
+
+```sh
+WFM_MEDIA_NODES='[
+  {"name":"fast","kind":"local","path":"/mnt/ssd/media"},
+  {"name":"nas","kind":"local","path":"/mnt/truenas/media"},
+  {"name":"archive","kind":"s3","s3_endpoint":"https://s3.example.com",
+   "s3_region":"us-east-1","s3_bucket":"wfm",
+   "s3_access":"...","s3_secret":"..."}
+]'
+WFM_MEDIA_MODE=spread    # or "replicate"
+```
+
+`spread` (default) writes each upload to the node with the most free space and
+reads fall through every node. `replicate` writes to the first node and copies
+to all the rest, so losing one node loses nothing. Each node's usage shows as
+its own pool under Manage > Storage, and admins can run Resync there to copy
+objects a replica is missing.
+
 ### Remote render nodes
 
 Create a node under Manage > Render nodes, then on the worker machine:

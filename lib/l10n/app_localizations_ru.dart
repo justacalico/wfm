@@ -1321,6 +1321,14 @@ class AppLocalizationsRu extends AppLocalizations {
   String get storageNoUsers => 'Хранилище пока никем не используется.';
 
   @override
+  String get storageResync => 'Синхронизировать узлы';
+
+  @override
+  String storageResyncDone(Object checked, Object copied) {
+    return 'Проверено объектов: $checked, скопировано: $copied.';
+  }
+
+  @override
   String get openSubmissions => 'Открыть отправки';
 
   @override

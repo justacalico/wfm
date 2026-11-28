@@ -302,6 +302,8 @@ mod tests {
                 s3_secret: String::new(),
                 s3_prefix: String::new(),
                 trusted_proxies: vec![],
+                media_nodes: vec![],
+                media_mode: "spread".into(),
             },
             db: futures::executor::block_on(crate::store::sqlite::connect(":memory:")).unwrap(),
             blobs: Arc::new(crate::blobs::LocalBlobs::new(dir.join("blobs"))),

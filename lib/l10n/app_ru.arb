@@ -572,6 +572,8 @@
   "storageMedia": "Хранилище медиа",
   "storageDatabase": "База данных",
   "storageNoUsers": "Хранилище пока никем не используется.",
+  "storageResync": "Синхронизировать узлы",
+  "storageResyncDone": "Проверено объектов: {checked}, скопировано: {copied}.",
   "openSubmissions": "Открыть отправки",
   "closeSubmissions": "Закрыть отправки",
   "submitConfirmBody": "Отправить {name} на проверку?",

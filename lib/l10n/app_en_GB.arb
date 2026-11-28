@@ -166,6 +166,8 @@
   "storageMedia": "Media storage",
   "storageDatabase": "Database",
   "storageNoUsers": "No one is using storage yet.",
+  "storageResync": "Resync nodes",
+  "storageResyncDone": "Checked {checked} objects, copied {copied}.",
   "openSubmissions": "Open submissions",
   "closeSubmissions": "Close submissions",
   "submitConfirmBody": "Submit {name} for review?",

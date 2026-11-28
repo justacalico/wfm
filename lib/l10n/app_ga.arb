@@ -572,6 +572,8 @@
   "storageMedia": "Stóráil meán",
   "storageDatabase": "Bunachar sonraí",
   "storageNoUsers": "Níl aon duine ag úsáid stórála go fóil.",
+  "storageResync": "Athshioncrónaigh nóid",
+  "storageResyncDone": "Rinneadh {checked} réad a sheiceáil, {copied} a chóipeáil.",
   "openSubmissions": "Oscail aighneachtaí",
   "closeSubmissions": "Dún aighneachtaí",
   "submitConfirmBody": "Cuir {name} isteach le hathbhreithniú?",

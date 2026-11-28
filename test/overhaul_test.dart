@@ -52,6 +52,37 @@ void main() {
     await settle(t);
   });
 
+  testWidgets('storage resync and named node pool', (t) async {
+    var fail = true;
+    installApi(extra: {
+      'GET /api/storage': (_) => {
+            'pools': [
+              {'id': 'truenas', 'used': 100, 'total': 1000},
+              {'id': 'database', 'used': 0, 'total': 0},
+            ],
+            'users': [],
+          },
+      'POST /api/storage/resync': (_) => fail
+          ? http.Response('{"error":"x"}', 500)
+          : {'ok': true, 'checked': 5, 'copied': 2},
+    });
+    await pump(t, const StorageTab());
+    expect(find.text('truenas'), findsOneWidget);
+    await t.tap(find.text('Resync nodes'));
+    await settle(t);
+    await t.tap(find.text('Retry'));
+    await settle(t);
+    fail = false;
+    await t.tap(find.text('Resync nodes'));
+    await settle(t);
+    expect(find.text('Checked 5 objects, copied 2.'), findsOneWidget);
+    await t.tap(find.text('truenas'));
+    await settle(t);
+    expect(find.text('No one is using storage yet.'), findsOneWidget);
+    await t.tap(find.text('Done'));
+    await settle(t);
+  });
+
   testWidgets('storage tab error and empty breakdown', (t) async {
     var empty = false;
     installApi(extra: {

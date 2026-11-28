@@ -1304,6 +1304,14 @@ class AppLocalizationsZh extends AppLocalizations {
   String get storageNoUsers => '暂无用户使用存储。';
 
   @override
+  String get storageResync => '重新同步节点';
+
+  @override
+  String storageResyncDone(Object checked, Object copied) {
+    return '已检查 $checked 个对象，复制 $copied 个。';
+  }
+
+  @override
   String get openSubmissions => '开放提交';
 
   @override

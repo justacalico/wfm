@@ -2438,6 +2438,18 @@ abstract class AppLocalizations {
   /// **'No one is using storage yet.'**
   String get storageNoUsers;
 
+  /// No description provided for @storageResync.
+  ///
+  /// In en, this message translates to:
+  /// **'Resync nodes'**
+  String get storageResync;
+
+  /// No description provided for @storageResyncDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Checked {checked} objects, copied {copied}.'**
+  String storageResyncDone(Object checked, Object copied);
+
   /// No description provided for @openSubmissions.
   ///
   /// In en, this message translates to:

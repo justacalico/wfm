@@ -31,7 +31,30 @@ pub struct Config {
     pub s3_access: String,
     pub s3_secret: String,
     pub s3_prefix: String,
+    pub media_nodes: Vec<MediaNodeCfg>,
+    pub media_mode: String,
     pub trusted_proxies: Vec<ipnet::IpNet>,
+}
+
+#[derive(Clone, serde::Deserialize)]
+pub struct MediaNodeCfg {
+    #[serde(default)]
+    pub name: String,
+    pub kind: String,
+    #[serde(default)]
+    pub path: Option<PathBuf>,
+    #[serde(default)]
+    pub s3_endpoint: String,
+    #[serde(default)]
+    pub s3_region: String,
+    #[serde(default)]
+    pub s3_bucket: String,
+    #[serde(default)]
+    pub s3_access: String,
+    #[serde(default)]
+    pub s3_secret: String,
+    #[serde(default)]
+    pub s3_prefix: String,
 }
 
 #[derive(Clone)]
@@ -138,6 +161,13 @@ impl Config {
             s3_access: env("WFM_S3_ACCESS_KEY", "rustfsadmin"),
             s3_secret: env("WFM_S3_SECRET_KEY", "rustfsadminsecret"),
             s3_prefix: env("WFM_S3_PREFIX", ""),
+            media_nodes: std::env::var("WFM_MEDIA_NODES")
+                .ok()
+                .filter(|s| !s.is_empty())
+                .map(|s| serde_json::from_str(&s).map_err(|e| format!("WFM_MEDIA_NODES: {e}")))
+                .transpose()?
+                .unwrap_or_default(),
+            media_mode: env("WFM_MEDIA_MODE", "spread"),
             trusted_proxies: crate::auth::parse_nets(&env("WFM_TRUSTED_PROXIES", ""))
                 .unwrap_or_default(),
             worker: None,
@@ -187,6 +217,12 @@ impl Config {
                 "--s3-access-key" => c.s3_access = next(&mut i)?,
                 "--s3-secret-key" => c.s3_secret = next(&mut i)?,
                 "--s3-prefix" => c.s3_prefix = next(&mut i)?,
+                "--media-node" => {
+                    let n: MediaNodeCfg = serde_json::from_str(&next(&mut i)?)
+                        .map_err(|e| format!("--media-node: {e}"))?;
+                    c.media_nodes.push(n);
+                }
+                "--media-mode" => c.media_mode = next(&mut i)?,
                 "--session-days" => {
                     c.session_ttl = next(&mut i)?.parse::<i64>().map_err(|e| e.to_string())? * 86400
                 }

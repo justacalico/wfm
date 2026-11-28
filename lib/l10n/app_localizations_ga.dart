@@ -1326,6 +1326,14 @@ class AppLocalizationsGa extends AppLocalizations {
   String get storageNoUsers => 'Níl aon duine ag úsáid stórála go fóil.';
 
   @override
+  String get storageResync => 'Athshioncrónaigh nóid';
+
+  @override
+  String storageResyncDone(Object checked, Object copied) {
+    return 'Rinneadh $checked réad a sheiceáil, $copied a chóipeáil.';
+  }
+
+  @override
   String get openSubmissions => 'Oscail aighneachtaí';
 
   @override
