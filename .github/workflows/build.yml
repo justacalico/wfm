@@ -332,6 +332,119 @@ jobs:
           path: artifacts/
           retention-days: 400
 
+  desktop:
+    name: Desktop app ${{ matrix.name }}
+    needs: [setup, verify]
+    if: ${{ !cancelled() && (startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.create_release == true)) }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux-x86_64
+            os: ubuntu-latest
+            target: linux
+            triple: x86_64-unknown-linux-gnu
+            ext: tar.gz
+          - name: macos-arm64
+            os: macos-latest
+            target: macos
+            triple: aarch64-apple-darwin
+            ext: tar.gz
+          - name: windows-x64
+            os: windows-latest
+            target: windows
+            triple: x86_64-pc-windows-msvc
+            ext: zip
+    runs-on: ${{ matrix.os }}
+    env:
+      VERSION: ${{ needs.setup.outputs.version }}
+      TARGET: ${{ matrix.target }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.triple }}
+
+      - name: Linux build deps
+        if: matrix.target == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build pkg-config \
+            libgtk-3-dev libasound2-dev libxkbcommon-dev libwayland-dev \
+            libxcb1-dev libx11-dev libxcursor-dev libxrandr-dev libxi-dev \
+            libgl1-mesa-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Pub get
+        run: flutter pub get
+
+      - name: Build FilmCraft native
+        run: bash scripts/build-filmcraft-native.sh --target ${{ matrix.triple }}
+
+      - name: Build webview helper
+        run: bash scripts/build-webview.sh ${{ matrix.triple }}
+
+      - name: Build desktop app
+        run: flutter build $TARGET --release
+
+      - name: Stage craft binaries
+        run: bash scripts/package-desktop.sh $TARGET
+
+      - name: Package desktop bundle
+        run: |
+          mkdir -p artifacts
+          case "$TARGET" in
+            linux)
+              tar -czf "artifacts/wfm-desktop-${VERSION}-linux-x86_64.tar.gz" -C build/linux/x64/release/bundle .
+              ;;
+            macos)
+              tar -czf "artifacts/wfm-desktop-${VERSION}-macos-arm64.tar.gz" -C build/macos/Build/Products/Release wfm.app
+              ;;
+            windows)
+              (cd build/windows/x64/runner/Release && zip -qr "../../../../../artifacts/wfm-desktop-${VERSION}-windows-x64.zip" .)
+              ;;
+          esac
+          ls -la artifacts/
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ matrix.name }}
+          path: artifacts/
+          retention-days: 400
+
+  native-release:
+    name: Attach desktop binaries to release
+    needs: [desktop, release]
+    if: always() && needs.desktop.result == 'success' && needs.release.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download desktop artifacts
+        run: |
+          mkdir -p release-assets
+          for n in linux-x86_64 macos-arm64 windows-x64; do
+            gh run download "$GITHUB_RUN_ID" -n "desktop-$n" -D release-assets || true
+          done
+          ls -la release-assets/
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Attach to release
+        run: |
+          gh release upload "${{ needs.release.outputs.release_tag }}" \
+            release-assets/wfm-desktop-* --clobber
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   docker:
     name: Push image to GitLab registry
     needs: [verify]
