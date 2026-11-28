@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wfm/main.dart';
 import 'package:wfm/shortcuts.dart';
 import 'helpers.dart';
@@ -55,6 +56,9 @@ const catalog = [
 ];
 
 void main() {
+  setUp(
+      () => SharedPreferences.setMockInitialValues({'server': 'http://test'}));
+
   Future<void> pump(WidgetTester t, Widget w) async {
     await t.pumpWidget(testApp(w));
     await settle(t);

@@ -13,7 +13,7 @@ import 'helpers.dart';
 
 void main() {
   setUp(() {
-    SharedPreferences.setMockInitialValues({});
+    SharedPreferences.setMockInitialValues({'server': 'http://test'});
     openExternalForTesting = null;
     openEditorForTesting = null;
     pickFilesForTesting = null;
@@ -491,7 +491,8 @@ void main() {
 
   testWidgets('all languages render the page', (t) async {
     for (final code in ['zh', 'ru', 'ga']) {
-      SharedPreferences.setMockInitialValues({'locale': code});
+      SharedPreferences.setMockInitialValues(
+          {'server': 'http://test', 'locale': code});
       installApi(extra: {'GET *': (_) => []});
       await pumpApp(t);
       await t.tap(find.byIcon(Icons.settings_outlined).first);

@@ -10,7 +10,7 @@ import 'helpers.dart';
 
 void main() {
   setUp(() {
-    SharedPreferences.setMockInitialValues({});
+    SharedPreferences.setMockInitialValues({'server': 'http://test'});
     openExternalForTesting = null;
     openEditorForTesting = null;
     pickFilesForTesting = null;
@@ -58,7 +58,8 @@ void main() {
 
   testWidgets('system language clears locale preference', (t) async {
     installApi(extra: {'GET *': (_) => []});
-    SharedPreferences.setMockInitialValues({'locale': 'zh'});
+    SharedPreferences.setMockInitialValues(
+        {'server': 'http://test', 'locale': 'zh'});
     await t.binding.setSurfaceSize(const Size(1000, 900));
     addTearDown(() => t.binding.setSurfaceSize(null));
     await t.pumpWidget(const app.WfmApp());
