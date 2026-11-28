@@ -1485,4 +1485,74 @@ class AppLocalizationsRu extends AppLocalizations {
   String notifShareLeft(Object from, Object project) {
     return '$from покинул(а) $project';
   }
+
+  @override
+  String get navAnnouncements => 'Объявления';
+
+  @override
+  String get newAnnouncement => 'Новое объявление';
+
+  @override
+  String get editAnnouncement => 'Изменить объявление';
+
+  @override
+  String get deleteAnnouncement => 'Удалить объявление';
+
+  @override
+  String get deleteAnnouncementConfirm =>
+      'Удалить это объявление и все его комментарии?';
+
+  @override
+  String get announcementTitle => 'Заголовок';
+
+  @override
+  String get announcementBody => 'Текст объявления';
+
+  @override
+  String get markdownHint => 'Поддерживается разметка Markdown.';
+
+  @override
+  String get allowComments => 'Разрешить комментарии';
+
+  @override
+  String get allowReactions => 'Разрешить реакции';
+
+  @override
+  String get noAnnouncements => 'Пока нет объявлений.';
+
+  @override
+  String get addReaction => 'Добавить реакцию';
+
+  @override
+  String commentCount(Object count) {
+    return 'Комментарии: $count';
+  }
+
+  @override
+  String get commentsOff => 'Комментарии отключены';
+
+  @override
+  String get editedMark => 'изменено';
+
+  @override
+  String get deleteComment => 'Удалить комментарий';
+
+  @override
+  String get deleteCommentConfirm => 'Удалить этот комментарий?';
+
+  @override
+  String get edit => 'Изменить';
+
+  @override
+  String get post => 'Опубликовать';
+
+  @override
+  String notifAnnouncement(Object from, Object name) {
+    return '$from опубликовал(а) объявление: $name';
+  }
+
+  @override
+  String notifAnnComment(Object from, Object name) {
+    return '$from прокомментировал(а) $name';
+  }
 }

@@ -682,5 +682,43 @@
       "from": {},
       "project": {}
     }
+  },
+  "navAnnouncements": "公告",
+  "newAnnouncement": "发布公告",
+  "editAnnouncement": "编辑公告",
+  "deleteAnnouncement": "删除公告",
+  "deleteAnnouncementConfirm": "删除此公告及其全部评论？",
+  "announcementTitle": "标题",
+  "announcementBody": "公告内容",
+  "markdownHint": "支持 Markdown 格式。",
+  "allowComments": "允许评论",
+  "allowReactions": "允许表态",
+  "noAnnouncements": "暂无公告。",
+  "addReaction": "添加表态",
+  "commentCount": "{count} 条评论",
+  "@commentCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "commentsOff": "评论已关闭",
+  "editedMark": "已编辑",
+  "deleteComment": "删除评论",
+  "deleteCommentConfirm": "删除此评论？",
+  "edit": "编辑",
+  "post": "发布",
+  "notifAnnouncement": "{from} 发布了公告：{name}",
+  "@notifAnnouncement": {
+    "placeholders": {
+      "from": {},
+      "name": {}
+    }
+  },
+  "notifAnnComment": "{from} 评论了 {name}",
+  "@notifAnnComment": {
+    "placeholders": {
+      "from": {},
+      "name": {}
+    }
   }
 }

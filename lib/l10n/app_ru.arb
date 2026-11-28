@@ -682,5 +682,43 @@
       "from": {},
       "project": {}
     }
+  },
+  "navAnnouncements": "Объявления",
+  "newAnnouncement": "Новое объявление",
+  "editAnnouncement": "Изменить объявление",
+  "deleteAnnouncement": "Удалить объявление",
+  "deleteAnnouncementConfirm": "Удалить это объявление и все его комментарии?",
+  "announcementTitle": "Заголовок",
+  "announcementBody": "Текст объявления",
+  "markdownHint": "Поддерживается разметка Markdown.",
+  "allowComments": "Разрешить комментарии",
+  "allowReactions": "Разрешить реакции",
+  "noAnnouncements": "Пока нет объявлений.",
+  "addReaction": "Добавить реакцию",
+  "commentCount": "Комментарии: {count}",
+  "@commentCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "commentsOff": "Комментарии отключены",
+  "editedMark": "изменено",
+  "deleteComment": "Удалить комментарий",
+  "deleteCommentConfirm": "Удалить этот комментарий?",
+  "edit": "Изменить",
+  "post": "Опубликовать",
+  "notifAnnouncement": "{from} опубликовал(а) объявление: {name}",
+  "@notifAnnouncement": {
+    "placeholders": {
+      "from": {},
+      "name": {}
+    }
+  },
+  "notifAnnComment": "{from} прокомментировал(а) {name}",
+  "@notifAnnComment": {
+    "placeholders": {
+      "from": {},
+      "name": {}
+    }
   }
 }

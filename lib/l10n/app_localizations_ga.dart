@@ -1492,4 +1492,74 @@ class AppLocalizationsGa extends AppLocalizations {
   String notifShareLeft(Object from, Object project) {
     return 'D\'fhág $from $project';
   }
+
+  @override
+  String get navAnnouncements => 'Fógraí';
+
+  @override
+  String get newAnnouncement => 'Fógra nua';
+
+  @override
+  String get editAnnouncement => 'Cuir an fógra in eagar';
+
+  @override
+  String get deleteAnnouncement => 'Scrios an fógra';
+
+  @override
+  String get deleteAnnouncementConfirm =>
+      'Scrios an fógra seo agus a chuid tuairimí go léir?';
+
+  @override
+  String get announcementTitle => 'Teideal';
+
+  @override
+  String get announcementBody => 'Corp an fhógra';
+
+  @override
+  String get markdownHint => 'Tacaítear le formáidiú Markdown.';
+
+  @override
+  String get allowComments => 'Ceadaigh tuairimí';
+
+  @override
+  String get allowReactions => 'Ceadaigh frithghníomhartha';
+
+  @override
+  String get noAnnouncements => 'Níl aon fhógra fós.';
+
+  @override
+  String get addReaction => 'Cuir frithghníomh leis';
+
+  @override
+  String commentCount(Object count) {
+    return 'Tuairimí: $count';
+  }
+
+  @override
+  String get commentsOff => 'Tá tuairimí múchta';
+
+  @override
+  String get editedMark => 'curtha in eagar';
+
+  @override
+  String get deleteComment => 'Scrios an tuairim';
+
+  @override
+  String get deleteCommentConfirm => 'Scrios an tuairim seo?';
+
+  @override
+  String get edit => 'Cuir in eagar';
+
+  @override
+  String get post => 'Postáil';
+
+  @override
+  String notifAnnouncement(Object from, Object name) {
+    return 'D\'fhoilsigh $from fógra: $name';
+  }
+
+  @override
+  String notifAnnComment(Object from, Object name) {
+    return 'Rinne $from trácht ar $name';
+  }
 }

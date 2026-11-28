@@ -280,6 +280,50 @@ pub trait Db: Send + Sync {
     async fn share_by_id(&self, id: &str) -> DbResult<ProjectShare>;
     async fn share_leave(&self, id: &str, invitee: &str) -> DbResult<bool>;
 
+    // announcements
+    async fn announcement_create(&self, a: &Announcement) -> DbResult<()>;
+    async fn announcement_by_id(&self, id: &str) -> DbResult<Announcement>;
+    async fn announcement_update(
+        &self,
+        id: &str,
+        title: &str,
+        body: &str,
+        comments: bool,
+        reactions: bool,
+        ts: i64,
+    ) -> DbResult<bool>;
+    async fn announcement_delete(&self, id: &str) -> DbResult<bool>;
+    async fn announcements_list(
+        &self,
+        viewer: &str,
+        before: i64,
+        limit: i64,
+    ) -> DbResult<Vec<AnnouncementView>>;
+    async fn announcement_react(
+        &self,
+        aid: &str,
+        user: &str,
+        emoji: &str,
+        ts: i64,
+    ) -> DbResult<bool>;
+    async fn ann_comments(
+        &self,
+        aid: &str,
+        before: i64,
+        limit: i64,
+    ) -> DbResult<Vec<AnnouncementComment>>;
+    async fn ann_comment_by_id(&self, id: &str) -> DbResult<AnnouncementComment>;
+    async fn ann_comment_add(&self, c: &AnnouncementComment) -> DbResult<()>;
+    async fn ann_comment_update(
+        &self,
+        id: &str,
+        author: &str,
+        body: &str,
+        ts: i64,
+    ) -> DbResult<bool>;
+    async fn ann_comment_delete(&self, id: &str) -> DbResult<bool>;
+    async fn user_ids_all(&self) -> DbResult<Vec<String>>;
+
     // assignments
     async fn create_assignment(&self, a: &Assignment, copies: &[AssignmentCopy]) -> DbResult<()>;
     async fn assignment(&self, id: &str) -> DbResult<Assignment>;

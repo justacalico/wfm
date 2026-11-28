@@ -682,5 +682,43 @@
       "from": {},
       "project": {}
     }
+  },
+  "navAnnouncements": "Fógraí",
+  "newAnnouncement": "Fógra nua",
+  "editAnnouncement": "Cuir an fógra in eagar",
+  "deleteAnnouncement": "Scrios an fógra",
+  "deleteAnnouncementConfirm": "Scrios an fógra seo agus a chuid tuairimí go léir?",
+  "announcementTitle": "Teideal",
+  "announcementBody": "Corp an fhógra",
+  "markdownHint": "Tacaítear le formáidiú Markdown.",
+  "allowComments": "Ceadaigh tuairimí",
+  "allowReactions": "Ceadaigh frithghníomhartha",
+  "noAnnouncements": "Níl aon fhógra fós.",
+  "addReaction": "Cuir frithghníomh leis",
+  "commentCount": "Tuairimí: {count}",
+  "@commentCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "commentsOff": "Tá tuairimí múchta",
+  "editedMark": "curtha in eagar",
+  "deleteComment": "Scrios an tuairim",
+  "deleteCommentConfirm": "Scrios an tuairim seo?",
+  "edit": "Cuir in eagar",
+  "post": "Postáil",
+  "notifAnnouncement": "D'fhoilsigh {from} fógra: {name}",
+  "@notifAnnouncement": {
+    "placeholders": {
+      "from": {},
+      "name": {}
+    }
+  },
+  "notifAnnComment": "Rinne {from} trácht ar {name}",
+  "@notifAnnComment": {
+    "placeholders": {
+      "from": {},
+      "name": {}
+    }
   }
 }

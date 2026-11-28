@@ -26,7 +26,8 @@ class FakeClient extends MockClient {
           }
           final v = await f(req);
           if (v is http.Response) return v;
-          return http.Response(jsonEncode(v), 200);
+          return http.Response.bytes(utf8.encode(jsonEncode(v)), 200,
+              headers: {'content-type': 'application/json; charset=utf-8'});
         });
 }
 

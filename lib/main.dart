@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'announcements.dart';
 import 'api.dart';
 import 'connect.dart';
 import 'l10n/app_localizations.dart';
@@ -741,6 +742,7 @@ class ShellState extends State<Shell> {
         (Icons.movie_outlined, l10n.navProjects),
         (Icons.folder_shared_outlined, l10n.navShared),
         (Icons.notifications_outlined, l10n.navNotifications),
+        (Icons.campaign_outlined, l10n.navAnnouncements),
         if (showManage) (Icons.manage_accounts_outlined, l10n.navManage),
         (Icons.settings_outlined, l10n.navSettings),
       ];
@@ -752,6 +754,7 @@ class ShellState extends State<Shell> {
             onFolder: (id) => _projectsFolder = id),
         const SharedPage(),
         const NotificationsPage(),
+        const AnnouncementsPage(),
         if (showManage) const ManagePage(),
         const SettingsPage(),
       ];

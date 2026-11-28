@@ -64,6 +64,10 @@ void main() {
         notif('n16', 'auto_share_declined', payload: {'from': 'bob'}),
         notif('n17', 'share_left',
             payload: {'from': 'ada', 'projectName': 'Cut'}),
+        notif('n18', 'announcement',
+            payload: {'from': 'ada', 'name': 'Term dates'}),
+        notif('n19', 'announcement_comment',
+            payload: {'from': 'bob', 'name': 'Term dates'}),
         notif('n12', 'mystery', readAt: 5),
       ];
 
@@ -91,6 +95,8 @@ void main() {
       'accepted your auto-share invite',
       'declined your auto-share invite',
       'left',
+      'posted an announcement',
+      'commented on Term dates',
     ]) {
       expect(find.textContaining(s), findsWidgets);
     }

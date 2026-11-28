@@ -294,6 +294,32 @@ fn row_auto_share_view(r: sqlx::postgres::PgRow) -> AutoShareView {
     }
 }
 
+fn row_announcement(r: sqlx::postgres::PgRow) -> Announcement {
+    Announcement {
+        id: r.get("id"),
+        author_id: r.get("author_id"),
+        title: r.get("title"),
+        body: r.get("body"),
+        comments_enabled: r.get::<i64, _>("comments_enabled") != 0,
+        reactions_enabled: r.get::<i64, _>("reactions_enabled") != 0,
+        created_at: r.get("created_at"),
+        edited_at: r.get("edited_at"),
+    }
+}
+
+fn row_ann_comment(r: sqlx::postgres::PgRow) -> AnnouncementComment {
+    AnnouncementComment {
+        id: r.get("id"),
+        announcement_id: r.get("announcement_id"),
+        author_id: r.get("author_id"),
+        author_username: r.get("author_username"),
+        author_name: r.get("author_name"),
+        body: r.get("body"),
+        created_at: r.get("created_at"),
+        edited_at: r.get("edited_at"),
+    }
+}
+
 fn row_audit(r: sqlx::postgres::PgRow) -> AuditEntry {
     AuditEntry {
         id: r.get("id"),
@@ -1850,6 +1876,243 @@ impl Db for PgDb {
         .await
         .map(|r| r.rows_affected() > 0)
         .map_err(map_err)
+    }
+
+    async fn announcement_create(&self, a: &Announcement) -> DbResult<()> {
+        sqlx::query(
+            "INSERT INTO announcements(id,author_id,title,body,comments_enabled,reactions_enabled,created_at,edited_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8)",
+        )
+        .bind(&a.id)
+        .bind(&a.author_id)
+        .bind(&a.title)
+        .bind(&a.body)
+        .bind(a.comments_enabled as i64)
+        .bind(a.reactions_enabled as i64)
+        .bind(a.created_at)
+        .bind(a.edited_at)
+        .execute(&self.pool)
+        .await
+        .map(|_| ())
+        .map_err(map_err)
+    }
+
+    async fn announcement_by_id(&self, id: &str) -> DbResult<Announcement> {
+        sqlx::query(
+            "SELECT id,author_id,title,body,comments_enabled,reactions_enabled,created_at,edited_at FROM announcements WHERE id=$1",
+        )
+        .bind(id)
+        .map(row_announcement)
+        .fetch_one(&self.pool)
+        .await
+        .map_err(map_err)
+    }
+
+    async fn announcement_update(
+        &self,
+        id: &str,
+        title: &str,
+        body: &str,
+        comments: bool,
+        reactions: bool,
+        ts: i64,
+    ) -> DbResult<bool> {
+        sqlx::query(
+            "UPDATE announcements SET title=$1,body=$2,comments_enabled=$3,reactions_enabled=$4,edited_at=$5 WHERE id=$6",
+        )
+        .bind(title)
+        .bind(body)
+        .bind(comments as i64)
+        .bind(reactions as i64)
+        .bind(ts)
+        .bind(id)
+        .execute(&self.pool)
+        .await
+        .map(|r| r.rows_affected() > 0)
+        .map_err(map_err)
+    }
+
+    async fn announcement_delete(&self, id: &str) -> DbResult<bool> {
+        sqlx::query("DELETE FROM announcement_reactions WHERE announcement_id=$1")
+            .bind(id)
+            .execute(&self.pool)
+            .await
+            .map_err(map_err)?;
+        sqlx::query("DELETE FROM announcement_comments WHERE announcement_id=$1")
+            .bind(id)
+            .execute(&self.pool)
+            .await
+            .map_err(map_err)?;
+        sqlx::query("DELETE FROM announcements WHERE id=$1")
+            .bind(id)
+            .execute(&self.pool)
+            .await
+            .map(|r| r.rows_affected() > 0)
+            .map_err(map_err)
+    }
+
+    async fn announcements_list(
+        &self,
+        viewer: &str,
+        before: i64,
+        limit: i64,
+    ) -> DbResult<Vec<AnnouncementView>> {
+        let before = if before <= 0 { i64::MAX } else { before };
+        let rows = sqlx::query(
+            "SELECT a.id,a.author_id,u.username AS author_username,u.display_name AS author_name,a.title,a.body,a.comments_enabled,a.reactions_enabled,a.created_at,a.edited_at,(SELECT COUNT(*) FROM announcement_comments c WHERE c.announcement_id=a.id) AS comment_count FROM announcements a JOIN users u ON u.id=a.author_id WHERE a.created_at<$1 ORDER BY a.created_at DESC LIMIT $2",
+        )
+        .bind(before)
+        .bind(limit)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(map_err)?;
+        let mut out = Vec::with_capacity(rows.len());
+        for r in rows {
+            let aid: String = r.get("id");
+            let reactions = sqlx::query(
+                "SELECT emoji,COUNT(*) AS n,BOOL_OR(user_id=$2) AS mine FROM announcement_reactions WHERE announcement_id=$1 GROUP BY emoji ORDER BY MIN(created_at)",
+            )
+            .bind(&aid)
+            .bind(viewer)
+            .map(|rr: sqlx::postgres::PgRow| ReactionCount {
+                emoji: rr.get("emoji"),
+                count: rr.get("n"),
+                mine: rr.get("mine"),
+            })
+            .fetch_all(&self.pool)
+            .await
+            .map_err(map_err)?;
+            out.push(AnnouncementView {
+                id: aid,
+                author_id: r.get("author_id"),
+                author_username: r.get("author_username"),
+                author_name: r.get("author_name"),
+                title: r.get("title"),
+                body: r.get("body"),
+                comments_enabled: r.get::<i64, _>("comments_enabled") != 0,
+                reactions_enabled: r.get::<i64, _>("reactions_enabled") != 0,
+                reactions,
+                comment_count: r.get("comment_count"),
+                created_at: r.get("created_at"),
+                edited_at: r.get("edited_at"),
+            });
+        }
+        Ok(out)
+    }
+
+    async fn announcement_react(
+        &self,
+        aid: &str,
+        user: &str,
+        emoji: &str,
+        ts: i64,
+    ) -> DbResult<bool> {
+        let n = sqlx::query(
+            "DELETE FROM announcement_reactions WHERE announcement_id=$1 AND user_id=$2 AND emoji=$3",
+        )
+        .bind(aid)
+        .bind(user)
+        .bind(emoji)
+        .execute(&self.pool)
+        .await
+        .map_err(map_err)?
+        .rows_affected();
+        if n > 0 {
+            return Ok(false);
+        }
+        sqlx::query(
+            "INSERT INTO announcement_reactions(announcement_id,user_id,emoji,created_at) VALUES($1,$2,$3,$4)",
+        )
+        .bind(aid)
+        .bind(user)
+        .bind(emoji)
+        .bind(ts)
+        .execute(&self.pool)
+        .await
+        .map(|_| true)
+        .map_err(map_err)
+    }
+
+    async fn ann_comments(
+        &self,
+        aid: &str,
+        before: i64,
+        limit: i64,
+    ) -> DbResult<Vec<AnnouncementComment>> {
+        let before = if before <= 0 { i64::MAX } else { before };
+        sqlx::query(
+            "SELECT c.id,c.announcement_id,c.author_id,u.username AS author_username,u.display_name AS author_name,c.body,c.created_at,c.edited_at FROM announcement_comments c JOIN users u ON u.id=c.author_id WHERE c.announcement_id=$1 AND c.created_at<$2 ORDER BY c.created_at DESC LIMIT $3",
+        )
+        .bind(aid)
+        .bind(before)
+        .bind(limit)
+        .map(row_ann_comment)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(map_err)
+    }
+
+    async fn ann_comment_by_id(&self, id: &str) -> DbResult<AnnouncementComment> {
+        sqlx::query(
+            "SELECT c.id,c.announcement_id,c.author_id,u.username AS author_username,u.display_name AS author_name,c.body,c.created_at,c.edited_at FROM announcement_comments c JOIN users u ON u.id=c.author_id WHERE c.id=$1",
+        )
+        .bind(id)
+        .map(row_ann_comment)
+        .fetch_one(&self.pool)
+        .await
+        .map_err(map_err)
+    }
+
+    async fn ann_comment_add(&self, cm: &AnnouncementComment) -> DbResult<()> {
+        sqlx::query(
+            "INSERT INTO announcement_comments(id,announcement_id,author_id,body,created_at,edited_at) VALUES($1,$2,$3,$4,$5,$6)",
+        )
+        .bind(&cm.id)
+        .bind(&cm.announcement_id)
+        .bind(&cm.author_id)
+        .bind(&cm.body)
+        .bind(cm.created_at)
+        .bind(cm.edited_at)
+        .execute(&self.pool)
+        .await
+        .map(|_| ())
+        .map_err(map_err)
+    }
+
+    async fn ann_comment_update(
+        &self,
+        id: &str,
+        author: &str,
+        body: &str,
+        ts: i64,
+    ) -> DbResult<bool> {
+        sqlx::query(
+            "UPDATE announcement_comments SET body=$1,edited_at=$2 WHERE id=$3 AND author_id=$4",
+        )
+        .bind(body)
+        .bind(ts)
+        .bind(id)
+        .bind(author)
+        .execute(&self.pool)
+        .await
+        .map(|r| r.rows_affected() > 0)
+        .map_err(map_err)
+    }
+
+    async fn ann_comment_delete(&self, id: &str) -> DbResult<bool> {
+        sqlx::query("DELETE FROM announcement_comments WHERE id=$1")
+            .bind(id)
+            .execute(&self.pool)
+            .await
+            .map(|r| r.rows_affected() > 0)
+            .map_err(map_err)
+    }
+
+    async fn user_ids_all(&self) -> DbResult<Vec<String>> {
+        sqlx::query("SELECT id FROM users WHERE disabled=0")
+            .map(|r: sqlx::postgres::PgRow| r.get("id"))
+            .fetch_all(&self.pool)
+            .await
+            .map_err(map_err)
     }
 
     async fn share_by_id(&self, id: &str) -> DbResult<ProjectShare> {

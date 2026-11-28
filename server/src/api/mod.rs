@@ -16,8 +16,9 @@ use crate::auth::{
 };
 use crate::files::{self, FsError};
 use crate::model::{
-    self, can_manage, lineage_has, Assignment, AssignmentCopy, AutoShare, Folder, InviteCode,
-    Project, ProjectLink, ProjectShare, RenderJob, RenderSpec, Role, User,
+    self, can_manage, lineage_has, Announcement, AnnouncementComment, Assignment, AssignmentCopy,
+    AutoShare, Folder, InviteCode, Project, ProjectLink, ProjectShare, RenderJob, RenderSpec,
+    Role, User,
 };
 use crate::render;
 use crate::store::{AuditFilter, DbError, LockOutcome};
@@ -111,6 +112,23 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/auto-shares/{id}", delete(delete_auto_share))
         .route("/auto-shares/{id}/accept", post(accept_auto_share))
         .route("/auto-shares/{id}/decline", post(decline_auto_share))
+        .route(
+            "/announcements",
+            get(list_announcements).post(create_announcement),
+        )
+        .route(
+            "/announcements/{id}",
+            patch(update_announcement).delete(delete_announcement),
+        )
+        .route("/announcements/{id}/react", post(react_announcement))
+        .route(
+            "/announcements/{id}/comments",
+            get(list_ann_comments).post(add_ann_comment),
+        )
+        .route(
+            "/announcements/{id}/comments/{cid}",
+            patch(edit_ann_comment).delete(delete_ann_comment),
+        )
         .route("/notifications", get(my_notifications))
         .route("/notifications/read-all", post(notifications_read_all))
         .route("/notifications/{id}/read", post(notification_read))
@@ -2475,6 +2493,343 @@ async fn decline_share(
     Path(sid): Path<String>,
 ) -> Response {
     respond_share(&s, &session, &sid, "declined").await
+}
+
+fn can_announce(u: &User) -> bool {
+    matches!(u.role, Role::Mod | Role::Admin | Role::Owner)
+}
+
+#[derive(Deserialize)]
+struct PageQuery {
+    before: Option<i64>,
+    limit: Option<i64>,
+}
+
+async fn list_announcements(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Query(q): Query<PageQuery>,
+) -> Response {
+    let limit = q.limit.unwrap_or(50).clamp(1, 100);
+    match s
+        .db
+        .announcements_list(&session.user.id, q.before.unwrap_or(0), limit)
+        .await
+    {
+        Ok(v) => Json(json!(v)).into_response(),
+        Err(e) => db_resp(e),
+    }
+}
+
+#[derive(Deserialize)]
+struct AnnounceReq {
+    title: Option<String>,
+    body: Option<String>,
+    #[serde(rename = "commentsEnabled")]
+    comments_enabled: Option<bool>,
+    #[serde(rename = "reactionsEnabled")]
+    reactions_enabled: Option<bool>,
+}
+
+async fn create_announcement(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Json(req): Json<AnnounceReq>,
+) -> Response {
+    if !can_announce(&session.user) {
+        return err(StatusCode::FORBIDDEN, "staff only");
+    }
+    let title = req.title.as_deref().unwrap_or("").trim();
+    let body = req.body.as_deref().unwrap_or("").trim();
+    if title.is_empty() || title.chars().count() > 200 {
+        return err(StatusCode::BAD_REQUEST, "bad title");
+    }
+    if body.is_empty() || body.chars().count() > 20_000 {
+        return err(StatusCode::BAD_REQUEST, "bad body");
+    }
+    let a = Announcement {
+        id: model::new_id(),
+        author_id: session.user.id.clone(),
+        title: title.into(),
+        body: body.into(),
+        comments_enabled: req.comments_enabled.unwrap_or(true),
+        reactions_enabled: req.reactions_enabled.unwrap_or(true),
+        created_at: AppState::now(),
+        edited_at: 0,
+    };
+    match s.db.announcement_create(&a).await {
+        Ok(()) => {
+            s.audit(
+                "announcement",
+                &session.user,
+                "announce",
+                &a.title,
+                "",
+                &a.id,
+            )
+            .await;
+            if let Ok(ids) = s.db.user_ids_all().await {
+                for uid in ids {
+                    if uid == session.user.id {
+                        continue;
+                    }
+                    s.notify(
+                        &uid,
+                        "announcement",
+                        json!({
+                            "id": a.id,
+                            "name": a.title,
+                            "from": session.user.username,
+                        }),
+                    )
+                    .await;
+                }
+            }
+            Json(json!(a)).into_response()
+        }
+        Err(e) => db_resp(e),
+    }
+}
+
+async fn fetch_announcement(s: &Arc<AppState>, id: &str) -> Result<Announcement, Response> {
+    s.db.announcement_by_id(id)
+        .await
+        .map_err(|_| err(StatusCode::NOT_FOUND, "unknown announcement"))
+}
+
+async fn update_announcement(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Path(id): Path<String>,
+    Json(req): Json<AnnounceReq>,
+) -> Response {
+    let a = match fetch_announcement(&s, &id).await {
+        Ok(a) => a,
+        Err(r) => return r,
+    };
+    if session.user.id != a.author_id && !can_announce(&session.user) {
+        return err(StatusCode::FORBIDDEN, "staff only");
+    }
+    let title = req.title.as_deref().unwrap_or(&a.title).trim();
+    let body = req.body.as_deref().unwrap_or(&a.body).trim();
+    if title.is_empty() || title.chars().count() > 200 {
+        return err(StatusCode::BAD_REQUEST, "bad title");
+    }
+    if body.is_empty() || body.chars().count() > 20_000 {
+        return err(StatusCode::BAD_REQUEST, "bad body");
+    }
+    match s
+        .db
+        .announcement_update(
+            &id,
+            title,
+            body,
+            req.comments_enabled.unwrap_or(a.comments_enabled),
+            req.reactions_enabled.unwrap_or(a.reactions_enabled),
+            AppState::now(),
+        )
+        .await
+    {
+        Ok(true) => {
+            s.audit("announcement", &session.user, "announce_edit", &id, "", &id)
+                .await;
+            Json(json!({"ok": true})).into_response()
+        }
+        Ok(false) => err(StatusCode::NOT_FOUND, "unknown announcement"),
+        Err(e) => db_resp(e),
+    }
+}
+
+async fn delete_announcement(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Path(id): Path<String>,
+) -> Response {
+    let a = match fetch_announcement(&s, &id).await {
+        Ok(a) => a,
+        Err(r) => return r,
+    };
+    if session.user.id != a.author_id && !can_announce(&session.user) {
+        return err(StatusCode::FORBIDDEN, "staff only");
+    }
+    match s.db.announcement_delete(&id).await {
+        Ok(true) => {
+            s.audit(
+                "announcement",
+                &session.user,
+                "announce_remove",
+                &a.title,
+                "",
+                &id,
+            )
+            .await;
+            Json(json!({"ok": true})).into_response()
+        }
+        Ok(false) => err(StatusCode::NOT_FOUND, "unknown announcement"),
+        Err(e) => db_resp(e),
+    }
+}
+
+#[derive(Deserialize)]
+struct ReactReq {
+    emoji: String,
+}
+
+async fn react_announcement(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Path(id): Path<String>,
+    Json(req): Json<ReactReq>,
+) -> Response {
+    let a = match fetch_announcement(&s, &id).await {
+        Ok(a) => a,
+        Err(r) => return r,
+    };
+    if !a.reactions_enabled {
+        return err(StatusCode::FORBIDDEN, "reactions disabled");
+    }
+    let emoji = req.emoji.trim();
+    if emoji.is_empty() || emoji.chars().count() > 8 {
+        return err(StatusCode::BAD_REQUEST, "bad emoji");
+    }
+    match s
+        .db
+        .announcement_react(&id, &session.user.id, emoji, AppState::now())
+        .await
+    {
+        Ok(added) => Json(json!({"ok": true, "added": added})).into_response(),
+        Err(e) => db_resp(e),
+    }
+}
+
+async fn list_ann_comments(
+    State(s): State<Arc<AppState>>,
+    _session: Session,
+    Path(id): Path<String>,
+    Query(q): Query<PageQuery>,
+) -> Response {
+    if let Err(r) = fetch_announcement(&s, &id).await {
+        return r;
+    }
+    let limit = q.limit.unwrap_or(50).clamp(1, 100);
+    match s.db.ann_comments(&id, q.before.unwrap_or(0), limit).await {
+        Ok(v) => Json(json!(v)).into_response(),
+        Err(e) => db_resp(e),
+    }
+}
+
+async fn add_ann_comment(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Path(id): Path<String>,
+    Json(req): Json<CommentReq>,
+) -> Response {
+    let a = match fetch_announcement(&s, &id).await {
+        Ok(a) => a,
+        Err(r) => return r,
+    };
+    if !a.comments_enabled {
+        return err(StatusCode::FORBIDDEN, "comments disabled");
+    }
+    let body = req.body.trim();
+    if body.is_empty() || body.chars().count() > 4_000 {
+        return err(StatusCode::BAD_REQUEST, "bad body");
+    }
+    let c = AnnouncementComment {
+        id: model::new_id(),
+        announcement_id: id.clone(),
+        author_id: session.user.id.clone(),
+        author_username: String::new(),
+        author_name: String::new(),
+        body: body.into(),
+        created_at: AppState::now(),
+        edited_at: 0,
+    };
+    match s.db.ann_comment_add(&c).await {
+        Ok(()) => {
+            if a.author_id != session.user.id {
+                s.notify(
+                    &a.author_id,
+                    "announcement_comment",
+                    json!({
+                        "id": a.id,
+                        "name": a.title,
+                        "from": session.user.username,
+                    }),
+                )
+                .await;
+            }
+            match s.db.ann_comment_by_id(&c.id).await {
+                Ok(v) => Json(json!(v)).into_response(),
+                Err(e) => db_resp(e),
+            }
+        }
+        Err(e) => db_resp(e),
+    }
+}
+
+async fn edit_ann_comment(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Path((id, cid)): Path<(String, String)>,
+    Json(req): Json<CommentReq>,
+) -> Response {
+    if let Err(r) = fetch_announcement(&s, &id).await {
+        return r;
+    }
+    let body = req.body.trim();
+    if body.is_empty() || body.chars().count() > 4_000 {
+        return err(StatusCode::BAD_REQUEST, "bad body");
+    }
+    match s
+        .db
+        .ann_comment_update(&cid, &session.user.id, body, AppState::now())
+        .await
+    {
+        Ok(true) => Json(json!({"ok": true})).into_response(),
+        Ok(false) => err(StatusCode::NOT_FOUND, "unknown comment"),
+        Err(e) => db_resp(e),
+    }
+}
+
+async fn delete_ann_comment(
+    State(s): State<Arc<AppState>>,
+    session: Session,
+    Path((id, cid)): Path<(String, String)>,
+) -> Response {
+    let a = match fetch_announcement(&s, &id).await {
+        Ok(a) => a,
+        Err(r) => return r,
+    };
+    let c = match s.db.ann_comment_by_id(&cid).await {
+        Ok(c) => c,
+        Err(_) => return err(StatusCode::NOT_FOUND, "unknown comment"),
+    };
+    if c.announcement_id != id {
+        return err(StatusCode::NOT_FOUND, "unknown comment");
+    }
+    if c.author_id != session.user.id
+        && a.author_id != session.user.id
+        && !can_announce(&session.user)
+    {
+        return err(StatusCode::FORBIDDEN, "not yours to remove");
+    }
+    match s.db.ann_comment_delete(&cid).await {
+        Ok(true) => {
+            s.audit(
+                "announcement",
+                &session.user,
+                "comment_remove",
+                &a.title,
+                &cid,
+                &id,
+            )
+            .await;
+            Json(json!({"ok": true})).into_response()
+        }
+        Ok(false) => err(StatusCode::NOT_FOUND, "unknown comment"),
+        Err(e) => db_resp(e),
+    }
 }
 
 #[derive(Deserialize)]
@@ -6647,6 +7002,226 @@ mod tests {
             json!(cid),
             "children move up to the deleted parent's slot"
         );
+    }
+
+    #[tokio::test]
+    async fn announcements_roles_toggles_and_moderation() {
+        let dir = std::env::temp_dir().join(format!("wfm-api-{}", model::new_id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let s = state(&dir);
+        let (owner, teacher, _t2, student, _cm, _out) = school(&s);
+        let mut m = user(Role::Mod);
+        m.created_by = owner.id.clone();
+        m.lineage = format!("/{}/", owner.id);
+        s.db.create_user(&m, "h").await.unwrap();
+        let mk = |t: &str, b: &str| {
+            Json(AnnounceReq {
+                title: Some(t.into()),
+                body: Some(b.into()),
+                comments_enabled: None,
+                reactions_enabled: None,
+            })
+        };
+        let r =
+            create_announcement(State(s.clone()), session(&teacher), mk("t", "b")).await;
+        assert_eq!(r.status(), StatusCode::FORBIDDEN);
+        let r =
+            create_announcement(State(s.clone()), session(&student), mk("t", "b")).await;
+        assert_eq!(r.status(), StatusCode::FORBIDDEN);
+        let r =
+            create_announcement(State(s.clone()), session(&owner), mk("", "b")).await;
+        assert_eq!(r.status(), StatusCode::BAD_REQUEST);
+        let r = create_announcement(State(s.clone()), session(&owner), mk("Term dates", "body"))
+            .await;
+        assert_eq!(r.status(), StatusCode::OK);
+        let j = body_json(r).await;
+        let aid = j["id"].as_str().unwrap().to_string();
+        let list = body_json(
+            list_announcements(
+                State(s.clone()),
+                session(&student),
+                Query(PageQuery {
+                    before: None,
+                    limit: None,
+                }),
+            )
+            .await,
+        )
+        .await;
+        assert_eq!(list.as_array().unwrap().len(), 1);
+        let notifs = s.db.notifications_for(&student.id, 0, 10).await.unwrap();
+        assert!(notifs.iter().any(|n| n.kind == "announcement"));
+        assert!(s
+            .db
+            .notifications_for(&owner.id, 0, 10)
+            .await
+            .unwrap()
+            .iter()
+            .all(|n| n.kind != "announcement"));
+
+        let react = |e: &str| Json(ReactReq { emoji: e.into() });
+        let r = react_announcement(
+            State(s.clone()),
+            session(&student),
+            Path(aid.clone()),
+            react("👍"),
+        )
+        .await;
+        assert_eq!(r.status(), StatusCode::OK);
+        let r = react_announcement(
+            State(s.clone()),
+            session(&teacher),
+            Path(aid.clone()),
+            react("👍"),
+        )
+        .await;
+        assert_eq!(r.status(), StatusCode::OK);
+        let list = body_json(
+            list_announcements(
+                State(s.clone()),
+                session(&student),
+                Query(PageQuery {
+                    before: None,
+                    limit: None,
+                }),
+            )
+            .await,
+        )
+        .await;
+        assert_eq!(list[0]["reactions"][0]["count"], json!(2));
+        assert_eq!(list[0]["reactions"][0]["mine"], json!(true));
+        let r = react_announcement(
+            State(s.clone()),
+            session(&student),
+            Path(aid.clone()),
+            react("👍"),
+        )
+        .await;
+        assert_eq!(r.status(), StatusCode::OK);
+        let r = react_announcement(
+            State(s.clone()),
+            session(&student),
+            Path(aid.clone()),
+            react("a really long emoji that nobody would use"),
+        )
+        .await;
+        assert_eq!(r.status(), StatusCode::BAD_REQUEST);
+
+        let comment = |b: &str| {
+            Json(CommentReq {
+                body: b.into(),
+                parent_id: String::new(),
+            })
+        };
+        let r = add_ann_comment(
+            State(s.clone()),
+            session(&student),
+            Path(aid.clone()),
+            comment("first"),
+        )
+        .await;
+        assert_eq!(r.status(), StatusCode::OK);
+        let cj = body_json(r).await;
+        let cid = cj["id"].as_str().unwrap().to_string();
+        let cs = body_json(
+            list_ann_comments(
+                State(s.clone()),
+                session(&student),
+                Path(aid.clone()),
+                Query(PageQuery {
+                    before: None,
+                    limit: None,
+                }),
+            )
+            .await,
+        )
+        .await;
+        assert_eq!(cs.as_array().unwrap().len(), 1);
+        let r = edit_ann_comment(
+            State(s.clone()),
+            session(&teacher),
+            Path((aid.clone(), cid.clone())),
+            comment("not mine"),
+        )
+        .await;
+        assert_eq!(r.status(), StatusCode::NOT_FOUND);
+        let r = edit_ann_comment(
+            State(s.clone()),
+            session(&student),
+            Path((aid.clone(), cid.clone())),
+            comment("edited"),
+        )
+        .await;
+        assert_eq!(r.status(), StatusCode::OK);
+
+        let r = update_announcement(
+            State(s.clone()),
+            session(&teacher),
+            Path(aid.clone()),
+            mk("x", "y"),
+        )
+        .await;
+        assert_eq!(r.status(), StatusCode::FORBIDDEN);
+        let r = update_announcement(
+            State(s.clone()),
+            session(&m),
+            Path(aid.clone()),
+            Json(AnnounceReq {
+                title: None,
+                body: None,
+                comments_enabled: Some(false),
+                reactions_enabled: Some(false),
+            }),
+        )
+        .await;
+        assert_eq!(r.status(), StatusCode::OK);
+        let r = add_ann_comment(
+            State(s.clone()),
+            session(&student),
+            Path(aid.clone()),
+            comment("blocked"),
+        )
+        .await;
+        assert_eq!(r.status(), StatusCode::FORBIDDEN);
+        let r = react_announcement(
+            State(s.clone()),
+            session(&student),
+            Path(aid.clone()),
+            react("🎉"),
+        )
+        .await;
+        assert_eq!(r.status(), StatusCode::FORBIDDEN);
+        let cs = body_json(
+            list_ann_comments(
+                State(s.clone()),
+                session(&student),
+                Path(aid.clone()),
+                Query(PageQuery {
+                    before: None,
+                    limit: None,
+                }),
+            )
+            .await,
+        )
+        .await;
+        assert_eq!(cs.as_array().unwrap().len(), 1);
+
+        let r = delete_ann_comment(
+            State(s.clone()),
+            session(&teacher),
+            Path((aid.clone(), cid.clone())),
+        )
+        .await;
+        assert_eq!(r.status(), StatusCode::FORBIDDEN);
+        let r = delete_ann_comment(
+            State(s.clone()),
+            session(&m),
+            Path((aid.clone(), cid.clone())),
+        )
+        .await;
+        assert_eq!(r.status(), StatusCode::OK);
+        let r = delete_announcement(State(s.clone()), session(&m), Path(aid.clone())).await;
+        assert_eq!(r.status(), StatusCode::OK);
     }
 
     #[tokio::test]

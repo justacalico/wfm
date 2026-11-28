@@ -1462,4 +1462,73 @@ class AppLocalizationsZh extends AppLocalizations {
   String notifShareLeft(Object from, Object project) {
     return '$from 退出了 $project';
   }
+
+  @override
+  String get navAnnouncements => '公告';
+
+  @override
+  String get newAnnouncement => '发布公告';
+
+  @override
+  String get editAnnouncement => '编辑公告';
+
+  @override
+  String get deleteAnnouncement => '删除公告';
+
+  @override
+  String get deleteAnnouncementConfirm => '删除此公告及其全部评论？';
+
+  @override
+  String get announcementTitle => '标题';
+
+  @override
+  String get announcementBody => '公告内容';
+
+  @override
+  String get markdownHint => '支持 Markdown 格式。';
+
+  @override
+  String get allowComments => '允许评论';
+
+  @override
+  String get allowReactions => '允许表态';
+
+  @override
+  String get noAnnouncements => '暂无公告。';
+
+  @override
+  String get addReaction => '添加表态';
+
+  @override
+  String commentCount(Object count) {
+    return '$count 条评论';
+  }
+
+  @override
+  String get commentsOff => '评论已关闭';
+
+  @override
+  String get editedMark => '已编辑';
+
+  @override
+  String get deleteComment => '删除评论';
+
+  @override
+  String get deleteCommentConfirm => '删除此评论？';
+
+  @override
+  String get edit => '编辑';
+
+  @override
+  String get post => '发布';
+
+  @override
+  String notifAnnouncement(Object from, Object name) {
+    return '$from 发布了公告：$name';
+  }
+
+  @override
+  String notifAnnComment(Object from, Object name) {
+    return '$from 评论了 $name';
+  }
 }

@@ -3,6 +3,7 @@ import 'api.dart';
 import 'main.dart';
 import 'projects.dart';
 import 'l10n/app_localizations.dart';
+import 'announcements.dart';
 import 'shared.dart';
 import 'util.dart';
 
@@ -69,6 +70,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
   String _text(AppLocalizations l10n, AppNotification n) => notifText(l10n, n);
 
   IconData _icon(AppNotification n) => switch (n.kind) {
+        'announcement' || 'announcement_comment' => Icons.campaign_outlined,
         'share_invite' || 'share_auto' => Icons.folder_shared_outlined,
         'share_accepted' || 'auto_share_accepted' => Icons.check_circle_outline,
         'share_declined' || 'auto_share_declined' => Icons.cancel_outlined,
@@ -109,6 +111,13 @@ class _NotificationsPageState extends State<NotificationsPage> {
         } else {
           Navigator.of(context)
               .push(MaterialPageRoute(builder: (_) => const SharedPage()));
+        }
+      case 'announcement' || 'announcement_comment':
+        if (shell != null) {
+          shell.go(4);
+        } else {
+          Navigator.of(context)
+              .push(MaterialPageRoute(builder: (_) => const AnnouncementsPage()));
         }
       case 'render_done' ||
             'render_failed' ||
@@ -212,6 +221,10 @@ String notifText(AppLocalizations l10n, AppNotification n) {
       return l10n.notifAutoShareDeclined(from);
     case 'share_left':
       return l10n.notifShareLeft(from, project);
+    case 'announcement':
+      return l10n.notifAnnouncement(from, name);
+    case 'announcement_comment':
+      return l10n.notifAnnComment(from, name);
     case 'render_done':
       return l10n.notifRenderDone(name, project);
     case 'render_failed':

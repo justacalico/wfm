@@ -692,5 +692,43 @@
       "from": {},
       "project": {}
     }
+  },
+  "navAnnouncements": "Announcements",
+  "newAnnouncement": "New announcement",
+  "editAnnouncement": "Edit announcement",
+  "deleteAnnouncement": "Delete announcement",
+  "deleteAnnouncementConfirm": "Delete this announcement and all its comments?",
+  "announcementTitle": "Title",
+  "announcementBody": "Announcement",
+  "markdownHint": "Markdown formatting is supported.",
+  "allowComments": "Allow comments",
+  "allowReactions": "Allow reactions",
+  "noAnnouncements": "No announcements yet.",
+  "addReaction": "Add reaction",
+  "commentCount": "{count} comments",
+  "@commentCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "commentsOff": "Comments are off",
+  "editedMark": "edited",
+  "deleteComment": "Delete comment",
+  "deleteCommentConfirm": "Delete this comment?",
+  "edit": "Edit",
+  "post": "Post",
+  "notifAnnouncement": "{from} posted an announcement: {name}",
+  "@notifAnnouncement": {
+    "placeholders": {
+      "from": {},
+      "name": {}
+    }
+  },
+  "notifAnnComment": "{from} commented on {name}",
+  "@notifAnnComment": {
+    "placeholders": {
+      "from": {},
+      "name": {}
+    }
   }
 }

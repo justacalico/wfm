@@ -2707,6 +2707,132 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{from} left {project}'**
   String notifShareLeft(Object from, Object project);
+
+  /// No description provided for @navAnnouncements.
+  ///
+  /// In en, this message translates to:
+  /// **'Announcements'**
+  String get navAnnouncements;
+
+  /// No description provided for @newAnnouncement.
+  ///
+  /// In en, this message translates to:
+  /// **'New announcement'**
+  String get newAnnouncement;
+
+  /// No description provided for @editAnnouncement.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit announcement'**
+  String get editAnnouncement;
+
+  /// No description provided for @deleteAnnouncement.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete announcement'**
+  String get deleteAnnouncement;
+
+  /// No description provided for @deleteAnnouncementConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this announcement and all its comments?'**
+  String get deleteAnnouncementConfirm;
+
+  /// No description provided for @announcementTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Title'**
+  String get announcementTitle;
+
+  /// No description provided for @announcementBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Announcement'**
+  String get announcementBody;
+
+  /// No description provided for @markdownHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Markdown formatting is supported.'**
+  String get markdownHint;
+
+  /// No description provided for @allowComments.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow comments'**
+  String get allowComments;
+
+  /// No description provided for @allowReactions.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow reactions'**
+  String get allowReactions;
+
+  /// No description provided for @noAnnouncements.
+  ///
+  /// In en, this message translates to:
+  /// **'No announcements yet.'**
+  String get noAnnouncements;
+
+  /// No description provided for @addReaction.
+  ///
+  /// In en, this message translates to:
+  /// **'Add reaction'**
+  String get addReaction;
+
+  /// No description provided for @commentCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} comments'**
+  String commentCount(Object count);
+
+  /// No description provided for @commentsOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Comments are off'**
+  String get commentsOff;
+
+  /// No description provided for @editedMark.
+  ///
+  /// In en, this message translates to:
+  /// **'edited'**
+  String get editedMark;
+
+  /// No description provided for @deleteComment.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete comment'**
+  String get deleteComment;
+
+  /// No description provided for @deleteCommentConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this comment?'**
+  String get deleteCommentConfirm;
+
+  /// No description provided for @edit.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit'**
+  String get edit;
+
+  /// No description provided for @post.
+  ///
+  /// In en, this message translates to:
+  /// **'Post'**
+  String get post;
+
+  /// No description provided for @notifAnnouncement.
+  ///
+  /// In en, this message translates to:
+  /// **'{from} posted an announcement: {name}'**
+  String notifAnnouncement(Object from, Object name);
+
+  /// No description provided for @notifAnnComment.
+  ///
+  /// In en, this message translates to:
+  /// **'{from} commented on {name}'**
+  String notifAnnComment(Object from, Object name);
 }
 
 class _AppLocalizationsDelegate

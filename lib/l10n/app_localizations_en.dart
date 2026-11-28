@@ -1481,6 +1481,76 @@ class AppLocalizationsEn extends AppLocalizations {
   String notifShareLeft(Object from, Object project) {
     return '$from left $project';
   }
+
+  @override
+  String get navAnnouncements => 'Announcements';
+
+  @override
+  String get newAnnouncement => 'New announcement';
+
+  @override
+  String get editAnnouncement => 'Edit announcement';
+
+  @override
+  String get deleteAnnouncement => 'Delete announcement';
+
+  @override
+  String get deleteAnnouncementConfirm =>
+      'Delete this announcement and all its comments?';
+
+  @override
+  String get announcementTitle => 'Title';
+
+  @override
+  String get announcementBody => 'Announcement';
+
+  @override
+  String get markdownHint => 'Markdown formatting is supported.';
+
+  @override
+  String get allowComments => 'Allow comments';
+
+  @override
+  String get allowReactions => 'Allow reactions';
+
+  @override
+  String get noAnnouncements => 'No announcements yet.';
+
+  @override
+  String get addReaction => 'Add reaction';
+
+  @override
+  String commentCount(Object count) {
+    return '$count comments';
+  }
+
+  @override
+  String get commentsOff => 'Comments are off';
+
+  @override
+  String get editedMark => 'edited';
+
+  @override
+  String get deleteComment => 'Delete comment';
+
+  @override
+  String get deleteCommentConfirm => 'Delete this comment?';
+
+  @override
+  String get edit => 'Edit';
+
+  @override
+  String get post => 'Post';
+
+  @override
+  String notifAnnouncement(Object from, Object name) {
+    return '$from posted an announcement: $name';
+  }
+
+  @override
+  String notifAnnComment(Object from, Object name) {
+    return '$from commented on $name';
+  }
 }
 
 /// The translations for English, as used in the United Kingdom (`en_GB`).
@@ -2131,5 +2201,75 @@ class AppLocalizationsEnGb extends AppLocalizationsEn {
   @override
   String notifShareLeft(Object from, Object project) {
     return '$from left $project';
+  }
+
+  @override
+  String get navAnnouncements => 'Announcements';
+
+  @override
+  String get newAnnouncement => 'New announcement';
+
+  @override
+  String get editAnnouncement => 'Edit announcement';
+
+  @override
+  String get deleteAnnouncement => 'Delete announcement';
+
+  @override
+  String get deleteAnnouncementConfirm =>
+      'Delete this announcement and all its comments?';
+
+  @override
+  String get announcementTitle => 'Title';
+
+  @override
+  String get announcementBody => 'Announcement';
+
+  @override
+  String get markdownHint => 'Markdown formatting is supported.';
+
+  @override
+  String get allowComments => 'Allow comments';
+
+  @override
+  String get allowReactions => 'Allow reactions';
+
+  @override
+  String get noAnnouncements => 'No announcements yet.';
+
+  @override
+  String get addReaction => 'Add reaction';
+
+  @override
+  String commentCount(Object count) {
+    return '$count comments';
+  }
+
+  @override
+  String get commentsOff => 'Comments are off';
+
+  @override
+  String get editedMark => 'edited';
+
+  @override
+  String get deleteComment => 'Delete comment';
+
+  @override
+  String get deleteCommentConfirm => 'Delete this comment?';
+
+  @override
+  String get edit => 'Edit';
+
+  @override
+  String get post => 'Post';
+
+  @override
+  String notifAnnouncement(Object from, Object name) {
+    return '$from posted an announcement: $name';
+  }
+
+  @override
+  String notifAnnComment(Object from, Object name) {
+    return '$from commented on $name';
   }
 }
