@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:wfm/announcements.dart';
 import 'package:wfm/main.dart';
 import 'package:wfm/notifications.dart';
 import 'package:wfm/projects.dart';
@@ -125,6 +126,8 @@ void main() {
                   payload: {'project': 'p1', 'projectName': 'Cut'}),
               notif('n9', 'review',
                   payload: {'project': 'p1', 'projectName': 'Cut'}),
+              notif('n10', 'announcement',
+                  payload: {'from': 'ada', 'name': 'Term dates'}),
             ],
             'unread': 3
           },
@@ -136,7 +139,9 @@ void main() {
       'POST /api/notifications/n7/read': (_) => {'ok': true},
       'POST /api/notifications/n8/read': (_) => {'ok': true},
       'POST /api/notifications/n9/read': (_) => {'ok': true},
+      'POST /api/notifications/n10/read': (_) => {'ok': true},
       'GET /api/shares': (_) => <dynamic>[],
+      'GET /api/announcements': (_) => <dynamic>[],
     });
     await pumpShell(t);
     expect(find.text('3'), findsWidgets);
@@ -165,6 +170,16 @@ void main() {
       await settle(t);
       expect(find.byType(ProjectPage), findsOneWidget);
     }
+    await t
+        .tap(find.widgetWithText(ListTile, 'Notifications').first)
+        .then((_) => settle(t));
+    await t.binding.setSurfaceSize(const Size(1280, 2400));
+    addTearDown(() => t.binding.setSurfaceSize(null));
+    await settle(t);
+    await t
+        .tap(find.textContaining('posted an announcement: Term dates').first);
+    await settle(t);
+    expect(find.byType(AnnouncementsPage), findsOneWidget);
   });
 
   testWidgets('mark all read and read error snack', (t) async {
@@ -201,13 +216,17 @@ void main() {
                   payload: {'from': 'a', 'projectName': 'p'}),
               notif('n5', 'render_done',
                   payload: {'name': 'f', 'project': 'p1', 'projectName': 'p'}),
+              notif('n6', 'announcement',
+                  payload: {'from': 'a', 'name': 'Term dates'}),
             ],
             'unread': 0
           },
       'POST /api/notifications/n1/read': (_) => {'ok': true},
       'POST /api/notifications/n5/read': (_) => {'ok': true},
+      'POST /api/notifications/n6/read': (_) => {'ok': true},
       'GET /api/shares': (_) => <dynamic>[],
       'GET /api/projects/p1/renders': (_) => <dynamic>[],
+      'GET /api/announcements': (_) => <dynamic>[],
     });
     await pump(t, const NotificationsPage());
     await t.tap(find.textContaining('invited you to'));
@@ -219,6 +238,11 @@ void main() {
     await settle(t);
     expect(find.byType(ProjectPage), findsOneWidget);
     expect(find.byType(RendersTab), findsOneWidget);
+    Navigator.of(t.element(find.byType(ProjectPage))).pop();
+    await t.pumpAndSettle();
+    await t.tap(find.textContaining('posted an announcement'));
+    await settle(t);
+    expect(find.byType(AnnouncementsPage), findsOneWidget);
   });
 
   testWidgets('deleted project notification snacks instead of opening', (

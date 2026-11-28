@@ -120,13 +120,15 @@ void main() {
   });
 
   Map<String, Object> autoShare(String id,
-          {String status = 'pending', String level = 'view'}) =>
+          {String status = 'pending',
+          String level = 'view',
+          String ownerName = 'Ms Teacher'}) =>
       {
         'id': id,
         'inviteeId': 'me',
         'inviteeUsername': 'me',
         'ownerUsername': 'teacher',
-        'ownerName': 'Ms Teacher',
+        'ownerName': ownerName,
         'level': level,
         'status': status,
         'createdAt': 1
@@ -210,6 +212,25 @@ void main() {
     await t.tap(find.text('Cancel'));
     await settle(t);
     expect(deleted, isFalse);
+  });
+
+  testWidgets('auto-share empty owner name and leave failure', (t) async {
+    installApi(extra: {
+      'GET /api/shares': (_) => <dynamic>[],
+      'GET /api/auto-shares/incoming': (_) => [
+            autoShare('a1', ownerName: ''),
+            autoShare('a2', status: 'accepted', ownerName: '')
+          ],
+      'DELETE /api/auto-shares/a2': (_) =>
+          http.Response('{"error":"nope"}', 500),
+    });
+    await pump(t, const SharedPage());
+    expect(find.text('teacher'), findsWidgets);
+    await t.tap(find.text('Leave'));
+    await settle(t);
+    await t.tap(find.text('Confirm'));
+    await settle(t);
+    expect(find.byType(Notice), findsOneWidget);
   });
 
   testWidgets('share leave failure shows snack', (t) async {

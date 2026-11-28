@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wfm/announcements.dart';
-import 'package:wfm/main.dart';
+import 'package:wfm/api.dart';
 import 'helpers.dart';
 
 void main() {
@@ -210,5 +211,130 @@ void main() {
     expect(find.text('Comments are off'), findsOneWidget);
     expect(find.byType(TextField), findsNothing);
     expect(find.text('hi'), findsOneWidget);
+  });
+
+  testWidgets('list action failures snackbar', (t) async {
+    var moreCalls = 0;
+    installApi(extra: {
+      'GET /api/announcements': (req) {
+        final b = req.url.queryParameters['before'] ?? '';
+        if (b.isNotEmpty && b != '0') {
+          moreCalls++;
+          return http.Response('{"error":"more"}', 500);
+        }
+        return [
+          for (var i = 0; i < 50; i++) ann('a$i', title: 'T$i', editedAt: 5)
+        ];
+      },
+      'POST /api/announcements/a0/react': (_) =>
+          http.Response('{"error":"r"}', 500),
+      'POST /api/announcements': (_) => http.Response('{"error":"c"}', 500),
+      'DELETE /api/announcements/a0': (_) => http.Response('{"error":"d"}', 500),
+    });
+    await pump(t, const AnnouncementsPage());
+    await t.tap(find.byIcon(Icons.add_reaction_outlined).first);
+    await settle(t);
+    await t.tap(find.text('🎉'));
+    await settle(t);
+    await t.tap(find.byType(FloatingActionButton));
+    await settle(t);
+    await t.tap(find.byType(SwitchListTile).last);
+    await settle(t);
+    await t.enterText(find.byType(TextField).first, 'T');
+    await t.enterText(find.byType(TextField).last, 'body');
+    await t.tap(find.text('Post'));
+    await settle(t);
+    await t.tap(find.byType(FloatingActionButton));
+    await settle(t);
+    await t.tap(find.text('Cancel'));
+    await settle(t);
+    await t.tap(find.byIcon(Icons.more_vert).first);
+    await settle(t);
+    await t.tap(find.text('Delete'));
+    await settle(t);
+    await t.tap(find.text('Confirm'));
+    await settle(t);
+    await t.scrollUntilVisible(find.text('Load more'), 400);
+    await t.tap(find.text('Load more'));
+    await settle(t);
+    expect(moreCalls, 1);
+  });
+
+  testWidgets('detail failures, keyboard submit and markdown link',
+      (t) async {
+    var fail = true;
+    installApi(extra: {
+      'GET /api/announcements': (_) => fail
+          ? http.Response('{"error":"x"}', 500)
+          : [
+              {
+                ...ann('a1', title: 'Linked'),
+                'body': 'go [there](https://example.test/y)'
+              }
+            ],
+      'GET /api/announcements/a1/comments': (_) =>
+          fail ? http.Response('{"error":"y"}', 500) : [annComment('c1', authorId: 'u1')],
+      'POST /api/announcements/a1/comments': (_) =>
+          http.Response('{"error":"p"}', 500),
+      'PATCH /api/announcements/a1/comments/c1': (_) =>
+          http.Response('{"error":"e"}', 500),
+      'DELETE /api/announcements/a1/comments/c1': (_) =>
+          http.Response('{"error":"d"}', 500),
+    });
+    await pump(t, const AnnouncementPage(announcementId: 'a1'));
+    expect(find.text('Retry'), findsOneWidget);
+    fail = false;
+    await t.tap(find.text('Retry'));
+    await settle(t);
+    await t.enterText(find.byType(TextField).last, 'typed');
+    await t.testTextInput.receiveAction(TextInputAction.done);
+    await settle(t);
+    await t.tap(find.byIcon(Icons.more_vert).first);
+    await settle(t);
+    await t.tap(find.text('Edit').last);
+    await settle(t);
+    await t.enterText(find.byType(TextField).last, 'changed');
+    await t.tap(find.text('OK'));
+    await settle(t);
+    await t.tap(find.byIcon(Icons.more_vert).first);
+    await settle(t);
+    await t.tap(find.text('Delete').last);
+    await settle(t);
+    await t.tap(find.text('Confirm'));
+    await settle(t);
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+            const MethodChannel('plugins.flutter.io/url_launcher'),
+            (call) async => true);
+    await t.tapOnText(find.textRange.ofSubstring('there'));
+    await settle(t);
+  });
+
+  testWidgets('own announcement menu for a teacher', (t) async {
+    final api = installApi(extra: {
+      'GET /api/announcements': (_) => [ann('a1', authorId: 'u1')],
+    });
+    api.user = User.fromJson({...userJson, 'role': 'teacher'});
+    await pump(t, const AnnouncementsPage());
+    expect(find.byIcon(Icons.more_vert), findsOneWidget);
+    expect(find.byType(FloatingActionButton), findsNothing);
+  });
+
+  testWidgets('list markdown body link tap', (t) async {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+            const MethodChannel('plugins.flutter.io/url_launcher'),
+            (call) async => true);
+    installApi(extra: {
+      'GET /api/announcements': (_) => [
+            {
+              ...ann('a1'),
+              'body': 'see [here](https://example.test/x) now'
+            }
+          ],
+    });
+    await pump(t, const AnnouncementsPage());
+    await t.tapOnText(find.textRange.ofSubstring('here'));
+    await settle(t);
   });
 }
