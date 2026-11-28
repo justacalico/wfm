@@ -1,0 +1,288 @@
+--- a/apps/filmcraft/Cargo.toml
++++ b/apps/filmcraft/Cargo.toml
+@@ -19,6 +19,7 @@
+ 
+ [dependencies]
+ filmcraft-engine = { workspace = true }
++filmcraft-media = { workspace = true }
+ filmcraft-export = { workspace = true }
+ filmcraft-project = { workspace = true }
+ filmcraft-render = { workspace = true }
+@@ -34,6 +35,10 @@
+ log = { workspace = true }
+ rfd = { workspace = true }
+ cpal = "0.16"
++# Lazy remote media: ranged HTTPS reads against the WFM server (pure-Rust TLS, OS roots).
++ureq = { version = "3", default-features = false, features = ["rustls-no-provider", "platform-verifier"] }
++rustls = { version = "0.23", default-features = false }
++rustls-rustcrypto = "0.0.2-alpha"
+ # Files and images on the system clipboard for Paste (#611); egui already uses it for text.
+ arboard = "3"
+ chrono = { workspace = true, features = ["clock"] }
+--- a/apps/filmcraft/src/main.rs
++++ b/apps/filmcraft/src/main.rs
+@@ -36,6 +36,7 @@
+ mod logging;
+ #[cfg(target_os = "macos")]
+ mod native_color;
++mod lazy_remote;
+ #[cfg(target_os = "macos")]
+ mod native_menu;
+ mod window_raise;
+@@ -342,7 +343,10 @@
+                 }
+             }),
+         );
+-        let mut session = Session::default();
++        let services: Arc<dyn filmcraft_engine::Services> = lazy_remote::from_env()
++            .map(|s| Arc::new(s) as Arc<dyn filmcraft_engine::Services>)
++            .unwrap_or_else(|| Arc::new(filmcraft_engine::FsServices));
++        let mut session = Session::new(services);
+         if let Some(dir) = data_dir.clone().or_else(default_data_dir) {
+             let mut cfg = AutosaveConfig::new(dir);
+             cfg.local_offset = local_offset;
+--- /dev/null
++++ b/apps/filmcraft/src/lazy_remote.rs
+@@ -0,0 +1,242 @@
++//! Lazy media over HTTP for the WFM desktop shell. When the shell opens a
++//! project it pulls only the document; clips stay on the server until the
++//! engine reads them. The shell signals this mode with
++//! `FILMCRAFT_REMOTE_URL`, `FILMCRAFT_REMOTE_TOKEN`,
++//! `FILMCRAFT_REMOTE_PROJECT` and `FILMCRAFT_REMOTE_ROOT`; unset, the app
++//! keeps plain filesystem services.
++
++use std::io;
++use std::path::{Path, PathBuf};
++use std::sync::Arc;
++
++use filmcraft_engine::{FsServices, Services};
++use filmcraft_media::reader::ByteReader;
++use filmcraft_media::sequence::FrameLoader;
++
++const CONNECT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
++
++struct Remote {
++    agent: ureq::Agent,
++    url: String,
++    token: String,
++    root: PathBuf,
++}
++
++fn agent() -> ureq::Agent {
++    let provider = Arc::new(rustls_rustcrypto::provider());
++    ureq::Agent::config_builder()
++        .tls_config(
++            ureq::tls::TlsConfig::builder()
++                .provider(ureq::tls::TlsProvider::Rustls)
++                .root_certs(ureq::tls::RootCerts::PlatformVerifier)
++                .unversioned_rustls_crypto_provider(provider)
++                .build(),
++        )
++        .timeout_connect(Some(CONNECT_TIMEOUT))
++        .build()
++        .into()
++}
++
++fn pct_encode(s: &str) -> String {
++    let mut out = String::with_capacity(s.len());
++    for b in s.as_bytes() {
++        match *b {
++            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' | b'/' => {
++                out.push(*b as char)
++            }
++            _ => out.push_str(&format!("%{b:02X}")),
++        }
++    }
++    out
++}
++
++impl Remote {
++    fn url(&self, path: &str) -> Option<String> {
++        let rel = Path::new(path).strip_prefix(&self.root).ok()?;
++        let rel = rel.to_string_lossy().replace('\\', "/");
++        Some(format!("{}?path={}", self.url, pct_encode(&rel)))
++    }
++
++    fn get_range(&self, url: &str, offset: u64, len: usize) -> io::Result<Vec<u8>> {
++        let end = offset + len as u64 - 1;
++        let mut resp = self
++            .agent
++            .get(url)
++            .header("Authorization", &format!("Bearer {}", self.token))
++            .header("Range", &format!("bytes={offset}-{end}"))
++            .call()
++            .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
++        resp.body_mut()
++            .read_to_vec()
++            .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))
++    }
++
++    fn get_all(&self, url: &str) -> io::Result<Vec<u8>> {
++        let mut resp = self
++            .agent
++            .get(url)
++            .header("Authorization", &format!("Bearer {}", self.token))
++            .call()
++            .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
++        resp.body_mut()
++            .read_to_vec()
++            .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))
++    }
++
++    /// Total size from the `Content-Range` header of a one-byte probe.
++    fn len(&self, url: &str) -> io::Result<u64> {
++        let resp = self
++            .agent
++            .get(url)
++            .header("Authorization", &format!("Bearer {}", self.token))
++            .header("Range", "bytes=0-0")
++            .call()
++            .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
++        let cr = resp
++            .headers()
++            .get("content-range")
++            .and_then(|v| v.to_str().ok())
++            .unwrap_or_default();
++        let total = cr.rsplit('/').next().unwrap_or_default();
++        total
++            .parse::<u64>()
++            .map_err(|_| io::Error::new(io::ErrorKind::Other, format!("bad content-range: {cr}")))
++    }
++}
++
++struct HttpReader {
++    remote: Arc<Remote>,
++    url: String,
++    len: u64,
++}
++
++impl ByteReader for HttpReader {
++    fn len(&self) -> u64 {
++        self.len
++    }
++
++    fn read_at(&self, offset: u64, buf: &mut [u8]) -> io::Result<()> {
++        if buf.is_empty() {
++            return Ok(());
++        }
++        let data = self.remote.get_range(&self.url, offset, buf.len())?;
++        if data.len() != buf.len() {
++            return Err(io::Error::new(
++                io::ErrorKind::UnexpectedEof,
++                format!("short read: {} of {} bytes", data.len(), buf.len()),
++            ));
++        }
++        buf.copy_from_slice(&data);
++        Ok(())
++    }
++}
++
++pub struct LazyServices {
++    inner: FsServices,
++    remote: Arc<Remote>,
++}
++
++/// Shell env set → lazy services; unset → `None` and the app stays offline.
++pub fn from_env() -> Option<LazyServices> {
++    let base = std::env::var("FILMCRAFT_REMOTE_URL").ok().filter(|s| !s.is_empty())?;
++    let token = std::env::var("FILMCRAFT_REMOTE_TOKEN").ok().filter(|s| !s.is_empty())?;
++    let pid = std::env::var("FILMCRAFT_REMOTE_PROJECT").ok().filter(|s| !s.is_empty())?;
++    let root = std::env::var("FILMCRAFT_REMOTE_ROOT").ok().filter(|s| !s.is_empty())?;
++    Some(LazyServices {
++        inner: FsServices,
++        remote: Arc::new(Remote {
++            agent: agent(),
++            url: format!("{}/api/projects/{}/download", base.trim_end_matches('/'), pid),
++            token,
++            root: PathBuf::from(root),
++        }),
++    })
++}
++
++impl LazyServices {
++    fn remote_url(&self, path: &str) -> Option<String> {
++        if Path::new(path).exists() {
++            return None;
++        }
++        self.remote.url(path)
++    }
++}
++
++impl Services for LazyServices {
++    fn read_file(&self, path: &str) -> io::Result<Vec<u8>> {
++        match self.remote_url(path) {
++            Some(url) => self.remote.get_all(&url),
++            None => self.inner.read_file(path),
++        }
++    }
++
++    fn write_file(&self, path: &str, data: &[u8]) -> io::Result<()> {
++        self.inner.write_file(path, data)
++    }
++
++    fn write_file_new(&self, path: &str, data: &[u8]) -> io::Result<()> {
++        self.inner.write_file_new(path, data)
++    }
++
++    fn file_size(&self, path: &str) -> io::Result<u64> {
++        match self.remote_url(path) {
++            Some(url) => self.remote.len(&url),
++            None => self.inner.file_size(path),
++        }
++    }
++
++    fn read_range(&self, path: &str, offset: u64, len: usize) -> io::Result<Vec<u8>> {
++        match self.remote_url(path) {
++            Some(url) if len > 0 => self.remote.get_range(&url, offset, len),
++            Some(_) => Ok(Vec::new()),
++            None => self.inner.read_range(path, offset, len),
++        }
++    }
++
++    fn reader(&self, path: &str) -> Option<io::Result<filmcraft_media::SharedReader>> {
++        match self.remote_url(path) {
++            Some(url) => {
++                let len = match self.remote.len(&url) {
++                    Ok(l) => l,
++                    Err(e) => return Some(Err(e)),
++                };
++                Some(Ok(Arc::new(HttpReader {
++                    remote: self.remote.clone(),
++                    url,
++                    len,
++                })))
++            }
++            None => self.inner.reader(path),
++        }
++    }
++
++    fn list_dir(&self, dir: &str) -> Option<io::Result<Vec<String>>> {
++        self.inner.list_dir(dir)
++    }
++
++    fn file_loader(&self) -> Option<FrameLoader> {
++        let remote = self.remote.clone();
++        Some(Arc::new(move |p: &str| {
++            if Path::new(p).exists() {
++                filmcraft_media::reader::read_regular_file(Path::new(p))
++            } else {
++                match remote.url(p) {
++                    Some(url) => remote.get_all(&url),
++                    None => Err(io::Error::new(io::ErrorKind::NotFound, p.to_string())),
++                }
++            }
++        }))
++    }
++
++    fn list_entries(&self, dir: &str) -> Option<io::Result<Vec<filmcraft_engine::media_browser::DirEntry>>> {
++        self.inner.list_entries(dir)
++    }
++
++    fn volumes(&self) -> Vec<filmcraft_engine::media_browser::Volume> {
++        self.inner.volumes()
++    }
++
++    fn home_dir(&self) -> Option<String> {
++        self.inner.home_dir()
++    }
++}

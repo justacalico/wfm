@@ -323,6 +323,7 @@ Future<void> _openFilmcraft(BuildContext context, Api api, String pid) async {
     await runnerFor(api).open(
         'filmcraft', pid, await checkoutDirFor(api, pid), exe,
         dataDir: (await craftDataDirFor(api, pid)).path,
+        pullMedia: false,
         takeOver: (detail) async =>
             context.mounted &&
             await confirm(
