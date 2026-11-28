@@ -460,18 +460,15 @@ void main() {
       expect(runner.runs, isEmpty);
     });
 
-    test('background pull failure lands on the run', () async {
+    test('media pull failure releases the lock and rethrows', () async {
       store.files['Raw/clip.mp4'] = utf8.encode('x');
       store.revs['Raw/clip.mp4'] = 1;
       store.failDownloads = {'Raw/clip.mp4'};
-      final run = await runner.open('filmcraft', pid, dir, exe.path,
-          takeOver: (_) async => false, lockLost: (_) {});
-      for (var i = 0; i < 50 && run.lastError == null; i++) {
-        await Future.delayed(const Duration(milliseconds: 10));
-      }
-      expect(run.lastError, isNotNull);
-      proc.done.complete(0);
-      await run.done.future;
+      await expectLater(
+          runner.open('filmcraft', pid, dir, exe.path,
+              takeOver: (_) async => false, lockLost: (_) {}),
+          throwsA(anything));
+      expect(runner.runs, isEmpty);
     });
 
     test('scanner push failure lands on the run', () async {

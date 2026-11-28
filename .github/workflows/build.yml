@@ -336,6 +336,7 @@ jobs:
     name: Desktop app ${{ matrix.name }}
     needs: [setup, verify]
     if: ${{ !cancelled() && (startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.create_release == true)) }}
+    continue-on-error: true
     strategy:
       fail-fast: false
       matrix:
@@ -344,6 +345,11 @@ jobs:
             os: ubuntu-latest
             target: linux
             triple: x86_64-unknown-linux-gnu
+            ext: tar.gz
+          - name: linux-aarch64
+            os: ubuntu-24.04-arm
+            target: linux
+            triple: aarch64-unknown-linux-gnu
             ext: tar.gz
           - name: macos-arm64
             os: macos-latest
@@ -399,18 +405,25 @@ jobs:
       - name: Stage craft binaries
         run: bash scripts/package-desktop.sh $TARGET
 
+      - name: Ad-hoc sign app bundle
+        if: matrix.target == 'macos'
+        run: codesign --force --deep --sign - build/macos/Build/Products/Release/wfm.app
+
       - name: Package desktop bundle
         run: |
           mkdir -p artifacts
+          NAME="${{ matrix.name }}"
           case "$TARGET" in
             linux)
-              tar -czf "artifacts/wfm-desktop-${VERSION}-linux-x86_64.tar.gz" -C build/linux/x64/release/bundle .
+              tar -czf "artifacts/wfm-desktop-${VERSION}-${NAME}.tar.gz" -C build/linux/x64/release/bundle .
               ;;
             macos)
-              tar -czf "artifacts/wfm-desktop-${VERSION}-macos-arm64.tar.gz" -C build/macos/Build/Products/Release wfm.app
+              cp desktop/macos/remove-quarantine.command desktop/macos/README.txt build/macos/Build/Products/Release/
+              chmod +x build/macos/Build/Products/Release/remove-quarantine.command
+              tar -czf "artifacts/wfm-desktop-${VERSION}-${NAME}.tar.gz" -C build/macos/Build/Products/Release wfm.app remove-quarantine.command README.txt
               ;;
             windows)
-              (cd build/windows/x64/runner/Release && zip -qr "../../../../../artifacts/wfm-desktop-${VERSION}-windows-x64.zip" .)
+              (cd build/windows/x64/runner/Release && 7z a -tzip -r "../../../../../artifacts/wfm-desktop-${VERSION}-${NAME}.zip" . > /dev/null)
               ;;
           esac
           ls -la artifacts/
@@ -431,7 +444,7 @@ jobs:
       - name: Download desktop artifacts
         run: |
           mkdir -p release-assets
-          for n in linux-x86_64 macos-arm64 windows-x64; do
+          for n in linux-x86_64 linux-aarch64 macos-arm64 windows-x64; do
             gh run download "$GITHUB_RUN_ID" -n "desktop-$n" -D release-assets || true
           done
           ls -la release-assets/

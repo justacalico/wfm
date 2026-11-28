@@ -1440,6 +1440,7 @@ class _FilesTabState extends State<FilesTab> {
 
   Widget _thumb(FileEntry e, {double? h, double? w}) => Image.network(
         Api.i.thumbUrl(widget.project.id, e.path),
+        headers: Api.i.imageHeaders,
         height: h,
         width: w,
         fit: BoxFit.cover,

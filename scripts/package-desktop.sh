@@ -15,4 +15,9 @@ esac
 [ -d "$BUNDLE" ] || { echo "no bundle at $BUNDLE; run flutter build first" >&2; exit 1; }
 mkdir -p "$BUNDLE/craft"
 cp -a "$ROOT"/desktop/craft/. "$BUNDLE/craft/"
+if [ "$OS" = linux ]; then
+  cp "$ROOT/web/icons/Icon-512.png" "$BUNDLE/gitlab.httpanimations.wfm.png"
+  cp "$ROOT/desktop/install-desktop-entry.sh" "$BUNDLE/"
+  chmod +x "$BUNDLE/install-desktop-entry.sh"
+fi
 echo "staged desktop/craft into $BUNDLE/craft"

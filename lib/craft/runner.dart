@@ -121,13 +121,7 @@ class CraftRunner {
     CraftProcess proc;
     late CraftRun run;
     try {
-      await engine.pull(docOnly: true);
-      if (pullMedia) {
-        unawaited(engine.pull().onError((e, _) {
-          run.lastError = e;
-          return SyncResult();
-        }));
-      }
+      await engine.pull(docOnly: !pullMedia);
       final doc = '${checkoutDir.path}/project.fcproj';
       proc = await _spawn(exe, [doc],
           workingDirectory: checkoutDir.path,
