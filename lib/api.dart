@@ -8,7 +8,9 @@ import 'uploads.dart';
 class ApiException implements Exception {
   final int status;
   final String message;
-  ApiException(this.status, this.message);
+  final String? rev;
+  final Map<String, dynamic>? body;
+  ApiException(this.status, this.message, [this.rev, this.body]);
   @override
   String toString() => message;
 }
@@ -490,6 +492,10 @@ class Api {
   /// The app wires this to drop back to the gate/login screen.
   void Function()? onSignedOut;
 
+  /// Called when the session token changes so native builds can persist it;
+  /// '' means signed out.
+  void Function(String token)? sessionChanged;
+
   Api([http.Client? client]) : _c = client ?? http.Client();
 
   String baseUrl = const String.fromEnvironment('WFM_API');
@@ -517,13 +523,17 @@ class Api {
         user = null;
         csrf = '';
         sessionToken = '';
+        sessionChanged?.call('');
         onSignedOut?.call();
       }
       throw ApiException(401, 'auth');
     }
     if (r.statusCode >= 400) {
-      throw ApiException(r.statusCode,
-          body is Map ? '${body['error']}' : 'error ${r.statusCode}');
+      throw ApiException(
+          r.statusCode,
+          body is Map ? '${body['error']}' : 'error ${r.statusCode}',
+          body is Map && body['rev'] is String ? body['rev'] : null,
+          body is Map ? Map<String, dynamic>.from(body) : null);
     }
     return body;
   }
@@ -544,6 +554,7 @@ class Api {
   void _session(Map<String, dynamic> j) {
     csrf = j['csrf'] ?? csrf;
     sessionToken = j['token'] ?? sessionToken;
+    if (j['token'] is String) sessionChanged?.call(sessionToken);
     user = User.fromJson(j['user'] ?? j);
   }
 
@@ -587,6 +598,7 @@ class Api {
       csrf = '';
       sessionToken = '';
       caps = Caps.none;
+      sessionChanged?.call('');
     }
   }
 
@@ -750,6 +762,38 @@ class Api {
 
   Future<void> deleteProject(String id) => del('/projects/$id');
 
+  /// (acquired, holder): holder names whoever holds the lock when it is not
+  /// acquired, for the take-over prompt.
+  Future<(bool, String)> lockAcquire(String pid, String kind, String clientId,
+      {bool force = false}) async {
+    try {
+      await post('/projects/$pid/locks',
+          {'kind': kind, 'clientId': clientId, 'force': force});
+      return (true, '');
+    } on ApiException catch (e) {
+      if (e.status == 409) {
+        final lock = e.body?['lock'];
+        final holder = lock is Map ? '${lock['holder'] ?? ''}' : e.message;
+        return (false, holder);
+      }
+      rethrow;
+    }
+  }
+
+  Future<bool> lockHeartbeat(String pid, String kind, String clientId) async {
+    try {
+      await post('/projects/$pid/locks/heartbeat',
+          {'kind': kind, 'clientId': clientId});
+      return true;
+    } on ApiException catch (e) {
+      if (e.status == 409 || e.status == 404) return false;
+      rethrow;
+    }
+  }
+
+  Future<void> lockRelease(String pid, String kind, String clientId) =>
+      del('/projects/$pid/locks', {'kind': kind, 'clientId': clientId});
+
   Future<List<FileEntry>> files(String pid, String path) async => [
         for (final e
             in (await get('/projects/$pid/files', {'path': path})) as List)
@@ -875,6 +919,29 @@ class Api {
 
   String downloadUrl(String pid, String path, {bool dl = false}) =>
       '$baseUrl/api/projects/$pid/download?path=${Uri.encodeComponent(path)}${dl ? '&dl=true' : ''}';
+
+  /// Streamed download into [sink] so large media never sits in memory.
+  Future<void> downloadInto(
+      String pid, String path, StreamConsumer<List<int>> sink) async {
+    final req =
+        http.Request('GET', _u('/projects/$pid/download', {'path': path}))
+          ..headers.addAll(_h);
+    final r = await _c.send(req);
+    if (r.statusCode == 401) {
+      if (user != null) {
+        user = null;
+        csrf = '';
+        sessionToken = '';
+        sessionChanged?.call('');
+        onSignedOut?.call();
+      }
+      throw ApiException(401, 'auth');
+    }
+    if (r.statusCode >= 400) {
+      throw ApiException(r.statusCode, 'error ${r.statusCode}');
+    }
+    await r.stream.pipe(sink);
+  }
 
   Future<List<RenderJob>> renders(String pid,
           {int offset = 0, int limit = 50}) async =>

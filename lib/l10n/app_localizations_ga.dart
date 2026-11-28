@@ -2,7 +2,6 @@
 
 // ignore: unused_import
 import 'package:intl/intl.dart' as intl;
-
 import 'app_localizations.dart';
 
 // ignore_for_file: type=lint
@@ -1347,4 +1346,80 @@ class AppLocalizationsGa extends AppLocalizations {
 
   @override
   String get latestActivity => 'Gníomhaíocht is déanaí';
+
+  @override
+  String get connect => 'Ceangail';
+
+  @override
+  String get connecting => 'Ag ceangal…';
+
+  @override
+  String get connectSubtitle =>
+      'Cuir isteach seoladh fhreastalaí WFM do scoile.';
+
+  @override
+  String get serverAddress => 'Seoladh an fhreastalaí';
+
+  @override
+  String get notAWfmServer =>
+      'Níorbh fhéidir freastalaí WFM a bhaint amach ag an seoladh sin.';
+
+  @override
+  String get updateRequired => 'Nuashonrú ag teastáil';
+
+  @override
+  String updateRequiredBody(Object server, Object app) {
+    return 'Tá WFM $server ar an bhfreastalaí ach tá $app ar an aip seo. Nuashonraigh an aip chun leanúint ar aghaidh.';
+  }
+
+  @override
+  String get downloadUpdate => 'Íoslódáil an nuashonrú';
+
+  @override
+  String get checkAgain => 'Seiceáil arís';
+
+  @override
+  String get updateStillRequired =>
+      'Ní mheaitseálann leagan na haipe leagan an fhreastalaí go fóil.';
+
+  @override
+  String get changeServer => 'Athraigh freastalaí';
+
+  @override
+  String get editorsInBrowser => 'Oscail eagarthóirí sa bhrabhsálaí';
+
+  @override
+  String get editorsInBrowserHint =>
+      'Oscail ScriptCraft agus DeckCraft i do bhrabhsálaí réamhshocraithe in ionad fuinneog na haipe.';
+
+  @override
+  String get editPreparing => 'Tionscadal á ullmhú…';
+
+  @override
+  String editPulling(Object done, Object total) {
+    return 'Comhaid an tionscadail á n-íoslódáil ($done as $total)';
+  }
+
+  @override
+  String get editLockTitle => 'Tá an tionscadal á chur in eagar';
+
+  @override
+  String editLockHeld(Object holder) {
+    return 'Tá $holder ag cur an tionscadail seo in eagar faoi láthair. Gabháil ceannas ar an eagarthóireacht?';
+  }
+
+  @override
+  String get editLockLost =>
+      'Cailleadh an glas eagarthóireachta. Athoscail an tionscadal chun leanúint leis an sioncronú.';
+
+  @override
+  String get editAlreadyOpen =>
+      'Tá an tionscadal sin oscailte san eagarthóir cheana.';
+
+  @override
+  String get editDeclined => 'Tá an tionscadal faoi ghlas ag eagarthóir eile.';
+
+  @override
+  String get editMissing =>
+      'Níl an t-eagarthóir dúchais suiteáilte leis an aip seo.';
 }

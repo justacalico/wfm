@@ -14,7 +14,7 @@ import 'helpers.dart';
 
 void main() {
   setUp(() {
-    SharedPreferences.setMockInitialValues({});
+    SharedPreferences.setMockInitialValues({'server': 'http://test'});
     openExternalForTesting = null;
     openEditorForTesting = null;
     pickFilesForTesting = null;
@@ -151,13 +151,13 @@ void main() {
             'canManage': true,
             'canAudit': true
           },
-      'GET /api/version': (_) => http.Response('{"error":"x"}', 401),
+      'GET /api/ping': (_) => http.Response('{"error":"x"}', 401),
       'GET *': (_) => [],
     }));
     await pumpWfm(t);
     expect(find.byType(Shell), findsOneWidget);
     expired = true;
-    await Api.i.get('/version').catchError((_) => null);
+    await Api.i.get('/ping').catchError((_) => null);
     await settle(t);
     expect(Api.i.user, isNull);
     expect(find.byType(LoginPage), findsOneWidget);
@@ -201,7 +201,7 @@ void main() {
             'canManage': true,
             'canAudit': true
           },
-      'GET /api/version': (_) => {'version': '1.0'},
+      'GET /api/version': (_) => {'version': '1.2.3'},
       'POST /api/logout': (_) {
         authed = false;
         return {'ok': true};
@@ -332,7 +332,7 @@ void main() {
           },
       'GET /api/roles': (_) =>
           {'creatable': [], 'canManage': false, 'canAudit': false},
-      'GET /api/version': (_) => {'version': '1.0'},
+      'GET /api/version': (_) => {'version': '1.2.3'},
       'GET *': (_) => [],
     }));
     await pumpWfm(t);
@@ -366,7 +366,7 @@ void main() {
 
   testWidgets('saved theme and locale restore on boot', (t) async {
     SharedPreferences.setMockInitialValues(
-        {'theme': 3, 'locale': 'zh', 'chunkMb': 16});
+        {'server': 'http://test', 'theme': 3, 'locale': 'zh', 'chunkMb': 16});
     installApi(extra: {'GET *': (_) => []});
     await pumpWfm(t);
     final app = t.state<WfmAppState>(find.byType(WfmApp));

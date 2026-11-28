@@ -49,3 +49,6 @@ deckcraft/dist/
 .env
 server/web/app/
 server/target/
+
+desktop/craft/
+desktop/webview/target/

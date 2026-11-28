@@ -593,5 +593,44 @@
     }
   },
   "recentProjects": "Недавние проекты",
-  "latestActivity": "Последняя активность"
+  "latestActivity": "Последняя активность",
+  "connect": "Подключить",
+  "connecting": "Подключение…",
+  "connectSubtitle": "Введите адрес сервера WFM вашей школы.",
+  "serverAddress": "Адрес сервера",
+  "notAWfmServer": "Не удалось подключиться к серверу WFM по этому адресу.",
+  "updateRequired": "Требуется обновление",
+  "updateRequiredBody": "На сервере установлена версия WFM {server}, а у приложения — {app}. Обновите приложение, чтобы продолжить.",
+  "downloadUpdate": "Скачать обновление",
+  "checkAgain": "Проверить снова",
+  "updateStillRequired": "Версия приложения всё ещё не совпадает с версией сервера.",
+  "changeServer": "Сменить сервер",
+  "editorsInBrowser": "Открывать редакторы в браузере",
+  "editorsInBrowserHint": "Открывать ScriptCraft и DeckCraft в браузере по умолчанию вместо окна приложения.",
+  "editPreparing": "Подготовка проекта…",
+  "editPulling": "Загрузка файлов проекта ({done} из {total})",
+  "editLockTitle": "Проект редактируется",
+  "editLockHeld": "{holder} сейчас редактирует этот проект. Перехватить редактирование?",
+  "editLockLost": "Блокировка редактирования потеряна. Откройте проект заново, чтобы продолжить синхронизацию.",
+  "editAlreadyOpen": "Этот проект уже открыт в редакторе.",
+  "editDeclined": "Проект заблокирован другим редактором.",
+  "editMissing": "Нативный редактор не установлен в этом приложении.",
+  "@updateRequiredBody": {
+    "placeholders": {
+      "server": {},
+      "app": {}
+    }
+  },
+  "@editPulling": {
+    "placeholders": {
+      "done": {},
+      "total": {}
+    }
+  },
+  "@editLockHeld": {
+    "placeholders": {
+      "holder": {}
+    }
+  }
+
 }

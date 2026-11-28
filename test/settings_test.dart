@@ -13,7 +13,7 @@ import 'helpers.dart';
 
 void main() {
   setUp(() {
-    SharedPreferences.setMockInitialValues({});
+    SharedPreferences.setMockInitialValues({'server': 'http://test'});
     openExternalForTesting = null;
     openEditorForTesting = null;
     pickFilesForTesting = null;
@@ -491,7 +491,8 @@ void main() {
 
   testWidgets('all languages render the page', (t) async {
     for (final code in ['zh', 'ru', 'ga']) {
-      SharedPreferences.setMockInitialValues({'locale': code});
+      SharedPreferences.setMockInitialValues(
+          {'server': 'http://test', 'locale': code});
       installApi(extra: {'GET *': (_) => []});
       await pumpApp(t);
       await t.tap(find.byIcon(Icons.settings_outlined).first);
@@ -566,10 +567,14 @@ void main() {
     await t.testTextInput.receiveAction(TextInputAction.done);
     await settle(t);
     expect(added, isTrue);
-    await t.tap(find.byIcon(Icons.close).at(1));
+    await t.tap(find.descendant(
+        of: find.widgetWithIcon(ListTile, Icons.close).at(1),
+        matching: find.byIcon(Icons.close)));
     await settle(t);
     expect(find.byType(Notice), findsWidgets);
-    await t.tap(find.byIcon(Icons.close).first);
+    await t.tap(find.descendant(
+        of: find.widgetWithIcon(ListTile, Icons.close).first,
+        matching: find.byIcon(Icons.close)));
     await settle(t);
     expect(removed, isTrue);
   });
@@ -598,5 +603,23 @@ void main() {
     await t.tap(find.text('Check for updates'));
     await settle(t, 60);
     expect(find.text('Update check failed'), findsOneWidget);
+  });
+
+  testWidgets('editors external toggle persists the preference', (t) async {
+    installApi(extra: {'GET *': (_) => []});
+    await t.binding.setSurfaceSize(const Size(1000, 900));
+    addTearDown(() => t.binding.setSurfaceSize(null));
+    await goSettings(t);
+    final tile = find.byType(SwitchListTile);
+    await t.scrollUntilVisible(tile, 200,
+        scrollable: find
+            .descendant(
+                of: find.byType(SettingsPage),
+                matching: find.byType(Scrollable))
+            .first);
+    await t.tap(tile);
+    await settle(t);
+    expect((await SharedPreferences.getInstance()).getBool('editorsExternal'),
+        isTrue);
   });
 }

@@ -27,7 +27,7 @@ void main() {
   setUpAll(loadTestFonts);
 
   setUp(() {
-    SharedPreferences.setMockInitialValues({});
+    SharedPreferences.setMockInitialValues({'server': 'http://test'});
     openExternalForTesting = null;
     openEditorForTesting = null;
     pickFilesForTesting = null;
@@ -299,19 +299,21 @@ void main() {
     ('oled', AppTheme.oled),
   ]) {
     testWidgets('$dir pages', (t) async {
-      SharedPreferences.setMockInitialValues({'theme': theme.index});
+      SharedPreferences.setMockInitialValues(
+          {'server': 'http://test', 'theme': theme.index});
       await tour(t, dir);
     });
   }
 
   testWidgets('locale and narrow variants', (t) async {
     installApi(extra: shellData);
-    SharedPreferences.setMockInitialValues({'locale': 'zh'});
+    SharedPreferences.setMockInitialValues(
+        {'server': 'http://test', 'locale': 'zh'});
     await pumpWfm(t);
     await snap(t, 'light/home_zh');
     await t.pumpWidget(const SizedBox());
 
-    SharedPreferences.setMockInitialValues({});
+    SharedPreferences.setMockInitialValues({'server': 'http://test'});
     installApi(extra: shellData);
     await t.binding.setSurfaceSize(const Size(420, 800));
     await t.pumpWidget(const WfmApp());

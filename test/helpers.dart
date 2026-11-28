@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:wfm/api.dart';
+import 'package:wfm/connect.dart';
 import 'package:wfm/l10n/app_localizations.dart';
 import 'package:wfm/main.dart';
 
@@ -13,10 +14,16 @@ class FakeClient extends MockClient {
   FakeClient(Map<String, dynamic Function(http.Request)> routes)
       : super((req) async {
           lastRequest = req;
+          appVersionForTesting = '1.2.3';
           final key = '${req.method} ${req.url.path}';
-          final f = routes[key] ?? routes['${req.method} *'];
-          if (f == null)
+          final f = routes[key] ??
+              (req.url.path == '/api/version'
+                  ? (_) => {'version': '1.2.3'}
+                  : null) ??
+              routes['${req.method} *'];
+          if (f == null) {
             return http.Response(jsonEncode({'error': 'no route $key'}), 404);
+          }
           final v = await f(req);
           if (v is http.Response) return v;
           return http.Response(jsonEncode(v), 200);

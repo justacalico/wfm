@@ -33,6 +33,7 @@ class _SettingsPageState extends State<SettingsPage> {
   UpdateResult _update = UpdateResult.idle;
   AppUpdate? _latest;
   String _version = '';
+  bool _editorsExternal = false;
   List<AutoShare>? _autoShares;
 
   @override
@@ -54,6 +55,14 @@ class _SettingsPageState extends State<SettingsPage> {
     Api.i.serverVersion().then((v) {
       if (mounted) setState(() => _version = v);
     }).catchError((_) {});
+    if (isNativeApp) {
+      SharedPreferences.getInstance().then((p) {
+        if (mounted) {
+          setState(
+              () => _editorsExternal = p.getBool('editorsExternal') ?? false);
+        }
+      });
+    }
     if (Api.i.caps.creatable.isNotEmpty) _loadAutoShares();
   }
 
@@ -327,6 +336,20 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
         ]),
       ),
+      if (isNativeApp)
+        SwitchListTile(
+          dense: true,
+          contentPadding: EdgeInsets.zero,
+          secondary: const Icon(Icons.open_in_browser_outlined, size: 18),
+          title: Text(l10n.editorsInBrowser),
+          subtitle: Text(l10n.editorsInBrowserHint),
+          value: _editorsExternal,
+          onChanged: (v) {
+            setState(() => _editorsExternal = v);
+            SharedPreferences.getInstance()
+                .then((p) => p.setBool('editorsExternal', v));
+          },
+        ),
       ListTile(
         dense: true,
         contentPadding: EdgeInsets.zero,

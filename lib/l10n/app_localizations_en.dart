@@ -2,7 +2,6 @@
 
 // ignore: unused_import
 import 'package:intl/intl.dart' as intl;
-
 import 'app_localizations.dart';
 
 // ignore_for_file: type=lint
@@ -1339,6 +1338,79 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get latestActivity => 'Latest activity';
+
+  @override
+  String get connect => 'Connect';
+
+  @override
+  String get connecting => 'Connecting…';
+
+  @override
+  String get connectSubtitle =>
+      'Enter the address of your school\'s WFM server.';
+
+  @override
+  String get serverAddress => 'Server address';
+
+  @override
+  String get notAWfmServer => 'Couldn\'t reach a WFM server at that address.';
+
+  @override
+  String get updateRequired => 'Update required';
+
+  @override
+  String updateRequiredBody(Object server, Object app) {
+    return 'This server runs WFM $server but this app is $app. Update the app to continue.';
+  }
+
+  @override
+  String get downloadUpdate => 'Download update';
+
+  @override
+  String get checkAgain => 'Check again';
+
+  @override
+  String get updateStillRequired =>
+      'The app still doesn\'t match the server\'s version.';
+
+  @override
+  String get changeServer => 'Change server';
+
+  @override
+  String get editorsInBrowser => 'Open editors in the browser';
+
+  @override
+  String get editorsInBrowserHint =>
+      'Open ScriptCraft and DeckCraft in your default browser instead of an app window.';
+
+  @override
+  String get editPreparing => 'Preparing project…';
+
+  @override
+  String editPulling(Object done, Object total) {
+    return 'Downloading project files ($done of $total)';
+  }
+
+  @override
+  String get editLockTitle => 'Project is being edited';
+
+  @override
+  String editLockHeld(Object holder) {
+    return '$holder is editing this project right now. Take over editing?';
+  }
+
+  @override
+  String get editLockLost =>
+      'Editing lock lost. Reopen the project to keep syncing changes.';
+
+  @override
+  String get editAlreadyOpen => 'That project is already open in an editor.';
+
+  @override
+  String get editDeclined => 'The project is locked by another editor.';
+
+  @override
+  String get editMissing => 'The native editor isn\'t installed with this app.';
 }
 
 /// The translations for English, as used in the United Kingdom (`en_GB`).
@@ -1858,4 +1930,77 @@ class AppLocalizationsEnGb extends AppLocalizationsEn {
 
   @override
   String get latestActivity => 'Latest activity';
+
+  @override
+  String get connect => 'Connect';
+
+  @override
+  String get connecting => 'Connecting…';
+
+  @override
+  String get connectSubtitle =>
+      'Enter the address of your school\'s WFM server.';
+
+  @override
+  String get serverAddress => 'Server address';
+
+  @override
+  String get notAWfmServer => 'Couldn\'t reach a WFM server at that address.';
+
+  @override
+  String get updateRequired => 'Update required';
+
+  @override
+  String updateRequiredBody(Object server, Object app) {
+    return 'This server runs WFM $server but this app is $app. Update the app to continue.';
+  }
+
+  @override
+  String get downloadUpdate => 'Download update';
+
+  @override
+  String get checkAgain => 'Check again';
+
+  @override
+  String get updateStillRequired =>
+      'The app still doesn\'t match the server\'s version.';
+
+  @override
+  String get changeServer => 'Change server';
+
+  @override
+  String get editorsInBrowser => 'Open editors in the browser';
+
+  @override
+  String get editorsInBrowserHint =>
+      'Open ScriptCraft and DeckCraft in your default browser instead of an app window.';
+
+  @override
+  String get editPreparing => 'Preparing project…';
+
+  @override
+  String editPulling(Object done, Object total) {
+    return 'Downloading project files ($done of $total)';
+  }
+
+  @override
+  String get editLockTitle => 'Project is being edited';
+
+  @override
+  String editLockHeld(Object holder) {
+    return '$holder is editing this project right now. Take over editing?';
+  }
+
+  @override
+  String get editLockLost =>
+      'Editing lock lost. Reopen the project to keep syncing changes.';
+
+  @override
+  String get editAlreadyOpen => 'That project is already open in an editor.';
+
+  @override
+  String get editDeclined => 'The project is locked by another editor.';
+
+  @override
+  String get editMissing => 'The native editor isn\'t installed with this app.';
 }

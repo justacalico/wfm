@@ -2,7 +2,6 @@
 
 // ignore: unused_import
 import 'package:intl/intl.dart' as intl;
-
 import 'app_localizations.dart';
 
 // ignore_for_file: type=lint
@@ -1326,4 +1325,74 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get latestActivity => '最新动态';
+
+  @override
+  String get connect => '连接';
+
+  @override
+  String get connecting => '连接中…';
+
+  @override
+  String get connectSubtitle => '输入你所在学校的 WFM 服务器地址。';
+
+  @override
+  String get serverAddress => '服务器地址';
+
+  @override
+  String get notAWfmServer => '无法在该地址连接到 WFM 服务器。';
+
+  @override
+  String get updateRequired => '需要更新';
+
+  @override
+  String updateRequiredBody(Object server, Object app) {
+    return '服务器运行的是 WFM $server，而此应用版本为 $app。请更新应用后继续。';
+  }
+
+  @override
+  String get downloadUpdate => '下载更新';
+
+  @override
+  String get checkAgain => '重新检查';
+
+  @override
+  String get updateStillRequired => '应用版本仍与服务器版本不一致。';
+
+  @override
+  String get changeServer => '更换服务器';
+
+  @override
+  String get editorsInBrowser => '在浏览器中打开编辑器';
+
+  @override
+  String get editorsInBrowserHint =>
+      '在默认浏览器中打开 ScriptCraft 和 DeckCraft，而不是应用窗口。';
+
+  @override
+  String get editPreparing => '正在准备项目…';
+
+  @override
+  String editPulling(Object done, Object total) {
+    return '正在下载项目文件（$done/$total）';
+  }
+
+  @override
+  String get editLockTitle => '项目正在编辑中';
+
+  @override
+  String editLockHeld(Object holder) {
+    return '$holder 正在编辑此项目。要接管编辑吗？';
+  }
+
+  @override
+  String get editLockLost => '编辑锁已丢失。重新打开项目以继续同步更改。';
+
+  @override
+  String get editAlreadyOpen => '该项目已在编辑器中打开。';
+
+  @override
+  String get editDeclined => '该项目已被其他编辑器锁定。';
+
+  @override
+  String get editMissing => '此应用未安装原生编辑器。';
 }

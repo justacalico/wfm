@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'api.dart';
+import 'connect.dart';
 import 'l10n/app_localizations.dart';
 import 'notifications.dart';
+import 'platform.dart';
 import 'projects.dart';
 import 'shared.dart';
 import 'invite.dart';
@@ -13,7 +15,10 @@ import 'manage.dart';
 import 'settings.dart';
 import 'util.dart';
 
-void main() => runApp(const WfmApp());
+void main() {
+  if (isNativeApp) unawaited(initNativeWindow());
+  runApp(const WfmApp());
+}
 
 extension L10n on BuildContext {
   AppLocalizations get l10n => AppLocalizations.of(this);
@@ -63,6 +68,10 @@ class WfmAppState extends State<WfmApp> {
       navKey.currentState?.pushAndRemoveUntil(
           MaterialPageRoute(builder: (_) => const Gate()), (_) => false);
     };
+    Api.i.sessionChanged = (t) {
+      if (!isNativeApp) return;
+      SharedPreferences.getInstance().then((p) => p.setString('session', t));
+    };
     SharedPreferences.getInstance().then((p) {
       setState(() {
         themeCtl.value =
@@ -103,6 +112,12 @@ class WfmAppState extends State<WfmApp> {
         GlobalCupertinoLocalizations.delegate,
       ],
       home: Gate(uri: widget.uri),
+      builder: (context, child) => isNativeApp
+          ? Column(children: [
+              nativeTitleBar(),
+              Expanded(child: child ?? const SizedBox.shrink()),
+            ])
+          : child ?? const SizedBox.shrink(),
       debugShowCheckedModeBanner: false,
     );
   }
@@ -281,8 +296,9 @@ class AuthPickers extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final app = context.findAncestorStateOfType<WfmAppState>()!;
+    final app = context.findAncestorStateOfType<WfmAppState>();
     final l10n = context.l10n;
+    if (app == null) return const SizedBox.shrink();
     final tight = MediaQuery.sizeOf(context).width < 480;
     return AnimatedBuilder(
       animation: Listenable.merge([app.themeCtl, app.localeCtl]),
@@ -437,6 +453,10 @@ class _GateState extends State<Gate> {
       if (i >= 0 && i + l.length < p.length) {
         return LinkPage(token: p.substring(i + l.length));
       }
+      if (isNativeApp) {
+        final gate = await nativeGate(Api.i);
+        if (gate != null) return gate;
+      }
       if (await Api.i.needsSetup()) return const SetupPage();
       final u = await Api.i.me();
       if (u == null) return const LoginPage();
@@ -479,6 +499,12 @@ class GateError extends StatelessWidget {
                   MaterialPageRoute(builder: (_) => const Gate())),
               child: Text(l10n.retry),
             ),
+            if (isNativeApp) ...[
+              const SizedBox(height: 8),
+              TextButton(
+                  onPressed: () => changeServer(context),
+                  child: Text(l10n.changeServer)),
+            ],
           ]),
         ),
       ),
@@ -634,6 +660,14 @@ class _LoginPageState extends State<LoginPage> {
                 FilledButton(
                     onPressed: _busy ? null : _go,
                     child: Text(_busy ? l10n.signingIn : l10n.signIn)),
+                if (isNativeApp) ...[
+                  const SizedBox(height: 12),
+                  TextButton.icon(
+                      onPressed: () => changeServer(context),
+                      icon: const Icon(Icons.dns_outlined, size: 16),
+                      label:
+                          Text(Api.i.baseUrl, overflow: TextOverflow.ellipsis)),
+                ],
               ]),
         ),
       ),

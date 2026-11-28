@@ -10,7 +10,8 @@ import 'package:wfm/util.dart';
 import 'helpers.dart';
 
 void main() {
-  setUp(() => SharedPreferences.setMockInitialValues({}));
+  setUp(
+      () => SharedPreferences.setMockInitialValues({'server': 'http://test'}));
   final l10n = AppLocalizationsEn();
 
   test('fmtBytes', () {

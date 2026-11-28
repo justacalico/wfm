@@ -66,7 +66,7 @@ import 'app_localizations_zh.dart';
 /// property.
 abstract class AppLocalizations {
   AppLocalizations(String locale)
-    : localeName = intl.Intl.canonicalizedLocale(locale.toString());
+      : localeName = intl.Intl.canonicalizedLocale(locale.toString());
 
   final String localeName;
 
@@ -89,11 +89,11 @@ abstract class AppLocalizations {
   /// of delegates is preferred or required.
   static const List<LocalizationsDelegate<dynamic>> localizationsDelegates =
       <LocalizationsDelegate<dynamic>>[
-        delegate,
-        GlobalMaterialLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-      ];
+    delegate,
+    GlobalMaterialLocalizations.delegate,
+    GlobalCupertinoLocalizations.delegate,
+    GlobalWidgetsLocalizations.delegate,
+  ];
 
   /// A list of this localizations delegate's supported locales.
   static const List<Locale> supportedLocales = <Locale>[
@@ -101,7 +101,7 @@ abstract class AppLocalizations {
     Locale('en', 'GB'),
     Locale('ga'),
     Locale('ru'),
-    Locale('zh'),
+    Locale('zh')
   ];
 
   /// No description provided for @appTitle.
@@ -2473,6 +2473,132 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Latest activity'**
   String get latestActivity;
+
+  /// No description provided for @connect.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect'**
+  String get connect;
+
+  /// No description provided for @connecting.
+  ///
+  /// In en, this message translates to:
+  /// **'Connecting…'**
+  String get connecting;
+
+  /// No description provided for @connectSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the address of your school\'s WFM server.'**
+  String get connectSubtitle;
+
+  /// No description provided for @serverAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'Server address'**
+  String get serverAddress;
+
+  /// No description provided for @notAWfmServer.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t reach a WFM server at that address.'**
+  String get notAWfmServer;
+
+  /// No description provided for @updateRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Update required'**
+  String get updateRequired;
+
+  /// No description provided for @updateRequiredBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This server runs WFM {server} but this app is {app}. Update the app to continue.'**
+  String updateRequiredBody(Object server, Object app);
+
+  /// No description provided for @downloadUpdate.
+  ///
+  /// In en, this message translates to:
+  /// **'Download update'**
+  String get downloadUpdate;
+
+  /// No description provided for @checkAgain.
+  ///
+  /// In en, this message translates to:
+  /// **'Check again'**
+  String get checkAgain;
+
+  /// No description provided for @updateStillRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'The app still doesn\'t match the server\'s version.'**
+  String get updateStillRequired;
+
+  /// No description provided for @changeServer.
+  ///
+  /// In en, this message translates to:
+  /// **'Change server'**
+  String get changeServer;
+
+  /// No description provided for @editorsInBrowser.
+  ///
+  /// In en, this message translates to:
+  /// **'Open editors in the browser'**
+  String get editorsInBrowser;
+
+  /// No description provided for @editorsInBrowserHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Open ScriptCraft and DeckCraft in your default browser instead of an app window.'**
+  String get editorsInBrowserHint;
+
+  /// No description provided for @editPreparing.
+  ///
+  /// In en, this message translates to:
+  /// **'Preparing project…'**
+  String get editPreparing;
+
+  /// No description provided for @editPulling.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading project files ({done} of {total})'**
+  String editPulling(Object done, Object total);
+
+  /// No description provided for @editLockTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Project is being edited'**
+  String get editLockTitle;
+
+  /// No description provided for @editLockHeld.
+  ///
+  /// In en, this message translates to:
+  /// **'{holder} is editing this project right now. Take over editing?'**
+  String editLockHeld(Object holder);
+
+  /// No description provided for @editLockLost.
+  ///
+  /// In en, this message translates to:
+  /// **'Editing lock lost. Reopen the project to keep syncing changes.'**
+  String get editLockLost;
+
+  /// No description provided for @editAlreadyOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'That project is already open in an editor.'**
+  String get editAlreadyOpen;
+
+  /// No description provided for @editDeclined.
+  ///
+  /// In en, this message translates to:
+  /// **'The project is locked by another editor.'**
+  String get editDeclined;
+
+  /// No description provided for @editMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'The native editor isn\'t installed with this app.'**
+  String get editMissing;
 }
 
 class _AppLocalizationsDelegate
@@ -2518,9 +2644,8 @@ AppLocalizations lookupAppLocalizations(Locale locale) {
   }
 
   throw FlutterError(
-    'AppLocalizations.delegate failed to load unsupported locale "$locale". This is likely '
-    'an issue with the localizations generation tool. Please file an issue '
-    'on GitHub with a reproducible sample app and the gen-l10n configuration '
-    'that was used.',
-  );
+      'AppLocalizations.delegate failed to load unsupported locale "$locale". This is likely '
+      'an issue with the localizations generation tool. Please file an issue '
+      'on GitHub with a reproducible sample app and the gen-l10n configuration '
+      'that was used.');
 }

@@ -21,7 +21,7 @@ final p1 = Project.fromJson({
 
 void main() {
   setUp(() {
-    SharedPreferences.setMockInitialValues({});
+    SharedPreferences.setMockInitialValues({'server': 'http://test'});
     openExternalForTesting = null;
     openEditorForTesting = null;
     pickFilesForTesting = null;

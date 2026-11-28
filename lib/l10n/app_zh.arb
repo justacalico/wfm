@@ -593,5 +593,44 @@
     }
   },
   "recentProjects": "最近的项目",
-  "latestActivity": "最新动态"
+  "latestActivity": "最新动态",
+  "connect": "连接",
+  "connecting": "连接中…",
+  "connectSubtitle": "输入你所在学校的 WFM 服务器地址。",
+  "serverAddress": "服务器地址",
+  "notAWfmServer": "无法在该地址连接到 WFM 服务器。",
+  "updateRequired": "需要更新",
+  "updateRequiredBody": "服务器运行的是 WFM {server}，而此应用版本为 {app}。请更新应用后继续。",
+  "downloadUpdate": "下载更新",
+  "checkAgain": "重新检查",
+  "updateStillRequired": "应用版本仍与服务器版本不一致。",
+  "changeServer": "更换服务器",
+  "editorsInBrowser": "在浏览器中打开编辑器",
+  "editorsInBrowserHint": "在默认浏览器中打开 ScriptCraft 和 DeckCraft，而不是应用窗口。",
+  "editPreparing": "正在准备项目…",
+  "editPulling": "正在下载项目文件（{done}/{total}）",
+  "editLockTitle": "项目正在编辑中",
+  "editLockHeld": "{holder} 正在编辑此项目。要接管编辑吗？",
+  "editLockLost": "编辑锁已丢失。重新打开项目以继续同步更改。",
+  "editAlreadyOpen": "该项目已在编辑器中打开。",
+  "editDeclined": "该项目已被其他编辑器锁定。",
+  "editMissing": "此应用未安装原生编辑器。",
+  "@updateRequiredBody": {
+    "placeholders": {
+      "server": {},
+      "app": {}
+    }
+  },
+  "@editPulling": {
+    "placeholders": {
+      "done": {},
+      "total": {}
+    }
+  },
+  "@editLockHeld": {
+    "placeholders": {
+      "holder": {}
+    }
+  }
+
 }

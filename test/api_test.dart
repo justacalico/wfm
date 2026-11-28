@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
@@ -6,6 +7,13 @@ import 'package:wfm/api.dart';
 import 'helpers.dart';
 
 FakeClient client(Map<String, dynamic> canned) => FakeClient(apiRoutes(canned));
+
+class _DevNull implements StreamConsumer<List<int>> {
+  @override
+  Future<void> addStream(Stream<List<int>> s) => s.drain();
+  @override
+  Future<void> close() async {}
+}
 
 void main() {
   group('models', () {
@@ -393,6 +401,36 @@ void main() {
           '/api/projects/p1/download?path=a%20b.mp4');
       expect(api.downloadUrl('p1', 'a.mp4', dl: true),
           '/api/projects/p1/download?path=a.mp4&dl=true');
+    });
+
+    test('downloadInto signs out on 401 and reports other errors', () async {
+      var signedOut = false;
+      String? token;
+      final api = Api(client({
+        'GET /api/projects/p1/download': http.Response('{"error":"gone"}', 401),
+      }))
+        ..user = User.fromJson(userJson)
+        ..csrf = 'c'
+        ..sessionToken = 's'
+        ..sessionChanged = ((t) {
+          token = t;
+        })
+        ..onSignedOut = (() {
+          signedOut = true;
+        });
+      await expectLater(api.downloadInto('p1', 'a', _DevNull()),
+          throwsA(predicate((e) => e is ApiException && e.status == 401)));
+      expect(api.user, isNull);
+      expect(api.csrf, isEmpty);
+      expect(api.sessionToken, isEmpty);
+      expect(token, '');
+      expect(signedOut, isTrue);
+
+      final api2 = Api(client({
+        'GET /api/projects/p1/download': http.Response('{"error":"down"}', 500),
+      }));
+      await expectLater(api2.downloadInto('p1', 'a', _DevNull()),
+          throwsA(predicate((e) => e is ApiException && e.status == 500)));
     });
 
     test('desktop baseUrl, bearer token and handoff', () async {
