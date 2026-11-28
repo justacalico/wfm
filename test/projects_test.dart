@@ -591,6 +591,48 @@ void main() {
       expect(find.text('Beta'), findsOneWidget);
     });
 
+    testWidgets('initialFolder restores the folder and reports changes',
+        (t) async {
+      installApi(extra: {
+        'GET /api/projects': (_) => [
+              proj('p1', 'Alpha', 'f1'),
+              proj('p2', 'Beta'),
+            ],
+        'GET /api/folders': (_) => [
+              {'id': 'f1', 'name': 'Class A'}
+            ],
+      });
+      var reported = 'f1';
+      await pump(
+          t,
+          ProjectsPage(
+              initialFolder: 'f1', onFolder: (id) => reported = id));
+      expect(find.text('Alpha'), findsOneWidget);
+      expect(find.text('Beta'), findsNothing);
+      await t.tap(find.byIcon(Icons.arrow_back));
+      await settle(t);
+      expect(reported, '');
+      expect(find.text('Beta'), findsOneWidget);
+      await openFolder(t, 'Class A');
+      expect(reported, 'f1');
+    });
+
+    testWidgets('stale initialFolder resets to the projects root', (t) async {
+      installApi(extra: {
+        'GET /api/projects': (_) => [proj('p2', 'Beta')],
+        'GET /api/folders': (_) => [
+              {'id': 'f1', 'name': 'Class A'}
+            ],
+      });
+      var reported = 'gone';
+      await pump(
+          t,
+          ProjectsPage(
+              initialFolder: 'gone', onFolder: (id) => reported = id));
+      expect(reported, '');
+      expect(find.text('Beta'), findsOneWidget);
+    });
+
     testWidgets('empty folder and list view folder rows', (t) async {
       installApi(extra: {
         'GET /api/projects': (_) => [],

@@ -688,6 +688,7 @@ class ShellState extends State<Shell> {
   User? _openUser;
   int _pending = 0;
   int _unread = 0;
+  String _projectsFolder = '';
 
   @override
   void initState() {
@@ -746,7 +747,9 @@ class ShellState extends State<Shell> {
 
   List<Widget> _pages(bool showManage) => [
         const HomePage(),
-        const ProjectsPage(),
+        ProjectsPage(
+            initialFolder: _projectsFolder,
+            onFolder: (id) => _projectsFolder = id),
         const SharedPage(),
         const NotificationsPage(),
         if (showManage) const ManagePage(),

@@ -305,6 +305,46 @@ void main() {
     expect(find.byType(ProjectPage), findsOneWidget);
   });
 
+  testWidgets('back from a project returns to its folder', (t) async {
+    installApi(extra: {
+      'GET /api/projects': (_) => [
+            {
+              'id': 'p1',
+              'name': 'alpha',
+              'displayName': 'Alpha',
+              'folderId': 'f1',
+              'createdAt': 1
+            },
+            {
+              'id': 'p2',
+              'name': 'beta',
+              'displayName': 'Beta',
+              'createdAt': 1
+            },
+          ],
+      'GET /api/folders': (_) => [
+            {'id': 'f1', 'name': 'Class A'}
+          ],
+      'GET /api/projects/p1/assignment': (_) =>
+          http.Response('{"error":"none"}', 404),
+      'GET *': (_) => [],
+    });
+    await pumpWfm(t);
+    await tapNav(t, 'Projects');
+    await t.tap(find.text('Class A'));
+    await settle(t);
+    expect(find.text('Alpha'), findsOneWidget);
+    expect(find.text('Beta'), findsNothing);
+    await t.tap(find.text('Alpha'));
+    await settle(t);
+    expect(find.byType(ProjectPage), findsOneWidget);
+    await t.tap(find.byIcon(Icons.arrow_back));
+    await settle(t);
+    expect(find.byType(ProjectsPage), findsOneWidget);
+    expect(find.text('Alpha'), findsOneWidget);
+    expect(find.text('Beta'), findsNothing);
+  });
+
   testWidgets('narrow layout uses drawer', (t) async {
     installApi(extra: {'GET *': (_) => []});
     await t.binding.setSurfaceSize(const Size(500, 800));

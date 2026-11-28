@@ -34,6 +34,7 @@ Future<bool> Function()? windowIsMaximizedForTesting;
 Future<void> Function()? windowMinimizeForTesting;
 Future<bool> Function()? windowToggleMaximizeForTesting;
 Future<void> Function()? windowCloseForTesting;
+Future<bool> Function()? windowIsFullScreenForTesting;
 
 Future<void> initNativeWindow() =>
     initNativeWindowForTesting?.call() ?? _initNativeWindow();
@@ -45,6 +46,8 @@ Future<bool> windowToggleMaximize() =>
     windowToggleMaximizeForTesting?.call() ?? _toggleMaximize();
 Future<void> windowClose() =>
     windowCloseForTesting?.call() ?? windowManager.close();
+Future<bool> windowIsFullScreen() =>
+    windowIsFullScreenForTesting?.call() ?? windowManager.isFullScreen();
 
 // coverage:ignore-start
 Future<void> _showWindow() async {
@@ -77,19 +80,36 @@ class NativeTitleBar extends StatefulWidget {
   State<NativeTitleBar> createState() => _NativeTitleBarState();
 }
 
-class _NativeTitleBarState extends State<NativeTitleBar> {
-  bool _max = false;
+class _NativeTitleBarState extends State<NativeTitleBar> with WindowListener {
+  bool _max = false, _full = false;
 
   @override
   void initState() {
     super.initState();
+    windowManager.addListener(this);
     windowIsMaximized()
         .then((v) => mounted ? setState(() => _max = v) : null)
+        .catchError((_) {});
+    windowIsFullScreen()
+        .then((v) => mounted ? setState(() => _full = v) : null)
         .catchError((_) {});
   }
 
   @override
+  void dispose() {
+    windowManager.removeListener(this);
+    super.dispose();
+  }
+
+  @override
+  void onWindowEnterFullScreen() => setState(() => _full = true);
+
+  @override
+  void onWindowLeaveFullScreen() => setState(() => _full = false);
+
+  @override
   Widget build(BuildContext context) {
+    if (_full) return const SizedBox.shrink();
     final c = Theme.of(context).colorScheme;
     return Material(
       color: c.surfaceContainerHighest,

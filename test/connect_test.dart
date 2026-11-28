@@ -11,6 +11,7 @@ import 'package:wfm/craft/runner.dart';
 import 'package:wfm/l10n/app_localizations_en.dart';
 import 'package:wfm/main.dart';
 import 'package:wfm/platform_io.dart';
+import 'package:window_manager/window_manager.dart';
 
 import 'helpers.dart';
 
@@ -504,11 +505,40 @@ void main() {
     expect(find.byIcon(Icons.crop_square_outlined), findsOneWidget);
   });
 
+  testWidgets('titlebar hides while the window is fullscreen', (t) async {
+    windowIsMaximizedForTesting = () async => false;
+    windowIsFullScreenForTesting = () async => false;
+    addTearDown(() {
+      windowIsMaximizedForTesting = null;
+      windowIsFullScreenForTesting = null;
+    });
+    await t.pumpWidget(testApp(Scaffold(body: nativeTitleBar())));
+    await settle(t);
+    expect(find.byIcon(Icons.remove), findsOneWidget);
+    final listener = windowManager.listeners.last;
+    listener.onWindowEnterFullScreen();
+    await settle(t);
+    expect(find.byIcon(Icons.remove), findsNothing);
+    listener.onWindowLeaveFullScreen();
+    await settle(t);
+    expect(find.byIcon(Icons.remove), findsOneWidget);
+  });
+
+  testWidgets('titlebar starts hidden in a fullscreen window', (t) async {
+    windowIsFullScreenForTesting = () async => true;
+    addTearDown(() => windowIsFullScreenForTesting = null);
+    await t.pumpWidget(testApp(Scaffold(body: nativeTitleBar())));
+    await settle(t);
+    expect(find.byIcon(Icons.remove), findsNothing);
+    await t.pumpWidget(const SizedBox.shrink());
+  });
+
   test('window controls fall through to the plugin', () {
     expectLater(windowIsMaximized(), throwsA(anything));
     expectLater(windowMinimize(), throwsA(anything));
     expectLater(windowToggleMaximize(), throwsA(anything));
     expectLater(windowClose(), throwsA(anything));
+    expectLater(windowIsFullScreen(), throwsA(anything));
     expectLater(initNativeWindow(), completes);
   });
 
