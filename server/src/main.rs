@@ -12,6 +12,7 @@ mod zip;
 
 use std::collections::{HashMap, HashSet};
 use std::net::SocketAddr;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, RwLock};
 
 use auth::AppState;
@@ -68,11 +69,17 @@ async fn main() {
         handoffs: Mutex::new(HashMap::new()),
         update_check: Mutex::new(None),
         trusted: RwLock::new(cfg.trusted_proxies.clone()),
+        enforce_https: AtomicBool::new(cfg.enforce_https.unwrap_or(false)),
     });
     if let Ok(Some(v)) = state.db.setting_get("trusted_proxies").await {
         match auth::parse_nets(&v) {
             Ok(nets) => *state.trusted.write().unwrap() = nets,
             Err(e) => tracing::warn!("stored trusted_proxies invalid: {e}"),
+        }
+    }
+    if state.cfg.enforce_https.is_none() {
+        if let Ok(Some(v)) = state.db.setting_get("enforce_https").await {
+            state.enforce_https.store(v == "true", Ordering::Relaxed);
         }
     }
 
@@ -84,6 +91,10 @@ async fn main() {
     let cors = web::cors_layer(&state);
     let app = api::router(state.clone())
         .merge(web::router(state.clone()))
+        .layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            web::enforce_https,
+        ))
         .layer(cors);
 
     let addr: SocketAddr = state

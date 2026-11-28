@@ -411,6 +411,18 @@ class Invite {
   bool pending(int now) => usedBy.isEmpty && !revoked && expiresAt > now;
 }
 
+class ServerSettings {
+  final String trustedProxies;
+  final int backupCount;
+  bool enforceHttps;
+  final bool enforceHttpsLocked;
+  ServerSettings.fromJson(Map<String, dynamic> j)
+      : trustedProxies = j['trustedProxies'] ?? '',
+        backupCount = j['backupCount'] as int? ?? 5,
+        enforceHttps = j['enforceHttps'] == true,
+        enforceHttpsLocked = j['enforceHttpsLocked'] == true;
+}
+
 class StoragePool {
   final String id;
   final int used, total;
@@ -639,19 +651,24 @@ class Api {
   Future<String> serverVersion() async =>
       '${(await get('/version'))['version'] ?? ''}';
 
-  Future<String> serverSettings() async =>
-      '${(await get('/settings'))['trustedProxies'] ?? ''}';
+  Future<ServerSettings> serverSettings() async =>
+      ServerSettings.fromJson(await get('/settings'));
 
   Future<void> saveSettings(String trustedProxies) =>
       put('/settings', {'trustedProxies': trustedProxies});
 
-  Future<int> backupCount() async =>
-      (await get('/settings'))['backupCount'] as int? ?? 5;
+  Future<void> saveEnforceHttps(bool enforce) async {
+    final s = await serverSettings();
+    await put('/settings', {
+      'trustedProxies': s.trustedProxies,
+      'enforceHttps': enforce,
+    });
+  }
 
   Future<void> saveBackupCount(int count) async {
-    final settings = await get('/settings');
+    final s = await serverSettings();
     await put('/settings', {
-      'trustedProxies': settings['trustedProxies'] ?? '',
+      'trustedProxies': s.trustedProxies,
       'backupCount': count,
     });
   }

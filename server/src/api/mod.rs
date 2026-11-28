@@ -369,7 +369,7 @@ async fn setup_owner(
         header::SET_COOKIE,
         HeaderValue::from_str(&auth::session_cookie(
             &token,
-            s.cfg.secure_cookies,
+            s.cookies_secure(),
             s.cfg.session_ttl,
         ))
         .unwrap(),
@@ -452,7 +452,7 @@ async fn session_response(
         header::SET_COOKIE,
         HeaderValue::from_str(&auth::session_cookie(
             &token,
-            s.cfg.secure_cookies,
+            s.cookies_secure(),
             s.cfg.session_ttl,
         ))
         .unwrap(),
@@ -528,7 +528,7 @@ async fn handoff_redeem(
         header::SET_COOKIE,
         HeaderValue::from_str(&auth::session_cookie(
             &token,
-            s.cfg.secure_cookies,
+            s.cookies_secure(),
             s.cfg.session_ttl,
         ))
         .unwrap(),
@@ -574,7 +574,7 @@ async fn logout(State(s): State<Arc<AppState>>, parts: axum::http::request::Part
     let mut r = Json(json!({"ok": true})).into_response();
     r.headers_mut().insert(
         header::SET_COOKIE,
-        HeaderValue::from_str(&auth::clear_cookie(s.cfg.secure_cookies)).unwrap(),
+        HeaderValue::from_str(&auth::clear_cookie(s.cookies_secure())).unwrap(),
     );
     r
 }
@@ -4804,6 +4804,7 @@ mod tests {
                 deckcraft_dir: None,
                 max_upload: u64::MAX,
                 secure_cookies: false,
+                enforce_https: None,
                 cors_origins: vec![],
                 render_workers: 0,
                 filmcraft_cli: String::new(),
@@ -4834,6 +4835,7 @@ mod tests {
             handoffs: Mutex::new(HashMap::new()),
             update_check: Mutex::new(None),
             trusted: RwLock::new(vec![]),
+            enforce_https: std::sync::atomic::AtomicBool::new(false),
         })
     }
 
@@ -6530,6 +6532,72 @@ mod tests {
         assert!(j["pools"].as_array().unwrap().len() == 2);
         assert!(j["users"].as_array().is_some());
     }
+
+    fn settings_body(enforce: Option<bool>) -> Json<SettingsReq> {
+        Json(SettingsReq {
+            trusted_proxies: "".into(),
+            backup_count: None,
+            enforce_https: enforce,
+        })
+    }
+
+    #[tokio::test]
+    async fn enforce_https_setting_roundtrip() {
+        let dir = std::env::temp_dir().join(format!("wfm-api-{}", model::new_id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let s = state(&dir);
+        let owner = user(Role::Owner);
+        let teacher = user(Role::Teacher);
+
+        let r = get_settings(State(s.clone()), session(&teacher)).await;
+        assert_eq!(r.status(), StatusCode::FORBIDDEN);
+
+        let r = put_settings(State(s.clone()), session(&owner), settings_body(Some(true))).await;
+        assert_eq!(r.status(), StatusCode::OK);
+        assert!(s.enforce_https());
+        assert!(s.cookies_secure());
+        assert_eq!(
+            s.db.setting_get("enforce_https").await.unwrap().as_deref(),
+            Some("true")
+        );
+        let v = body_json(get_settings(State(s.clone()), session(&owner)).await).await;
+        assert_eq!(v["enforceHttps"], json!(true));
+        assert_eq!(v["enforceHttpsLocked"], json!(false));
+
+        let r = put_settings(
+            State(s.clone()),
+            session(&owner),
+            settings_body(Some(false)),
+        )
+        .await;
+        assert_eq!(r.status(), StatusCode::OK);
+        assert!(!s.enforce_https());
+        assert!(!s.cookies_secure());
+    }
+
+    #[tokio::test]
+    async fn enforce_https_flag_pins_the_setting() {
+        let dir = std::env::temp_dir().join(format!("wfm-api-{}", model::new_id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let mut s = state(&dir);
+        Arc::get_mut(&mut s).unwrap().cfg.enforce_https = Some(true);
+        s.enforce_https
+            .store(true, std::sync::atomic::Ordering::Relaxed);
+        let owner = user(Role::Owner);
+
+        let r = put_settings(
+            State(s.clone()),
+            session(&owner),
+            settings_body(Some(false)),
+        )
+        .await;
+        assert_eq!(r.status(), StatusCode::OK);
+        assert!(s.enforce_https());
+        assert_eq!(s.db.setting_get("enforce_https").await.unwrap(), None);
+        let v = body_json(get_settings(State(s.clone()), session(&owner)).await).await;
+        assert_eq!(v["enforceHttps"], json!(true));
+        assert_eq!(v["enforceHttpsLocked"], json!(true));
+    }
 }
 
 // ---------- locks ----------
@@ -7214,8 +7282,13 @@ async fn get_settings(State(s): State<Arc<AppState>>, session: Session) -> Respo
             .collect::<Vec<_>>()
             .join(", "),
     };
-    Json(json!({"trustedProxies": effective, "backupCount": backup_limit(&s).await}))
-        .into_response()
+    Json(json!({
+        "trustedProxies": effective,
+        "backupCount": backup_limit(&s).await,
+        "enforceHttps": s.enforce_https(),
+        "enforceHttpsLocked": s.enforce_https_locked(),
+    }))
+    .into_response()
 }
 
 #[derive(Deserialize)]
@@ -7223,6 +7296,7 @@ async fn get_settings(State(s): State<Arc<AppState>>, session: Session) -> Respo
 struct SettingsReq {
     trusted_proxies: String,
     backup_count: Option<usize>,
+    enforce_https: Option<bool>,
 }
 
 async fn put_settings(
@@ -7253,6 +7327,18 @@ async fn put_settings(
     if let Some(count) = req.backup_count {
         if let Err(e) = s.db.setting_set("backup_count", &count.to_string()).await {
             return db_resp(e);
+        }
+    }
+    if let Some(v) = req.enforce_https {
+        if !s.enforce_https_locked() {
+            if let Err(e) =
+                s.db.setting_set("enforce_https", if v { "true" } else { "false" })
+                    .await
+            {
+                return db_resp(e);
+            }
+            s.enforce_https
+                .store(v, std::sync::atomic::Ordering::Relaxed);
         }
     }
     *s.trusted.write().unwrap() = nets;

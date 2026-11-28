@@ -101,7 +101,7 @@ abstract class AppLocalizations {
     Locale('en', 'GB'),
     Locale('ga'),
     Locale('ru'),
-    Locale('zh')
+    Locale('zh'),
   ];
 
   /// No description provided for @appTitle.
@@ -949,6 +949,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'X-Forwarded-For is only trusted from these addresses. Leave empty unless the server sits behind a reverse proxy.'**
   String get trustedProxiesHelp;
+
+  /// No description provided for @enforceHttps.
+  ///
+  /// In en, this message translates to:
+  /// **'Require HTTPS'**
+  String get enforceHttps;
+
+  /// No description provided for @enforceHttpsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Redirect all HTTP traffic to HTTPS. Behind a reverse proxy, add it to trusted proxies first.'**
+  String get enforceHttpsHint;
+
+  /// No description provided for @enforceHttpsLocked.
+  ///
+  /// In en, this message translates to:
+  /// **'Locked by the server configuration (WFM_ENFORCE_HTTPS).'**
+  String get enforceHttpsLocked;
 
   /// No description provided for @backupLimit.
   ///
@@ -2644,8 +2662,9 @@ AppLocalizations lookupAppLocalizations(Locale locale) {
   }
 
   throw FlutterError(
-      'AppLocalizations.delegate failed to load unsupported locale "$locale". This is likely '
-      'an issue with the localizations generation tool. Please file an issue '
-      'on GitHub with a reproducible sample app and the gen-l10n configuration '
-      'that was used.');
+    'AppLocalizations.delegate failed to load unsupported locale "$locale". This is likely '
+    'an issue with the localizations generation tool. Please file an issue '
+    'on GitHub with a reproducible sample app and the gen-l10n configuration '
+    'that was used.',
+  );
 }

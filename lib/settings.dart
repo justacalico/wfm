@@ -26,10 +26,9 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
-  String? _proxies;
+  ServerSettings? _server;
   final _proxiesCtl = TextEditingController();
   bool _savingProxies = false;
-  int _backupCount = 5;
   UpdateResult _update = UpdateResult.idle;
   AppUpdate? _latest;
   String _version = '';
@@ -43,13 +42,10 @@ class _SettingsPageState extends State<SettingsPage> {
       Api.i.serverSettings().then((v) {
         if (mounted) {
           setState(() {
-            _proxies = v;
-            _proxiesCtl.text = v;
+            _server = v;
+            _proxiesCtl.text = v.trustedProxies;
           });
         }
-      }).catchError((_) {});
-      Api.i.backupCount().then((v) {
-        if (mounted) setState(() => _backupCount = v);
       }).catchError((_) {});
     }
     Api.i.serverVersion().then((v) {
@@ -102,18 +98,23 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _saveProxies() async {
-    final value = _proxiesCtl.text;
     setState(() => _savingProxies = true);
     try {
-      await Api.i.saveSettings(value);
-      if (mounted) {
-        _proxies = value;
-        snack(context, context.l10n.settingsSaved, good: true);
-      }
+      await Api.i.saveSettings(_proxiesCtl.text);
+      if (mounted) snack(context, context.l10n.settingsSaved, good: true);
     } catch (e) {
       if (mounted) snack(context, e);
     } finally {
       if (mounted) setState(() => _savingProxies = false);
+    }
+  }
+
+  Future<void> _saveEnforceHttps(bool v) async {
+    try {
+      await Api.i.saveEnforceHttps(v);
+      if (mounted) setState(() => _server!.enforceHttps = v);
+    } catch (e) {
+      if (mounted) snack(context, e);
     }
   }
 
@@ -361,7 +362,7 @@ class _SettingsPageState extends State<SettingsPage> {
         onTap: () => Navigator.of(context)
             .push(MaterialPageRoute(builder: (_) => const McpPage())),
       ),
-      if (u.isOwner && _proxies != null) ...[
+      if (u.isOwner && _server != null) ...[
         const SizedBox(height: 24),
         Text(l10n.serverSection,
             style: Theme.of(context).textTheme.titleMedium),
@@ -374,9 +375,20 @@ class _SettingsPageState extends State<SettingsPage> {
         const SizedBox(height: 4),
         Text(l10n.trustedProxiesHelp,
             style: Theme.of(context).textTheme.bodySmall),
+        SwitchListTile(
+          dense: true,
+          contentPadding: EdgeInsets.zero,
+          secondary: const Icon(Icons.https_outlined, size: 18),
+          title: Text(l10n.enforceHttps),
+          subtitle: Text(_server!.enforceHttpsLocked
+              ? l10n.enforceHttpsLocked
+              : l10n.enforceHttpsHint),
+          value: _server!.enforceHttps,
+          onChanged: _server!.enforceHttpsLocked ? null : _saveEnforceHttps,
+        ),
         const SizedBox(height: 12),
         DropdownButtonFormField<String>(
-          initialValue: '$_backupCount',
+          initialValue: '${_server!.backupCount}',
           decoration: dec(l10n.backupLimit),
           items: [
             for (final n in [1, 3, 5, 6, 10, 15, 20])
@@ -387,7 +399,6 @@ class _SettingsPageState extends State<SettingsPage> {
             if (n == null) return;
             try {
               await Api.i.saveBackupCount(n);
-              if (mounted) setState(() => _backupCount = n);
             } catch (e) {
               if (!context.mounted) return;
               snack(context, e);
